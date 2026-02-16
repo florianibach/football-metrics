@@ -1,8 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { App } from './App';
 
 describe('App', () => {
-  it('renders english UI by default as browser language fallback', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('Mvp01_Ac01_renders english UI by default as browser language fallback', () => {
     render(<App />);
 
     expect(screen.getByText('Football Metrics – TCX Upload')).toBeInTheDocument();
@@ -10,7 +14,23 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
   });
 
-  it('switches language to german', () => {
+  it('Mvp01_Ac01_accepts file via drag and drop', () => {
+    render(<App />);
+
+    const validFile = new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'session.tcx', {
+      type: 'application/xml'
+    });
+
+    const dropzoneText = screen.getByText('Drag & drop a TCX file here or choose one.');
+    const dropzone = dropzoneText.closest('label');
+
+    expect(dropzone).not.toBeNull();
+    fireEvent.drop(dropzone!, { dataTransfer: { files: [validFile] } });
+
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeEnabled();
+  });
+
+  it('Mvp01_Ac02_switches language to german', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
@@ -20,7 +40,7 @@ describe('App', () => {
     expect(screen.getByText('Maximale Dateigröße: 20 MB.')).toBeInTheDocument();
   });
 
-  it('shows validation message for non-tcx files in current language', () => {
+  it('Mvp01_Ac02_shows validation message for non-tcx files in current language', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
@@ -34,7 +54,55 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Hochladen' })).toBeDisabled();
   });
 
-  it('enables submit for valid tcx files', () => {
+  it('Mvp01_Ac03_shows validation message for oversized files', () => {
+    render(<App />);
+
+    const fileInput = screen.getByLabelText('Select TCX file');
+    const oversizedBytes = new Uint8Array(20 * 1024 * 1024 + 1);
+    const oversizedFile = new File([oversizedBytes], 'large.tcx', { type: 'application/xml' });
+
+    fireEvent.change(fileInput, { target: { files: [oversizedFile] } });
+
+    expect(screen.getByText('File is too large (max 20 MB).')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+  });
+
+  it('Mvp01_Ac04_shows success message including filename and upload time', async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 'upload-1',
+          fileName: 'session.tcx',
+          uploadedAtUtc: '2026-02-16T22:00:00.000Z'
+        })
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => []
+      } as Response);
+
+    render(<App />);
+
+    const fileInput = screen.getByLabelText('Select TCX file');
+    const validFile = new File(
+      ['<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>'],
+      'session.tcx',
+      { type: 'application/xml' }
+    );
+
+    fireEvent.change(fileInput, { target: { files: [validFile] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Upload successful: session\.tcx at/)).toBeInTheDocument();
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('Mvp01_Ac01_enables submit for valid tcx files', () => {
     render(<App />);
 
     const fileInput = screen.getByLabelText('Select TCX file');
