@@ -28,9 +28,10 @@ Diese Definition of Done gilt releaseübergreifend (MVP, R1, R1.5, R2) für fach
 - [ ] Sicherheit und Datenschutzanforderungen der Story wurden berücksichtigt.
 
 ## 5) Tests
-- [ ] Relevante automatisierte Tests wurden ergänzt/angepasst (Unit/Integration/E2E je nach Scope).
-- [ ] Alle betroffenen Tests laufen lokal oder in CI erfolgreich.
-- [ ] Für nicht automatisierte Aspekte liegt ein dokumentierter manueller Testfall vor.
+- [ ] Jedes einzelne Acceptance Criterion (AC) ist durch mindestens einen automatisierten Test abgedeckt.
+- [ ] Testfälle sind auf das jeweilige AC rückverfolgbar (z. B. AC-ID im Testnamen oder in der Testbeschreibung).
+- [ ] Für E2E-Tests ist zusätzlich ein klarer Story-Bezug im Test hinterlegt/kommentiert (Story-ID + Ziel der Story).
+- [ ] Alle betroffenen automatisierten Tests laufen lokal oder in CI erfolgreich.
 
 ## 6) Dokumentation
 - [ ] Story-spezifische Dokumentation wurde aktualisiert (z. B. Verhalten, Parameter, Einschränkungen).

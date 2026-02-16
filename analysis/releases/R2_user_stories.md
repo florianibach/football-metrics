@@ -18,7 +18,20 @@ R2 bringt die Lösung von einer starken Analyse-App hin zu einer operativ reifen
 
 ---
 
-## Story R2-02: Automatischer Datenimport (statt nur manuell)
+## Story R2-02: Runden/Laps gesondert analysieren
+**Als** Nutzer  
+**möchte ich** in der Uhr gesetzte Runden separat auswerten  
+**damit** ich z. B. Abschlussspiel-Phasen gezielt vergleichen kann.
+
+### Acceptance Criteria
+- [ ] Das System erkennt in TCX vorhandene Runden/Laps und ordnet Messpunkte korrekt zu.
+- [ ] Pro Runde werden Kernmetriken (mindestens Distanz, Dauer, Intensität) separat berechnet.
+- [ ] Runden sind einzeln anwählbar und mit Session-Gesamtwerten vergleichbar.
+- [ ] Wenn keine Runden vorhanden sind, wird dies klar kommuniziert und die Gesamtanalyse bleibt nutzbar.
+
+---
+
+## Story R2-03: Automatischer Datenimport (statt nur manuell)
 **Als** Nutzer  
 **möchte ich** Dateien automatisch aus unterstützten Quellen importieren  
 **damit** ich weniger manuellen Aufwand beim Datenfluss habe.
@@ -31,7 +44,7 @@ R2 bringt die Lösung von einer starken Analyse-App hin zu einer operativ reifen
 
 ---
 
-## Story R2-03: Persönliches Trend-Dashboard
+## Story R2-04: Persönliches Trend-Dashboard
 **Als** Nutzer  
 **möchte ich** meine Belastungstrends sehen  
 **damit** ich Training und Regeneration besser planen kann.
@@ -44,7 +57,7 @@ R2 bringt die Lösung von einer starken Analyse-App hin zu einer operativ reifen
 
 ---
 
-## Story R2-04: Export & Berichtswesen
+## Story R2-05: Export & Berichtswesen
 **Als** Nutzer  
 **möchte ich** Analyseergebnisse exportieren  
 **damit** ich sie teilen oder extern dokumentieren kann.
@@ -57,7 +70,7 @@ R2 bringt die Lösung von einer starken Analyse-App hin zu einer operativ reifen
 
 ---
 
-## Story R2-05: Operative Stabilität & Monitoring
+## Story R2-06: Operative Stabilität & Monitoring
 **Als** Produktteam  
 **möchte ich** die Plattform stabil betreiben und Probleme früh erkennen  
 **damit** Nutzer zuverlässig analysieren können.
