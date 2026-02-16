@@ -1,6 +1,5 @@
 using FootballMetrics.Api.Data;
 using FootballMetrics.Api.Repositories;
-using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,17 +10,16 @@ builder.Services.AddSwaggerGen();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Data Source=data/footballmetrics.db";
 
-builder.Services.AddDbContext<FootballMetricsDbContext>(options =>
-    options.UseSqlite(connectionString));
-
+builder.Services.AddSingleton<ISqliteConnectionFactory>(_ => new SqliteConnectionFactory(connectionString));
+builder.Services.AddSingleton<IDatabaseInitializer, DatabaseInitializer>();
 builder.Services.AddScoped<ITcxUploadRepository, TcxUploadRepository>();
 
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<FootballMetricsDbContext>();
-    dbContext.Database.EnsureCreated();
+    var initializer = scope.ServiceProvider.GetRequiredService<IDatabaseInitializer>();
+    await initializer.InitializeAsync();
 }
 
 if (app.Environment.IsDevelopment())

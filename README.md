@@ -5,7 +5,7 @@ Initiales Monorepo-Setup für eine lokal hostbare WebApp zur Analyse von Amateur
 ## Architektur
 
 - **Backend:** ASP.NET Core Web API auf **.NET 10 / C# 14**.
-- **Persistenz:** SQLite via EF Core, DB-Zugriff über Repository-Abstraktion (`ITcxUploadRepository`) für späteren DB-Wechsel.
+- **Persistenz:** SQLite via Microsoft.Data.Sqlite (ohne Entity Framework), DB-Zugriff über Repository-Abstraktion (`ITcxUploadRepository`) für späteren DB-Wechsel.
 - **Frontend (aktuell gewählt):** React + TypeScript + Vite.
 - **Containerisierung:** Docker + `docker-compose`.
 - **CI/CD:** GitHub Actions mit Backend-Tests, Frontend-Tests, E2E-Smoke-Test, optionalem Render-Deploy und ntfy-Benachrichtigung.
