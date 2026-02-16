@@ -56,9 +56,8 @@ jobs:
       RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK || 'SKIP_RENDER_DEPLOY' }}
     steps:
       - name: Trigger Render deploy
-        if: ${{ env.RENDER_DEPLOY_HOOK != 'SKIP_RENDER_DEPLOY' }}
-        run: |
-          curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+        if: ${{ startsWith(env.RENDER_DEPLOY_HOOK, 'https://') || startsWith(env.RENDER_DEPLOY_HOOK, 'http://') }}
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
 
   notify-ntfy:
     runs-on: ubuntu-latest
@@ -66,6 +65,7 @@ jobs:
     if: always()
     steps:
       - name: Notify ntfy pipeline status
+        continue-on-error: true
         run: |
           STATUS="erfolgreich"
           if [ "${{ needs.backend-tests.result }}" != "success" ] || \
