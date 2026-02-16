@@ -1,0 +1,71 @@
+name: CI-CD
+
+on:
+  pull_request:
+    branches: ["main", "master"]
+  push:
+    branches: ["main", "master"]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore and test backend
+        run: |
+          dotnet restore backend/tests/FootballMetrics.Api.Tests/FootballMetrics.Api.Tests.csproj
+          dotnet test backend/tests/FootballMetrics.Api.Tests/FootballMetrics.Api.Tests.csproj --no-restore --configuration Release
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run stack
+        run: docker compose up -d --build
+      - name: Run smoke e2e
+        run: ./scripts/e2e-smoke.sh
+      - name: Shutdown stack
+        if: always()
+        run: docker compose down -v
+
+  deploy-render:
+    runs-on: ubuntu-latest
+    needs: [e2e]
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Trigger Render deploy
+        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
+        run: |
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+
+      - name: Notify ntfy deploy status
+        if: always()
+        run: |
+          STATUS="testbar"
+          if [ "${{ job.status }}" != "success" ]; then STATUS="fehlgeschlagen"; fi
+          curl -fsS -X POST \
+            -H "Title: Football Metrics CI/CD" \
+            -d "PR #${{ github.event.pull_request.number }} ist ${STATUS}." \
+            https://ntfy.sh/c2d75935-4293-465f-a70e-3f279d75ed58
