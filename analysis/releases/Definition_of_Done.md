@@ -15,6 +15,7 @@ Diese Definition of Done gilt releaseübergreifend (MVP, R1, R1.5, R2) für fach
 - [ ] Falls vorgesehen, wird die Rohdatei unverändert und referenzierbar gespeichert.
 
 ## 3) UX & Transparenz
+- [ ] Mobile-First ist der Standard in Konzeption und Umsetzung (Layout, Navigation, Lesbarkeit, Interaktion).
 - [ ] Erfolg, Warnungen und Fehler werden nutzerverständlich kommuniziert.
 - [ ] Nicht verfügbare Metriken sind klar gekennzeichnet (nicht mit 0 verwechselt).
 - [ ] Zu jeder Metrik ist ein verständlicher Info-Text (Zweck, Einheit, Interpretation) verfügbar.
@@ -31,7 +32,9 @@ Diese Definition of Done gilt releaseübergreifend (MVP, R1, R1.5, R2) für fach
 - [ ] Jedes einzelne Acceptance Criterion (AC) ist durch mindestens einen automatisierten Test abgedeckt.
 - [ ] Testfälle sind auf das jeweilige AC rückverfolgbar (z. B. AC-ID im Testnamen oder in der Testbeschreibung).
 - [ ] Für E2E-Tests ist zusätzlich ein klarer Story-Bezug im Test hinterlegt/kommentiert (Story-ID + Ziel der Story).
-- [ ] Alle betroffenen automatisierten Tests laufen lokal oder in CI erfolgreich.
+- [ ] Alle betroffenen automatisierten Tests sind lokal in der Entwicklung grün, bevor committet/merged wird.
+- [ ] Es gibt lokale Quality Gates (z. B. pre-commit/pre-push Hooks), damit Testfehler früh auffallen und nicht erst im Buildserver.
+- [ ] Falls notwendige Prüftools fehlen, werden sie im Dev-Setup nachinstalliert und in einem Bootstrap-Skript/README dokumentiert.
 
 ## 6) Dokumentation
 - [ ] Story-spezifische Dokumentation wurde aktualisiert (z. B. Verhalten, Parameter, Einschränkungen).
