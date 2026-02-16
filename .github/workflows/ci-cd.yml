@@ -52,20 +52,31 @@ jobs:
     runs-on: ubuntu-latest
     needs: [e2e]
     if: github.event_name == 'pull_request'
+    env:
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK || 'SKIP_RENDER_DEPLOY' }}
     steps:
       - name: Trigger Render deploy
-        if: ${{ secrets.RENDER_DEPLOY_HOOK != '' }}
-        run: |
-          curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
-        env:
-          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        if: ${{ startsWith(env.RENDER_DEPLOY_HOOK, 'https://') || startsWith(env.RENDER_DEPLOY_HOOK, 'http://') }}
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
 
-      - name: Notify ntfy deploy status
-        if: always()
+  notify-ntfy:
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, e2e, deploy-render]
+    if: always()
+    steps:
+      - name: Notify ntfy pipeline status
+        continue-on-error: true
         run: |
-          STATUS="testbar"
-          if [ "${{ job.status }}" != "success" ]; then STATUS="fehlgeschlagen"; fi
+          STATUS="erfolgreich"
+          if [ "${{ needs.backend-tests.result }}" != "success" ] || \
+             [ "${{ needs.frontend-tests.result }}" != "success" ] || \
+             [ "${{ needs.e2e.result }}" != "success" ] || \
+             { [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ needs.deploy-render.result }}" != "success" ] && [ "${{ needs.deploy-render.result }}" != "skipped" ]; }; then
+            STATUS="fehlgeschlagen"
+          fi
+
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           curl -fsS -X POST \
             -H "Title: Football Metrics CI/CD" \
-            -d "PR #${{ github.event.pull_request.number }} ist ${STATUS}." \
+            -d "Pipeline #${{ github.run_number }} ist ${STATUS}. Run: ${RUN_URL}" \
             https://ntfy.sh/c2d75935-4293-465f-a70e-3f279d75ed58
