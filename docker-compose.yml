@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: ./backend/src/FootballMetrics.Api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Data Source=/app/data/footballmetrics.db
+    ports:
+      - "8080:8080"
+    volumes:
+      - sqlite-data:/app/data
+      - uploads-data:/app/uploads
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  sqlite-data:
+  uploads-data:
