@@ -50,6 +50,8 @@ npm run dev
 
 ### Backend
 ```bash
+./scripts/bootstrap-dotnet.sh
+export PATH="$HOME/.dotnet:$PATH"
 cd backend/src/FootballMetrics.Api
 dotnet restore
 dotnet run
@@ -57,7 +59,7 @@ dotnet run
 
 ## Tests
 
-- Backend Integrationstest: `backend/tests/FootballMetrics.Api.Tests`
+- Backend Integrationstest: `./scripts/test-backend.sh` (installiert bei Bedarf automatisch .NET SDK 10 lokal in `~/.dotnet`)
 - Frontend Unit-Test: `frontend/src/App.test.tsx`
 - E2E Smoke-Test: `scripts/e2e-smoke.sh`
 
