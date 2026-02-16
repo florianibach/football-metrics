@@ -6,59 +6,144 @@ type UploadRecord = {
   uploadedAtUtc: string;
 };
 
+type Locale = 'en' | 'de';
+
+type TranslationKey =
+  | 'title'
+  | 'subtitle'
+  | 'maxFileSize'
+  | 'dropzoneText'
+  | 'fileInputAriaLabel'
+  | 'uploadButton'
+  | 'historyButton'
+  | 'defaultMessage'
+  | 'readyMessage'
+  | 'historyLoadError'
+  | 'uploadFailedPrefix'
+  | 'uploadSuccess'
+  | 'invalidExtension'
+  | 'invalidSize'
+  | 'languageLabel'
+  | 'languageEnglish'
+  | 'languageGerman';
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 const maxFileSizeInBytes = 20 * 1024 * 1024;
+
+const translations: Record<Locale, Record<TranslationKey, string>> = {
+  en: {
+    title: 'Football Metrics – TCX Upload',
+    subtitle: 'Manual upload for amateur football metrics.',
+    maxFileSize: 'Maximum file size: 20 MB.',
+    dropzoneText: 'Drag & drop a TCX file here or choose one.',
+    fileInputAriaLabel: 'Select TCX file',
+    uploadButton: 'Upload',
+    historyButton: 'Load upload history',
+    defaultMessage: 'No file uploaded yet.',
+    readyMessage: 'Ready to upload: {fileName}.',
+    historyLoadError: 'Upload history could not be loaded.',
+    uploadFailedPrefix: 'Upload failed:',
+    uploadSuccess: 'Upload successful: {fileName} at {uploadTime}.',
+    invalidExtension: 'Only .tcx files are allowed.',
+    invalidSize: 'File is too large (max 20 MB).',
+    languageLabel: 'Language',
+    languageEnglish: 'English',
+    languageGerman: 'German'
+  },
+  de: {
+    title: 'Football Metrics – TCX Upload',
+    subtitle: 'Manueller Upload für Amateur-Fußballmetriken.',
+    maxFileSize: 'Maximale Dateigröße: 20 MB.',
+    dropzoneText: 'Ziehe eine TCX-Datei hierher oder wähle eine aus.',
+    fileInputAriaLabel: 'TCX-Datei auswählen',
+    uploadButton: 'Hochladen',
+    historyButton: 'Upload-Historie laden',
+    defaultMessage: 'Noch keine Datei hochgeladen.',
+    readyMessage: 'Bereit zum Hochladen: {fileName}.',
+    historyLoadError: 'Upload-Historie konnte nicht geladen werden.',
+    uploadFailedPrefix: 'Upload fehlgeschlagen:',
+    uploadSuccess: 'Upload erfolgreich: {fileName} um {uploadTime}.',
+    invalidExtension: 'Nur .tcx-Dateien sind erlaubt.',
+    invalidSize: 'Datei ist zu groß (max. 20 MB).',
+    languageLabel: 'Sprache',
+    languageEnglish: 'Englisch',
+    languageGerman: 'Deutsch'
+  }
+};
+
+function resolveInitialLocale(): Locale {
+  if (typeof navigator === 'undefined') {
+    return 'en';
+  }
+
+  return navigator.language.toLowerCase().startsWith('de') ? 'de' : 'en';
+}
 
 function formatLocalDateTime(dateText: string): string {
   return new Date(dateText).toLocaleString();
 }
 
-function getFileValidationMessage(file: File | null): string | null {
+function interpolate(template: string, values: Record<string, string>): string {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, value),
+    template
+  );
+}
+
+function getFileValidationMessage(file: File | null, locale: Locale): string | null {
   if (!file) {
     return null;
   }
 
   if (!file.name.toLowerCase().endsWith('.tcx')) {
-    return 'Only .tcx files are allowed. / Nur .tcx-Dateien sind erlaubt.';
+    return translations[locale].invalidExtension;
   }
 
   if (file.size > maxFileSizeInBytes) {
-    return 'File is too large (max 20 MB). / Datei ist zu groß (max. 20 MB).';
+    return translations[locale].invalidSize;
   }
 
   return null;
 }
 
 export function App() {
+  const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [message, setMessage] = useState<string>('No file uploaded yet. / Noch keine Datei hochgeladen.');
+  const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const validationMessage = useMemo(() => getFileValidationMessage(selectedFile), [selectedFile]);
+  const t = translations[locale];
+  const validationMessage = useMemo(() => getFileValidationMessage(selectedFile, locale), [selectedFile, locale]);
   const canSubmit = useMemo(() => !!selectedFile && !validationMessage, [selectedFile, validationMessage]);
 
   async function refreshUploads() {
     const response = await fetch(`${apiBaseUrl}/api/tcx`);
     if (!response.ok) {
-      throw new Error('Upload history could not be loaded. / Upload-Historie konnte nicht geladen werden.');
+      throw new Error(t.historyLoadError);
     }
 
     const payload = (await response.json()) as UploadRecord[];
     setUploads(payload);
   }
 
+  function onLocaleChange(event: ChangeEvent<HTMLSelectElement>) {
+    const nextLocale = event.target.value as Locale;
+    setLocale(nextLocale);
+    setMessage(translations[nextLocale].defaultMessage);
+  }
+
   function handleFileSelection(file: File | null) {
     setSelectedFile(file);
 
-    const fileError = getFileValidationMessage(file);
+    const fileError = getFileValidationMessage(file, locale);
     if (fileError) {
       setMessage(fileError);
       return;
     }
 
     if (file) {
-      setMessage(`Ready to upload: ${file.name}. / Bereit zum Hochladen: ${file.name}.`);
+      setMessage(interpolate(t.readyMessage, { fileName: file.name }));
     }
   }
 
@@ -91,22 +176,29 @@ export function App() {
 
     if (!response.ok) {
       const errorText = await response.text();
-      setMessage(`Upload failed: ${errorText} / Upload fehlgeschlagen: ${errorText}`);
+      setMessage(`${t.uploadFailedPrefix} ${errorText}`);
       return;
     }
 
     const payload = (await response.json()) as UploadRecord;
     const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
-    setMessage(`Upload successful: ${payload.fileName} at ${uploadTime}. / Upload erfolgreich: ${payload.fileName} um ${uploadTime}.`);
+    setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
     setSelectedFile(null);
     await refreshUploads();
   }
 
   return (
     <main className="container">
-      <h1>Football Metrics – TCX Upload</h1>
-      <p className="subtitle">Manual upload for amateur football metrics. / Manueller Upload für Amateur-Fußballmetriken.</p>
-      <p className="subtitle">Maximum file size: 20 MB. / Maximale Dateigröße: 20 MB.</p>
+      <div className="language-switcher">
+        <label htmlFor="language-selector">{t.languageLabel}</label>
+        <select id="language-selector" value={locale} onChange={onLocaleChange}>
+          <option value="en">{t.languageEnglish}</option>
+          <option value="de">{t.languageGerman}</option>
+        </select>
+      </div>
+      <h1>{t.title}</h1>
+      <p className="subtitle">{t.subtitle}</p>
+      <p className="subtitle">{t.maxFileSize}</p>
       <form onSubmit={handleSubmit}>
         <label
           className={`dropzone ${isDragOver ? 'dropzone--active' : ''}`}
@@ -117,15 +209,15 @@ export function App() {
           onDragLeave={() => setIsDragOver(false)}
           onDrop={onDrop}
         >
-          <span>Drag & drop a TCX file here or choose one. / Ziehe eine TCX-Datei hierher oder wähle eine aus.</span>
-          <input type="file" accept=".tcx" onChange={onFileInputChange} aria-label="Select TCX file / TCX-Datei auswählen" />
+          <span>{t.dropzoneText}</span>
+          <input type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} />
         </label>
         <button type="submit" disabled={!canSubmit}>
-          Upload / Hochladen
+          {t.uploadButton}
         </button>
       </form>
       <button type="button" onClick={refreshUploads}>
-        Load upload history / Upload-Historie laden
+        {t.historyButton}
       </button>
       <p>{validationMessage ?? message}</p>
       <ul>

@@ -57,11 +57,27 @@ dotnet restore
 dotnet run
 ```
 
+
+## UI Sprache
+
+- Die UI unterstützt Deutsch und Englisch.
+- Standard ist die Browsersprache (`de` -> Deutsch, sonst Englisch).
+- Fallback ist immer Englisch.
+- Nutzer können die Sprache in der Oberfläche manuell umstellen.
+
 ## Tests
 
 - Backend Integrationstest: `./scripts/test-backend.sh` (installiert bei Bedarf automatisch .NET SDK 10 lokal in `~/.dotnet`)
-- Frontend Unit-Test: `frontend/src/App.test.tsx`
+- Frontend Unit-Test: `cd frontend && npm test -- --run`
+- Frontend Build-Check: `cd frontend && npm run build`
 - E2E Smoke-Test: `scripts/e2e-smoke.sh`
+
+Vor jedem Commit/PR müssen alle lokal relevanten Checks grün sein (Backend, Frontend und E2E bei betroffenen Änderungen).
+
+Empfohlener Sammelcheck:
+```bash
+./scripts/check-local.sh
+```
 
 ## Raspberry Pi Hinweise
 
