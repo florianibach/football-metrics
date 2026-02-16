@@ -21,6 +21,7 @@ Diese Definition of Done gilt releaseübergreifend (MVP, R1, R1.5, R2) für fach
 - [ ] Zu jeder Metrik ist ein verständlicher Info-Text (Zweck, Einheit, Interpretation) verfügbar.
 - [ ] Interne und externe Metriken sind in der UI eindeutig unterscheidbar.
 - [ ] Relevante Informationen sind auf Mobile und Desktop bedienbar.
+- [ ] Code ist in Englisch geschrieben; UI-Texte sind durchgängig auf Englisch **und** Deutsch verfügbar.
 
 ## 4) Technische Qualität
 - [ ] Code entspricht Projektkonventionen und wurde mit sinnvoller Struktur umgesetzt.

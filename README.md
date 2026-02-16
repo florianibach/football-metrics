@@ -36,7 +36,7 @@ docker compose up --build
 
 ## API Endpoints (initial)
 
-- `POST /api/tcx/upload` – nimmt eine `.tcx` Datei entgegen.
+- `POST /api/tcx/upload` – nimmt eine `.tcx` Datei (max. 20 MB) entgegen, validiert Struktur (XML, Activity, Trackpoint) und gibt konkrete Fehlerhinweise bei ungültigen Dateien zurück.
 - `GET /api/tcx` – listet hochgeladene Dateien auf.
 
 ## Entwicklung ohne Docker
