@@ -10,10 +10,27 @@ public class TcxUpload
     public string UploadStatus { get; set; } = TcxUploadStatuses.Succeeded;
     public string? FailureReason { get; set; }
     public DateTime UploadedAtUtc { get; set; }
+    public string SelectedSmoothingFilter { get; set; } = TcxSmoothingFilters.AdaptiveMedian;
 }
 
 public static class TcxUploadStatuses
 {
     public const string Succeeded = "Succeeded";
     public const string Failed = "Failed";
+}
+
+public static class TcxSmoothingFilters
+{
+    public const string Raw = "Raw";
+    public const string AdaptiveMedian = "AdaptiveMedian";
+    public const string SavitzkyGolay = "Savitzky-Golay";
+    public const string Butterworth = "Butterworth";
+
+    public static readonly HashSet<string> Supported = new(StringComparer.OrdinalIgnoreCase)
+    {
+        Raw,
+        AdaptiveMedian,
+        SavitzkyGolay,
+        Butterworth
+    };
 }

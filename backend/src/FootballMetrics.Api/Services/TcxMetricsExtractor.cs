@@ -14,6 +14,9 @@ public static class TcxMetricsExtractor
     private const double DecelerationThresholdMetersPerSecondSquared = -2.0;
 
     public static TcxActivitySummary Extract(XDocument document)
+        => Extract(document, TcxSmoothingFilters.AdaptiveMedian);
+
+    public static TcxActivitySummary Extract(XDocument document, string selectedSmoothingFilter)
     {
         var trackpoints = document
             .Descendants()
@@ -49,8 +52,11 @@ public static class TcxMetricsExtractor
             : CalculateDistanceMeters(rawGpsPoints);
 
         var outlierSpeedThresholdMps = ResolveOutlierSpeedThresholdMetersPerSecond(trackpointSnapshots);
+        var normalizedFilter = TcxSmoothingFilters.Supported.Contains(selectedSmoothingFilter)
+            ? TcxSmoothingFilters.Supported.First(filter => string.Equals(filter, selectedSmoothingFilter, StringComparison.OrdinalIgnoreCase))
+            : TcxSmoothingFilters.AdaptiveMedian;
 
-        var smoothedTrackpoints = ApplyFootballAdaptiveSmoothing(trackpointSnapshots, outlierSpeedThresholdMps, out var correctedOutlierCount);
+        var smoothedTrackpoints = ApplySmoothingFilter(normalizedFilter, trackpointSnapshots, outlierSpeedThresholdMps, out var correctedOutlierCount);
         var smoothedGpsPoints = smoothedTrackpoints
             .Where(snapshot => snapshot.Latitude.HasValue && snapshot.Longitude.HasValue)
             .Select(snapshot => (snapshot.Latitude!.Value, snapshot.Longitude!.Value))
@@ -74,7 +80,7 @@ public static class TcxMetricsExtractor
         var source = smoothedDistanceMeters.HasValue ? "CalculatedFromGps" : (hasFileDistance ? "ProvidedByFile" : "NotAvailable");
 
         var qualityAssessment = AssessQuality(smoothedTrackpoints, outlierSpeedThresholdMps);
-        var smoothingTrace = BuildSmoothingTrace(trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
+        var smoothingTrace = BuildSmoothingTrace(normalizedFilter, trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
         var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance);
 
         return new TcxActivitySummary(
@@ -94,7 +100,28 @@ public static class TcxMetricsExtractor
             coreMetrics);
     }
 
+    private static List<TrackpointSnapshot> ApplySmoothingFilter(
+        string smoothingFilter,
+        IReadOnlyList<TrackpointSnapshot> input,
+        double outlierSpeedThresholdMps,
+        out int correctedOutlierCount)
+    {
+        switch (smoothingFilter)
+        {
+            case TcxSmoothingFilters.Raw:
+                correctedOutlierCount = 0;
+                return input.Select(tp => tp with { }).ToList();
+            case TcxSmoothingFilters.SavitzkyGolay:
+                return ApplySavitzkyGolaySmoothing(input, out correctedOutlierCount);
+            case TcxSmoothingFilters.Butterworth:
+                return ApplyButterworthSmoothing(input, out correctedOutlierCount);
+            default:
+                return ApplyFootballAdaptiveSmoothing(input, outlierSpeedThresholdMps, out correctedOutlierCount);
+        }
+    }
+
     private static TcxSmoothingTrace BuildSmoothingTrace(
+        string selectedStrategy,
         IReadOnlyList<TrackpointSnapshot> rawTrackpoints,
         IReadOnlyList<TrackpointSnapshot> smoothedTrackpoints,
         double? rawDistanceMeters,
@@ -106,9 +133,23 @@ public static class TcxMetricsExtractor
         var baselineDirectionChanges = CountDirectionChanges(rawTrackpoints, 65);
         var smoothedDirectionChanges = CountDirectionChanges(smoothedTrackpoints, 25);
 
-        return new TcxSmoothingTrace(
-            "FootballAdaptiveMedian",
-            new Dictionary<string, string>
+        var parameters = selectedStrategy switch
+        {
+            TcxSmoothingFilters.Raw => new Dictionary<string, string>
+            {
+                ["Mode"] = "NoSmoothing"
+            },
+            TcxSmoothingFilters.SavitzkyGolay => new Dictionary<string, string>
+            {
+                ["WindowSize"] = "5",
+                ["PolynomialOrder"] = "2"
+            },
+            TcxSmoothingFilters.Butterworth => new Dictionary<string, string>
+            {
+                ["Alpha"] = "0.35",
+                ["Type"] = "FirstOrderLowPass"
+            },
+            _ => new Dictionary<string, string>
             {
                 ["AdaptiveTurnThresholdDegrees"] = "25",
                 ["BaseWindowSize"] = "5",
@@ -116,7 +157,12 @@ public static class TcxMetricsExtractor
                 ["OutlierDetectionMode"] = "AdaptiveMadWithAbsoluteCap",
                 ["AbsoluteSpeedCapMps"] = "12.5",
                 ["EffectiveOutlierSpeedThresholdMps"] = outlierSpeedThresholdMps.ToString("0.###", CultureInfo.InvariantCulture)
-            },
+            }
+        };
+
+        return new TcxSmoothingTrace(
+            selectedStrategy,
+            parameters,
             rawDistanceMeters,
             smoothedDistanceMeters,
             rawDirectionChanges,
@@ -124,6 +170,80 @@ public static class TcxMetricsExtractor
             smoothedDirectionChanges,
             correctedOutlierCount,
             DateTime.UtcNow);
+    }
+
+    private static List<TrackpointSnapshot> ApplySavitzkyGolaySmoothing(
+        IReadOnlyList<TrackpointSnapshot> input,
+        out int correctedOutlierCount)
+    {
+        correctedOutlierCount = 0;
+        if (input.Count < 5)
+        {
+            return input.Select(tp => tp with { }).ToList();
+        }
+
+        var output = input.Select(tp => tp with { }).ToList();
+        var coefficients = new[] { -3d, 12d, 17d, 12d, -3d };
+        const double denominator = 35d;
+
+        for (var index = 2; index < input.Count - 2; index++)
+        {
+            var window = input.Skip(index - 2).Take(5).ToList();
+            if (window.Any(point => !HasGps(point)))
+            {
+                continue;
+            }
+
+            var latitude = 0d;
+            var longitude = 0d;
+            for (var c = 0; c < coefficients.Length; c++)
+            {
+                latitude += coefficients[c] * window[c].Latitude!.Value;
+                longitude += coefficients[c] * window[c].Longitude!.Value;
+            }
+
+            output[index] = output[index] with
+            {
+                Latitude = latitude / denominator,
+                Longitude = longitude / denominator
+            };
+            correctedOutlierCount++;
+        }
+
+        return output;
+    }
+
+    private static List<TrackpointSnapshot> ApplyButterworthSmoothing(
+        IReadOnlyList<TrackpointSnapshot> input,
+        out int correctedOutlierCount)
+    {
+        correctedOutlierCount = 0;
+        if (input.Count < 3)
+        {
+            return input.Select(tp => tp with { }).ToList();
+        }
+
+        var output = input.Select(tp => tp with { }).ToList();
+        const double alpha = 0.35;
+
+        for (var index = 1; index < output.Count; index++)
+        {
+            var previous = output[index - 1];
+            var current = output[index];
+            if (!HasGps(previous) || !HasGps(current))
+            {
+                continue;
+            }
+
+            output[index] = current with
+            {
+                Latitude = (alpha * current.Latitude!.Value) + ((1 - alpha) * previous.Latitude!.Value),
+                Longitude = (alpha * current.Longitude!.Value) + ((1 - alpha) * previous.Longitude!.Value)
+            };
+            correctedOutlierCount++;
+        }
+
+        return output;
     }
 
     private static List<TrackpointSnapshot> ApplyFootballAdaptiveSmoothing(

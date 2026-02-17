@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from './App';
 
 describe('App', () => {
@@ -63,7 +63,7 @@ describe('App', () => {
         }
       },
       smoothing: {
-        selectedStrategy: 'FootballAdaptiveMedian',
+        selectedStrategy: 'AdaptiveMedian',
         selectedParameters: {
           OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
           EffectiveOutlierSpeedThresholdMps: '12.5'
@@ -251,7 +251,7 @@ describe('App', () => {
     expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
     expect(screen.getByText(/Yes/)).toBeInTheDocument();
     expect(screen.getByText(/Smoothing strategy:/)).toBeInTheDocument();
-    expect(screen.getByText(/FootballAdaptiveMedian/)).toBeInTheDocument();
+    expect(screen.getAllByText(/AdaptiveMedian/).length).toBeGreaterThan(0);
   });
 
   it('Mvp06_Ac03_shows_clear_hints_when_heart_rate_or_gps_data_are_missing', async () => {
@@ -320,7 +320,7 @@ describe('App', () => {
         }
       },
       smoothing: {
-              selectedStrategy: 'FootballAdaptiveMedian',
+              selectedStrategy: 'AdaptiveMedian',
               selectedParameters: {
                 OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
                 EffectiveOutlierSpeedThresholdMps: '12.5'
@@ -390,7 +390,7 @@ describe('App', () => {
         }
       },
       smoothing: {
-              selectedStrategy: 'FootballAdaptiveMedian',
+              selectedStrategy: 'AdaptiveMedian',
               selectedParameters: {
                 OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
                 EffectiveOutlierSpeedThresholdMps: '7.69'
@@ -453,7 +453,7 @@ describe('App', () => {
         }
       },
       smoothing: {
-              selectedStrategy: 'FootballAdaptiveMedian',
+              selectedStrategy: 'AdaptiveMedian',
               selectedParameters: {
                 OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
                 EffectiveOutlierSpeedThresholdMps: '12.5'
@@ -743,6 +743,46 @@ describe('App', () => {
 
     const recoveryInfoDe = screen.getByRole('note', { name: 'HF-Erholung nach 60s explanation' });
     expect(recoveryInfoDe).toHaveAttribute('title', expect.stringContaining('12-20 mittel, >20 gut'));
+  });
+
+
+  it('R1_07_Ac01_Ac02_Ac04_allows_filter_selection_and_disables_without_gps', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && !init) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+      if (url.includes('/smoothing-filter')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => createUploadRecord({ summary: createSummary({ smoothing: { ...createSummary().smoothing, selectedStrategy: 'Butterworth' } }) })
+        } as Response);
+      }
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    const firstRender = render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText('Smoothing filter')).toBeInTheDocument());
+    const filterSelector = screen.getByLabelText('Smoothing filter');
+    const filterOptions = within(filterSelector).getAllByRole('option').map((option) => option.textContent);
+    expect(filterOptions).toEqual(['Raw', 'AdaptiveMedian', 'Savitzky-Golay', 'Butterworth']);
+
+    fireEvent.change(screen.getByLabelText('Smoothing filter'), { target: { value: 'Butterworth' } });
+
+    await waitFor(() => expect(screen.getByText(/Butterworth/)).toBeInTheDocument());
+
+    fetchMock.mockRestore();
+    firstRender.unmount();
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [createUploadRecord({ summary: createSummary({ hasGpsData: false }) })]
+    } as Response);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText('Smoothing filter')).toBeDisabled());
+    expect(screen.getByText(/Filter selection is disabled/)).toBeInTheDocument();
   });
 
 });

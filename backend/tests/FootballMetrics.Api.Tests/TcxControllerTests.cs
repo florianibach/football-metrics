@@ -436,9 +436,32 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var payload = await response.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
         payload.Should().NotBeNull();
         payload!.Summary.Smoothing.Should().NotBeNull();
-        payload.Summary.Smoothing.SelectedStrategy.Should().Be("FootballAdaptiveMedian");
+        payload.Summary.Smoothing.SelectedStrategy.Should().Be("AdaptiveMedian");
         payload.Summary.Smoothing.SelectedParameters.Should().ContainKey("EffectiveOutlierSpeedThresholdMps");
     }
+
+    [Fact]
+    public async Task R1_07_Ac01_Ac03_UpdatingSessionSmoothingFilter_ShouldPersistAndReturnUpdatedSummary()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "r1-07-filter.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position></Trackpoint><Trackpoint><Time>2026-02-16T10:00:10Z</Time><Position><LatitudeDegrees>50.0004</LatitudeDegrees><LongitudeDegrees>7.0004</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        created.Should().NotBeNull();
+
+        var putResponse = await client.PutAsJsonAsync($"/api/tcx/{created!.Id}/smoothing-filter", new { filter = "Butterworth" });
+        putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var updated = await putResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        updated.Should().NotBeNull();
+        updated!.Summary.Smoothing.SelectedStrategy.Should().Be("Butterworth");
+    }
+
     private static MultipartFormDataContent CreateUploadForm(string fileName, string contentText)
     {
         var form = new MultipartFormDataContent();
@@ -488,6 +511,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         public Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<TcxUpload?>(null);
+
+        public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 
     private sealed class ThrowingThenRejectingSameIdRepository : ITcxUploadRepository
@@ -518,6 +544,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         public Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<TcxUpload?>(null);
+
+        public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 
     public record TcxUploadResponseDto(Guid Id, string FileName, DateTime UploadedAtUtc);

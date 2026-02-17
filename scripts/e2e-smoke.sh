@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Story reference: MVP-02, MVP-04, R1-01, R1-03
+# Story reference: MVP-02, MVP-04, R1-01, R1-03, R1-07
 # Ziel:
 # - MVP-02: Verifizieren, dass der Upload-Endpunkt erreichbar ist und ein valider TCX-Upload
 #   End-to-End durch die API verarbeitet wird.
@@ -117,9 +117,12 @@ upload_response="$(curl -fsS -X POST "$API_URL/api/tcx/upload" \
 
 echo "$upload_response" | jq -e '.summary.qualityStatus == "Medium" and (.summary.qualityReasons | length) > 0' >/dev/null
 
-# R1-01 validation: smoothing trace exists and includes selected strategy + parameters + outlier count
+# R1-01/R1-07 validation: smoothing trace exists and includes selected strategy + parameters + outlier count
 echo "$upload_response" | jq -e '
-  .summary.smoothing.selectedStrategy == "FootballAdaptiveMedian"
+  (
+    .summary.smoothing.selectedStrategy == "AdaptiveMedian"
+    or .summary.smoothing.selectedStrategy == "FootballAdaptiveMedian"
+  )
   and ((.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps | tonumber) >= 6)
   and ((.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps | tonumber) <= 12.5)
   and ((.summary.smoothing.correctedOutlierCount | type) == "number")

@@ -66,6 +66,7 @@ type UploadRecord = {
 type Locale = 'en' | 'de';
 type SortDirection = 'desc' | 'asc';
 type CompareMode = 'raw' | 'smoothed';
+type SmoothingFilter = 'Raw' | 'AdaptiveMedian' | 'Savitzky-Golay' | 'Butterworth';
 
 type TranslationKey =
   | 'title'
@@ -111,6 +112,12 @@ type TranslationKey =
   | 'compareModeLabel'
   | 'compareModeRaw'
   | 'compareModeSmoothed'
+  | 'filterSelectLabel'
+  | 'filterDisabledNoGps'
+  | 'filterRaw'
+  | 'filterAdaptiveMedian'
+  | 'filterSavitzkyGolay'
+  | 'filterButterworth'
   | 'compareDisabledNoGps'
   | 'metricDirectionChanges'
   | 'metricDataChange'
@@ -200,6 +207,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     compareModeLabel: 'Display mode',
     compareModeRaw: 'Raw data',
     compareModeSmoothed: 'Smoothed data',
+    filterSelectLabel: 'Smoothing filter',
+    filterDisabledNoGps: 'Filter selection is disabled because this session does not contain GPS coordinates.',
+    filterRaw: 'Raw',
+    filterAdaptiveMedian: 'AdaptiveMedian',
+    filterSavitzkyGolay: 'Savitzky-Golay',
+    filterButterworth: 'Butterworth',
     compareDisabledNoGps: 'Comparison is disabled because this session does not contain GPS coordinates.',
     metricDirectionChanges: 'Direction changes',
     metricDataChange: 'Data change due to smoothing',
@@ -284,6 +297,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     compareModeLabel: 'Darstellungsmodus',
     compareModeRaw: 'Rohdaten',
     compareModeSmoothed: 'Geglättet',
+    filterSelectLabel: 'Glättungsfilter',
+    filterDisabledNoGps: 'Die Filterauswahl ist deaktiviert, weil diese Session keine GPS-Koordinaten enthält.',
+    filterRaw: 'Raw',
+    filterAdaptiveMedian: 'AdaptiveMedian',
+    filterSavitzkyGolay: 'Savitzky-Golay',
+    filterButterworth: 'Butterworth',
     compareDisabledNoGps: 'Der Vergleich ist deaktiviert, weil diese Session keine GPS-Koordinaten enthält.',
     metricDirectionChanges: 'Richtungswechsel',
     metricDataChange: 'Datenänderung durch Glättung',
@@ -543,6 +562,7 @@ export function App() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
+  const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
 
   const t = translations[locale];
   const metricHelp = metricExplanations[locale];
@@ -576,6 +596,7 @@ export function App() {
           setUploadHistory(payload);
           if (payload.length > 0) {
             setSelectedSession(payload[0]);
+            setSelectedFilter(payload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
           }
         }
       } catch {
@@ -630,6 +651,31 @@ export function App() {
     handleFileSelection(droppedFile);
   }
 
+
+  async function onFilterChange(event: ChangeEvent<HTMLSelectElement>) {
+    const filter = event.target.value as SmoothingFilter;
+    setSelectedFilter(filter);
+
+    if (!selectedSession) {
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}/smoothing-filter`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filter })
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = (await response.json()) as UploadRecord;
+    setSelectedSession(payload);
+    setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
+    setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -660,6 +706,7 @@ export function App() {
       setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
       setSelectedSession(payload);
       setCompareMode('smoothed');
+      setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setSelectedFile(null);
     } catch {
@@ -786,6 +833,7 @@ export function App() {
                       onClick={() => {
                         setSelectedSession(record);
                         setCompareMode('smoothed');
+                        setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
                       }}
                     >
                       {t.historyOpenDetails}
@@ -804,6 +852,19 @@ export function App() {
           <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
           <div className="comparison-controls">
             <h3>{t.compareTitle}</h3>
+            <label htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
+            <select
+              id="session-filter-selector"
+              value={selectedFilter}
+              disabled={!selectedSession.summary.hasGpsData}
+              onChange={onFilterChange}
+            >
+              <option value="Raw">{t.filterRaw}</option>
+              <option value="AdaptiveMedian">{t.filterAdaptiveMedian}</option>
+              <option value="Savitzky-Golay">{t.filterSavitzkyGolay}</option>
+              <option value="Butterworth">{t.filterButterworth}</option>
+            </select>
+            {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.filterDisabledNoGps}</p>}
             <label htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
             <select
               id="comparison-mode-selector"
