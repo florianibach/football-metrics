@@ -1,5 +1,17 @@
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 
+type SmoothingTrace = {
+  selectedStrategy: string;
+  selectedParameters: Record<string, string>;
+  rawDistanceMeters: number | null;
+  smoothedDistanceMeters: number | null;
+  rawDirectionChanges: number;
+  baselineDirectionChanges: number;
+  smoothedDirectionChanges: number;
+  correctedOutlierCount: number;
+  analyzedAtUtc: string;
+};
+
 type ActivitySummary = {
   activityStartTimeUtc: string | null;
   durationSeconds: number | null;
@@ -13,6 +25,7 @@ type ActivitySummary = {
   distanceSource: 'CalculatedFromGps' | 'ProvidedByFile' | 'NotAvailable';
   qualityStatus: 'High' | 'Medium' | 'Low';
   qualityReasons: string[];
+  smoothing: SmoothingTrace;
 };
 
 type UploadRecord = {

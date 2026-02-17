@@ -11,10 +11,10 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 **damit** kurzzeitige, relevante Bewegungswechsel nicht „weggeglättet“ werden.
 
 ### Acceptance Criteria
-- [ ] Das System bietet mindestens ein fußballspezifisches Glättungsverfahren (z. B. adaptiver Filter) zusätzlich zu einer Basis-Glättung.
-- [ ] Kurzfristige Richtungswechsel und Beschleunigungen bleiben im Vergleich zur Basis-Glättung erkennbar.
-- [ ] Unplausible GPS-Ausreißer (Sprünge) werden reduziert, ohne echte Sprints systematisch zu entfernen.
-- [ ] Die gewählte Glättungslogik und Parameter sind pro Analyselauf nachvollziehbar gespeichert.
+- [x] Das System bietet mindestens ein fußballspezifisches Glättungsverfahren (z. B. adaptiver Filter) zusätzlich zu einer Basis-Glättung.
+- [x] Kurzfristige Richtungswechsel und Beschleunigungen bleiben im Vergleich zur Basis-Glättung erkennbar.
+- [x] Unplausible GPS-Ausreißer (Sprünge) werden reduziert, ohne echte Sprints systematisch zu entfernen.
+- [x] Die gewählte Glättungslogik und Parameter sind pro Analyselauf nachvollziehbar gespeichert.
 
 ---
 

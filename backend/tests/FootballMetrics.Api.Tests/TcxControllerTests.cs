@@ -389,6 +389,25 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         detail.FileName.Should().Be("mvp05-detail.tcx");
     }
 
+
+
+    [Fact]
+    public async Task R1_01_Ac04_UploadingTcx_ShouldReturnSmoothingTraceWithSelectedParameters()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "r1-01-smoothing.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:00:01Z</Time><Position><LatitudeDegrees>50.02</LatitudeDegrees><LongitudeDegrees>7.02</LongitudeDegrees></Position><HeartRateBpm><Value>132</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position><HeartRateBpm><Value>133</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var response = await client.PostAsync("/api/tcx/upload", form);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var payload = await response.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        payload.Should().NotBeNull();
+        payload!.Summary.Smoothing.Should().NotBeNull();
+        payload.Summary.Smoothing.SelectedStrategy.Should().Be("FootballAdaptiveMedian");
+        payload.Summary.Smoothing.SelectedParameters.Should().ContainKey("OutlierSpeedThresholdMps");
+    }
     private static MultipartFormDataContent CreateUploadForm(string fileName, string contentText)
     {
         var form = new MultipartFormDataContent();
@@ -482,5 +501,17 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         double? FileDistanceMeters,
         string DistanceSource,
         string QualityStatus,
-        IReadOnlyList<string> QualityReasons);
+        IReadOnlyList<string> QualityReasons,
+        TcxSmoothingDto Smoothing);
+
+    public record TcxSmoothingDto(
+        string SelectedStrategy,
+        IReadOnlyDictionary<string, string> SelectedParameters,
+        double? RawDistanceMeters,
+        double? SmoothedDistanceMeters,
+        int RawDirectionChanges,
+        int BaselineDirectionChanges,
+        int SmoothedDirectionChanges,
+        int CorrectedOutlierCount,
+        DateTime AnalyzedAtUtc);
 }
