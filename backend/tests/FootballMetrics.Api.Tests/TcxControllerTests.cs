@@ -225,6 +225,49 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         error.Should().Contain("export includes workout data");
     }
 
+
+    [Fact]
+    public async Task Mvp03_Ac01_Ac05_UploadingValidTcx_ShouldReturnExtractedSummaryWithConsistentUnits()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "mvp03.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><DistanceMeters>2000</DistanceMeters><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:01:30Z</Time><Position><LatitudeDegrees>50.0005</LatitudeDegrees><LongitudeDegrees>7.0005</LongitudeDegrees></Position><HeartRateBpm><Value>150</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var response = await client.PostAsync("/api/tcx/upload", form);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var payload = await response.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        payload.Should().NotBeNull();
+        payload!.Summary.Should().NotBeNull();
+        payload.Summary.TrackpointCount.Should().Be(2);
+        payload.Summary.DurationSeconds.Should().Be(90);
+        payload.Summary.HeartRateMinBpm.Should().Be(120);
+        payload.Summary.HeartRateAverageBpm.Should().Be(135);
+        payload.Summary.HeartRateMaxBpm.Should().Be(150);
+        payload.Summary.DistanceSource.Should().Be("CalculatedFromGps");
+        payload.Summary.DistanceMeters.Should().BeGreaterThan(0);
+        payload.Summary.FileDistanceMeters.Should().Be(2000);
+    }
+
+    [Fact]
+    public async Task Mvp03_Ac04_UploadingTcxWithoutGpsOrHeartRate_ShouldNotFailAndReturnMissingMarkers()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "mvp03-no-gps.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var response = await client.PostAsync("/api/tcx/upload", form);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var payload = await response.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        payload.Should().NotBeNull();
+        payload!.Summary.HasGpsData.Should().BeFalse();
+        payload.Summary.DistanceMeters.Should().BeNull();
+        payload.Summary.HeartRateAverageBpm.Should().BeNull();
+    }
+
     private static MultipartFormDataContent CreateUploadForm(string fileName, string contentText)
     {
         var form = new MultipartFormDataContent();
@@ -297,4 +340,18 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     public record TcxUploadResponseDto(Guid Id, string FileName, DateTime UploadedAtUtc);
+
+    public record TcxUploadResponseWithSummaryDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary);
+
+    public record TcxSummaryDto(
+        DateTime? ActivityStartTimeUtc,
+        double? DurationSeconds,
+        int TrackpointCount,
+        int? HeartRateMinBpm,
+        int? HeartRateAverageBpm,
+        int? HeartRateMaxBpm,
+        double? DistanceMeters,
+        bool HasGpsData,
+        double? FileDistanceMeters,
+        string DistanceSource);
 }

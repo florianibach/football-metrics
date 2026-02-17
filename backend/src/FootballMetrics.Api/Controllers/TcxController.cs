@@ -2,6 +2,7 @@ using System.Xml;
 using System.Xml.Linq;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
+using FootballMetrics.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Cryptography;
 
@@ -48,11 +49,13 @@ public class TcxController : ControllerBase
             rawFileBytes = memoryStream.ToArray();
         }
 
-        var tcxValidationError = await ValidateTcxFileAsync(rawFileBytes, cancellationToken);
-        if (tcxValidationError is not null)
+        var validationResult = await ValidateTcxFileAsync(rawFileBytes, cancellationToken);
+        if (validationResult.ErrorMessage is not null)
         {
-            return BadRequest(tcxValidationError);
+            return BadRequest(validationResult.ErrorMessage);
         }
+
+        var summary = TcxMetricsExtractor.Extract(validationResult.Document!);
 
         var uploadId = Guid.NewGuid();
 
@@ -93,7 +96,17 @@ public class TcxController : ControllerBase
 
         _logger.LogInformation("Uploaded TCX file {FileName} with id {UploadId}", entity.FileName, entity.Id);
 
-        var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc);
+        if (summary.DistanceMeters.HasValue && summary.FileDistanceMeters.HasValue)
+        {
+            _logger.LogInformation(
+                "Distance deviation for upload {UploadId}: calculated={CalculatedDistanceMeters}m, file={FileDistanceMeters}m, deviation={DeviationMeters}m",
+                entity.Id,
+                summary.DistanceMeters.Value,
+                summary.FileDistanceMeters.Value,
+                summary.DistanceMeters.Value - summary.FileDistanceMeters.Value);
+        }
+
+        var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc, summary);
         return CreatedAtAction(nameof(GetUploads), response);
     }
 
@@ -101,10 +114,10 @@ public class TcxController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<TcxUploadResponse>>> GetUploads(CancellationToken cancellationToken)
     {
         var uploads = await _repository.ListAsync(cancellationToken);
-        return Ok(uploads.Select(item => new TcxUploadResponse(item.Id, item.FileName, item.UploadedAtUtc)).ToList());
+        return Ok(uploads.Select(item => new TcxUploadResponse(item.Id, item.FileName, item.UploadedAtUtc, new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable"))).ToList());
     }
 
-    private static async Task<string?> ValidateTcxFileAsync(byte[] rawFileBytes, CancellationToken cancellationToken)
+    private static async Task<(XDocument? Document, string? ErrorMessage)> ValidateTcxFileAsync(byte[] rawFileBytes, CancellationToken cancellationToken)
     {
         try
         {
@@ -114,7 +127,7 @@ public class TcxController : ControllerBase
 
             if (!string.Equals(rootName, "TrainingCenterDatabase", StringComparison.OrdinalIgnoreCase))
             {
-                return "File content is invalid. Expected a TCX TrainingCenterDatabase document. Please export the file again from your device.";
+                return (null, "File content is invalid. Expected a TCX TrainingCenterDatabase document. Please export the file again from your device.");
             }
 
             var hasActivities = document
@@ -123,7 +136,7 @@ public class TcxController : ControllerBase
 
             if (!hasActivities)
             {
-                return "File appears incomplete. No Activity section found. Please verify the export includes workout data.";
+                return (null, "File appears incomplete. No Activity section found. Please verify the export includes workout data.");
             }
 
             var hasTrackpoints = document
@@ -132,18 +145,18 @@ public class TcxController : ControllerBase
 
             if (!hasTrackpoints)
             {
-                return "File appears incomplete. No Trackpoint entries found. Please export the workout with detailed points.";
+                return (null, "File appears incomplete. No Trackpoint entries found. Please export the workout with detailed points.");
             }
 
-            return null;
+            return (document, null);
         }
         catch (XmlException)
         {
-            return "File is unreadable or corrupted XML. Please open the file in your exporter and create a new TCX export.";
+            return (null, "File is unreadable or corrupted XML. Please open the file in your exporter and create a new TCX export.");
         }
         catch (InvalidDataException)
         {
-            return "File could not be read. Please check the file and upload a valid TCX export.";
+            return (null, "File could not be read. Please check the file and upload a valid TCX export.");
         }
     }
 
@@ -187,4 +200,4 @@ public class TcxController : ControllerBase
     }
 }
 
-public record TcxUploadResponse(Guid Id, string FileName, DateTime UploadedAtUtc);
+public record TcxUploadResponse(Guid Id, string FileName, DateTime UploadedAtUtc, TcxActivitySummary Summary);

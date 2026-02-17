@@ -73,7 +73,19 @@ describe('App', () => {
       json: async () => ({
         id: 'upload-1',
         fileName: 'session.tcx',
-        uploadedAtUtc: '2026-02-16T22:00:00.000Z'
+        uploadedAtUtc: '2026-02-16T22:00:00.000Z',
+        summary: {
+          activityStartTimeUtc: '2026-02-16T21:00:00.000Z',
+          durationSeconds: 1800,
+          trackpointCount: 25,
+          heartRateMinBpm: 120,
+          heartRateAverageBpm: 145,
+          heartRateMaxBpm: 170,
+          distanceMeters: 5100,
+          hasGpsData: true,
+          fileDistanceMeters: 5000,
+          distanceSource: 'CalculatedFromGps'
+        }
       })
     } as Response);
 
@@ -92,6 +104,10 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByText(/Upload successful: session\.tcx at/)).toBeInTheDocument();
     });
+
+    expect(screen.getByText('Extracted base metrics')).toBeInTheDocument();
+    expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
+    expect(screen.getByText(/5.1 km/)).toBeInTheDocument();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -124,7 +140,23 @@ describe('App', () => {
 
     resolveRequest!({
       ok: true,
-      json: async () => ({ id: 'upload-1', fileName: 'session.tcx', uploadedAtUtc: '2026-02-16T22:00:00.000Z' })
+      json: async () => ({
+        id: 'upload-1',
+        fileName: 'session.tcx',
+        uploadedAtUtc: '2026-02-16T22:00:00.000Z',
+        summary: {
+          activityStartTimeUtc: null,
+          durationSeconds: null,
+          trackpointCount: 0,
+          heartRateMinBpm: null,
+          heartRateAverageBpm: null,
+          heartRateMaxBpm: null,
+          distanceMeters: null,
+          hasGpsData: false,
+          fileDistanceMeters: null,
+          distanceSource: 'NotAvailable'
+        }
+      })
     } as Response);
 
     await waitFor(() => {
