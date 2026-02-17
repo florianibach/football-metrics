@@ -102,6 +102,38 @@ describe('App', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+
+
+  it('Mvp01_Ac04_keeps_success_confirmation_when_history_refresh_fails', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 'upload-1',
+          fileName: 'session.tcx',
+          uploadedAtUtc: '2026-02-16T22:00:00.000Z'
+        })
+      } as Response)
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    render(<App />);
+
+    const fileInput = screen.getByLabelText('Select TCX file');
+    const validFile = new File(
+      ['<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>'],
+      'session.tcx',
+      { type: 'application/xml' }
+    );
+
+    fireEvent.change(fileInput, { target: { files: [validFile] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Upload successful: session\.tcx at/)).toBeInTheDocument();
+      expect(screen.getByText(/upload history could not be refreshed/i)).toBeInTheDocument();
+    });
+  });
+
   it('Mvp01_Ac01_enables submit for valid tcx files', () => {
     render(<App />);
 

@@ -25,9 +25,11 @@ type TranslationKey =
   | 'invalidSize'
   | 'languageLabel'
   | 'languageEnglish'
-  | 'languageGerman';
+  | 'languageGerman'
+  | 'uploadHistoryLoadWarning';
 
-const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').trim();
+const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
+const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
 const maxFileSizeInBytes = 20 * 1024 * 1024;
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
@@ -48,7 +50,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     invalidSize: 'File is too large (max 20 MB).',
     languageLabel: 'Language',
     languageEnglish: 'English',
-    languageGerman: 'German'
+    languageGerman: 'German',
+    uploadHistoryLoadWarning: 'Upload succeeded, but upload history could not be refreshed.'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -67,7 +70,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     invalidSize: 'Datei ist zu groß (max. 20 MB).',
     languageLabel: 'Sprache',
     languageEnglish: 'Englisch',
-    languageGerman: 'Deutsch'
+    languageGerman: 'Deutsch',
+    uploadHistoryLoadWarning: 'Upload erfolgreich, aber die Upload-Historie konnte nicht aktualisiert werden.'
   }
 };
 
@@ -117,14 +121,21 @@ export function App() {
   const validationMessage = useMemo(() => getFileValidationMessage(selectedFile, locale), [selectedFile, locale]);
   const canSubmit = useMemo(() => !!selectedFile && !validationMessage, [selectedFile, validationMessage]);
 
-  async function refreshUploads() {
-    const response = await fetch(`${apiBaseUrl}/api/tcx`);
-    if (!response.ok) {
-      throw new Error(t.historyLoadError);
-    }
+  async function refreshUploads(): Promise<boolean> {
+    try {
+      const response = await fetch(`${apiBaseUrl}/tcx`);
+      if (!response.ok) {
+        setMessage(t.historyLoadError);
+        return false;
+      }
 
-    const payload = (await response.json()) as UploadRecord[];
-    setUploads(payload);
+      const payload = (await response.json()) as UploadRecord[];
+      setUploads(payload);
+      return true;
+    } catch {
+      setMessage(t.historyLoadError);
+      return false;
+    }
   }
 
   function onLocaleChange(event: ChangeEvent<HTMLSelectElement>) {
@@ -169,7 +180,7 @@ export function App() {
     const formData = new FormData();
     formData.append('file', selectedFile);
 
-    const response = await fetch(`${apiBaseUrl}/api/tcx/upload`, {
+    const response = await fetch(`${apiBaseUrl}/tcx/upload`, {
       method: 'POST',
       body: formData
     });
@@ -184,7 +195,10 @@ export function App() {
     const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
     setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
     setSelectedFile(null);
-    await refreshUploads();
+    const historyLoaded = await refreshUploads();
+    if (!historyLoaded) {
+      setMessage(`${interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime })} ${t.uploadHistoryLoadWarning}`);
+    }
   }
 
   return (
@@ -216,7 +230,12 @@ export function App() {
           {t.uploadButton}
         </button>
       </form>
-      <button type="button" onClick={refreshUploads}>
+      <button
+        type="button"
+        onClick={async () => {
+          await refreshUploads();
+        }}
+      >
         {t.historyButton}
       </button>
       <p>{validationMessage ?? message}</p>
