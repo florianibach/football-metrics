@@ -21,6 +21,7 @@ Diese Definition of Done gilt releaseübergreifend (MVP, R1, R1.5, R2) für fach
 - [ ] Zu jeder Metrik ist ein verständlicher Info-Text (Zweck, Einheit, Interpretation) verfügbar.
 - [ ] Interne und externe Metriken sind in der UI eindeutig unterscheidbar.
 - [ ] Relevante Informationen sind auf Mobile und Desktop bedienbar.
+- [ ] Code ist in Englisch geschrieben; UI-Texte sind lokalisiert und werden abhängig von Browsersprache oder manuellem Sprachwechsel in Deutsch oder Englisch angezeigt (Fallback: Englisch).
 
 ## 4) Technische Qualität
 - [ ] Code entspricht Projektkonventionen und wurde mit sinnvoller Struktur umgesetzt.
@@ -32,7 +33,7 @@ Diese Definition of Done gilt releaseübergreifend (MVP, R1, R1.5, R2) für fach
 - [ ] Jedes einzelne Acceptance Criterion (AC) ist durch mindestens einen automatisierten Test abgedeckt.
 - [ ] Testfälle sind auf das jeweilige AC rückverfolgbar (z. B. AC-ID im Testnamen oder in der Testbeschreibung).
 - [ ] Für E2E-Tests ist zusätzlich ein klarer Story-Bezug im Test hinterlegt/kommentiert (Story-ID + Ziel der Story).
-- [ ] Alle betroffenen automatisierten Tests sind lokal in der Entwicklung grün, bevor committet/merged wird.
+- [ ] Alle betroffenen automatisierten Tests sind lokal in der Entwicklung grün, bevor committet/merged wird (mindestens Backend, Frontend und E2E-Smoke für betroffene Änderungen).
 - [ ] Es gibt lokale Quality Gates (z. B. pre-commit/pre-push Hooks), damit Testfehler früh auffallen und nicht erst im Buildserver.
 - [ ] Falls notwendige Prüftools fehlen, werden sie im Dev-Setup nachinstalliert und in einem Bootstrap-Skript/README dokumentiert.
 

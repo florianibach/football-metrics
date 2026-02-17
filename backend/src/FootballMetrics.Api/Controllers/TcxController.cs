@@ -1,3 +1,5 @@
+using System.Xml;
+using System.Xml.Linq;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +10,7 @@ namespace FootballMetrics.Api.Controllers;
 [Route("api/[controller]")]
 public class TcxController : ControllerBase
 {
+    private const long MaxFileSizeInBytes = 20 * 1024 * 1024;
     private readonly ITcxUploadRepository _repository;
     private readonly ILogger<TcxController> _logger;
     private readonly IWebHostEnvironment _environment;
@@ -20,17 +23,28 @@ public class TcxController : ControllerBase
     }
 
     [HttpPost("upload")]
-    [RequestSizeLimit(20 * 1024 * 1024)]
+    [RequestSizeLimit(MaxFileSizeInBytes)]
     public async Task<ActionResult<TcxUploadResponse>> UploadTcx(IFormFile file, CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)
         {
-            return BadRequest("No file uploaded.");
+            return BadRequest("No file uploaded. Please select a .tcx file and try again.");
         }
 
         if (!string.Equals(Path.GetExtension(file.FileName), ".tcx", StringComparison.OrdinalIgnoreCase))
         {
-            return BadRequest("Only .tcx files are supported.");
+            return BadRequest("Only .tcx files are supported. Please upload a valid TCX export.");
+        }
+
+        if (file.Length > MaxFileSizeInBytes)
+        {
+            return BadRequest($"File is too large. Maximum supported size is {MaxFileSizeInBytes / (1024 * 1024)} MB.");
+        }
+
+        var tcxValidationError = await ValidateTcxFileAsync(file, cancellationToken);
+        if (tcxValidationError is not null)
+        {
+            return BadRequest(tcxValidationError);
         }
 
         var uploadsDirectory = Path.Combine(_environment.ContentRootPath, "uploads");
@@ -66,6 +80,49 @@ public class TcxController : ControllerBase
     {
         var uploads = await _repository.ListAsync(cancellationToken);
         return Ok(uploads.Select(item => new TcxUploadResponse(item.Id, item.FileName, item.UploadedAtUtc)).ToList());
+    }
+
+    private static async Task<string?> ValidateTcxFileAsync(IFormFile file, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var document = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken);
+            var rootName = document.Root?.Name.LocalName;
+
+            if (!string.Equals(rootName, "TrainingCenterDatabase", StringComparison.OrdinalIgnoreCase))
+            {
+                return "File content is invalid. Expected a TCX TrainingCenterDatabase document. Please export the file again from your device.";
+            }
+
+            var hasActivities = document
+                .Descendants()
+                .Any(node => string.Equals(node.Name.LocalName, "Activity", StringComparison.OrdinalIgnoreCase));
+
+            if (!hasActivities)
+            {
+                return "File appears incomplete. No Activity section found. Please verify the export includes workout data.";
+            }
+
+            var hasTrackpoints = document
+                .Descendants()
+                .Any(node => string.Equals(node.Name.LocalName, "Trackpoint", StringComparison.OrdinalIgnoreCase));
+
+            if (!hasTrackpoints)
+            {
+                return "File appears incomplete. No Trackpoint entries found. Please export the workout with detailed points.";
+            }
+
+            return null;
+        }
+        catch (XmlException)
+        {
+            return "File is unreadable or corrupted XML. Please open the file in your exporter and create a new TCX export.";
+        }
+        catch (InvalidDataException)
+        {
+            return "File could not be read. Please check the file and upload a valid TCX export.";
+        }
     }
 }
 

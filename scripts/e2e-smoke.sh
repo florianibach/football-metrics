@@ -4,7 +4,7 @@ set -euo pipefail
 API_URL="${API_URL:-http://localhost:8080}"
 
 for i in {1..40}; do
-  if curl -fsS "$API_URL/swagger/index.html" >/dev/null 2>&1; then
+  if curl -fsS "$API_URL/api/tcx" >/dev/null 2>&1; then
     break
   fi
   sleep 2
@@ -14,7 +14,19 @@ for i in {1..40}; do
   fi
 done
 
-echo '<TrainingCenterDatabase></TrainingCenterDatabase>' > /tmp/sample.tcx
+cat > /tmp/sample.tcx <<'TCX'
+<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Lap>
+        <Track>
+          <Trackpoint />
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>
+TCX
 
 curl -fsS -X POST "$API_URL/api/tcx/upload" \
   -F "file=@/tmp/sample.tcx;type=application/xml"

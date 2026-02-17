@@ -31,12 +31,17 @@ docker compose up --build
 ```
 
 - Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:8080`
+- Backend API (direkt): `http://localhost:8080`
+- Backend API (über Frontend-Proxy): `http://localhost:3000/api/...`
 - Swagger: `http://localhost:8080/swagger`
 
 ## API Endpoints (initial)
 
-- `POST /api/tcx/upload` – nimmt eine `.tcx` Datei entgegen.
+
+Für Frontend-Config gilt: `VITE_API_BASE_URL` sollte auf den API-Pfad inkl. `/api` zeigen (z. B. `/api` oder `http://localhost:8080/api`).
+Hinweis: Das Frontend-Nginx proxyt `/api/*` an das Backend und erlaubt Uploads bis 25 MB (`client_max_body_size`), damit der 20 MB TCX-API-Limit korrekt erreicht werden kann.
+
+- `POST /api/tcx/upload` – nimmt eine `.tcx` Datei (max. 20 MB) entgegen, validiert Struktur (XML, Activity, Trackpoint) und gibt konkrete Fehlerhinweise bei ungültigen Dateien zurück.
 - `GET /api/tcx` – listet hochgeladene Dateien auf.
 
 ## Entwicklung ohne Docker
@@ -50,16 +55,34 @@ npm run dev
 
 ### Backend
 ```bash
+./scripts/bootstrap-dotnet.sh
+export PATH="$HOME/.dotnet:$PATH"
 cd backend/src/FootballMetrics.Api
 dotnet restore
 dotnet run
 ```
 
+
+## UI Sprache
+
+- Die UI unterstützt Deutsch und Englisch.
+- Standard ist die Browsersprache (`de` -> Deutsch, sonst Englisch).
+- Fallback ist immer Englisch.
+- Nutzer können die Sprache in der Oberfläche manuell umstellen.
+
 ## Tests
 
-- Backend Integrationstest: `backend/tests/FootballMetrics.Api.Tests`
-- Frontend Unit-Test: `frontend/src/App.test.tsx`
+- Backend Integrationstest: `./scripts/test-backend.sh` (installiert bei Bedarf automatisch .NET SDK 10 lokal in `~/.dotnet`)
+- Frontend Unit-Test: `cd frontend && npm test -- --run`
+- Frontend Build-Check: `cd frontend && npm run build`
 - E2E Smoke-Test: `scripts/e2e-smoke.sh`
+
+Vor jedem Commit/PR müssen alle lokal relevanten Checks grün sein (Backend, Frontend und E2E bei betroffenen Änderungen).
+
+Empfohlener Sammelcheck:
+```bash
+./scripts/check-local.sh
+```
 
 ## Raspberry Pi Hinweise
 
