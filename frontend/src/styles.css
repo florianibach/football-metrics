@@ -103,6 +103,30 @@ button:disabled {
   margin-top: 1.5rem;
 }
 
+.comparison-controls {
+  margin: 1rem 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.comparison-controls h3 {
+  margin: 0;
+}
+
+.comparison-controls select {
+  width: fit-content;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  background: #fff;
+}
+
+.comparison-disabled-hint {
+  margin: 0;
+  color: #7a2e0e;
+}
+
+
 .metrics-list {
   padding-left: 1.25rem;
 }

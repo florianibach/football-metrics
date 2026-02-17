@@ -37,6 +37,7 @@ type UploadRecord = {
 
 type Locale = 'en' | 'de';
 type SortDirection = 'desc' | 'asc';
+type CompareMode = 'raw' | 'smoothed';
 
 type TranslationKey =
   | 'title'
@@ -78,6 +79,14 @@ type TranslationKey =
   | 'metricQualityReasons'
   | 'metricSmoothingStrategy'
   | 'metricSmoothingOutlier'
+  | 'compareTitle'
+  | 'compareModeLabel'
+  | 'compareModeRaw'
+  | 'compareModeSmoothed'
+  | 'compareDisabledNoGps'
+  | 'metricDirectionChanges'
+  | 'metricDataChange'
+  | 'metricDataChangeHelp'
   | 'qualityStatusHigh'
   | 'qualityStatusMedium'
   | 'qualityStatusLow'
@@ -140,6 +149,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricQualityReasons: 'Quality reasons',
     metricSmoothingStrategy: 'Smoothing strategy',
     metricSmoothingOutlier: 'Outlier detection',
+    compareTitle: 'Raw vs. smoothed comparison',
+    compareModeLabel: 'Display mode',
+    compareModeRaw: 'Raw data',
+    compareModeSmoothed: 'Smoothed data',
+    compareDisabledNoGps: 'Comparison is disabled because this session does not contain GPS coordinates.',
+    metricDirectionChanges: 'Direction changes',
+    metricDataChange: 'Data change due to smoothing',
+    metricDataChangeHelp: '{correctedShare}% corrected points ({correctedPoints}/{trackpoints}), distance delta {distanceDelta}',
     qualityStatusHigh: 'high',
     qualityStatusMedium: 'medium',
     qualityStatusLow: 'low',
@@ -197,6 +214,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricQualityReasons: 'Qualitätsgründe',
     metricSmoothingStrategy: 'Glättungsstrategie',
     metricSmoothingOutlier: 'Ausreißer-Erkennung',
+    compareTitle: 'Vergleich Rohdaten vs. geglättet',
+    compareModeLabel: 'Darstellungsmodus',
+    compareModeRaw: 'Rohdaten',
+    compareModeSmoothed: 'Geglättet',
+    compareDisabledNoGps: 'Der Vergleich ist deaktiviert, weil diese Session keine GPS-Koordinaten enthält.',
+    metricDirectionChanges: 'Richtungswechsel',
+    metricDataChange: 'Datenänderung durch Glättung',
+    metricDataChangeHelp: '{correctedShare}% korrigierte Punkte ({correctedPoints}/{trackpoints}), Distanzabweichung {distanceDelta}',
     qualityStatusHigh: 'hoch',
     qualityStatusMedium: 'mittel',
     qualityStatusLow: 'niedrig',
@@ -301,6 +326,7 @@ export function App() {
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
 
   const t = translations[locale];
   const validationMessage = useMemo(() => getFileValidationMessage(selectedFile, locale), [selectedFile, locale]);
@@ -416,6 +442,7 @@ export function App() {
       const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
       setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
       setSelectedSession(payload);
+      setCompareMode('smoothed');
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setSelectedFile(null);
     } catch {
@@ -439,6 +466,38 @@ export function App() {
   const showMissingHeartRateHint = selectedSession ? !hasCompleteHeartRate(selectedSession.summary) : false;
   const showMissingDistanceHint = selectedSession ? selectedSession.summary.distanceMeters === null : false;
   const showMissingGpsHint = selectedSession ? !selectedSession.summary.hasGpsData : false;
+
+  const activeDistanceMeters = selectedSession
+    ? compareMode === 'raw'
+      ? selectedSession.summary.smoothing.rawDistanceMeters
+      : selectedSession.summary.smoothing.smoothedDistanceMeters ?? selectedSession.summary.distanceMeters
+    : null;
+
+  const activeDirectionChanges = selectedSession
+    ? compareMode === 'raw'
+      ? selectedSession.summary.smoothing.rawDirectionChanges
+      : selectedSession.summary.smoothing.smoothedDirectionChanges
+    : null;
+
+  const dataChangeMetric = selectedSession
+    ? (() => {
+      const correctedShare = selectedSession.summary.trackpointCount > 0
+        ? ((selectedSession.summary.smoothing.correctedOutlierCount / selectedSession.summary.trackpointCount) * 100).toFixed(1)
+        : '0.0';
+      const distanceDeltaMeters =
+        selectedSession.summary.smoothing.rawDistanceMeters !== null && selectedSession.summary.smoothing.smoothedDistanceMeters !== null
+          ? Math.abs(selectedSession.summary.smoothing.smoothedDistanceMeters - selectedSession.summary.smoothing.rawDistanceMeters)
+          : null;
+      const distanceDelta = formatDistance(distanceDeltaMeters, locale, t.notAvailable);
+
+      return interpolate(t.metricDataChangeHelp, {
+        correctedShare,
+        correctedPoints: String(selectedSession.summary.smoothing.correctedOutlierCount),
+        trackpoints: String(selectedSession.summary.trackpointCount),
+        distanceDelta
+      });
+    })()
+    : '';
 
   return (
     <main className="container">
@@ -502,7 +561,14 @@ export function App() {
                   <td>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
                   <td>{qualityStatusText(record.summary.qualityStatus, t)}</td>
                   <td>
-                    <button type="button" className="secondary-button" onClick={() => setSelectedSession(record)}>
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => {
+                        setSelectedSession(record);
+                        setCompareMode('smoothed');
+                      }}
+                    >
                       {t.historyOpenDetails}
                     </button>
                   </td>
@@ -517,15 +583,31 @@ export function App() {
         <section className="session-details" aria-live="polite">
           <h2>{t.summaryTitle}</h2>
           <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
+          <div className="comparison-controls">
+            <h3>{t.compareTitle}</h3>
+            <label htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
+            <select
+              id="comparison-mode-selector"
+              value={compareMode}
+              disabled={!selectedSession.summary.hasGpsData}
+              onChange={(event) => setCompareMode(event.target.value as CompareMode)}
+            >
+              <option value="raw">{t.compareModeRaw}</option>
+              <option value="smoothed">{t.compareModeSmoothed}</option>
+            </select>
+            {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
+          </div>
           <ul className="metrics-list">
             <li><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable} ({t.metricHelpStartTime})</li>
             <li><strong>{t.metricDuration}:</strong> {formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable)} ({t.metricHelpDuration})</li>
             <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)} ({t.metricHelpHeartRate})</li>
             <li><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount} ({t.metricHelpTrackpoints})</li>
-            <li><strong>{t.metricDistance}:</strong> {formatDistance(selectedSession.summary.distanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)} ({t.metricHelpDistance})</li>
+            <li><strong>{t.metricDistance}:</strong> {formatDistance(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)} ({t.metricHelpDistance})</li>
+            <li><strong>{t.metricDirectionChanges}:</strong> {activeDirectionChanges ?? 0}</li>
             <li><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no} ({t.metricHelpGps})</li>
             <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
             <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
+            <li><strong>{t.metricDataChange}:</strong> {dataChangeMetric}</li>
             <li><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
             <li><strong>{t.metricSmoothingOutlier}:</strong> {selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: {selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)</li>
           </ul>
