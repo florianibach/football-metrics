@@ -340,6 +340,7 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.SprintCount.Should().BeGreaterThan(0);
         summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeGreaterThan(7.0);
         summary.CoreMetrics.HighIntensityTimeSeconds.Should().BeGreaterThan(0);
+        summary.CoreMetrics.HighIntensityRunCount.Should().BeGreaterThan(0);
         summary.CoreMetrics.HighSpeedDistanceMeters.Should().BeGreaterThan(0);
         summary.CoreMetrics.RunningDensityMetersPerMinute.Should().BeGreaterThan(0);
         summary.CoreMetrics.AccelerationCount.Should().NotBeNull();

@@ -149,6 +149,9 @@ Empfohlener Sammelcheck:
 ## Session-Detailseite (MVP-06)
 
 - Die Detailansicht zeigt Basiskennzahlen je Session: Startzeit, Dauer, Distanz, Herzfrequenz (min/avg/max), Trackpunkte, GPS-Status und Qualitätsinformationen.
+- Jede angezeigte Metrik besitzt ein Info-Element (`ⓘ` als Tooltip via `title`) mit Zweck, vereinfachter Interpretation und Einheit.
+- Bei quality-gated Kernmetriken enthalten relevante Erklärungstexte zusätzlich, wann Werte nicht verfügbar sind (z. B. unzureichende GPS- oder HF-Qualität), ohne diesen Hinweis bei nicht betroffenen Metriken zu wiederholen.
+- Für Kernmetriken sind die Hilfetexte interpretierbarer formuliert; bei TRIMP und HF-Erholung ist zusätzlich eine grobe Einordnung (niedrig/mittel/hoch) enthalten.
 - Bei fehlenden Werten werden Metriken klar als **Not available / Nicht vorhanden** markiert.
 - Zusätzlich werden verständliche Hinweise eingeblendet, warum Herzfrequenz- oder Distanzwerte fehlen (z. B. keine GPS-Koordinaten).
 - Die Detailansicht wurde responsiv erweitert, damit Historie und Session-Daten auf Mobile und Desktop lesbar bleiben.
@@ -166,7 +169,7 @@ Empfohlener Sammelcheck:
 
 ## Fußball-Kernmetriken (R1-03)
 
-- Die API liefert unter `summary.coreMetrics` die v1-Kernmetriken: Distanz, Sprintdistanz, Anzahl Sprints, Maximalgeschwindigkeit und Hochintensitätszeit.
+- Die API liefert unter `summary.coreMetrics` die v1-Kernmetriken: Distanz, Sprintdistanz, Anzahl Sprints, Maximalgeschwindigkeit, Hochintensitätszeit und Anzahl hochintensiver Läufe.
 - Initiale Schwellwerte sind dokumentiert und im Payload transparent enthalten:
   - `SprintSpeedThresholdMps = 7.0`
   - `HighIntensitySpeedThresholdMps = 5.5`
@@ -176,6 +179,7 @@ Empfohlener Sammelcheck:
 
 - Ergänzt um weitere Fußball-Metriken aus `analysis/Auswertung von GPS- und Herzfrequenzdaten im Amateurfußball.pdf` (R1-03 Erweiterung):
   - `highSpeedDistanceMeters` (hochintensive Laufdistanz)
+  - `highIntensityRunCount` (Anzahl hochintensive Läufe)
   - `runningDensityMetersPerMinute` (Laufdichte)
   - `accelerationCount` / `decelerationCount` (neuromuskuläre Last)
   - Herzfrequenzzonenzeit `<70%`, `70-85%`, `>85%` (auf Basis session-interner HFmax)

@@ -41,7 +41,7 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 - [x] Schwellen (z. B. Sprint-Tempo) sind initial sinnvoll vorbelegt und dokumentiert.
 - [x] Metriken werden nur berechnet, wenn die erforderliche Datenqualität erreicht ist.
 - [x] Bei zu geringer Qualität wird statt einer Zahl ein verständlicher Hinweis ausgegeben.
-- [x] Zusätzlich sind erweiterte Fußball-Metriken verfügbar (u. a. High-Speed-Distanz, Laufdichte, Beschleunigungen/Abbremsungen, HF-Zonenzeit, TRIMP, HF-Erholung).
+- [x] Zusätzlich sind erweiterte Fußball-Metriken verfügbar (u. a. High-Speed-Distanz, **Anzahl hochintensive Läufe**, Laufdichte, Beschleunigungen/Abbremsungen, HF-Zonenzeit, TRIMP, HF-Erholung).
 
 ---
 
@@ -73,15 +73,16 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 ---
 
 ## Story R1-06: Metrik-Erklärung direkt in der UI
+**Status:** Done ✅  
 **Als** Nutzer  
 **möchte ich** zu jeder Metrik eine kurze Erklärung sehen  
 **damit** ich weiß, wofür die Metrik gedacht ist und wie ich sie interpretieren soll.
 
 ### Acceptance Criteria
-- [ ] Jede angezeigte Metrik besitzt ein Info-Element (z. B. Tooltip/Info-Icon mit Kurztext).
-- [ ] Die Erklärung enthält mindestens: Zweck der Metrik, vereinfachte Interpretation, Einheit.
-- [ ] Bei quality-gated Metriken wird erklärt, wann der Wert nicht verfügbar ist.
-- [ ] Die Texte sind in konsistenter, nutzerverständlicher Sprache formuliert.
+- [x] Jede angezeigte Metrik besitzt ein Info-Element (z. B. Tooltip/Info-Icon mit Kurztext).
+- [x] Die Erklärung enthält mindestens: Zweck der Metrik, vereinfachte Interpretation, Einheit.
+- [x] Bei quality-gated Metriken wird erklärt, wann der Wert nicht verfügbar ist.
+- [x] Die Texte sind in konsistenter, nutzerverständlicher Sprache formuliert.
 
 ---
 

@@ -28,6 +28,7 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highIntensityRunCount: 7,
         highSpeedDistanceMeters: 1600,
         runningDensityMetersPerMinute: 170,
         accelerationCount: 14,
@@ -43,6 +44,7 @@ describe('App', () => {
           sprintCount: { state: 'Available', reason: null },
           maxSpeedMetersPerSecond: { state: 'Available', reason: null },
           highIntensityTimeSeconds: { state: 'Available', reason: null },
+          highIntensityRunCount: { state: 'Available', reason: null },
           highSpeedDistanceMeters: { state: 'Available', reason: null },
           runningDensityMetersPerMinute: { state: 'Available', reason: null },
           accelerationCount: { state: 'Available', reason: null },
@@ -300,6 +302,7 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highIntensityRunCount: 7,
         highSpeedDistanceMeters: 1600,
         runningDensityMetersPerMinute: 170,
         accelerationCount: 14,
@@ -369,6 +372,7 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highIntensityRunCount: 7,
         highSpeedDistanceMeters: 1600,
         runningDensityMetersPerMinute: 170,
         accelerationCount: 14,
@@ -431,6 +435,7 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highIntensityRunCount: 7,
         highSpeedDistanceMeters: 1600,
         runningDensityMetersPerMinute: 170,
         accelerationCount: 14,
@@ -492,6 +497,7 @@ describe('App', () => {
               sprintCount: 5,
               maxSpeedMetersPerSecond: 7.75,
               highIntensityTimeSeconds: 420,
+              highIntensityRunCount: 6,
               highSpeedDistanceMeters: 1200,
               runningDensityMetersPerMinute: 165,
               accelerationCount: 11,
@@ -523,6 +529,7 @@ describe('App', () => {
     expect(screen.getByText(/Sprint count:/)).toBeInTheDocument();
     expect(screen.getByText(/Maximum speed:/)).toBeInTheDocument();
     expect(screen.getByText(/High-intensity time:/)).toBeInTheDocument();
+    expect(screen.getByText(/High-intensity runs:/)).toBeInTheDocument();
     expect(screen.getByText(/High-speed distance:/)).toBeInTheDocument();
     expect(screen.getByText(/Running density \(m\/min\):/)).toBeInTheDocument();
     expect(screen.getByText(/Accelerations:/)).toBeInTheDocument();
@@ -545,6 +552,7 @@ describe('App', () => {
               sprintCount: null,
               maxSpeedMetersPerSecond: null,
               highIntensityTimeSeconds: null,
+              highIntensityRunCount: null,
               highSpeedDistanceMeters: null,
               runningDensityMetersPerMinute: null,
               accelerationCount: null,
@@ -657,6 +665,84 @@ describe('App', () => {
     expect(screen.getByText('Sort by upload time')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
     expect(screen.getByText(/Data quality:/)).toBeInTheDocument();
+  });
+
+
+  it('R1_06_Ac01_Ac02_shows_info_elements_with_metric_explanations', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [createUploadRecord()]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Session details')).toBeInTheDocument();
+    });
+
+    const distanceInfo = screen.getAllByRole('note', { name: 'Distance explanation' })[0];
+    expect(distanceInfo).toBeInTheDocument();
+    expect(distanceInfo).toHaveAttribute('title', expect.stringContaining('Purpose: quantifies covered ground'));
+    expect(distanceInfo).toHaveAttribute('title', expect.stringContaining('Unit: km and m'));
+
+    const sprintDistanceInfo = screen.getByRole('note', { name: 'Sprint distance explanation' });
+    expect(sprintDistanceInfo).toHaveAttribute('title', expect.stringContaining('Very low values usually mean little sprint exposure'));
+  });
+
+  it('R1_06_Ac03_Ac04_localizes_and_explains_quality_gated_unavailable_metrics', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          summary: createSummary({
+            coreMetrics: {
+              isAvailable: false,
+              unavailableReason: 'Quality status must be High.',
+              distanceMeters: null,
+              sprintDistanceMeters: null,
+              sprintCount: null,
+              maxSpeedMetersPerSecond: null,
+              highIntensityTimeSeconds: null,
+              highIntensityRunCount: null,
+              highSpeedDistanceMeters: null,
+              runningDensityMetersPerMinute: null,
+              accelerationCount: null,
+              decelerationCount: null,
+              heartRateZoneLowSeconds: null,
+              heartRateZoneMediumSeconds: null,
+              heartRateZoneHighSeconds: null,
+              trainingImpulseEdwards: null,
+              heartRateRecoveryAfter60Seconds: null,
+              metricAvailability: {
+                sprintDistanceMeters: { state: 'NotUsable', reason: 'GPS quality below threshold.' }
+              },
+              thresholds: {
+                SprintSpeedThresholdMps: '7.0'
+              }
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Core metrics unavailable/)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Not available — Measurement unusable: GPS quality below threshold\./)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
+
+    const sprintDistanceInfoDe = screen.getByRole('note', { name: 'Anzahl Sprints explanation' });
+    expect(sprintDistanceInfoDe).toHaveAttribute('title', expect.stringContaining('0-2 niedrig, 3-6 mittel, >6 hoch'));
+
+    const trimpInfoDe = screen.getByRole('note', { name: 'TRIMP (Edwards) explanation' });
+    expect(trimpInfoDe).toHaveAttribute('title', expect.stringContaining('40-80 mittel'));
+
+    const recoveryInfoDe = screen.getByRole('note', { name: 'HF-Erholung nach 60s explanation' });
+    expect(recoveryInfoDe).toHaveAttribute('title', expect.stringContaining('12-20 mittel, >20 gut'));
   });
 
 });

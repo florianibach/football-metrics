@@ -25,6 +25,7 @@ type FootballCoreMetrics = {
   sprintCount: number | null;
   maxSpeedMetersPerSecond: number | null;
   highIntensityTimeSeconds: number | null;
+  highIntensityRunCount: number | null;
   highSpeedDistanceMeters: number | null;
   runningDensityMetersPerMinute: number | null;
   accelerationCount: number | null;
@@ -138,6 +139,7 @@ type TranslationKey =
   | 'metricSprintCount'
   | 'metricMaxSpeed'
   | 'metricHighIntensityTime'
+  | 'metricHighIntensityRunCount'
   | 'metricCoreThresholds'
   | 'metricHighSpeedDistance'
   | 'metricRunningDensity'
@@ -226,6 +228,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricSprintCount: 'Sprint count',
     metricMaxSpeed: 'Maximum speed',
     metricHighIntensityTime: 'High-intensity time',
+    metricHighIntensityRunCount: 'High-intensity runs',
     metricCoreThresholds: 'Thresholds',
     metricHighSpeedDistance: 'High-speed distance',
     metricRunningDensity: 'Running density (m/min)',
@@ -309,6 +312,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricSprintCount: 'Anzahl Sprints',
     metricMaxSpeed: 'Maximalgeschwindigkeit',
     metricHighIntensityTime: 'Hochintensitätszeit',
+    metricHighIntensityRunCount: 'Anzahl hochintensive Läufe',
     metricCoreThresholds: 'Schwellenwerte',
     metricHighSpeedDistance: 'Hochintensive Laufdistanz',
     metricRunningDensity: 'Laufdichte (m/min)',
@@ -321,6 +325,83 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHrRecovery60: 'HF-Erholung nach 60s'
   }
 };
+
+const metricExplanations: Record<Locale, Record<string, string>> = {
+  en: {
+    startTime: 'Purpose: anchors session timing. Interpretation: reference timestamp for all values. Unit: local date/time.',
+    duration: 'Purpose: shows total load window. Interpretation: longer sessions can increase accumulated load. Unit: minutes and seconds.',
+    heartRate: 'Purpose: summarizes cardiovascular intensity. Interpretation: higher avg/max indicates stronger effort. Unit: bpm.',
+    trackpoints: 'Purpose: indicates sampling density. Interpretation: more points usually support more stable calculations. Unit: count.',
+    distance: 'Purpose: quantifies covered ground. Interpretation: higher value means more movement volume. Unit: km and m.',
+    gps: 'Purpose: indicates if location-based metrics can be computed. Interpretation: without GPS, running/sprint metrics can be unavailable. Unit: yes/no.',
+    qualityStatus: 'Purpose: summarizes data reliability. Interpretation: high quality means stronger confidence in metrics. Unit: categorical status.',
+    qualityReasons: 'Purpose: explains quality drivers. Interpretation: reasons clarify why metrics are trustworthy or limited. Unit: text reasons.',
+    dataChange: 'Purpose: shows smoothing impact. Interpretation: larger deltas indicate stronger correction of raw data. Unit: percent and meters.',
+    smoothingStrategy: 'Purpose: makes preprocessing transparent. Interpretation: selected method influences downstream metric values. Unit: strategy name.',
+    smoothingOutlier: 'Purpose: documents outlier handling. Interpretation: threshold/mode defines when points are corrected. Unit: mode and m/s threshold.',
+    directionChanges: 'Purpose: captures directional variability. Interpretation: higher value can indicate more stop-and-go movement. Unit: count.',
+    sprintDistance: 'Purpose: measures high-intensity running distance above a defined speed threshold. Interpretation: this is a key indicator for intensive load (sprints and fast tempo runs), not just total movement volume. Very low values usually mean little sprint exposure, while high values indicate repeated sprint load and stronger external stress. Unit: km and m. If unavailable, GPS quality was not sufficient.',
+    sprintCount: 'Purpose: counts how often the athlete enters the sprint zone above the configured speed threshold. Interpretation: this metric represents high-intensity actions and sprint stress; orientation for typical amateur sessions: 0-2 low, 3-6 moderate, >6 high. Read it together with sprint distance to distinguish many short sprint actions from fewer but longer high-speed phases. Unit: count. If unavailable, GPS quality was not sufficient.',
+    maxSpeed: 'Purpose: captures the highest measured speed during the unit and reflects current sprint capability. Interpretation: <6.0 m/s is rather low, 6.0-7.5 m/s typical, and >7.5 m/s very high for many amateur players. Track this over time as a performance marker and combine it with high-speed distance to see whether top speed is reached only briefly or repeatedly. Unit: m/s. If unavailable, GPS quality was not sufficient.',
+    highIntensityTime: 'Purpose: tracks the total time spent above the high-intensity speed threshold. Interpretation: more time means larger intense workload and generally higher cardiovascular and muscular demand. If this value is high while sprint count is low, the session likely contained longer sustained fast runs instead of many short maximal actions. Unit: minutes and seconds. If unavailable, GPS quality was not sufficient.',
+    highIntensityRunCount: 'Purpose: counts how often a high-intensity running phase starts above the high-intensity threshold. Interpretation: it indicates repeated high-tempo bouts and complements high-intensity time by separating many short bouts from fewer long ones. Read together with high-speed distance to classify the running profile of the session. Unit: count. If unavailable, GPS quality was not sufficient.',
+    highSpeedDistance: 'Purpose: tracks distance covered above the high-speed threshold. Interpretation: higher values suggest sustained fast running capacity and game-like repeated high-tempo phases, not only isolated short sprints. Combined with max speed, it helps distinguish between a single speed peak and consistent fast running performance. Unit: km and m. If unavailable, GPS quality was not sufficient.',
+    runningDensity: 'Purpose: normalizes distance by time (meters per minute) and allows relative intensity comparison across different session durations. Interpretation: a shorter drill can be more intensive per minute even if total distance is lower. Use this metric when comparing short vs. long formats to avoid misleading conclusions from absolute distance only. Unit: meters per minute. If unavailable, GPS quality was not sufficient.',
+    accelerationCount: 'Purpose: counts explosive speed-ups that exceed the configured acceleration threshold. Interpretation: more accelerations often mean greater neuromuscular load from repeated bursts and direction-driven actions. In combination with deceleration count, this metric helps identify stop-and-go sessions that can feel harder than pure distance suggests. Unit: count. If unavailable, GPS quality was not sufficient.',
+    decelerationCount: 'Purpose: counts braking actions that exceed the configured deceleration threshold. Interpretation: high counts indicate frequent stopping/cutting actions and can increase eccentric muscle stress, especially in hamstrings and quadriceps. Together with acceleration count, it is a strong signal for mechanical load and potential fatigue risk despite moderate total distance. Unit: count. If unavailable, GPS quality was not sufficient.',
+    hrZoneLow: 'Purpose: tracks time in the low heart-rate zone (<70% of session-specific HRmax reference). Interpretation: higher time indicates a larger easy-load share and usually better recovery character within the session. This is useful to verify whether a planned low-intensity session actually stayed easy enough. Unit: minutes and seconds. If unavailable, heart-rate quality was not sufficient.',
+    hrZoneMedium: 'Purpose: tracks time in the moderate heart-rate zone (70-85%). Interpretation: this zone reflects sustained submaximal work and is typically linked to aerobic conditioning load. Rising values over several sessions can indicate strong base-work phases, especially when high-zone time remains controlled. Unit: minutes and seconds. If unavailable, heart-rate quality was not sufficient.',
+    hrZoneHigh: 'Purpose: tracks time in the high heart-rate zone (>85% HRmax). Interpretation: this zone is especially relevant because it indicates very high intensity and match-like physiological stress. Persistently high values across sessions should be balanced with recovery-focused days to avoid overload. Unit: minutes and seconds. If unavailable, heart-rate quality was not sufficient.',
+    trimpEdwards: 'Purpose: estimates internal training load via weighted time in heart-rate zones (Edwards/TRIMP concept). Interpretation: rough orientation for amateur sessions is <40 low load, 40-80 moderate, 80-120 high, and >120 very high. Most useful is the trend over weeks: sharp TRIMP spikes can indicate abrupt load increases and elevated fatigue risk. Unit: score. If unavailable, heart-rate quality was not sufficient.',
+    hrRecovery60: 'Purpose: indicates short-term autonomic recovery after effort by measuring heart-rate drop after 60 seconds. Interpretation: rough orientation is <12 bpm drop rather weak, 12-20 moderate, and >20 good recovery response. Track this trend over time under similar conditions; falling recovery values can be an early sign of fatigue, stress, or insufficient regeneration. Unit: bpm drop after 60s. If unavailable, heart-rate quality was not sufficient.',
+    coreThresholds: 'Purpose: documents active metric thresholds. Interpretation: values define how speed/intensity events are classified. Unit: parameter values.'
+  },
+  de: {
+    startTime: 'Zweck: zeitliche Einordnung der Session. Interpretation: Referenzzeitpunkt für alle Werte. Einheit: lokales Datum/Uhrzeit.',
+    duration: 'Zweck: zeigt das gesamte Belastungsfenster. Interpretation: längere Sessions erhöhen oft die kumulierte Last. Einheit: Minuten und Sekunden.',
+    heartRate: 'Zweck: fasst die kardiovaskuläre Intensität zusammen. Interpretation: höhere Ø/Max-Werte stehen meist für höhere Belastung. Einheit: bpm.',
+    trackpoints: 'Zweck: zeigt die Datendichte. Interpretation: mehr Punkte ermöglichen meist stabilere Berechnungen. Einheit: Anzahl.',
+    distance: 'Zweck: quantifiziert die zurückgelegte Strecke. Interpretation: höherer Wert bedeutet mehr Bewegungsvolumen. Einheit: km und m.',
+    gps: 'Zweck: zeigt, ob ortsbasierte Metriken berechenbar sind. Interpretation: ohne GPS können Lauf-/Sprintmetriken fehlen. Einheit: Ja/Nein.',
+    qualityStatus: 'Zweck: fasst die Datenzuverlässigkeit zusammen. Interpretation: hohe Qualität bedeutet mehr Vertrauen in die Metriken. Einheit: kategorialer Status.',
+    qualityReasons: 'Zweck: erklärt Treiber der Datenqualität. Interpretation: Gründe zeigen, warum Metriken belastbar oder eingeschränkt sind. Einheit: Textgründe.',
+    dataChange: 'Zweck: zeigt den Effekt der Glättung. Interpretation: größere Abweichungen bedeuten stärkere Korrektur der Rohdaten. Einheit: Prozent und Meter.',
+    smoothingStrategy: 'Zweck: macht die Vorverarbeitung transparent. Interpretation: die Methode beeinflusst nachgelagerte Metrikwerte. Einheit: Strategiename.',
+    smoothingOutlier: 'Zweck: dokumentiert die Ausreißerbehandlung. Interpretation: Modus/Schwelle definieren, wann Punkte korrigiert werden. Einheit: Modus und m/s-Schwelle.',
+    directionChanges: 'Zweck: erfasst Richtungsvariabilität. Interpretation: höhere Werte können mehr Stop-and-Go anzeigen. Einheit: Anzahl.',
+    sprintDistance: 'Zweck: misst die hochintensive Laufdistanz oberhalb einer definierten Geschwindigkeitsschwelle. Interpretation: sie ist ein zentraler Indikator für intensive Belastung (Sprints/Tempoläufe) und nicht nur für allgemeines Laufvolumen. Sehr niedrige Werte deuten meist auf wenige Sprintphasen hin, hohe Werte auf ausgeprägte Sprintbelastung und stärkere äußere Last. Einheit: km und m. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
+    sprintCount: 'Zweck: zählt, wie oft ein Spieler den Sprintbereich oberhalb der konfigurierten Geschwindigkeitsschwelle erreicht. Interpretation: die Metrik steht für hochintensive Aktionen und Sprintstress; Orientierung für typische Amateur-Sessions: 0-2 niedrig, 3-6 mittel, >6 hoch. Gemeinsam mit der Sprintdistanz lässt sich unterscheiden, ob eher viele kurze oder wenige längere Sprintphasen vorlagen. Einheit: Anzahl. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
+    maxSpeed: 'Zweck: erfasst die höchste gemessene Geschwindigkeit der Einheit und damit das aktuelle Sprintvermögen. Interpretation: <6,0 m/s eher niedrig, 6,0-7,5 m/s typisch und >7,5 m/s für viele Amateurspieler sehr hoch. Über die Zeit ist der Wert ein Performance-Marker; in Kombination mit High-Speed-Distanz sieht man, ob Top-Speed nur kurz oder wiederholt erreicht wurde. Einheit: m/s. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
+    highIntensityTime: 'Zweck: misst die Gesamtzeit oberhalb der High-Intensity-Schwelle. Interpretation: mehr Zeit bedeutet eine höhere intensive Arbeitslast und in der Regel stärkere kardiale sowie muskuläre Beanspruchung. Ist der Wert hoch, aber Anzahl Sprints niedrig, spricht das häufig für längere schnelle Läufe statt vieler kurzer Maximalaktionen. Einheit: Minuten und Sekunden. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
+    highIntensityRunCount: 'Zweck: zählt, wie oft eine hochintensive Laufphase oberhalb der High-Intensity-Schwelle beginnt. Interpretation: die Metrik zeigt wiederholte Tempobouts und ergänzt die Hochintensitätszeit, indem viele kurze von wenigen langen Phasen unterschieden werden können. Zusammen mit der High-Speed-Distanz lässt sich das Belastungsprofil der Einheit besser einordnen. Einheit: Anzahl. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
+    highSpeedDistance: 'Zweck: misst die Distanz oberhalb der High-Speed-Schwelle. Interpretation: höhere Werte sprechen für mehr anhaltend schnelles Laufen und wiederholte Tempophasen, nicht nur einzelne kurze Sprints. Zusammen mit Maximalgeschwindigkeit hilft die Metrik zu unterscheiden, ob nur ein Speed-Peak erreicht wurde oder dauerhaft schnell gelaufen wurde. Einheit: km und m. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
+    runningDensity: 'Zweck: setzt Distanz ins Verhältnis zur Zeit (Meter pro Minute) und erlaubt damit einen relativen Intensitätsvergleich über unterschiedlich lange Sessions. Interpretation: eine kurze Spielform kann pro Minute intensiver sein als eine längere Einheit, obwohl die Gesamtdistanz niedriger ist. Die Kennzahl hilft daher, kurze vs. lange Formate fair zu vergleichen. Einheit: Meter pro Minute. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
+    accelerationCount: 'Zweck: zählt explosive Beschleunigungen oberhalb der konfigurierten Beschleunigungsschwelle. Interpretation: hohe Werte bedeuten viele Antritte und meist höhere neuromuskuläre Belastung durch wiederholte Belastungsspitzen. In Verbindung mit Abbremsungen lässt sich gut erkennen, ob eine Session stark stop-and-go geprägt war. Einheit: Anzahl. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
+    decelerationCount: 'Zweck: zählt Bremsaktionen oberhalb der konfigurierten Abbrems-Schwelle. Interpretation: hohe Werte bedeuten viele Stopp-/Abbremsbewegungen und können die exzentrische muskuläre Last erhöhen. Zusammen mit Beschleunigungen ist dies ein starker Hinweis auf mechanische Belastung und mögliche Ermüdung trotz moderater Gesamtdistanz. Einheit: Anzahl. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
+    hrZoneLow: 'Zweck: misst die Zeit in niedriger Herzfrequenzintensität (<70% der sessionbasierten HFmax-Referenz). Interpretation: mehr Zeit bedeutet einen höheren Anteil lockerer Belastung und meist einen stärkeren Erholungscharakter der Einheit. Damit lässt sich prüfen, ob eine geplante lockere Session wirklich im gewünschten Intensitätsbereich blieb. Einheit: Minuten und Sekunden. Falls nicht verfügbar, war die HF-Qualität zu gering.',
+    hrZoneMedium: 'Zweck: misst die Zeit in mittlerer Herzfrequenzintensität (70-85%). Interpretation: die Zone steht typischerweise für dauerhafte submaximale Arbeit und aerobe Belastung. Wenn dieser Anteil über mehrere Einheiten steigt und die High-Zone stabil bleibt, spricht das häufig für strukturiertes Ausdauertraining. Einheit: Minuten und Sekunden. Falls nicht verfügbar, war die HF-Qualität zu gering.',
+    hrZoneHigh: 'Zweck: misst die Zeit in hoher Herzfrequenzintensität (>85% HFmax). Interpretation: diese Zone ist besonders relevant, weil sie sehr hohe Intensität und wettkampfnahen physiologischen Stress anzeigt. Bleibt dieser Anteil über viele Sessions hoch, sollte bewusst mit Regenerationstagen gegengesteuert werden, um Überlastung zu vermeiden. Einheit: Minuten und Sekunden. Falls nicht verfügbar, war die HF-Qualität zu gering.',
+    trimpEdwards: 'Zweck: schätzt die interne Trainingsbelastung über gewichtete Zeiten in Herzfrequenzzonen (Edwards/TRIMP-Konzept). Interpretation: grobe Orientierung für Amateur-Sessions: <40 niedrig, 40-80 mittel, 80-120 hoch, >120 sehr hoch. Am aussagekräftigsten ist der Verlauf über Wochen; deutliche TRIMP-Spitzen können auf abrupte Laststeigerungen und erhöhtes Ermüdungsrisiko hinweisen. Einheit: Score. Falls nicht verfügbar, war die HF-Qualität zu gering.',
+    hrRecovery60: 'Zweck: zeigt die kurzfristige autonome Erholung nach Belastung über den Herzfrequenzabfall nach 60 Sekunden. Interpretation: grobe Orientierung: <12 bpm Abfall eher schwach, 12-20 mittel, >20 gut. Besonders aussagekräftig ist der Trend unter ähnlichen Bedingungen; sinkende Werte können auf Müdigkeit, Stress oder unzureichende Regeneration hindeuten. Einheit: bpm-Abfall nach 60 s. Falls nicht verfügbar, war die HF-Qualität zu gering.',
+    coreThresholds: 'Zweck: dokumentiert aktive Metrik-Schwellenwerte. Interpretation: Werte definieren die Klassifikation von Tempo-/Intensitätsereignissen. Einheit: Parameterwerte.'
+  }
+};
+
+
+
+type MetricListItemProps = {
+  label: string;
+  value: string | number;
+  helpText: string;
+};
+
+function MetricListItem({ label, value, helpText }: MetricListItemProps) {
+  return (
+    <li>
+      <strong>{label}:</strong> {value} <span className="metric-help" role="note" aria-label={`${label} explanation`} title={helpText}>ⓘ</span>
+    </li>
+  );
+}
 
 function resolveInitialLocale(): Locale {
   if (typeof navigator === 'undefined') {
@@ -464,6 +545,7 @@ export function App() {
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
 
   const t = translations[locale];
+  const metricHelp = metricExplanations[locale];
   const validationMessage = useMemo(() => getFileValidationMessage(selectedFile, locale), [selectedFile, locale]);
   const canSubmit = useMemo(
     () => !!selectedFile && !validationMessage && !isUploading,
@@ -735,18 +817,18 @@ export function App() {
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
           <ul className="metrics-list">
-            <li><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable} ({t.metricHelpStartTime})</li>
-            <li><strong>{t.metricDuration}:</strong> {formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable)} ({t.metricHelpDuration})</li>
-            <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)} ({t.metricHelpHeartRate})</li>
-            <li><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount} ({t.metricHelpTrackpoints})</li>
-            <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)} ({t.metricHelpDistance})</li>
-            <li><strong>{t.metricDirectionChanges}:</strong> {activeDirectionChanges ?? 0}</li>
-            <li><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no} ({t.metricHelpGps})</li>
-            <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
-            <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
-            <li><strong>{t.metricDataChange}:</strong> {dataChangeMetric}</li>
-            <li><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
-            <li><strong>{t.metricSmoothingOutlier}:</strong> {selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: {selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)</li>
+            <MetricListItem label={t.metricStartTime} value={selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable} helpText={`${metricHelp.startTime} ${t.metricHelpStartTime}`} />
+            <MetricListItem label={t.metricDuration} value={formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
+            <MetricListItem label={t.metricHeartRate} value={formatHeartRate(selectedSession.summary, t.notAvailable)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
+            <MetricListItem label={t.metricTrackpoints} value={selectedSession.summary.trackpointCount} helpText={`${metricHelp.trackpoints} ${t.metricHelpTrackpoints}`} />
+            <MetricListItem label={t.metricDistance} value={`${formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — ${distanceSourceText(selectedSession.summary.distanceSource)}`} helpText={`${metricHelp.distance} ${t.metricHelpDistance}`} />
+            <MetricListItem label={t.metricDirectionChanges} value={activeDirectionChanges ?? 0} helpText={metricHelp.directionChanges} />
+            <MetricListItem label={t.metricGps} value={selectedSession.summary.hasGpsData ? t.yes : t.no} helpText={`${metricHelp.gps} ${t.metricHelpGps}`} />
+            <MetricListItem label={t.metricQualityStatus} value={qualityStatusText(selectedSession.summary.qualityStatus, t)} helpText={metricHelp.qualityStatus} />
+            <MetricListItem label={t.metricQualityReasons} value={selectedSession.summary.qualityReasons.join(' | ')} helpText={metricHelp.qualityReasons} />
+            <MetricListItem label={t.metricDataChange} value={dataChangeMetric} helpText={metricHelp.dataChange} />
+            <MetricListItem label={t.metricSmoothingStrategy} value={selectedSession.summary.smoothing.selectedStrategy} helpText={metricHelp.smoothingStrategy} />
+            <MetricListItem label={t.metricSmoothingOutlier} value={`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`} helpText={metricHelp.smoothingOutlier} />
           </ul>
           <div className="core-metrics-section">
             <h3>{t.coreMetricsTitle}</h3>
@@ -754,21 +836,22 @@ export function App() {
               <p>{t.coreMetricsUnavailable.replace('{reason}', selectedSession.summary.coreMetrics.unavailableReason ?? t.notAvailable)}</p>
             )}
             <ul className="metrics-list">
-              <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('distanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('sprintDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricSprintCount}:</strong> {selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}{(() => { const status = formatMetricStatus('sprintCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}{(() => { const status = formatMetricStatus('maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('highIntensityTimeSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('highSpeedDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricRunningDensity}:</strong> {formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}{(() => { const status = formatMetricStatus('runningDensityMetersPerMinute', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricAccelerationCount}:</strong> {selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable}{(() => { const status = formatMetricStatus('accelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricDecelerationCount}:</strong> {selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable}{(() => { const status = formatMetricStatus('decelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHrZoneLow}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('heartRateZoneLowSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}{(() => { const status = formatMetricStatus('trainingImpulseEdwards', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHrRecovery60}:</strong> {selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}{(() => { const status = formatMetricStatus('heartRateRecoveryAfter60Seconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricCoreThresholds}:</strong> {formatThresholds(selectedSession.summary.coreMetrics.thresholds)}</li>
+              <MetricListItem label={t.metricDistance} value={`${formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('distanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.distance} />
+              <MetricListItem label={t.metricSprintDistance} value={`${formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('sprintDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.sprintDistance} />
+              <MetricListItem label={t.metricSprintCount} value={`${selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('sprintCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.sprintCount} />
+              <MetricListItem label={t.metricMaxSpeed} value={`${formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}${(() => { const status = formatMetricStatus('maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.maxSpeed} />
+              <MetricListItem label={t.metricHighIntensityTime} value={`${formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('highIntensityTimeSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.highIntensityTime} />
+              <MetricListItem label={t.metricHighIntensityRunCount} value={`${selectedSession.summary.coreMetrics.highIntensityRunCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('highIntensityRunCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.highIntensityRunCount} />
+              <MetricListItem label={t.metricHighSpeedDistance} value={`${formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('highSpeedDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.highSpeedDistance} />
+              <MetricListItem label={t.metricRunningDensity} value={`${formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}${(() => { const status = formatMetricStatus('runningDensityMetersPerMinute', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.runningDensity} />
+              <MetricListItem label={t.metricAccelerationCount} value={`${selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('accelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.accelerationCount} />
+              <MetricListItem label={t.metricDecelerationCount} value={`${selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('decelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.decelerationCount} />
+              <MetricListItem label={t.metricHrZoneLow} value={`${formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('heartRateZoneLowSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrZoneLow} />
+              <MetricListItem label={t.metricHrZoneMedium} value={`${formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrZoneMedium} />
+              <MetricListItem label={t.metricHrZoneHigh} value={`${formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrZoneHigh} />
+              <MetricListItem label={t.metricTrimpEdwards} value={`${formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}${(() => { const status = formatMetricStatus('trainingImpulseEdwards', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.trimpEdwards} />
+              <MetricListItem label={t.metricHrRecovery60} value={`${selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}${(() => { const status = formatMetricStatus('heartRateRecoveryAfter60Seconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrRecovery60} />
+              <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(selectedSession.summary.coreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
             </ul>
           </div>
           {(showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
