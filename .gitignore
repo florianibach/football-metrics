@@ -10,3 +10,4 @@ frontend/dist/
 *.db-shm
 *.db-wal
 uploads/
+app/
