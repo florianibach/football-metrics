@@ -41,7 +41,7 @@ docker compose up --build
 Für Frontend-Config gilt: `VITE_API_BASE_URL` sollte auf den API-Pfad inkl. `/api` zeigen (z. B. `/api` oder `http://localhost:8080/api`).
 Hinweis: Das Frontend-Nginx proxyt `/api/*` an das Backend und erlaubt Uploads bis 25 MB (`client_max_body_size`), damit der 20 MB TCX-API-Limit korrekt erreicht werden kann.
 
-- `POST /api/tcx/upload` – nimmt eine `.tcx` Datei (max. 20 MB) entgegen, validiert Struktur (XML, Activity, Trackpoint) und gibt konkrete Fehlerhinweise bei ungültigen Dateien zurück.
+- `POST /api/tcx/upload` – nimmt eine `.tcx` Datei (max. 20 MB) entgegen, validiert Struktur (XML, Activity, Trackpoint), speichert die Rohdatei unverändert als BLOB inkl. SHA-256-Hash in SQLite und gibt konkrete Fehlerhinweise bei ungültigen Dateien bzw. Speicherfehlern zurück.
 - `GET /api/tcx` – listet hochgeladene Dateien auf.
 
 ## Entwicklung ohne Docker
@@ -88,4 +88,3 @@ Empfohlener Sammelcheck:
 
 - Für Raspberry Pi bevorzugt `linux/arm64` Images bauen (z. B. via `docker buildx`).
 - SQLite ist für den Start gut geeignet; durch Repository-Schicht kann später auf PostgreSQL o.ä. gewechselt werden.
-

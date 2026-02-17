@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Cryptography;
 
 namespace FootballMetrics.Api.Controllers;
 
@@ -13,13 +14,11 @@ public class TcxController : ControllerBase
     private const long MaxFileSizeInBytes = 20 * 1024 * 1024;
     private readonly ITcxUploadRepository _repository;
     private readonly ILogger<TcxController> _logger;
-    private readonly IWebHostEnvironment _environment;
 
-    public TcxController(ITcxUploadRepository repository, ILogger<TcxController> logger, IWebHostEnvironment environment)
+    public TcxController(ITcxUploadRepository repository, ILogger<TcxController> logger)
     {
         _repository = repository;
         _logger = logger;
-        _environment = environment;
     }
 
     [HttpPost("upload")]
@@ -41,33 +40,56 @@ public class TcxController : ControllerBase
             return BadRequest($"File is too large. Maximum supported size is {MaxFileSizeInBytes / (1024 * 1024)} MB.");
         }
 
-        var tcxValidationError = await ValidateTcxFileAsync(file, cancellationToken);
+        byte[] rawFileBytes;
+        await using (var uploadStream = file.OpenReadStream())
+        {
+            using var memoryStream = new MemoryStream();
+            await uploadStream.CopyToAsync(memoryStream, cancellationToken);
+            rawFileBytes = memoryStream.ToArray();
+        }
+
+        var tcxValidationError = await ValidateTcxFileAsync(rawFileBytes, cancellationToken);
         if (tcxValidationError is not null)
         {
             return BadRequest(tcxValidationError);
         }
 
-        var uploadsDirectory = Path.Combine(_environment.ContentRootPath, "uploads");
-        Directory.CreateDirectory(uploadsDirectory);
-
         var uploadId = Guid.NewGuid();
-        var fileName = $"{uploadId}.tcx";
-        var fullPath = Path.Combine(uploadsDirectory, fileName);
-
-        await using (var fileStream = System.IO.File.Create(fullPath))
-        {
-            await file.CopyToAsync(fileStream, cancellationToken);
-        }
 
         var entity = new TcxUpload
         {
             Id = uploadId,
             FileName = file.FileName,
-            StoredFilePath = fullPath,
+            RawFileContent = rawFileBytes,
+            ContentHashSha256 = Convert.ToHexString(SHA256.HashData(rawFileBytes)),
+            UploadStatus = TcxUploadStatuses.Succeeded,
             UploadedAtUtc = DateTime.UtcNow
         };
 
-        await _repository.AddAsync(entity, cancellationToken);
+        try
+        {
+            await _repository.AddAsync(entity, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to store raw TCX file {FileName} for upload {UploadId}", entity.FileName, entity.Id);
+
+            var failedEntity = new TcxUpload
+            {
+                Id = entity.Id,
+                FileName = entity.FileName,
+                RawFileContent = Array.Empty<byte>(),
+                ContentHashSha256 = string.Empty,
+                UploadStatus = TcxUploadStatuses.Failed,
+                FailureReason = "StorageError",
+                UploadedAtUtc = entity.UploadedAtUtc
+            };
+
+            await TryPersistFailedUploadAsync(failedEntity, cancellationToken);
+
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                "Upload failed while saving your file. Please retry in a moment or contact support if the problem persists.");
+        }
 
         _logger.LogInformation("Uploaded TCX file {FileName} with id {UploadId}", entity.FileName, entity.Id);
 
@@ -82,11 +104,11 @@ public class TcxController : ControllerBase
         return Ok(uploads.Select(item => new TcxUploadResponse(item.Id, item.FileName, item.UploadedAtUtc)).ToList());
     }
 
-    private static async Task<string?> ValidateTcxFileAsync(IFormFile file, CancellationToken cancellationToken)
+    private static async Task<string?> ValidateTcxFileAsync(byte[] rawFileBytes, CancellationToken cancellationToken)
     {
         try
         {
-            await using var stream = file.OpenReadStream();
+            await using var stream = new MemoryStream(rawFileBytes, writable: false);
             var document = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken);
             var rootName = document.Root?.Name.LocalName;
 
@@ -122,6 +144,21 @@ public class TcxController : ControllerBase
         catch (InvalidDataException)
         {
             return "File could not be read. Please check the file and upload a valid TCX export.";
+        }
+    }
+
+    private async Task TryPersistFailedUploadAsync(TcxUpload failedUpload, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _repository.AddAsync(failedUpload, cancellationToken);
+        }
+        catch (Exception persistFailureException)
+        {
+            _logger.LogWarning(
+                persistFailureException,
+                "Could not persist failed upload marker for {UploadId}",
+                failedUpload.Id);
         }
     }
 }
