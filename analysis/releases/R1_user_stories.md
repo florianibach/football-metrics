@@ -80,3 +80,36 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 - [ ] Die Erklärung enthält mindestens: Zweck der Metrik, vereinfachte Interpretation, Einheit.
 - [ ] Bei quality-gated Metriken wird erklärt, wann der Wert nicht verfügbar ist.
 - [ ] Die Texte sind in konsistenter, nutzerverständlicher Sprache formuliert.
+
+---
+
+## Story R1-07: Glättungsfilter pro Session auswählbar
+**Als** Nutzer  
+**möchte ich** den Glättungsfilter je Session auswählen  
+**damit** ich je nach Datenlage zwischen Rohdaten und unterschiedlichen Filterverfahren vergleichen kann.
+
+### Acceptance Criteria
+- [ ] In der Session-Detailansicht kann der Nutzer zwischen mindestens **Raw**, **AdaptiveMedian**, **Savitzky-Golay** und **Butterworth** umschalten.
+- [ ] Die Auswahl wirkt sich direkt auf die angezeigten Metriken/Visualisierungen der gewählten Session aus.
+- [ ] Die pro Session verwendete Filterauswahl wird nachvollziehbar gespeichert und im Analyseprotokoll angezeigt.
+- [ ] Für Sessions ohne GPS ist die Filterauswahl deaktiviert und nutzerverständlich begründet.
+
+---
+
+## Story R1-08: Filter-Erklärung und empfohlener Standard in der UI
+**Als** Nutzer  
+**möchte ich** eine kurze Erklärung zu jedem Filter sowie eine Produktempfehlung sehen  
+**damit** ich ohne Expertenwissen eine sinnvolle Auswahl treffen kann.
+
+### Acceptance Criteria
+- [ ] Für jeden angebotenen Filter gibt es eine Kurzbeschreibung (Zweck, Stärken, Grenzen, typische Nutzung).
+- [ ] Die UI markiert klar, welcher Filter vom Produktteam aktuell empfohlen wird.
+- [ ] Bei Filterwechsel wird erklärt, dass sich Kennzahlen durch das Verfahren ändern können.
+- [ ] Erklärtexte sind konsistent lokalisiert (DE/EN) und in Session-Details gut erreichbar.
+
+---
+
+## Release-Vorschlag (Filter-Themen)
+- **R1:** Session-bezogene Filterauswahl + Erklärung/Empfehlung (`R1-07`, `R1-08`).
+- **R1.5:** Profilweiter Default-Filter erst nach verfügbarem Profilbereich (siehe neue Story `R1.5-08`).
+

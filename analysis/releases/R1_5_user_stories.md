@@ -93,3 +93,17 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 - [ ] Kritische Verarbeitungsschritte sind zeitlich protokolliert.
 - [ ] Fehlgeschlagene Berechnungen enthalten einen klaren Grund und Handlungsempfehlung.
 - [ ] Das Protokoll ist exportier- oder kopierbar (für Nachvollziehbarkeit und Support).
+
+---
+
+## Story R1.5-08: Bevorzugten Glättungsfilter im Profil hinterlegen
+**Als** Nutzer  
+**möchte ich** meinen Standard-Glättungsfilter im Profil konfigurieren  
+**damit** neue Sessions automatisch mit meiner bevorzugten Voreinstellung starten.
+
+### Acceptance Criteria
+- [ ] Im Profil kann ein Default-Filter (Raw, AdaptiveMedian, Savitzky-Golay, Butterworth) gesetzt werden.
+- [ ] Der Profil-Default wird bei neuen Session-Analysen automatisch vorausgewählt.
+- [ ] Pro Session kann der Nutzer den Profil-Default weiterhin manuell überschreiben.
+- [ ] In der Session ist transparent erkennbar, ob der aktive Filter aus dem Profil-Default stammt oder manuell geändert wurde.
+
