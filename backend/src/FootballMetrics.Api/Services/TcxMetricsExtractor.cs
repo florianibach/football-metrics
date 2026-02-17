@@ -447,6 +447,7 @@ public static class TcxMetricsExtractor
         int? sprintCount = null;
         double? maxSpeed = null;
         double? highIntensityTimeSeconds = null;
+        int? highIntensityRunCount = null;
         double? highSpeedDistanceMeters = null;
         double? runningDensityMetersPerMinute = null;
         int? accelerationCount = null;
@@ -457,7 +458,7 @@ public static class TcxMetricsExtractor
         {
             foreach (var key in new[]
                      {
-                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds",
+                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
                          "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
                      })
             {
@@ -468,7 +469,7 @@ public static class TcxMetricsExtractor
         {
             foreach (var key in new[]
                      {
-                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds",
+                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
                          "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
                      })
             {
@@ -479,7 +480,7 @@ public static class TcxMetricsExtractor
         {
             foreach (var key in new[]
                      {
-                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds",
+                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
                          "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
                      })
             {
@@ -507,6 +508,21 @@ public static class TcxMetricsExtractor
             sprintCount = sprintTransitions;
             maxSpeed = segments.Max(segment => segment.Speed);
             highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond).Sum(segment => segment.Duration);
+
+            var highIntensityTransitions = 0;
+            var currentlyInHighIntensity = false;
+            foreach (var segment in segments)
+            {
+                var isHighIntensity = segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond;
+                if (isHighIntensity && !currentlyInHighIntensity)
+                {
+                    highIntensityTransitions++;
+                }
+
+                currentlyInHighIntensity = isHighIntensity;
+            }
+
+            highIntensityRunCount = highIntensityTransitions;
 
             var totalDurationSeconds = segments.Sum(segment => segment.Duration);
             runningDensityMetersPerMinute = totalDurationSeconds > 0
@@ -540,7 +556,7 @@ public static class TcxMetricsExtractor
 
             foreach (var key in new[]
                      {
-                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds",
+                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
                          "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
                      })
             {
@@ -678,6 +694,7 @@ public static class TcxMetricsExtractor
             sprintCount,
             maxSpeed,
             highIntensityTimeSeconds,
+            highIntensityRunCount,
             highSpeedDistanceMeters,
             runningDensityMetersPerMinute,
             accelerationCount,

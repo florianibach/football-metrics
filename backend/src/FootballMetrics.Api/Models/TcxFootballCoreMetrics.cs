@@ -8,6 +8,7 @@ public sealed record TcxFootballCoreMetrics(
     int? SprintCount,
     double? MaxSpeedMetersPerSecond,
     double? HighIntensityTimeSeconds,
+    int? HighIntensityRunCount,
     double? HighSpeedDistanceMeters,
     double? RunningDensityMetersPerMinute,
     int? AccelerationCount,

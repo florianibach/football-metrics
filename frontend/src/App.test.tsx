@@ -28,6 +28,7 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highIntensityRunCount: 7,
         highSpeedDistanceMeters: 1600,
         runningDensityMetersPerMinute: 170,
         accelerationCount: 14,
@@ -43,6 +44,7 @@ describe('App', () => {
           sprintCount: { state: 'Available', reason: null },
           maxSpeedMetersPerSecond: { state: 'Available', reason: null },
           highIntensityTimeSeconds: { state: 'Available', reason: null },
+          highIntensityRunCount: { state: 'Available', reason: null },
           highSpeedDistanceMeters: { state: 'Available', reason: null },
           runningDensityMetersPerMinute: { state: 'Available', reason: null },
           accelerationCount: { state: 'Available', reason: null },
@@ -300,6 +302,7 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highIntensityRunCount: 7,
         highSpeedDistanceMeters: 1600,
         runningDensityMetersPerMinute: 170,
         accelerationCount: 14,
@@ -369,6 +372,7 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highIntensityRunCount: 7,
         highSpeedDistanceMeters: 1600,
         runningDensityMetersPerMinute: 170,
         accelerationCount: 14,
@@ -431,6 +435,7 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highIntensityRunCount: 7,
         highSpeedDistanceMeters: 1600,
         runningDensityMetersPerMinute: 170,
         accelerationCount: 14,
@@ -492,6 +497,7 @@ describe('App', () => {
               sprintCount: 5,
               maxSpeedMetersPerSecond: 7.75,
               highIntensityTimeSeconds: 420,
+              highIntensityRunCount: 6,
               highSpeedDistanceMeters: 1200,
               runningDensityMetersPerMinute: 165,
               accelerationCount: 11,
@@ -523,6 +529,7 @@ describe('App', () => {
     expect(screen.getByText(/Sprint count:/)).toBeInTheDocument();
     expect(screen.getByText(/Maximum speed:/)).toBeInTheDocument();
     expect(screen.getByText(/High-intensity time:/)).toBeInTheDocument();
+    expect(screen.getByText(/High-intensity runs:/)).toBeInTheDocument();
     expect(screen.getByText(/High-speed distance:/)).toBeInTheDocument();
     expect(screen.getByText(/Running density \(m\/min\):/)).toBeInTheDocument();
     expect(screen.getByText(/Accelerations:/)).toBeInTheDocument();
@@ -545,6 +552,7 @@ describe('App', () => {
               sprintCount: null,
               maxSpeedMetersPerSecond: null,
               highIntensityTimeSeconds: null,
+              highIntensityRunCount: null,
               highSpeedDistanceMeters: null,
               runningDensityMetersPerMinute: null,
               accelerationCount: null,
@@ -695,6 +703,7 @@ describe('App', () => {
               sprintCount: null,
               maxSpeedMetersPerSecond: null,
               highIntensityTimeSeconds: null,
+              highIntensityRunCount: null,
               highSpeedDistanceMeters: null,
               runningDensityMetersPerMinute: null,
               accelerationCount: null,

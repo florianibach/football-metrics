@@ -169,7 +169,7 @@ Empfohlener Sammelcheck:
 
 ## Fußball-Kernmetriken (R1-03)
 
-- Die API liefert unter `summary.coreMetrics` die v1-Kernmetriken: Distanz, Sprintdistanz, Anzahl Sprints, Maximalgeschwindigkeit und Hochintensitätszeit.
+- Die API liefert unter `summary.coreMetrics` die v1-Kernmetriken: Distanz, Sprintdistanz, Anzahl Sprints, Maximalgeschwindigkeit, Hochintensitätszeit und Anzahl hochintensiver Läufe.
 - Initiale Schwellwerte sind dokumentiert und im Payload transparent enthalten:
   - `SprintSpeedThresholdMps = 7.0`
   - `HighIntensitySpeedThresholdMps = 5.5`
@@ -179,6 +179,7 @@ Empfohlener Sammelcheck:
 
 - Ergänzt um weitere Fußball-Metriken aus `analysis/Auswertung von GPS- und Herzfrequenzdaten im Amateurfußball.pdf` (R1-03 Erweiterung):
   - `highSpeedDistanceMeters` (hochintensive Laufdistanz)
+  - `highIntensityRunCount` (Anzahl hochintensive Läufe)
   - `runningDensityMetersPerMinute` (Laufdichte)
   - `accelerationCount` / `decelerationCount` (neuromuskuläre Last)
   - Herzfrequenzzonenzeit `<70%`, `70-85%`, `>85%` (auf Basis session-interner HFmax)

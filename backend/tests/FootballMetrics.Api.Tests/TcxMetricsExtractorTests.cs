@@ -425,4 +425,33 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.MetricAvailability["heartRateZoneLowSeconds"].State.Should().Be("Available");
     }
 
+
+    [Fact]
+    public void R1_03_Ac05_Extract_ShouldCalculateHighIntensityRunCount()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Id>2026-02-16T10:00:00Z</Id>
+      <Lap>
+        <Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.00000</LatitudeDegrees><LongitudeDegrees>7.00000</LongitudeDegrees></Position><HeartRateBpm><Value>140</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:10Z</Time><Position><LatitudeDegrees>50.00054</LatitudeDegrees><LongitudeDegrees>7.00000</LongitudeDegrees></Position><HeartRateBpm><Value>150</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:20Z</Time><Position><LatitudeDegrees>50.00072</LatitudeDegrees><LongitudeDegrees>7.00000</LongitudeDegrees></Position><HeartRateBpm><Value>152</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:30Z</Time><Position><LatitudeDegrees>50.00126</LatitudeDegrees><LongitudeDegrees>7.00000</LongitudeDegrees></Position><HeartRateBpm><Value>155</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:40Z</Time><Position><LatitudeDegrees>50.00180</LatitudeDegrees><LongitudeDegrees>7.00000</LongitudeDegrees></Position><HeartRateBpm><Value>158</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:50Z</Time><Position><LatitudeDegrees>50.00198</LatitudeDegrees><LongitudeDegrees>7.00000</LongitudeDegrees></Position><HeartRateBpm><Value>160</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:01:00Z</Time><Position><LatitudeDegrees>50.00252</LatitudeDegrees><LongitudeDegrees>7.00000</LongitudeDegrees></Position><HeartRateBpm><Value>162</Value></HeartRateBpm></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.CoreMetrics.HighIntensityRunCount.Should().Be(3);
+        summary.CoreMetrics.MetricAvailability["highIntensityRunCount"].State.Should().Be("Available");
+    }
+
 }
