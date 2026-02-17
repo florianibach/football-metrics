@@ -85,7 +85,7 @@ public class TcxController : ControllerBase
                 UploadedAtUtc = entity.UploadedAtUtc
             };
 
-            await TryPersistFailedUploadAsync(failedEntity, cancellationToken);
+            await EnsureFailedUploadMarkerAsync(failedEntity, cancellationToken);
 
             return StatusCode(StatusCodes.Status500InternalServerError,
                 "Upload failed while saving your file. Please retry in a moment or contact support if the problem persists.");
@@ -147,17 +147,41 @@ public class TcxController : ControllerBase
         }
     }
 
-    private async Task TryPersistFailedUploadAsync(TcxUpload failedUpload, CancellationToken cancellationToken)
+    private async Task EnsureFailedUploadMarkerAsync(TcxUpload failedUpload, CancellationToken cancellationToken)
     {
         try
         {
             await _repository.AddAsync(failedUpload, cancellationToken);
+            return;
         }
-        catch (Exception persistFailureException)
+        catch (Exception sameIdPersistFailureException)
         {
             _logger.LogWarning(
-                persistFailureException,
-                "Could not persist failed upload marker for {UploadId}",
+                sameIdPersistFailureException,
+                "Could not persist failed upload marker for {UploadId} with original id",
+                failedUpload.Id);
+        }
+
+        var fallbackFailedUpload = new TcxUpload
+        {
+            Id = Guid.NewGuid(),
+            FileName = failedUpload.FileName,
+            RawFileContent = failedUpload.RawFileContent,
+            ContentHashSha256 = failedUpload.ContentHashSha256,
+            UploadStatus = failedUpload.UploadStatus,
+            FailureReason = $"{failedUpload.FailureReason}|OriginalUploadId:{failedUpload.Id}",
+            UploadedAtUtc = failedUpload.UploadedAtUtc
+        };
+
+        try
+        {
+            await _repository.AddAsync(fallbackFailedUpload, cancellationToken);
+        }
+        catch (Exception fallbackPersistFailureException)
+        {
+            _logger.LogWarning(
+                fallbackPersistFailureException,
+                "Could not persist fallback failed upload marker for original upload {UploadId}",
                 failedUpload.Id);
         }
     }

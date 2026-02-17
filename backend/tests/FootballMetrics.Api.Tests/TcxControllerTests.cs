@@ -130,6 +130,30 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
+    public async Task Mvp02_Ac04_WhenFailedMarkerWithOriginalIdCannotBeSaved_ShouldPersistFallbackFailedMarker()
+    {
+        var repository = new ThrowingThenRejectingSameIdRepository();
+        var controller = new TcxController(repository, NullLogger<TcxController>.Instance);
+
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
+        var file = new FormFile(stream, 0, stream.Length, "file", "failure-fallback-case.tcx")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "application/xml"
+        };
+
+        var result = await controller.UploadTcx(file, CancellationToken.None);
+        var objectResult = result.Result.Should().BeOfType<Microsoft.AspNetCore.Mvc.ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+
+        repository.Calls.Should().HaveCount(3);
+        repository.Calls[1].UploadStatus.Should().Be(TcxUploadStatuses.Failed);
+        repository.Calls[2].UploadStatus.Should().Be(TcxUploadStatuses.Failed);
+        repository.Calls[2].Id.Should().NotBe(repository.Calls[1].Id);
+        repository.Calls[2].FailureReason.Should().Contain("OriginalUploadId");
+    }
+
+    [Fact]
     public async Task Mvp01_Ac02_UploadingNonTcx_ShouldReturnBadRequest()
     {
         var client = _factory.CreateClient();
@@ -236,6 +260,33 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             if (Calls.Count == 1)
             {
                 throw new InvalidOperationException("Simulated storage failure");
+            }
+
+            return Task.FromResult(upload);
+        }
+
+        public Task<IReadOnlyList<TcxUpload>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<TcxUpload>>(new List<TcxUpload>());
+    }
+
+    private sealed class ThrowingThenRejectingSameIdRepository : ITcxUploadRepository
+    {
+        public List<TcxUpload> Calls { get; } = new();
+        private Guid? _firstFailedUploadId;
+
+        public Task<TcxUpload> AddAsync(TcxUpload upload, CancellationToken cancellationToken = default)
+        {
+            Calls.Add(upload);
+
+            if (Calls.Count == 1)
+            {
+                _firstFailedUploadId = upload.Id;
+                throw new InvalidOperationException("Simulated initial storage failure");
+            }
+
+            if (Calls.Count == 2 && _firstFailedUploadId.HasValue && upload.Id == _firstFailedUploadId.Value)
+            {
+                throw new InvalidOperationException("Simulated duplicate/constraint failure on failed-marker with original id");
             }
 
             return Task.FromResult(upload);
