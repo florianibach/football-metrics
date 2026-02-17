@@ -314,7 +314,7 @@ public class TcxMetricsExtractorTests
     }
 
     [Fact]
-    public void R1_03_Ac01_Ac02_Extract_ShouldCalculateFootballCoreMetricsWithDocumentedThresholds()
+    public void R1_03_Ac01_Ac02_Ac05_Extract_ShouldCalculateFootballCoreMetricsWithDocumentedThresholdsAndExtendedMetrics()
     {
         var doc = XDocument.Parse(@"<TrainingCenterDatabase>
   <Activities>

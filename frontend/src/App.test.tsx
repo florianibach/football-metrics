@@ -461,7 +461,7 @@ describe('App', () => {
   });
 
 
-  it('R1_03_Ac01_Ac04_shows_football_core_metrics_and_quality_gated_hint', async () => {
+  it('R1_03_Ac01_Ac04_Ac05_shows_football_core_metrics_extended_set_and_quality_gated_hint', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
       json: async () => [
