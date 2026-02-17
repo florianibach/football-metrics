@@ -163,6 +163,17 @@ Empfohlener Sammelcheck:
 - Eine zusätzliche Kennzahl zeigt transparent die Datenveränderung durch die Glättung (Anteil korrigierter Punkte + Distanzabweichung in Metern mit 3 Nachkommastellen, damit auch sehr kleine Deltas sichtbar sind).
 - Bei Sessions ohne GPS ist der Vergleich deaktiviert und wird in der UI verständlich begründet.
 
+
+## Fußball-Kernmetriken (R1-03)
+
+- Die API liefert unter `summary.coreMetrics` die v1-Kernmetriken: Distanz, Sprintdistanz, Anzahl Sprints, Maximalgeschwindigkeit und Hochintensitätszeit.
+- Initiale Schwellwerte sind dokumentiert und im Payload transparent enthalten:
+  - `SprintSpeedThresholdMps = 7.0`
+  - `HighIntensitySpeedThresholdMps = 5.5`
+- Quality-Gating: Die Kernmetriken werden aktuell nur bei `qualityStatus = High` berechnet.
+- Bei unzureichender Qualität liefert die API einen verständlichen Hinweis in `summary.coreMetrics.unavailableReason`, statt numerischer Werte.
+- Die UI zeigt die Kernmetriken in der Session-Detailansicht an und blendet bei Quality-Gating den Hinweistext ein.
+
 ## GPS-Glättung (R1-01)
 
 - Es werden zwei Logiken unterschieden:

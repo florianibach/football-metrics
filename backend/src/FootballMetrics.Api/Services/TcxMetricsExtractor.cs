@@ -8,6 +8,8 @@ public static class TcxMetricsExtractor
 {
     private const double EarthRadiusMeters = 6_371_000;
     private const double MaxPlausibleSpeedMetersPerSecond = 12.5;
+    private const double SprintSpeedThresholdMetersPerSecond = 7.0;
+    private const double HighIntensitySpeedThresholdMetersPerSecond = 5.5;
 
     public static TcxActivitySummary Extract(XDocument document)
     {
@@ -71,6 +73,7 @@ public static class TcxMetricsExtractor
 
         var qualityAssessment = AssessQuality(smoothedTrackpoints, outlierSpeedThresholdMps);
         var smoothingTrace = BuildSmoothingTrace(trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
+        var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance);
 
         return new TcxActivitySummary(
             startTime,
@@ -85,7 +88,8 @@ public static class TcxMetricsExtractor
             source,
             qualityAssessment.Status,
             qualityAssessment.Reasons,
-            smoothingTrace);
+            smoothingTrace,
+            coreMetrics);
     }
 
     private static TcxSmoothingTrace BuildSmoothingTrace(
@@ -385,6 +389,102 @@ public static class TcxMetricsExtractor
         }
 
         return new QualityAssessment(status, reasons);
+    }
+
+    private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
+        IReadOnlyList<TrackpointSnapshot> trackpoints,
+        string qualityStatus,
+        double? totalDistanceMeters)
+    {
+        var thresholds = new Dictionary<string, string>
+        {
+            ["SprintSpeedThresholdMps"] = SprintSpeedThresholdMetersPerSecond.ToString("0.0", CultureInfo.InvariantCulture),
+            ["HighIntensitySpeedThresholdMps"] = HighIntensitySpeedThresholdMetersPerSecond.ToString("0.0", CultureInfo.InvariantCulture)
+        };
+
+        if (!string.Equals(qualityStatus, "High", StringComparison.OrdinalIgnoreCase))
+        {
+            return new TcxFootballCoreMetrics(
+                false,
+                $"Core metrics unavailable because data quality is {qualityStatus}. Required: High.",
+                null,
+                null,
+                null,
+                null,
+                null,
+                thresholds);
+        }
+
+        var segments = trackpoints
+            .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
+            .OrderBy(tp => tp.TimeUtc)
+            .Zip(trackpoints
+                    .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
+                    .OrderBy(tp => tp.TimeUtc)
+                    .Skip(1),
+                (previous, current) => (previous, current))
+            .Select(pair =>
+            {
+                var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
+                if (elapsedSeconds <= 0)
+                {
+                    return (IsValid: false, Distance: 0.0, Speed: 0.0, Duration: 0.0);
+                }
+
+                var distanceMeters = HaversineMeters(
+                    (pair.previous.Latitude!.Value, pair.previous.Longitude!.Value),
+                    (pair.current.Latitude!.Value, pair.current.Longitude!.Value));
+                var speedMps = distanceMeters / elapsedSeconds;
+
+                return (IsValid: true, Distance: distanceMeters, Speed: speedMps, Duration: elapsedSeconds);
+            })
+            .Where(x => x.IsValid)
+            .ToList();
+
+        if (segments.Count == 0)
+        {
+            return new TcxFootballCoreMetrics(
+                false,
+                "Core metrics unavailable because GPS/time segments are incomplete.",
+                null,
+                null,
+                null,
+                null,
+                null,
+                thresholds);
+        }
+
+        var sprintDistanceMeters = segments
+            .Where(segment => segment.Speed >= SprintSpeedThresholdMetersPerSecond)
+            .Sum(segment => segment.Distance);
+
+        var sprintCount = 0;
+        var currentlyInSprint = false;
+        foreach (var segment in segments)
+        {
+            var isSprint = segment.Speed >= SprintSpeedThresholdMetersPerSecond;
+            if (isSprint && !currentlyInSprint)
+            {
+                sprintCount++;
+            }
+
+            currentlyInSprint = isSprint;
+        }
+
+        var maxSpeed = segments.Max(segment => segment.Speed);
+        var highIntensityTimeSeconds = segments
+            .Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond)
+            .Sum(segment => segment.Duration);
+
+        return new TcxFootballCoreMetrics(
+            true,
+            null,
+            totalDistanceMeters,
+            sprintDistanceMeters,
+            sprintCount,
+            maxSpeed,
+            highIntensityTimeSeconds,
+            thresholds);
     }
 
     private static int CountUnplausibleGpsJumps(IReadOnlyList<TrackpointSnapshot> trackpoints, double outlierSpeedThresholdMps)

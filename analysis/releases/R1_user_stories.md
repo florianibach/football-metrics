@@ -37,10 +37,10 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 **damit** ich mein Belastungsprofil besser einschätzen kann.
 
 ### Acceptance Criteria
-- [ ] Berechnung von mindestens: zurückgelegte Distanz, Sprintdistanz, Anzahl Sprints, Maximalgeschwindigkeit, Hochintensitätszeit.
-- [ ] Schwellen (z. B. Sprint-Tempo) sind initial sinnvoll vorbelegt und dokumentiert.
-- [ ] Metriken werden nur berechnet, wenn die erforderliche Datenqualität erreicht ist.
-- [ ] Bei zu geringer Qualität wird statt einer Zahl ein verständlicher Hinweis ausgegeben.
+- [x] Berechnung von mindestens: zurückgelegte Distanz, Sprintdistanz, Anzahl Sprints, Maximalgeschwindigkeit, Hochintensitätszeit.
+- [x] Schwellen (z. B. Sprint-Tempo) sind initial sinnvoll vorbelegt und dokumentiert.
+- [x] Metriken werden nur berechnet, wenn die erforderliche Datenqualität erreicht ist.
+- [x] Bei zu geringer Qualität wird statt einer Zahl ein verständlicher Hinweis ausgegeben.
 
 ---
 
