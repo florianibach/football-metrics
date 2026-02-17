@@ -81,7 +81,8 @@ public class TcxController : ControllerBase
             RawFileContent = rawFileBytes,
             ContentHashSha256 = Convert.ToHexString(SHA256.HashData(rawFileBytes)),
             UploadStatus = TcxUploadStatuses.Succeeded,
-            UploadedAtUtc = DateTime.UtcNow
+            UploadedAtUtc = DateTime.UtcNow,
+            SelectedSmoothingFilter = TcxSmoothingFilters.AdaptiveMedian
         };
 
         try
@@ -131,7 +132,7 @@ public class TcxController : ControllerBase
     {
         var uploads = await _repository.ListAsync(cancellationToken);
         var responses = uploads
-            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent)))
+            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter)))
             .ToList();
 
         return Ok(responses);
@@ -146,11 +147,36 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent));
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter));
         return Ok(response);
     }
 
-    private static TcxActivitySummary CreateSummaryFromRawContent(byte[] rawFileContent)
+    [HttpPut("{id:guid}/smoothing-filter")]
+    public async Task<ActionResult<TcxUploadResponse>> UpdateSessionSmoothingFilter(Guid id, [FromBody] UpdateSmoothingFilterRequest request, CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Filter) || !TcxSmoothingFilters.Supported.Contains(request.Filter))
+        {
+            return BadRequest($"Unsupported filter. Supported values: {string.Join(", ", TcxSmoothingFilters.Supported)}.");
+        }
+
+        var normalizedFilter = TcxSmoothingFilters.Supported.First(filter => string.Equals(filter, request.Filter, StringComparison.OrdinalIgnoreCase));
+        var wasUpdated = await _repository.UpdateSelectedSmoothingFilterAsync(id, normalizedFilter, cancellationToken);
+        if (!wasUpdated)
+        {
+            return NotFound();
+        }
+
+        var upload = await _repository.GetByIdAsync(id, cancellationToken);
+        if (upload is null)
+        {
+            return NotFound();
+        }
+
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter));
+        return Ok(response);
+    }
+
+    private static TcxActivitySummary CreateSummaryFromRawContent(byte[] rawFileContent, string selectedSmoothingFilter)
     {
         if (rawFileContent.Length == 0)
         {
@@ -161,7 +187,7 @@ public class TcxController : ControllerBase
         {
             using var stream = new MemoryStream(rawFileContent, writable: false);
             var document = XDocument.Load(stream);
-            return TcxMetricsExtractor.Extract(document);
+            return TcxMetricsExtractor.Extract(document, selectedSmoothingFilter);
         }
         catch
         {
@@ -211,3 +237,4 @@ public class TcxController : ControllerBase
 }
 
 public record TcxUploadResponse(Guid Id, string FileName, DateTime UploadedAtUtc, TcxActivitySummary Summary);
+public record UpdateSmoothingFilterRequest(string Filter);

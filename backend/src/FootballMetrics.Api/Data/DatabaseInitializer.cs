@@ -31,7 +31,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 ContentHashSha256 TEXT NOT NULL,
                 UploadStatus TEXT NOT NULL DEFAULT 'Succeeded',
                 FailureReason TEXT NULL,
-                UploadedAtUtc TEXT NOT NULL
+                UploadedAtUtc TEXT NOT NULL,
+                SelectedSmoothingFilter TEXT NOT NULL DEFAULT 'AdaptiveMedian'
             );
 
             CREATE INDEX IF NOT EXISTS IX_TcxUploads_UploadedAtUtc ON TcxUploads (UploadedAtUtc DESC);
@@ -44,6 +45,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "ContentHashSha256", "TEXT NOT NULL DEFAULT ''", cancellationToken);
         await EnsureColumnExistsAsync(connection, "UploadStatus", "TEXT NOT NULL DEFAULT 'Succeeded'", cancellationToken);
         await EnsureColumnExistsAsync(connection, "FailureReason", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "SelectedSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
     }
 
     private static async Task EnsureColumnExistsAsync(SqliteConnection connection, string columnName, string columnDefinition, CancellationToken cancellationToken)

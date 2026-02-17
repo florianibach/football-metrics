@@ -87,15 +87,16 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 ---
 
 ## Story R1-07: Glättungsfilter pro Session auswählbar
+**Status:** Done ✅  
 **Als** Nutzer  
 **möchte ich** den Glättungsfilter je Session auswählen  
 **damit** ich je nach Datenlage zwischen Rohdaten und unterschiedlichen Filterverfahren vergleichen kann.
 
 ### Acceptance Criteria
-- [ ] In der Session-Detailansicht kann der Nutzer zwischen mindestens **Raw**, **AdaptiveMedian**, **Savitzky-Golay** und **Butterworth** umschalten.
-- [ ] Die Auswahl wirkt sich direkt auf die angezeigten Metriken/Visualisierungen der gewählten Session aus.
-- [ ] Die pro Session verwendete Filterauswahl wird nachvollziehbar gespeichert und im Analyseprotokoll angezeigt.
-- [ ] Für Sessions ohne GPS ist die Filterauswahl deaktiviert und nutzerverständlich begründet.
+- [x] In der Session-Detailansicht kann der Nutzer zwischen mindestens **Raw**, **AdaptiveMedian**, **Savitzky-Golay** und **Butterworth** umschalten.
+- [x] Die Auswahl wirkt sich direkt auf die angezeigten Metriken/Visualisierungen der gewählten Session aus.
+- [x] Die pro Session verwendete Filterauswahl wird nachvollziehbar gespeichert und im Analyseprotokoll angezeigt.
+- [x] Für Sessions ohne GPS ist die Filterauswahl deaktiviert und nutzerverständlich begründet.
 
 ---
 

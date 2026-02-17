@@ -166,6 +166,13 @@ Empfohlener Sammelcheck:
 - Eine zusätzliche Kennzahl zeigt transparent die Datenveränderung durch die Glättung (Anteil korrigierter Punkte + Distanzabweichung in Metern mit 3 Nachkommastellen, damit auch sehr kleine Deltas sichtbar sind).
 - Bei Sessions ohne GPS ist der Vergleich deaktiviert und wird in der UI verständlich begründet.
 
+## Glättungsfilter pro Session auswählbar (R1-07)
+
+- In der Session-Detailansicht kann je Session ein Glättungsfilter gewählt werden: `Raw`, `AdaptiveMedian`, `Savitzky-Golay`, `Butterworth`.
+- Die Auswahl wird per API (`PUT /api/tcx/{id}/smoothing-filter`) pro Session persistiert und bei `GET /api/tcx` sowie `GET /api/tcx/{id}` wieder ausgeliefert.
+- Die gewählte Filterstrategie wird im Analyseprotokoll unter `summary.smoothing.selectedStrategy` nachvollziehbar angezeigt.
+- Für Sessions ohne GPS ist die Filterauswahl deaktiviert; die UI zeigt eine verständliche Begründung.
+
 
 ## Fußball-Kernmetriken (R1-03)
 

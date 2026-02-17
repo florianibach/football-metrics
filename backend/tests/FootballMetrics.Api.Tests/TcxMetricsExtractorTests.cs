@@ -274,7 +274,7 @@ public class TcxMetricsExtractorTests
 
         var summary = TcxMetricsExtractor.Extract(doc);
 
-        summary.Smoothing.SelectedStrategy.Should().Be("FootballAdaptiveMedian");
+        summary.Smoothing.SelectedStrategy.Should().Be("AdaptiveMedian");
         summary.Smoothing.CorrectedOutlierCount.Should().BeGreaterThan(0);
         summary.Smoothing.SmoothedDistanceMeters.Should().NotBeNull();
         summary.Smoothing.RawDistanceMeters.Should().NotBeNull();
