@@ -1,10 +1,10 @@
+using System.Security.Cryptography;
 using System.Xml;
 using System.Xml.Linq;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
 using FootballMetrics.Api.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Cryptography;
 
 namespace FootballMetrics.Api.Controllers;
 
@@ -109,14 +109,50 @@ public class TcxController : ControllerBase
         }
 
         var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc, summary);
-        return CreatedAtAction(nameof(GetUploads), response);
+        return CreatedAtAction(nameof(GetUploadById), new { id = entity.Id }, response);
     }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<TcxUploadResponse>>> GetUploads(CancellationToken cancellationToken)
     {
         var uploads = await _repository.ListAsync(cancellationToken);
-        return Ok(uploads.Select(item => new TcxUploadResponse(item.Id, item.FileName, item.UploadedAtUtc, new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "No quality assessment available for list endpoint." }))).ToList());
+        var responses = uploads
+            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent)))
+            .ToList();
+
+        return Ok(responses);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<TcxUploadResponse>> GetUploadById(Guid id, CancellationToken cancellationToken)
+    {
+        var upload = await _repository.GetByIdAsync(id, cancellationToken);
+        if (upload is null)
+        {
+            return NotFound();
+        }
+
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent));
+        return Ok(response);
+    }
+
+    private static TcxActivitySummary CreateSummaryFromRawContent(byte[] rawFileContent)
+    {
+        if (rawFileContent.Length == 0)
+        {
+            return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "No quality assessment available." });
+        }
+
+        try
+        {
+            using var stream = new MemoryStream(rawFileContent, writable: false);
+            var document = XDocument.Load(stream);
+            return TcxMetricsExtractor.Extract(document);
+        }
+        catch
+        {
+            return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "TCX summary unavailable due to invalid stored content." });
+        }
     }
 
     private static async Task<(XDocument? Document, string? ErrorMessage)> ValidateTcxFileAsync(byte[] rawFileBytes, CancellationToken cancellationToken)

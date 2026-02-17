@@ -71,11 +71,13 @@ Im MVP sollen Amateurspieler ihre TCX-Dateien selbst hochladen können und eine 
 **möchte ich** eine Liste meiner hochgeladenen Dateien sehen  
 **damit** ich meine bisherigen Einheiten wiederfinde.
 
+**Status:** Done
+
 ### Acceptance Criteria
-- [ ] Es gibt eine tabellarische oder kartenbasierte Übersicht aller hochgeladenen Sessions.
-- [ ] Pro Eintrag werden mindestens angezeigt: Dateiname, Upload-Zeit, Aktivitätszeitpunkt, Qualitätsstatus.
-- [ ] Die Liste ist nach Upload-Zeit sortierbar (neueste zuerst als Default).
-- [ ] Ein Klick auf einen Eintrag öffnet die Detailansicht der Session.
+- [x] Es gibt eine tabellarische oder kartenbasierte Übersicht aller hochgeladenen Sessions.
+- [x] Pro Eintrag werden mindestens angezeigt: Dateiname, Upload-Zeit, Aktivitätszeitpunkt, Qualitätsstatus.
+- [x] Die Liste ist nach Upload-Zeit sortierbar (neueste zuerst als Default).
+- [x] Ein Klick auf einen Eintrag öffnet die Detailansicht der Session.
 
 ---
 

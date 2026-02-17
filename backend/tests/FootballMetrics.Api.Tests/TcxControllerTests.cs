@@ -337,6 +337,58 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         payload!.Summary.QualityStatus.Should().Be("Medium");
         payload.Summary.QualityReasons.Should().Contain(reason => reason.Contains("implausible GPS jumps"));
     }
+
+
+    [Fact]
+    public async Task Mvp05_Ac01_Ac02_GetUploads_ShouldIncludeSummaryFieldsForEachSession()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "mvp05-list.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:01:00Z</Time><Position><LatitudeDegrees>50.0005</LatitudeDegrees><LongitudeDegrees>7.0005</LongitudeDegrees></Position><HeartRateBpm><Value>132</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var listResponse = await client.GetAsync("/api/tcx");
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var payload = await listResponse.Content.ReadFromJsonAsync<List<TcxUploadResponseWithSummaryDto>>();
+        payload.Should().NotBeNull();
+        payload!.Should().Contain(item => item.FileName == "mvp05-list.tcx");
+
+        var session = payload!
+            .Where(item => item.FileName == "mvp05-list.tcx")
+            .OrderByDescending(item => item.UploadedAtUtc)
+            .First();
+        session.UploadedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+        session.Summary.ActivityStartTimeUtc.Should().NotBeNull();
+        session.Summary.QualityStatus.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task Mvp05_Ac04_GetUploadById_ShouldReturnSpecificSessionDetail()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "mvp05-detail.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        created.Should().NotBeNull();
+
+        var detailResponse = await client.GetAsync($"/api/tcx/{created!.Id}");
+        detailResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var detail = await detailResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        detail.Should().NotBeNull();
+        detail!.Id.Should().Be(created.Id);
+        detail.FileName.Should().Be("mvp05-detail.tcx");
+    }
+
     private static MultipartFormDataContent CreateUploadForm(string fileName, string contentText)
     {
         var form = new MultipartFormDataContent();
@@ -379,6 +431,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         public Task<IReadOnlyList<TcxUpload>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<TcxUpload>>(new List<TcxUpload>());
+
+        public Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<TcxUpload?>(null);
     }
 
     private sealed class ThrowingThenRejectingSameIdRepository : ITcxUploadRepository
@@ -406,6 +461,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         public Task<IReadOnlyList<TcxUpload>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<TcxUpload>>(new List<TcxUpload>());
+
+        public Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<TcxUpload?>(null);
     }
 
     public record TcxUploadResponseDto(Guid Id, string FileName, DateTime UploadedAtUtc);

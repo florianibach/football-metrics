@@ -9,7 +9,7 @@ body {
 }
 
 .container {
-  max-width: 760px;
+  max-width: 900px;
   margin: 2rem auto;
   background: #ffffff;
   border-radius: 12px;
@@ -21,7 +21,6 @@ body {
   color: #475467;
 }
 
-
 .language-switcher {
   display: flex;
   justify-content: flex-end;
@@ -30,7 +29,8 @@ body {
   margin-bottom: 1rem;
 }
 
-.language-switcher select {
+.language-switcher select,
+.history-controls select {
   border: 1px solid #d0d5dd;
   border-radius: 6px;
   padding: 0.35rem 0.5rem;
@@ -72,4 +72,28 @@ button {
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.secondary-button {
+  background-color: #344054;
+}
+
+.history-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.history-table th,
+.history-table td {
+  border-bottom: 1px solid #eaecf0;
+  text-align: left;
+  padding: 0.5rem;
 }
