@@ -75,7 +75,10 @@ type TranslationKey =
   | 'historySortLabel'
   | 'historySortNewest'
   | 'historySortOldest'
-  | 'historyOpenDetails';
+  | 'historyOpenDetails'
+  | 'detailMissingHeartRateHint'
+  | 'detailMissingDistanceHint'
+  | 'detailMissingGpsHint';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -132,7 +135,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historySortLabel: 'Sort by upload time',
     historySortNewest: 'Newest first',
     historySortOldest: 'Oldest first',
-    historyOpenDetails: 'Open details'
+    historyOpenDetails: 'Open details',
+    detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
+    detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
+    detailMissingGpsHint: 'No GPS coordinates were detected in this file.'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -184,7 +190,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historySortLabel: 'Nach Upload-Zeit sortieren',
     historySortNewest: 'Neueste zuerst',
     historySortOldest: 'Älteste zuerst',
-    historyOpenDetails: 'Details öffnen'
+    historyOpenDetails: 'Details öffnen',
+    detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
+    detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
+    detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.'
   }
 };
 
@@ -224,6 +233,10 @@ function formatHeartRate(summary: ActivitySummary, notAvailable: string): string
   }
 
   return `${summary.heartRateMinBpm}/${summary.heartRateAverageBpm}/${summary.heartRateMaxBpm} bpm`;
+}
+
+function hasCompleteHeartRate(summary: ActivitySummary): boolean {
+  return summary.heartRateMinBpm !== null && summary.heartRateAverageBpm !== null && summary.heartRateMaxBpm !== null;
 }
 
 function qualityStatusText(status: ActivitySummary['qualityStatus'], t: Record<TranslationKey, string>): string {
@@ -404,6 +417,10 @@ export function App() {
     }
   };
 
+  const showMissingHeartRateHint = selectedSession ? !hasCompleteHeartRate(selectedSession.summary) : false;
+  const showMissingDistanceHint = selectedSession ? selectedSession.summary.distanceMeters === null : false;
+  const showMissingGpsHint = selectedSession ? !selectedSession.summary.hasGpsData : false;
+
   return (
     <main className="container">
       <div className="language-switcher">
@@ -478,10 +495,10 @@ export function App() {
       </section>
 
       {selectedSession && (
-        <section>
+        <section className="session-details" aria-live="polite">
           <h2>{t.summaryTitle}</h2>
           <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
-          <ul>
+          <ul className="metrics-list">
             <li><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable} ({t.metricHelpStartTime})</li>
             <li><strong>{t.metricDuration}:</strong> {formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable)} ({t.metricHelpDuration})</li>
             <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)} ({t.metricHelpHeartRate})</li>
@@ -491,6 +508,13 @@ export function App() {
             <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
             <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
           </ul>
+          {(showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
+            <div className="detail-hints" role="status">
+              {showMissingHeartRateHint && <p>{t.detailMissingHeartRateHint}</p>}
+              {showMissingDistanceHint && <p>{t.detailMissingDistanceHint}</p>}
+              {showMissingGpsHint && <p>{t.detailMissingGpsHint}</p>}
+            </div>
+          )}
         </section>
       )}
     </main>

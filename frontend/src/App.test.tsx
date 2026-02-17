@@ -162,4 +162,86 @@ describe('App', () => {
     expect(screen.getByText(/File name:/)).toBeInTheDocument();
     expect(screen.getAllByText('second.tcx').length).toBeGreaterThan(0);
   });
+
+  it('Mvp06_Ac01_Ac02_displays_base_metrics_including_gps_availability', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          fileName: 'mvp06-complete.tcx',
+          summary: createSummary({
+            durationSeconds: 3661,
+            heartRateMinBpm: 110,
+            heartRateAverageBpm: 142,
+            heartRateMaxBpm: 178,
+            distanceMeters: 7450,
+            hasGpsData: true
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Session details')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Duration:/)).toBeInTheDocument();
+    expect(screen.getByText(/61 min 1 s/)).toBeInTheDocument();
+    expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
+    expect(screen.getByText(/110\/142\/178 bpm/)).toBeInTheDocument();
+    expect(screen.getByText(/Trackpoints:/)).toBeInTheDocument();
+    expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
+    expect(screen.getByText(/Yes/)).toBeInTheDocument();
+  });
+
+  it('Mvp06_Ac03_shows_clear_hints_when_heart_rate_or_gps_data_are_missing', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          fileName: 'mvp06-missing-data.tcx',
+          summary: createSummary({
+            heartRateMinBpm: null,
+            heartRateAverageBpm: null,
+            heartRateMaxBpm: null,
+            distanceMeters: null,
+            hasGpsData: false,
+            distanceSource: 'NotAvailable'
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Session details')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Heart-rate values are missing in this session/)).toBeInTheDocument();
+    expect(screen.getByText(/Distance cannot be calculated because GPS points are missing/)).toBeInTheDocument();
+    expect(screen.getByText(/No GPS coordinates were detected in this file/)).toBeInTheDocument();
+    expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
+    expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
+  });
+
+  it('Mvp06_Ac04_keeps_detail_view_readable_on_mobile_layout', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [createUploadRecord()]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Session details')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Sort by upload time')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+    expect(screen.getByText(/Data quality:/)).toBeInTheDocument();
+  });
+
 });
