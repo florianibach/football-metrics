@@ -86,8 +86,10 @@ Im MVP sollen Amateurspieler ihre TCX-Dateien selbst hochladen können und eine 
 **möchte ich** eine Detailansicht je Session sehen  
 **damit** ich die extrahierten Daten im Kontext prüfen kann.
 
+**Status:** Done
+
 ### Acceptance Criteria
-- [ ] Detailseite zeigt Basiskennzahlen (Dauer, Distanz, HF min/avg/max sofern vorhanden, Punkteanzahl).
-- [ ] Sichtbarer Hinweis, ob GPS-Daten vorhanden sind oder nicht.
-- [ ] Bei fehlenden Daten werden nachvollziehbare Hinweise anstelle leerer/defekter Diagramme gezeigt.
-- [ ] Die Seite ist auf Mobile und Desktop lesbar und bedienbar.
+- [x] Detailseite zeigt Basiskennzahlen (Dauer, Distanz, HF min/avg/max sofern vorhanden, Punkteanzahl).
+- [x] Sichtbarer Hinweis, ob GPS-Daten vorhanden sind oder nicht.
+- [x] Bei fehlenden Daten werden nachvollziehbare Hinweise anstelle leerer/defekter Diagramme gezeigt.
+- [x] Die Seite ist auf Mobile und Desktop lesbar und bedienbar.

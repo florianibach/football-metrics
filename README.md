@@ -145,3 +145,10 @@ Empfohlener Sammelcheck:
 - Angezeigt werden je Session mindestens: Dateiname, Upload-Zeit, Aktivitätszeitpunkt und Qualitätsstatus.
 - Standard-Sortierung ist neueste Uploads zuerst; optional ist Umschalten auf älteste zuerst möglich.
 - Über den Button **Open details / Details öffnen** wird die Session als Detailansicht eingeblendet.
+
+## Session-Detailseite (MVP-06)
+
+- Die Detailansicht zeigt Basiskennzahlen je Session: Startzeit, Dauer, Distanz, Herzfrequenz (min/avg/max), Trackpunkte, GPS-Status und Qualitätsinformationen.
+- Bei fehlenden Werten werden Metriken klar als **Not available / Nicht vorhanden** markiert.
+- Zusätzlich werden verständliche Hinweise eingeblendet, warum Herzfrequenz- oder Distanzwerte fehlen (z. B. keine GPS-Koordinaten).
+- Die Detailansicht wurde responsiv erweitert, damit Historie und Session-Daten auf Mobile und Desktop lesbar bleiben.
