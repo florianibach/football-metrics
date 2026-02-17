@@ -306,6 +306,11 @@ public class TcxMetricsExtractorTests
         summary.Smoothing.SelectedParameters.Should().ContainKey("AdaptiveTurnThresholdDegrees");
         summary.Smoothing.SmoothedDirectionChanges.Should().BeGreaterThan(0);
         summary.Smoothing.SmoothedDirectionChanges.Should().BeGreaterOrEqualTo(summary.Smoothing.BaselineDirectionChanges);
+        summary.Smoothing.SelectedParameters.Should().ContainKey("OutlierDetectionMode");
+        summary.Smoothing.SelectedParameters["OutlierDetectionMode"].Should().Be("AdaptiveMadWithAbsoluteCap");
+        var effectiveThreshold = double.Parse(summary.Smoothing.SelectedParameters["EffectiveOutlierSpeedThresholdMps"], CultureInfo.InvariantCulture);
+        effectiveThreshold.Should().BeGreaterOrEqualTo(6.0);
+        effectiveThreshold.Should().BeLessOrEqualTo(12.5);
     }
 
 }

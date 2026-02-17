@@ -406,7 +406,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         payload.Should().NotBeNull();
         payload!.Summary.Smoothing.Should().NotBeNull();
         payload.Summary.Smoothing.SelectedStrategy.Should().Be("FootballAdaptiveMedian");
-        payload.Summary.Smoothing.SelectedParameters.Should().ContainKey("OutlierSpeedThresholdMps");
+        payload.Summary.Smoothing.SelectedParameters.Should().ContainKey("EffectiveOutlierSpeedThresholdMps");
     }
     private static MultipartFormDataContent CreateUploadForm(string fileName, string contentText)
     {

@@ -159,9 +159,9 @@ Empfohlener Sammelcheck:
 - Es werden zwei Logiken unterschieden:
   - **Baseline-Glättung** (indirekt über Vergleichskennzahl): gröberer Richtungswechsel-Schwellenwert (65°) zur Referenz.
   - **FootballAdaptiveMedian**: adaptive Median-Glättung mit lokalen Fenstern (3 bzw. 5 Punkte), die schnelle Richtungswechsel (>= 25°) möglichst erhält.
-- Unplausible Ausreißer werden über Segmentgeschwindigkeit erkannt (`> 12.5 m/s`) und lokal korrigiert.
+- Unplausible Ausreißer werden über eine robuste, session-adaptive Schwellwertlogik erkannt (`clamp(Median + 6*MAD*1.4826, 6.0, 12.5) m/s`) und lokal korrigiert.
 - Für jeden Analyselauf liefert die API eine nachvollziehbare Trace unter `summary.smoothing`, u. a. mit:
-  - `selectedStrategy`, `selectedParameters`
+  - `selectedStrategy`, `selectedParameters` (inkl. `OutlierDetectionMode` und effektiver Schwelle)
   - `rawDistanceMeters`, `smoothedDistanceMeters`
   - `rawDirectionChanges`, `baselineDirectionChanges`, `smoothedDirectionChanges`
   - `correctedOutlierCount`, `analyzedAtUtc`

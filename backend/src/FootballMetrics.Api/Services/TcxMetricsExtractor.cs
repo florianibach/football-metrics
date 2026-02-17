@@ -44,7 +44,9 @@ public static class TcxMetricsExtractor
             ? (double?)null
             : CalculateDistanceMeters(rawGpsPoints);
 
-        var smoothedTrackpoints = ApplyFootballAdaptiveSmoothing(trackpointSnapshots, out var correctedOutlierCount);
+        var outlierSpeedThresholdMps = ResolveOutlierSpeedThresholdMetersPerSecond(trackpointSnapshots);
+
+        var smoothedTrackpoints = ApplyFootballAdaptiveSmoothing(trackpointSnapshots, outlierSpeedThresholdMps, out var correctedOutlierCount);
         var smoothedGpsPoints = smoothedTrackpoints
             .Where(snapshot => snapshot.Latitude.HasValue && snapshot.Longitude.HasValue)
             .Select(snapshot => (snapshot.Latitude!.Value, snapshot.Longitude!.Value))
@@ -67,8 +69,8 @@ public static class TcxMetricsExtractor
         var finalDistance = smoothedDistanceMeters ?? (hasFileDistance ? fileDistanceMeters : null);
         var source = smoothedDistanceMeters.HasValue ? "CalculatedFromGps" : (hasFileDistance ? "ProvidedByFile" : "NotAvailable");
 
-        var qualityAssessment = AssessQuality(smoothedTrackpoints);
-        var smoothingTrace = BuildSmoothingTrace(trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount);
+        var qualityAssessment = AssessQuality(smoothedTrackpoints, outlierSpeedThresholdMps);
+        var smoothingTrace = BuildSmoothingTrace(trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
 
         return new TcxActivitySummary(
             startTime,
@@ -91,7 +93,8 @@ public static class TcxMetricsExtractor
         IReadOnlyList<TrackpointSnapshot> smoothedTrackpoints,
         double? rawDistanceMeters,
         double? smoothedDistanceMeters,
-        int correctedOutlierCount)
+        int correctedOutlierCount,
+        double outlierSpeedThresholdMps)
     {
         var rawDirectionChanges = CountDirectionChanges(rawTrackpoints, 25);
         var baselineDirectionChanges = CountDirectionChanges(rawTrackpoints, 65);
@@ -104,7 +107,9 @@ public static class TcxMetricsExtractor
                 ["AdaptiveTurnThresholdDegrees"] = "25",
                 ["BaseWindowSize"] = "5",
                 ["SharpTurnWindowSize"] = "3",
-                ["OutlierSpeedThresholdMps"] = "12.5"
+                ["OutlierDetectionMode"] = "AdaptiveMadWithAbsoluteCap",
+                ["AbsoluteSpeedCapMps"] = "12.5",
+                ["EffectiveOutlierSpeedThresholdMps"] = outlierSpeedThresholdMps.ToString("0.###", CultureInfo.InvariantCulture)
             },
             rawDistanceMeters,
             smoothedDistanceMeters,
@@ -117,6 +122,7 @@ public static class TcxMetricsExtractor
 
     private static List<TrackpointSnapshot> ApplyFootballAdaptiveSmoothing(
         IReadOnlyList<TrackpointSnapshot> input,
+        double outlierSpeedThresholdMps,
         out int correctedOutlierCount)
     {
         correctedOutlierCount = 0;
@@ -146,7 +152,7 @@ public static class TcxMetricsExtractor
             var elapsedToCurrent = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
             var speedToCurrent = elapsedToCurrent <= 0 ? 0 : distanceToCurrent / elapsedToCurrent;
 
-            var isSpeedOutlier = speedToCurrent > MaxPlausibleSpeedMetersPerSecond;
+            var isSpeedOutlier = speedToCurrent > outlierSpeedThresholdMps;
             var preserveLocalTurn = turnAngle >= 25;
 
             if (!isSpeedOutlier && preserveLocalTurn)
@@ -263,7 +269,48 @@ public static class TcxMetricsExtractor
         return diff > 180 ? 360 - diff : diff;
     }
 
-    private static QualityAssessment AssessQuality(IReadOnlyList<TrackpointSnapshot> trackpoints)
+
+    private static double ResolveOutlierSpeedThresholdMetersPerSecond(IReadOnlyList<TrackpointSnapshot> trackpoints)
+    {
+        var segmentSpeeds = trackpoints
+            .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
+            .OrderBy(tp => tp.TimeUtc)
+            .Zip(trackpoints
+                    .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
+                    .OrderBy(tp => tp.TimeUtc)
+                    .Skip(1),
+                (previous, current) => new { previous, current })
+            .Select(pair =>
+            {
+                var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
+                if (elapsedSeconds <= 0)
+                {
+                    return (double?)null;
+                }
+
+                var distanceMeters = HaversineMeters(
+                    (pair.previous.Latitude!.Value, pair.previous.Longitude!.Value),
+                    (pair.current.Latitude!.Value, pair.current.Longitude!.Value));
+
+                return distanceMeters / elapsedSeconds;
+            })
+            .Where(speed => speed.HasValue)
+            .Select(speed => speed!.Value)
+            .ToList();
+
+        if (segmentSpeeds.Count == 0)
+        {
+            return MaxPlausibleSpeedMetersPerSecond;
+        }
+
+        var medianSpeed = Median(segmentSpeeds);
+        var mad = Median(segmentSpeeds.Select(speed => Math.Abs(speed - medianSpeed)));
+        var robustUpperBound = medianSpeed + (6 * 1.4826 * mad);
+
+        return Math.Clamp(robustUpperBound, 6.0, MaxPlausibleSpeedMetersPerSecond);
+    }
+
+    private static QualityAssessment AssessQuality(IReadOnlyList<TrackpointSnapshot> trackpoints, double outlierSpeedThresholdMps)
     {
         if (trackpoints.Count == 0)
         {
@@ -314,7 +361,7 @@ public static class TcxMetricsExtractor
             reasons.Add($"Heart rate data is partially missing ({trackpoints.Count - missingHeartRateCount}/{trackpoints.Count} points with heart rate).");
         }
 
-        var unplausibleJumpCount = CountUnplausibleGpsJumps(trackpoints);
+        var unplausibleJumpCount = CountUnplausibleGpsJumps(trackpoints, outlierSpeedThresholdMps);
         if (unplausibleJumpCount >= 2)
         {
             penaltyPoints += 2;
@@ -340,7 +387,7 @@ public static class TcxMetricsExtractor
         return new QualityAssessment(status, reasons);
     }
 
-    private static int CountUnplausibleGpsJumps(IReadOnlyList<TrackpointSnapshot> trackpoints)
+    private static int CountUnplausibleGpsJumps(IReadOnlyList<TrackpointSnapshot> trackpoints, double outlierSpeedThresholdMps)
     {
         var pointsWithGpsAndTime = trackpoints
             .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
@@ -368,7 +415,7 @@ public static class TcxMetricsExtractor
                 (current.Latitude!.Value, current.Longitude!.Value));
 
             var speedMetersPerSecond = distanceMeters / elapsedSeconds;
-            if (speedMetersPerSecond > MaxPlausibleSpeedMetersPerSecond)
+            if (speedMetersPerSecond > outlierSpeedThresholdMps)
             {
                 unplausibleJumpCount++;
             }

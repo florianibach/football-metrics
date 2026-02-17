@@ -118,7 +118,8 @@ echo "$upload_response" | jq -e '.summary.qualityStatus == "Medium" and (.summar
 # R1-01 validation: smoothing trace exists and includes selected strategy + parameters + outlier count
 echo "$upload_response" | jq -e '
   .summary.smoothing.selectedStrategy == "FootballAdaptiveMedian"
-  and (.summary.smoothing.selectedParameters.OutlierSpeedThresholdMps == "12.5")
+  and ((.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps | tonumber) >= 6)
+  and ((.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps | tonumber) <= 12.5)
   and ((.summary.smoothing.correctedOutlierCount | type) == "number")
 ' >/dev/null
 
