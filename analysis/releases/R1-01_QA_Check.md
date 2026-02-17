@@ -20,7 +20,13 @@ Story: **R1-01 – Konfigurierbare GPS-Glättung für Fußballbewegungen**
 - Fachliche Umsetzung: **erfüllt**
 - Datenqualität & Analytik: **erfüllt** (Regeln/Schwellen dokumentiert, Ausreißerbehandlung nachvollziehbar)
 - Technische Qualität: **erfüllt** (bestehende Flows unverändert nutzbar, Tests grün)
-- Tests: **erfüllt** (AC-bezogene automatisierte Tests vorhanden)
+- Tests: **erfüllt** (AC-bezogene automatisierte Tests vorhanden; zusätzlich Story-bezogener E2E-Smoke-Check in `scripts/e2e-smoke.sh`)
 - Dokumentation: **erfüllt** (`README.md` + Story-Status aktualisiert)
 
 Aus QA-Sicht ist R1-01 im Story-Scope **Done-fähig**.
+
+
+## QA-Fazit
+
+- Mit den vorhandenen Unit/Integration-Tests plus dem Story-referenzierten E2E-Smoke-Test ist die DoD-Anforderung zur automatisierten AC-Abdeckung für R1-01 erfüllt.
+- R1-01 kann aus QA-Sicht auf **Done** bleiben.
