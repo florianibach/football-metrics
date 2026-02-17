@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Xml;
 using System.Xml.Linq;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
@@ -15,10 +14,15 @@ public class TcxController : ControllerBase
     private const long MaxFileSizeInBytes = 20 * 1024 * 1024;
     private readonly ITcxUploadRepository _repository;
     private readonly ILogger<TcxController> _logger;
+    private readonly IUploadFormatAdapterResolver _uploadFormatAdapterResolver;
 
-    public TcxController(ITcxUploadRepository repository, ILogger<TcxController> logger)
+    public TcxController(
+        ITcxUploadRepository repository,
+        IUploadFormatAdapterResolver uploadFormatAdapterResolver,
+        ILogger<TcxController> logger)
     {
         _repository = repository;
+        _uploadFormatAdapterResolver = uploadFormatAdapterResolver;
         _logger = logger;
     }
 
@@ -31,9 +35,19 @@ public class TcxController : ControllerBase
             return BadRequest("No file uploaded. Please select a .tcx file and try again.");
         }
 
-        if (!string.Equals(Path.GetExtension(file.FileName), ".tcx", StringComparison.OrdinalIgnoreCase))
+        var adapter = _uploadFormatAdapterResolver.ResolveByFileName(file.FileName);
+        if (adapter is null)
         {
-            return BadRequest("Only .tcx files are supported. Please upload a valid TCX export.");
+            var fileExtension = Path.GetExtension(file.FileName);
+            var normalizedExtension = string.IsNullOrWhiteSpace(fileExtension) ? "<none>" : fileExtension;
+            var supportedExtensions = string.Join(", ", _uploadFormatAdapterResolver.GetSupportedExtensions());
+
+            _logger.LogInformation(
+                "Rejected unsupported upload extension {FileExtension}. File {FileName} can be considered for a future adapter.",
+                normalizedExtension,
+                file.FileName);
+
+            return BadRequest($"File type '{normalizedExtension}' is currently not supported. Supported formats: {supportedExtensions}. The format has been logged for potential future support.");
         }
 
         if (file.Length > MaxFileSizeInBytes)
@@ -49,13 +63,13 @@ public class TcxController : ControllerBase
             rawFileBytes = memoryStream.ToArray();
         }
 
-        var validationResult = await ValidateTcxFileAsync(rawFileBytes, cancellationToken);
-        if (validationResult.ErrorMessage is not null)
+        var parseResult = await adapter.ParseAsync(rawFileBytes, cancellationToken);
+        if (!parseResult.IsSuccess)
         {
-            return BadRequest(validationResult.ErrorMessage);
+            return BadRequest(parseResult.ErrorMessage);
         }
 
-        var summary = TcxMetricsExtractor.Extract(validationResult.Document!);
+        var summary = parseResult.Summary!;
 
         var uploadId = Guid.NewGuid();
 
@@ -96,7 +110,7 @@ public class TcxController : ControllerBase
                 "Upload failed while saving your file. Please retry in a moment or contact support if the problem persists.");
         }
 
-        _logger.LogInformation("Uploaded TCX file {FileName} with id {UploadId}", entity.FileName, entity.Id);
+        _logger.LogInformation("Uploaded {FormatKey} file {FileName} with id {UploadId}", adapter.FormatKey, entity.FileName, entity.Id);
 
         if (summary.DistanceMeters.HasValue && summary.FileDistanceMeters.HasValue)
         {
@@ -152,49 +166,6 @@ public class TcxController : ControllerBase
         catch
         {
             return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "TCX summary unavailable due to invalid stored content." }, new TcxSmoothingTrace("NotAvailable", new Dictionary<string, string>(), null, null, 0, 0, 0, 0, DateTime.UtcNow), new TcxFootballCoreMetrics(false, "Core metrics unavailable.", null, null, null, null, null, null, null, null, null, null, null, null, null, null, new Dictionary<string, TcxMetricAvailability>(), new Dictionary<string, string>()));
-        }
-    }
-
-    private static async Task<(XDocument? Document, string? ErrorMessage)> ValidateTcxFileAsync(byte[] rawFileBytes, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await using var stream = new MemoryStream(rawFileBytes, writable: false);
-            var document = await XDocument.LoadAsync(stream, LoadOptions.None, cancellationToken);
-            var rootName = document.Root?.Name.LocalName;
-
-            if (!string.Equals(rootName, "TrainingCenterDatabase", StringComparison.OrdinalIgnoreCase))
-            {
-                return (null, "File content is invalid. Expected a TCX TrainingCenterDatabase document. Please export the file again from your device.");
-            }
-
-            var hasActivities = document
-                .Descendants()
-                .Any(node => string.Equals(node.Name.LocalName, "Activity", StringComparison.OrdinalIgnoreCase));
-
-            if (!hasActivities)
-            {
-                return (null, "File appears incomplete. No Activity section found. Please verify the export includes workout data.");
-            }
-
-            var hasTrackpoints = document
-                .Descendants()
-                .Any(node => string.Equals(node.Name.LocalName, "Trackpoint", StringComparison.OrdinalIgnoreCase));
-
-            if (!hasTrackpoints)
-            {
-                return (null, "File appears incomplete. No Trackpoint entries found. Please export the workout with detailed points.");
-            }
-
-            return (document, null);
-        }
-        catch (XmlException)
-        {
-            return (null, "File is unreadable or corrupted XML. Please open the file in your exporter and create a new TCX export.");
-        }
-        catch (InvalidDataException)
-        {
-            return (null, "File could not be read. Please check the file and upload a valid TCX export.");
         }
     }
 

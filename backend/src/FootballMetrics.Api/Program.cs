@@ -1,3 +1,4 @@
+using FootballMetrics.Api.Services;
 using FootballMetrics.Api.Data;
 using FootballMetrics.Api.Repositories;
 
@@ -23,6 +24,8 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddSingleton<ISqliteConnectionFactory>(_ => new SqliteConnectionFactory(connectionString));
 builder.Services.AddSingleton<IDatabaseInitializer, DatabaseInitializer>();
 builder.Services.AddScoped<ITcxUploadRepository, TcxUploadRepository>();
+builder.Services.AddSingleton<IUploadFormatAdapter, TcxUploadFormatAdapter>();
+builder.Services.AddSingleton<IUploadFormatAdapterResolver, UploadFormatAdapterResolver>();
 
 var app = builder.Build();
 

@@ -6,6 +6,7 @@ using System.Text;
 using FootballMetrics.Api.Controllers;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
+using FootballMetrics.Api.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -158,7 +159,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Mvp02_Ac04_WhenStorageFails_ShouldReturnServerErrorAndMarkUploadAsFailed()
     {
         var repository = new ThrowingOnceRepository();
-        var controller = new TcxController(repository, NullLogger<TcxController>.Instance);
+        var controller = new TcxController(repository, CreateAdapterResolver(), NullLogger<TcxController>.Instance);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
         var file = new FormFile(stream, 0, stream.Length, "file", "failure-case.tcx")
@@ -180,7 +181,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Mvp02_Ac04_WhenFailedMarkerWithOriginalIdCannotBeSaved_ShouldPersistFallbackFailedMarker()
     {
         var repository = new ThrowingThenRejectingSameIdRepository();
-        var controller = new TcxController(repository, NullLogger<TcxController>.Instance);
+        var controller = new TcxController(repository, CreateAdapterResolver(), NullLogger<TcxController>.Instance);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
         var file = new FormFile(stream, 0, stream.Length, "file", "failure-fallback-case.tcx")
@@ -210,7 +211,37 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var error = await response.Content.ReadAsStringAsync();
-        error.Should().Contain("Only .tcx files are supported");
+        error.Should().Contain("currently not supported");
+        error.Should().Contain("Supported formats: .tcx");
+    }
+
+
+    [Fact]
+    public async Task R1_05_Ac01_Ac03_UploadingUnsupportedExtension_ShouldReturnClearFutureFormatMessage()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm("future-format.fit", "binary");
+
+        var response = await client.PostAsync("/api/tcx/upload", form);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.Content.ReadAsStringAsync();
+        error.Should().Contain("'.fit'");
+        error.Should().Contain("currently not supported");
+        error.Should().Contain("logged for potential future support");
+    }
+
+    [Fact]
+    public async Task R1_05_Ac01_Ac02_UploadingTcxWithUppercaseExtension_ShouldStillUseTcxAdapter()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "UPPERCASE.TCX",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var response = await client.PostAsync("/api/tcx/upload", form);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
 
     [Fact]
@@ -416,6 +447,10 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         form.Add(content, "file", fileName);
         return form;
     }
+
+
+    private static IUploadFormatAdapterResolver CreateAdapterResolver() =>
+        new UploadFormatAdapterResolver(new IUploadFormatAdapter[] { new TcxUploadFormatAdapter() });
 
     private HttpClient CreateClientWithConnectionString(string connectionString)
     {

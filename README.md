@@ -192,6 +192,14 @@ Empfohlener Sammelcheck:
 - GPS-abhängige Metriken (z. B. Distanz, Sprintanzahl, Maximalgeschwindigkeit) liefern in diesem Fall keine irreführenden Nullwerte, sondern bleiben `null` und werden über `metricAvailability` transparent begründet.
 - Die UI zeigt für nicht verfügbare Kernmetriken nun explizit den Unterschied zwischen **Nicht gemessen** und **Messung unbrauchbar** inklusive Grundtext.
 
+
+## Upload-Pipeline Format-Adapter (R1-05)
+
+- Der Upload nutzt eine Adapter-/Strategie-Schnittstelle (`IUploadFormatAdapter`) pro Dateityp und einen Resolver (`IUploadFormatAdapterResolver`) für die Dateiendung.
+- Aktuell ist in der UI und im Backend weiterhin nur **TCX** freigeschaltet (`.tcx`).
+- Nicht unterstützte Endungen werden mit klarer Fehlermeldung abgelehnt; gleichzeitig wird die Endung strukturiert als potenzielles zukünftiges Format geloggt.
+- Das aktuelle TCX-Mapping ins kanonische Activity-Modell ist dokumentiert unter `analysis/releases/R1-05_TCX_to_Canonical_Activity_Mapping.md`.
+
 ## GPS-Glättung (R1-01)
 
 - Es werden zwei Logiken unterschieden:
