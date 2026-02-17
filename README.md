@@ -173,6 +173,13 @@ Empfohlener Sammelcheck:
 - Die gewählte Filterstrategie wird im Analyseprotokoll unter `summary.smoothing.selectedStrategy` nachvollziehbar angezeigt.
 - Für Sessions ohne GPS ist die Filterauswahl deaktiviert; die UI zeigt eine verständliche Begründung.
 
+## Filter-Erklärung und empfohlener Standard (R1-08)
+
+- In den Session-Details ergänzt die UI eine **Filter-Hilfe** mit Produktempfehlung: **AdaptiveMedian** ist als empfohlener Standard markiert.
+- Für jeden Filter (`Raw`, `AdaptiveMedian`, `Savitzky-Golay`, `Butterworth`) gibt es eine Kurzbeschreibung mit Zweck, Stärken, Grenzen und typischer Nutzung.
+- Die UI weist transparent darauf hin, dass sich beim Filterwechsel angezeigte Kennzahlen (z. B. Distanz, Richtungswechsel, abgeleitete Metriken) ändern können.
+- Alle Texte sind konsistent in **Deutsch/Englisch** lokalisiert und direkt im Bereich der Filterauswahl erreichbar.
+
 
 ## Fußball-Kernmetriken (R1-03)
 

@@ -118,6 +118,14 @@ type TranslationKey =
   | 'filterAdaptiveMedian'
   | 'filterSavitzkyGolay'
   | 'filterButterworth'
+  | 'filterRecommendedBadge'
+  | 'filterRecommendationTitle'
+  | 'filterRecommendationIntro'
+  | 'filterRecommendationImpact'
+  | 'filterDescriptionRaw'
+  | 'filterDescriptionAdaptiveMedian'
+  | 'filterDescriptionSavitzkyGolay'
+  | 'filterDescriptionButterworth'
   | 'compareDisabledNoGps'
   | 'metricDirectionChanges'
   | 'metricDataChange'
@@ -213,6 +221,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterAdaptiveMedian: 'AdaptiveMedian',
     filterSavitzkyGolay: 'Savitzky-Golay',
     filterButterworth: 'Butterworth',
+    filterRecommendedBadge: 'recommended',
+    filterRecommendationTitle: 'Filter guide',
+    filterRecommendationIntro: 'Product recommendation: AdaptiveMedian is the default for amateur football sessions because it best preserves short direction changes and stop-and-go patterns while reducing implausible GPS outliers.',
+    filterRecommendationImpact: 'Changing the smoothing filter can alter shown distance, direction-change counts, and derived football metrics.',
+    filterDescriptionRaw: 'Raw: Purpose: inspect unprocessed GPS points. Strengths: maximum transparency. Limits: keeps jitter and spikes. Typical use: troubleshooting unusual sessions.',
+    filterDescriptionAdaptiveMedian: 'AdaptiveMedian: Purpose: football-first smoothing for short accelerations and turns. Strengths: balances outlier correction with preserved quick changes. Limits: small residual noise can remain. Typical use: recommended default for most sessions.',
+    filterDescriptionSavitzkyGolay: 'Savitzky-Golay: Purpose: polynomial smoothing for stable trajectories. Strengths: clean curve shape for trend viewing. Limits: can flatten very abrupt actions. Typical use: tactical pattern review with moderate noise.',
+    filterDescriptionButterworth: 'Butterworth: Purpose: low-pass filtering for strong noise suppression. Strengths: robust against high-frequency jitter. Limits: highest risk of smoothing away short explosive actions. Typical use: noisy device traces requiring stronger cleanup.',
     compareDisabledNoGps: 'Comparison is disabled because this session does not contain GPS coordinates.',
     metricDirectionChanges: 'Direction changes',
     metricDataChange: 'Data change due to smoothing',
@@ -303,6 +319,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterAdaptiveMedian: 'AdaptiveMedian',
     filterSavitzkyGolay: 'Savitzky-Golay',
     filterButterworth: 'Butterworth',
+    filterRecommendedBadge: 'empfohlen',
+    filterRecommendationTitle: 'Filter-Hilfe',
+    filterRecommendationIntro: 'Produktempfehlung: AdaptiveMedian ist der Standard für Amateur-Fußballsessions, weil kurzzeitige Richtungswechsel und Stop-and-Go-Bewegungen besser erhalten bleiben, während unplausible GPS-Ausreißer reduziert werden.',
+    filterRecommendationImpact: 'Beim Wechsel des Glättungsfilters können sich Distanz, Richtungswechsel und abgeleitete Fußballmetriken ändern.',
+    filterDescriptionRaw: 'Raw: Zweck: ungefilterte GPS-Punkte prüfen. Stärken: maximale Transparenz. Grenzen: enthält Jitter und Ausreißer. Typische Nutzung: Fehlersuche bei auffälligen Sessions.',
+    filterDescriptionAdaptiveMedian: 'AdaptiveMedian: Zweck: fußballorientierte Glättung für kurze Beschleunigungen und Richtungswechsel. Stärken: gute Balance aus Ausreißerkorrektur und Erhalt schneller Aktionen. Grenzen: leichte Restschwankungen möglich. Typische Nutzung: empfohlener Standard für die meisten Sessions.',
+    filterDescriptionSavitzkyGolay: 'Savitzky-Golay: Zweck: polynomiale Glättung für stabile Trajektorien. Stärken: ruhiger Kurvenverlauf für Trendbetrachtung. Grenzen: sehr abrupte Aktionen können abgeflacht werden. Typische Nutzung: Musteranalyse bei moderatem Rauschen.',
+    filterDescriptionButterworth: 'Butterworth: Zweck: Tiefpassfilter für starke Rauschunterdrückung. Stärken: robust bei hochfrequentem GPS-Jitter. Grenzen: größtes Risiko, kurze explosive Aktionen zu glätten. Typische Nutzung: stark verrauschte Aufzeichnungen mit höherem Bereinigungsbedarf.',
     compareDisabledNoGps: 'Der Vergleich ist deaktiviert, weil diese Session keine GPS-Koordinaten enthält.',
     metricDirectionChanges: 'Richtungswechsel',
     metricDataChange: 'Datenänderung durch Glättung',
@@ -552,6 +576,19 @@ function getFileValidationMessage(file: File | null, locale: Locale): string | n
   return null;
 }
 
+function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
+  switch (filter) {
+    case 'Raw':
+      return 'filterDescriptionRaw';
+    case 'Savitzky-Golay':
+      return 'filterDescriptionSavitzkyGolay';
+    case 'Butterworth':
+      return 'filterDescriptionButterworth';
+    default:
+      return 'filterDescriptionAdaptiveMedian';
+  }
+}
+
 export function App() {
   const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -765,6 +802,8 @@ export function App() {
     })()
     : '';
 
+  const selectedFilterDescription = t[getFilterDescriptionKey(selectedFilter)];
+
   return (
     <main className="container">
       <div className="language-switcher">
@@ -860,11 +899,16 @@ export function App() {
               onChange={onFilterChange}
             >
               <option value="Raw">{t.filterRaw}</option>
-              <option value="AdaptiveMedian">{t.filterAdaptiveMedian}</option>
+              <option value="AdaptiveMedian">{`${t.filterAdaptiveMedian} (${t.filterRecommendedBadge})`}</option>
               <option value="Savitzky-Golay">{t.filterSavitzkyGolay}</option>
               <option value="Butterworth">{t.filterButterworth}</option>
             </select>
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.filterDisabledNoGps}</p>}
+            <div className="filter-guidance" role="note" aria-label={t.filterRecommendationTitle}>
+              <p><strong>{t.filterRecommendationTitle}:</strong> {t.filterRecommendationIntro}</p>
+              <p>{t.filterRecommendationImpact}</p>
+              <p>{selectedFilterDescription}</p>
+            </div>
             <label htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
             <select
               id="comparison-mode-selector"

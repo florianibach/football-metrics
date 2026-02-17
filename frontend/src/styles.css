@@ -126,6 +126,19 @@ button:disabled {
   color: #7a2e0e;
 }
 
+.filter-guidance {
+  border-left: 4px solid #175cd3;
+  background: #eff4ff;
+  color: #1d2939;
+  border-radius: 6px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.92rem;
+}
+
+.filter-guidance p {
+  margin: 0.35rem 0;
+}
+
 
 
 .metric-help {
