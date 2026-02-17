@@ -90,6 +90,32 @@ Scoring-Logik (erweiterbar):
 
 Wenn keine Auffälligkeit erkannt wird, wird ein positiver Grundtext zurückgegeben. Die Logik ist zentral in `TcxMetricsExtractor` kapsuliert und kann in späteren Iterationen um zusätzliche Qualitätsindikatoren erweitert werden.
 
+
+## E2E Smoke ohne Docker (empfohlen für eingeschränkte Environments)
+
+Wenn `docker` lokal oder in CI nicht verfügbar ist, kann der E2E-Smoke-Test jetzt die API automatisch selbst starten.
+
+### Direkt ausführen
+```bash
+scripts/e2e-smoke.sh
+```
+
+Verhalten des Skripts:
+- Nutzt eine bereits laufende API, falls unter `API_URL` erreichbar.
+- Startet sonst automatisch die lokale API per `dotnet run` (inkl. .NET-Bootstrap über `scripts/bootstrap-dotnet.sh`, falls nötig).
+- Prüft weiterhin MVP-02 + MVP-04 (inkl. `qualityStatus` und `qualityReasons`).
+
+### Nützliche Parameter
+```bash
+API_URL=http://localhost:8080 scripts/e2e-smoke.sh
+AUTO_START_API=0 scripts/e2e-smoke.sh
+API_LOG_FILE=/tmp/fm-api-e2e.log scripts/e2e-smoke.sh
+```
+
+### Troubleshooting
+- **`docker: command not found`**: Für lokale Checks stattdessen `./scripts/check-local.sh` oder direkt `scripts/e2e-smoke.sh` nutzen.
+- **`API did not become ready in time`**: Logdatei prüfen (Default: `/tmp/football-metrics-e2e-api.log`), Port-Belegung (`8080`) kontrollieren und bei Bedarf `API_URL` setzen.
+
 ## Tests
 
 - Backend Integrationstest: `./scripts/test-backend.sh` (installiert bei Bedarf automatisch .NET SDK 10 lokal in `~/.dotnet`)
