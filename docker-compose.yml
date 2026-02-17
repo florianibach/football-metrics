@@ -8,8 +8,8 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - sqlite-data:/app/data
-      - uploads-data:/app/uploads
+      - ./app/data:/app/data
+      - ./app/uploads:/app/uploads
 
   web:
     build:
@@ -20,7 +20,3 @@ services:
       - "3000:80"
     depends_on:
       - api
-
-volumes:
-  sqlite-data:
-  uploads-data:

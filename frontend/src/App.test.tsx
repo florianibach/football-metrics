@@ -6,6 +6,27 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
+  function createMvp03SummaryResponse(overrides?: Partial<Record<string, unknown>>) {
+    return {
+      id: 'upload-1',
+      fileName: 'session.tcx',
+      uploadedAtUtc: '2026-02-16T22:00:00.000Z',
+      summary: {
+        activityStartTimeUtc: '2026-02-16T21:00:00.000Z',
+        durationSeconds: 1800,
+        trackpointCount: 25,
+        heartRateMinBpm: 120,
+        heartRateAverageBpm: 145,
+        heartRateMaxBpm: 170,
+        distanceMeters: 5100,
+        hasGpsData: true,
+        fileDistanceMeters: 5000,
+        distanceSource: 'CalculatedFromGps'
+      },
+      ...overrides
+    };
+  }
+
   it('Mvp01_Ac01_renders english UI by default as browser language fallback', () => {
     render(<App />);
 
@@ -70,11 +91,7 @@ describe('App', () => {
   it('Mvp01_Ac04_shows success message including filename and upload time', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        id: 'upload-1',
-        fileName: 'session.tcx',
-        uploadedAtUtc: '2026-02-16T22:00:00.000Z'
-      })
+      json: async () => createMvp03SummaryResponse()
     } as Response);
 
     render(<App />);
@@ -92,6 +109,10 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByText(/Upload successful: session\.tcx at/)).toBeInTheDocument();
     });
+
+    expect(screen.getByText('Extracted base metrics')).toBeInTheDocument();
+    expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
+    expect(screen.getByText(/5.1 km/)).toBeInTheDocument();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -124,7 +145,20 @@ describe('App', () => {
 
     resolveRequest!({
       ok: true,
-      json: async () => ({ id: 'upload-1', fileName: 'session.tcx', uploadedAtUtc: '2026-02-16T22:00:00.000Z' })
+      json: async () => createMvp03SummaryResponse({
+        summary: {
+          activityStartTimeUtc: null,
+          durationSeconds: null,
+          trackpointCount: 0,
+          heartRateMinBpm: null,
+          heartRateAverageBpm: null,
+          heartRateMaxBpm: null,
+          distanceMeters: null,
+          hasGpsData: false,
+          fileDistanceMeters: null,
+          distanceSource: 'NotAvailable'
+        }
+      })
     } as Response);
 
     await waitFor(() => {
@@ -144,5 +178,93 @@ describe('App', () => {
     fireEvent.change(fileInput, { target: { files: [validFile] } });
 
     expect(screen.getByRole('button', { name: 'Upload' })).toBeEnabled();
+  });
+
+  it('Mvp03_Ac04_shows_not_available_for_missing_metrics_without_crashing', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => createMvp03SummaryResponse({
+        summary: {
+          activityStartTimeUtc: null,
+          durationSeconds: null,
+          trackpointCount: 2,
+          heartRateMinBpm: null,
+          heartRateAverageBpm: null,
+          heartRateMaxBpm: null,
+          distanceMeters: null,
+          hasGpsData: false,
+          fileDistanceMeters: null,
+          distanceSource: 'NotAvailable'
+        }
+      })
+    } as Response);
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: {
+        files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'session.tcx', { type: 'application/xml' })]
+      }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Extracted base metrics')).toBeInTheDocument();
+    });
+
+    expect(screen.queryAllByText(/Not available/).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
+  });
+
+  it('Mvp03_Ac05_displays_consistent_units_for_duration_distance_and_heart_rate', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => createMvp03SummaryResponse()
+    } as Response);
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: {
+        files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'session.tcx', { type: 'application/xml' })]
+      }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Duration:/)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/30 min 0 s/)).toBeInTheDocument();
+    expect(screen.getByText(/120\/145\/170 bpm/)).toBeInTheDocument();
+    expect(screen.getByText(/5.1 km/)).toBeInTheDocument();
+  });
+
+  it('Mvp03_Ac06_formats_activity_start_time_as_local_time_for_user', async () => {
+    const localTimeSpy = vi.spyOn(Date.prototype, 'toLocaleString').mockReturnValue('LOCAL_USER_TIME');
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => createMvp03SummaryResponse()
+    } as Response);
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: {
+        files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'session.tcx', { type: 'application/xml' })]
+      }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Start time:/)).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText(/LOCAL_USER_TIME/).length).toBeGreaterThanOrEqual(2);
+    expect(localTimeSpy).toHaveBeenCalled();
   });
 });

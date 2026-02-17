@@ -39,13 +39,15 @@ Im MVP sollen Amateurspieler ihre TCX-Dateien selbst hochladen können und eine 
 **möchte ich** nach dem Upload die wichtigsten Basisdaten sehen  
 **damit** ich verstehe, ob meine Datei korrekt erkannt wurde und die Distanz zuverlässig ist.
 
+**Status:** Done
+
 ### Acceptance Criteria
-- [ ] Das System extrahiert mindestens: Startzeit, Dauer, Herzfrequenz (falls vorhanden), Anzahl Trackpunkte.
-- [ ] Bei vorhandenen GPS-Punkten wird die Distanz aus den GPS-Koordinaten berechnet (nicht primär aus einem ggf. vorgegebenen Distanzfeld der Datei).
-- [ ] Falls Datei-Distanz und selbst berechnete Distanz abweichen, wird die berechnete Distanz als führender Wert genutzt und die Abweichung optional protokolliert.
-- [ ] Fehlende Werte (z. B. keine GPS-Daten) führen nicht zum Abbruch, sondern werden als „nicht vorhanden“ markiert.
-- [ ] Alle Einheiten werden konsistent angezeigt (z. B. Minuten, Meter/Kilometer, bpm).
-- [ ] Zeitstempel werden in einer für den Nutzer verständlichen lokalen Darstellung angezeigt.
+- [x] Das System extrahiert mindestens: Startzeit, Dauer, Herzfrequenz (falls vorhanden), Anzahl Trackpunkte.
+- [x] Bei vorhandenen GPS-Punkten wird die Distanz aus den GPS-Koordinaten berechnet (nicht primär aus einem ggf. vorgegebenen Distanzfeld der Datei).
+- [x] Falls Datei-Distanz und selbst berechnete Distanz abweichen, wird die berechnete Distanz als führender Wert genutzt und die Abweichung optional protokolliert.
+- [x] Fehlende Werte (z. B. keine GPS-Daten) führen nicht zum Abbruch, sondern werden als „nicht vorhanden“ markiert.
+- [x] Alle Einheiten werden konsistent angezeigt (z. B. Minuten, Meter/Kilometer, bpm).
+- [x] Zeitstempel werden in einer für den Nutzer verständlichen lokalen Darstellung angezeigt.
 
 ---
 

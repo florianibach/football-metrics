@@ -1,9 +1,23 @@
 import { ChangeEvent, DragEvent, FormEvent, useMemo, useState } from 'react';
 
+type ActivitySummary = {
+  activityStartTimeUtc: string | null;
+  durationSeconds: number | null;
+  trackpointCount: number;
+  heartRateMinBpm: number | null;
+  heartRateAverageBpm: number | null;
+  heartRateMaxBpm: number | null;
+  distanceMeters: number | null;
+  hasGpsData: boolean;
+  fileDistanceMeters: number | null;
+  distanceSource: 'CalculatedFromGps' | 'ProvidedByFile' | 'NotAvailable';
+};
+
 type UploadRecord = {
   id: string;
   fileName: string;
   uploadedAtUtc: string;
+  summary: ActivitySummary;
 };
 
 type Locale = 'en' | 'de';
@@ -24,7 +38,26 @@ type TranslationKey =
   | 'languageLabel'
   | 'languageEnglish'
   | 'languageGerman'
-  | 'uploadInProgress';
+  | 'uploadInProgress'
+  | 'summaryTitle'
+  | 'metricStartTime'
+  | 'metricDuration'
+  | 'metricHeartRate'
+  | 'metricTrackpoints'
+  | 'metricDistance'
+  | 'metricGps'
+  | 'notAvailable'
+  | 'yes'
+  | 'no'
+  | 'distanceSourceCalculated'
+  | 'distanceSourceProvided'
+  | 'distanceSourceNotAvailable'
+  | 'metricHelpStartTime'
+  | 'metricHelpDuration'
+  | 'metricHelpHeartRate'
+  | 'metricHelpTrackpoints'
+  | 'metricHelpDistance'
+  | 'metricHelpGps';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -47,7 +80,26 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     languageLabel: 'Language',
     languageEnglish: 'English',
     languageGerman: 'German',
-    uploadInProgress: 'Upload in progress...'
+    uploadInProgress: 'Upload in progress...',
+    summaryTitle: 'Extracted base metrics',
+    metricStartTime: 'Start time',
+    metricDuration: 'Duration',
+    metricHeartRate: 'Heart rate (min/avg/max)',
+    metricTrackpoints: 'Trackpoints',
+    metricDistance: 'Distance',
+    metricGps: 'GPS data available',
+    notAvailable: 'Not available',
+    yes: 'Yes',
+    no: 'No',
+    distanceSourceCalculated: 'calculated from GPS',
+    distanceSourceProvided: 'from TCX file',
+    distanceSourceNotAvailable: 'not available',
+    metricHelpStartTime: 'Local device time.',
+    metricHelpDuration: 'Shown in minutes and seconds.',
+    metricHelpHeartRate: 'Unit: bpm.',
+    metricHelpTrackpoints: 'Number of recorded points.',
+    metricHelpDistance: 'Unit: km. Prefer GPS calculation.',
+    metricHelpGps: 'Indicates if coordinate points exist.'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -65,7 +117,26 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     languageLabel: 'Sprache',
     languageEnglish: 'Englisch',
     languageGerman: 'Deutsch',
-    uploadInProgress: 'Upload läuft...'
+    uploadInProgress: 'Upload läuft...',
+    summaryTitle: 'Extrahierte Basisdaten',
+    metricStartTime: 'Startzeit',
+    metricDuration: 'Dauer',
+    metricHeartRate: 'Herzfrequenz (min/avg/max)',
+    metricTrackpoints: 'Trackpunkte',
+    metricDistance: 'Distanz',
+    metricGps: 'GPS-Daten vorhanden',
+    notAvailable: 'Nicht vorhanden',
+    yes: 'Ja',
+    no: 'Nein',
+    distanceSourceCalculated: 'aus GPS berechnet',
+    distanceSourceProvided: 'aus TCX-Datei',
+    distanceSourceNotAvailable: 'nicht vorhanden',
+    metricHelpStartTime: 'Lokale Gerätezeit.',
+    metricHelpDuration: 'Anzeige in Minuten und Sekunden.',
+    metricHelpHeartRate: 'Einheit: bpm.',
+    metricHelpTrackpoints: 'Anzahl erfasster Punkte.',
+    metricHelpDistance: 'Einheit: km. GPS-Berechnung wird bevorzugt.',
+    metricHelpGps: 'Zeigt, ob Koordinatenpunkte vorhanden sind.'
   }
 };
 
@@ -79,6 +150,32 @@ function resolveInitialLocale(): Locale {
 
 function formatLocalDateTime(dateText: string): string {
   return new Date(dateText).toLocaleString();
+}
+
+function formatDuration(durationSeconds: number | null, locale: Locale, notAvailable: string): string {
+  if (durationSeconds === null) {
+    return notAvailable;
+  }
+
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = Math.round(durationSeconds % 60);
+  return locale === 'de' ? `${minutes} min ${seconds} s` : `${minutes} min ${seconds} s`;
+}
+
+function formatDistance(distanceMeters: number | null, locale: Locale, notAvailable: string): string {
+  if (distanceMeters === null) {
+    return notAvailable;
+  }
+
+  return `${(distanceMeters / 1000).toLocaleString(locale, { maximumFractionDigits: 2 })} km`;
+}
+
+function formatHeartRate(summary: ActivitySummary, notAvailable: string): string {
+  if (summary.heartRateMinBpm === null || summary.heartRateAverageBpm === null || summary.heartRateMaxBpm === null) {
+    return notAvailable;
+  }
+
+  return `${summary.heartRateMinBpm}/${summary.heartRateAverageBpm}/${summary.heartRateMaxBpm} bpm`;
 }
 
 function interpolate(template: string, values: Record<string, string>): string {
@@ -107,6 +204,7 @@ function getFileValidationMessage(file: File | null, locale: Locale): string | n
 export function App() {
   const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [lastSummary, setLastSummary] = useState<ActivitySummary | null>(null);
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -186,6 +284,7 @@ export function App() {
       const payload = (await response.json()) as UploadRecord;
       const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
       setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
+      setLastSummary(payload.summary);
       setSelectedFile(null);
     } catch {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
@@ -193,6 +292,17 @@ export function App() {
       setIsUploading(false);
     }
   }
+
+  const distanceSourceText = (source: ActivitySummary['distanceSource']) => {
+    switch (source) {
+      case 'CalculatedFromGps':
+        return t.distanceSourceCalculated;
+      case 'ProvidedByFile':
+        return t.distanceSourceProvided;
+      default:
+        return t.distanceSourceNotAvailable;
+    }
+  };
 
   return (
     <main className="container">
@@ -224,6 +334,20 @@ export function App() {
         </button>
       </form>
       <p>{validationMessage ?? message}</p>
+
+      {lastSummary && (
+        <section>
+          <h2>{t.summaryTitle}</h2>
+          <ul>
+            <li><strong>{t.metricStartTime}:</strong> {lastSummary.activityStartTimeUtc ? formatLocalDateTime(lastSummary.activityStartTimeUtc) : t.notAvailable} ({t.metricHelpStartTime})</li>
+            <li><strong>{t.metricDuration}:</strong> {formatDuration(lastSummary.durationSeconds, locale, t.notAvailable)} ({t.metricHelpDuration})</li>
+            <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(lastSummary, t.notAvailable)} ({t.metricHelpHeartRate})</li>
+            <li><strong>{t.metricTrackpoints}:</strong> {lastSummary.trackpointCount} ({t.metricHelpTrackpoints})</li>
+            <li><strong>{t.metricDistance}:</strong> {formatDistance(lastSummary.distanceMeters, locale, t.notAvailable)} — {distanceSourceText(lastSummary.distanceSource)} ({t.metricHelpDistance})</li>
+            <li><strong>{t.metricGps}:</strong> {lastSummary.hasGpsData ? t.yes : t.no} ({t.metricHelpGps})</li>
+          </ul>
+        </section>
+      )}
     </main>
   );
 }
