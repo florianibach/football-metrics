@@ -101,15 +101,16 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 ---
 
 ## Story R1-08: Filter-Erklärung und empfohlener Standard in der UI
+**Status:** Done ✅  
 **Als** Nutzer  
 **möchte ich** eine kurze Erklärung zu jedem Filter sowie eine Produktempfehlung sehen  
 **damit** ich ohne Expertenwissen eine sinnvolle Auswahl treffen kann.
 
 ### Acceptance Criteria
-- [ ] Für jeden angebotenen Filter gibt es eine Kurzbeschreibung (Zweck, Stärken, Grenzen, typische Nutzung).
-- [ ] Die UI markiert klar, welcher Filter vom Produktteam aktuell empfohlen wird.
-- [ ] Bei Filterwechsel wird erklärt, dass sich Kennzahlen durch das Verfahren ändern können.
-- [ ] Erklärtexte sind konsistent lokalisiert (DE/EN) und in Session-Details gut erreichbar.
+- [x] Für jeden angebotenen Filter gibt es eine Kurzbeschreibung (Zweck, Stärken, Grenzen, typische Nutzung).
+- [x] Die UI markiert klar, welcher Filter vom Produktteam aktuell empfohlen wird.
+- [x] Bei Filterwechsel wird erklärt, dass sich Kennzahlen durch das Verfahren ändern können.
+- [x] Erklärtexte sind konsistent lokalisiert (DE/EN) und in Session-Details gut erreichbar.
 
 ---
 

@@ -766,11 +766,11 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByLabelText('Smoothing filter')).toBeInTheDocument());
     const filterSelector = screen.getByLabelText('Smoothing filter');
     const filterOptions = within(filterSelector).getAllByRole('option').map((option) => option.textContent);
-    expect(filterOptions).toEqual(['Raw', 'AdaptiveMedian', 'Savitzky-Golay', 'Butterworth']);
+    expect(filterOptions).toEqual(['Raw', 'AdaptiveMedian (recommended)', 'Savitzky-Golay', 'Butterworth']);
 
     fireEvent.change(screen.getByLabelText('Smoothing filter'), { target: { value: 'Butterworth' } });
 
-    await waitFor(() => expect(screen.getByText(/Butterworth/)).toBeInTheDocument());
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/smoothing-filter'), expect.anything()));
 
     fetchMock.mockRestore();
     firstRender.unmount();
@@ -783,6 +783,43 @@ describe('App', () => {
     render(<App />);
     await waitFor(() => expect(screen.getByLabelText('Smoothing filter')).toBeDisabled());
     expect(screen.getByText(/Filter selection is disabled/)).toBeInTheDocument();
+  });
+
+  it('R1_08_Ac01_Ac02_Ac03_Ac04_shows_filter_explanations_recommendation_and_localized_change_hint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && !init) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.includes('/smoothing-filter')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => createUploadRecord({ summary: createSummary({ smoothing: { ...createSummary().smoothing, selectedStrategy: 'Butterworth' } }) })
+        } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText('Smoothing filter')).toBeInTheDocument());
+
+    const filterSelector = screen.getByLabelText('Smoothing filter');
+    expect(within(filterSelector).getByRole('option', { name: 'AdaptiveMedian (recommended)' })).toBeInTheDocument();
+    expect(screen.getByText(/Product recommendation: AdaptiveMedian is the default/)).toBeInTheDocument();
+    expect(screen.getByText(/Changing the smoothing filter can alter shown distance/)).toBeInTheDocument();
+    expect(screen.getByText(/football-first smoothing for short accelerations and turns/)).toBeInTheDocument();
+
+    fireEvent.change(filterSelector, { target: { value: 'Butterworth' } });
+    expect(screen.getByText(/low-pass filtering for strong noise suppression/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
+    expect(screen.getByRole('option', { name: /AdaptiveMedian \(empfohlen\)/ })).toBeInTheDocument();
+    expect(screen.getByText(/Produktempfehlung: AdaptiveMedian ist der Standard/)).toBeInTheDocument();
+    expect(screen.getByText(/Beim Wechsel des Glättungsfilters können sich Distanz/)).toBeInTheDocument();
+    expect(screen.getByText(/Tiefpassfilter für starke Rauschunterdrückung/)).toBeInTheDocument();
   });
 
 });
