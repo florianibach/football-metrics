@@ -20,6 +20,20 @@ describe('App', () => {
       distanceSource: 'CalculatedFromGps',
       qualityStatus: 'High',
       qualityReasons: ['Trackpoints are complete with GPS and heart rate data. No implausible jumps detected.'],
+      smoothing: {
+        selectedStrategy: 'FootballAdaptiveMedian',
+        selectedParameters: {
+          OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
+          EffectiveOutlierSpeedThresholdMps: '12.5'
+        },
+        rawDistanceMeters: 5200,
+        smoothedDistanceMeters: 5100,
+        rawDirectionChanges: 10,
+        baselineDirectionChanges: 4,
+        smoothedDirectionChanges: 9,
+        correctedOutlierCount: 1,
+        analyzedAtUtc: '2026-02-16T22:00:00.000Z'
+      },
       ...overrides
     };
   }
@@ -194,6 +208,8 @@ describe('App', () => {
     expect(screen.getByText(/Trackpoints:/)).toBeInTheDocument();
     expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
     expect(screen.getByText(/Yes/)).toBeInTheDocument();
+    expect(screen.getByText(/Smoothing strategy:/)).toBeInTheDocument();
+    expect(screen.getByText(/FootballAdaptiveMedian/)).toBeInTheDocument();
   });
 
   it('Mvp06_Ac03_shows_clear_hints_when_heart_rate_or_gps_data_are_missing', async () => {

@@ -41,7 +41,7 @@ docker compose up --build
 Für Frontend-Config gilt: `VITE_API_BASE_URL` sollte auf den API-Pfad inkl. `/api` zeigen (z. B. `/api` oder `http://localhost:8080/api`).
 Hinweis: Das Frontend-Nginx proxyt `/api/*` an das Backend und erlaubt Uploads bis 25 MB (`client_max_body_size`), damit der 20 MB TCX-API-Limit korrekt erreicht werden kann.
 
-- `POST /api/tcx/upload` – nimmt eine `.tcx` Datei (max. 20 MB) entgegen, validiert Struktur (XML, Activity, Trackpoint), speichert die Rohdatei unverändert als BLOB inkl. SHA-256-Hash in SQLite und gibt konkrete Fehlerhinweise bei ungültigen Dateien bzw. Speicherfehlern zurück. Zusätzlich enthält die Antwort eine Basiszusammenfassung (Startzeit, Dauer, Trackpunkte, Herzfrequenz min/avg/max, Distanz, GPS-Status). Die Distanz wird bei GPS-Punkten primär per Haversine aus Koordinaten berechnet; Datei-Distanz bleibt als Referenz erhalten.
+- `POST /api/tcx/upload` – nimmt eine `.tcx` Datei (max. 20 MB) entgegen, validiert Struktur (XML, Activity, Trackpoint), speichert die Rohdatei unverändert als BLOB inkl. SHA-256-Hash in SQLite und gibt konkrete Fehlerhinweise bei ungültigen Dateien bzw. Speicherfehlern zurück. Zusätzlich enthält die Antwort eine Basiszusammenfassung (Startzeit, Dauer, Trackpunkte, Herzfrequenz min/avg/max, Distanz, GPS-Status). Die Distanz wird bei GPS-Punkten über eine fußballspezifische adaptive Glättung auf GPS-Basis berechnet (Kurzrichtungswechsel werden bevorzugt erhalten, unplausible Ausreißer geglättet); Datei-Distanz bleibt als Referenz erhalten. Die verwendete Glättungsstrategie inkl. Parametern wird im Feld `summary.smoothing` zurückgegeben.
 - `GET /api/tcx` – listet hochgeladene Dateien inkl. Basis-Summary (Aktivitätszeitpunkt, Qualitätsstatus) auf.
 - `GET /api/tcx/{id}` – liefert die Detaildaten einer einzelnen Session.
 
@@ -152,3 +152,16 @@ Empfohlener Sammelcheck:
 - Bei fehlenden Werten werden Metriken klar als **Not available / Nicht vorhanden** markiert.
 - Zusätzlich werden verständliche Hinweise eingeblendet, warum Herzfrequenz- oder Distanzwerte fehlen (z. B. keine GPS-Koordinaten).
 - Die Detailansicht wurde responsiv erweitert, damit Historie und Session-Daten auf Mobile und Desktop lesbar bleiben.
+
+
+## GPS-Glättung (R1-01)
+
+- Es werden zwei Logiken unterschieden:
+  - **Baseline-Glättung** (indirekt über Vergleichskennzahl): gröberer Richtungswechsel-Schwellenwert (65°) zur Referenz.
+  - **FootballAdaptiveMedian**: adaptive Median-Glättung mit lokalen Fenstern (3 bzw. 5 Punkte), die schnelle Richtungswechsel (>= 25°) möglichst erhält.
+- Unplausible Ausreißer werden über eine robuste, session-adaptive Schwellwertlogik erkannt (`clamp(Median + 6*MAD*1.4826, 6.0, 12.5) m/s`) und lokal korrigiert.
+- Für jeden Analyselauf liefert die API eine nachvollziehbare Trace unter `summary.smoothing`, u. a. mit:
+  - `selectedStrategy`, `selectedParameters` (inkl. `OutlierDetectionMode` und effektiver Schwelle)
+  - `rawDistanceMeters`, `smoothedDistanceMeters`
+  - `rawDirectionChanges`, `baselineDirectionChanges`, `smoothedDirectionChanges`
+  - `correctedOutlierCount`, `analyzedAtUtc`

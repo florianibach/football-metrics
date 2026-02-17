@@ -1,5 +1,17 @@
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 
+type SmoothingTrace = {
+  selectedStrategy: string;
+  selectedParameters: Record<string, string>;
+  rawDistanceMeters: number | null;
+  smoothedDistanceMeters: number | null;
+  rawDirectionChanges: number;
+  baselineDirectionChanges: number;
+  smoothedDirectionChanges: number;
+  correctedOutlierCount: number;
+  analyzedAtUtc: string;
+};
+
 type ActivitySummary = {
   activityStartTimeUtc: string | null;
   durationSeconds: number | null;
@@ -13,6 +25,7 @@ type ActivitySummary = {
   distanceSource: 'CalculatedFromGps' | 'ProvidedByFile' | 'NotAvailable';
   qualityStatus: 'High' | 'Medium' | 'Low';
   qualityReasons: string[];
+  smoothing: SmoothingTrace;
 };
 
 type UploadRecord = {
@@ -63,6 +76,8 @@ type TranslationKey =
   | 'metricHelpGps'
   | 'metricQualityStatus'
   | 'metricQualityReasons'
+  | 'metricSmoothingStrategy'
+  | 'metricSmoothingOutlier'
   | 'qualityStatusHigh'
   | 'qualityStatusMedium'
   | 'qualityStatusLow'
@@ -123,6 +138,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHelpGps: 'Indicates if coordinate points exist.',
     metricQualityStatus: 'Data quality',
     metricQualityReasons: 'Quality reasons',
+    metricSmoothingStrategy: 'Smoothing strategy',
+    metricSmoothingOutlier: 'Outlier detection',
     qualityStatusHigh: 'high',
     qualityStatusMedium: 'medium',
     qualityStatusLow: 'low',
@@ -178,6 +195,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHelpGps: 'Zeigt, ob Koordinatenpunkte vorhanden sind.',
     metricQualityStatus: 'Datenqualität',
     metricQualityReasons: 'Qualitätsgründe',
+    metricSmoothingStrategy: 'Glättungsstrategie',
+    metricSmoothingOutlier: 'Ausreißer-Erkennung',
     qualityStatusHigh: 'hoch',
     qualityStatusMedium: 'mittel',
     qualityStatusLow: 'niedrig',
@@ -507,6 +526,8 @@ export function App() {
             <li><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no} ({t.metricHelpGps})</li>
             <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
             <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
+            <li><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
+            <li><strong>{t.metricSmoothingOutlier}:</strong> {selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: {selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)</li>
           </ul>
           {(showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
             <div className="detail-hints" role="status">

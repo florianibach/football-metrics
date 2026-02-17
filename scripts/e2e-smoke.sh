@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Story reference: MVP-02, MVP-04
+# Story reference: MVP-02, MVP-04, R1-01
 # Ziel:
 # - MVP-02: Verifizieren, dass der Upload-Endpunkt erreichbar ist und ein valider TCX-Upload
 #   End-to-End durch die API verarbeitet wird.
 # - MVP-04: Verifizieren, dass der Upload-Response einen Qualitätsstatus und Klartext-Gründe enthält.
+# - R1-01: Verifizieren, dass die API pro Analyselauf eine nachvollziehbare Smoothing-Trace
+#   (Strategie + Parameter + Outlier-Korrektur) im Response zurückliefert.
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_URL="${API_URL:-http://localhost:8080}"
@@ -112,6 +114,15 @@ upload_response="$(curl -fsS -X POST "$API_URL/api/tcx/upload" \
   -F "file=@/tmp/sample.tcx;type=application/xml")"
 
 echo "$upload_response" | jq -e '.summary.qualityStatus == "Medium" and (.summary.qualityReasons | length) > 0' >/dev/null
+
+# R1-01 validation: smoothing trace exists and includes selected strategy + parameters + outlier count
+echo "$upload_response" | jq -e '
+  .summary.smoothing.selectedStrategy == "FootballAdaptiveMedian"
+  and ((.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps | tonumber) >= 6)
+  and ((.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps | tonumber) <= 12.5)
+  and ((.summary.smoothing.correctedOutlierCount | type) == "number")
+' >/dev/null
+
 curl -fsS "$API_URL/api/tcx" | jq 'length >= 1' | grep true
 
 echo "E2E smoke test passed"

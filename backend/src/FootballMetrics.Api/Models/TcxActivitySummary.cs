@@ -12,4 +12,5 @@ public sealed record TcxActivitySummary(
     double? FileDistanceMeters,
     string DistanceSource,
     string QualityStatus,
-    IReadOnlyList<string> QualityReasons);
+    IReadOnlyList<string> QualityReasons,
+    TcxSmoothingTrace Smoothing);
