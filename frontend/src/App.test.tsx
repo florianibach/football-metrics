@@ -98,7 +98,7 @@ describe('App', () => {
 
     expect(screen.getByText('Session details')).toBeInTheDocument();
     expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
-    expect(screen.getByText(/5.1 km/)).toBeInTheDocument();
+    expect(screen.getByText(/5.100 km \(5,100(\.0)? m\)/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalled();
   });
 
@@ -278,13 +278,13 @@ describe('App', () => {
     });
 
     expect(screen.getByText(/Data change due to smoothing:/)).toBeInTheDocument();
-    expect(screen.getByText(/4.0% corrected points \(1\/25\), distance delta 0.1 km/)).toBeInTheDocument();
+    expect(screen.getByText(/4.0% corrected points \(1\/25\), distance delta 100(\.0)? m/)).toBeInTheDocument();
     expect(screen.getByText(/Direction changes:/)).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Display mode'), { target: { value: 'raw' } });
 
-    expect(screen.getByText(/5.2 km/)).toBeInTheDocument();
+    expect(screen.getByText(/5.200 km \(5,200(\.0)? m\)/)).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
   });
 

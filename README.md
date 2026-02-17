@@ -159,7 +159,7 @@ Empfohlener Sammelcheck:
 ## Vergleich Rohdaten vs. geglättet (R1-02)
 
 - In der Session-Detailansicht kann zwischen **Rohdaten** und **Geglättet** umgeschaltet werden (sofern GPS-Daten vorhanden sind).
-- Die Umschaltung beeinflusst die angezeigte Distanz und Richtungswechsel-Anzahl auf Basis der vorhandenen `summary.smoothing`-Trace.
+- Die Umschaltung beeinflusst die angezeigte Distanz und Richtungswechsel-Anzahl auf Basis der vorhandenen `summary.smoothing`-Trace; die Distanz wird dafür mit höherer Präzision (km + Meter) angezeigt, damit Unterschiede zwischen Raw und Smoothed sichtbar bleiben.
 - Eine zusätzliche Kennzahl zeigt transparent die Datenveränderung durch die Glättung (Anteil korrigierter Punkte + Distanzabweichung).
 - Bei Sessions ohne GPS ist der Vergleich deaktiviert und wird in der UI verständlich begründet.
 

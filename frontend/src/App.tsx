@@ -271,6 +271,14 @@ function formatDistance(distanceMeters: number | null, locale: Locale, notAvaila
   return `${(distanceMeters / 1000).toLocaleString(locale, { maximumFractionDigits: 2 })} km`;
 }
 
+function formatDistanceComparison(distanceMeters: number | null, locale: Locale, notAvailable: string): string {
+  if (distanceMeters === null) {
+    return notAvailable;
+  }
+
+  return `${(distanceMeters / 1000).toLocaleString(locale, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} km (${distanceMeters.toLocaleString(locale, { maximumFractionDigits: 1 })} m)`;
+}
+
 function formatHeartRate(summary: ActivitySummary, notAvailable: string): string {
   if (summary.heartRateMinBpm === null || summary.heartRateAverageBpm === null || summary.heartRateMaxBpm === null) {
     return notAvailable;
@@ -488,7 +496,9 @@ export function App() {
         selectedSession.summary.smoothing.rawDistanceMeters !== null && selectedSession.summary.smoothing.smoothedDistanceMeters !== null
           ? Math.abs(selectedSession.summary.smoothing.smoothedDistanceMeters - selectedSession.summary.smoothing.rawDistanceMeters)
           : null;
-      const distanceDelta = formatDistance(distanceDeltaMeters, locale, t.notAvailable);
+      const distanceDelta = distanceDeltaMeters === null
+        ? t.notAvailable
+        : `${distanceDeltaMeters.toLocaleString(locale, { maximumFractionDigits: 1 })} m`;
 
       return interpolate(t.metricDataChangeHelp, {
         correctedShare,
@@ -602,7 +612,7 @@ export function App() {
             <li><strong>{t.metricDuration}:</strong> {formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable)} ({t.metricHelpDuration})</li>
             <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)} ({t.metricHelpHeartRate})</li>
             <li><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount} ({t.metricHelpTrackpoints})</li>
-            <li><strong>{t.metricDistance}:</strong> {formatDistance(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)} ({t.metricHelpDistance})</li>
+            <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)} ({t.metricHelpDistance})</li>
             <li><strong>{t.metricDirectionChanges}:</strong> {activeDirectionChanges ?? 0}</li>
             <li><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no} ({t.metricHelpGps})</li>
             <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
