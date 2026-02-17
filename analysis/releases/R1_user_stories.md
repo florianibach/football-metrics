@@ -24,10 +24,10 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 **damit** ich die Wirkung der Glättung verstehen und Vertrauen aufbauen kann.
 
 ### Acceptance Criteria
-- [ ] In der Session-Detailansicht gibt es eine umschaltbare Darstellung „Rohdaten / Geglättet“.
-- [ ] Eine Kennzahl zeigt die Datenveränderung (z. B. Anteil korrigierter Punkte, mittlere Abweichung).
-- [ ] Bei Sessions ohne GPS ist die Funktion deaktiviert und sauber erklärt.
-- [ ] Die Performance bleibt bei typischen Amateur-Sessiongrößen im nutzbaren Bereich.
+- [x] In der Session-Detailansicht gibt es eine umschaltbare Darstellung „Rohdaten / Geglättet“.
+- [x] Eine Kennzahl zeigt die Datenveränderung (z. B. Anteil korrigierter Punkte, mittlere Abweichung).
+- [x] Bei Sessions ohne GPS ist die Funktion deaktiviert und sauber erklärt.
+- [x] Die Performance bleibt bei typischen Amateur-Sessiongrößen im nutzbaren Bereich.
 
 ---
 

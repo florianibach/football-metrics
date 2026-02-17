@@ -154,6 +154,15 @@ Empfohlener Sammelcheck:
 - Die Detailansicht wurde responsiv erweitert, damit Historie und Session-Daten auf Mobile und Desktop lesbar bleiben.
 
 
+
+
+## Vergleich Rohdaten vs. geglättet (R1-02)
+
+- In der Session-Detailansicht kann zwischen **Rohdaten** und **Geglättet** umgeschaltet werden (sofern GPS-Daten vorhanden sind).
+- Die Umschaltung beeinflusst die angezeigte Distanz und Richtungswechsel-Anzahl auf Basis der vorhandenen `summary.smoothing`-Trace; die Distanz wird dafür mit höherer Präzision (km + Meter) angezeigt, damit Unterschiede zwischen Raw und Smoothed sichtbar bleiben.
+- Eine zusätzliche Kennzahl zeigt transparent die Datenveränderung durch die Glättung (Anteil korrigierter Punkte + Distanzabweichung in Metern mit 3 Nachkommastellen, damit auch sehr kleine Deltas sichtbar sind).
+- Bei Sessions ohne GPS ist der Vergleich deaktiviert und wird in der UI verständlich begründet.
+
 ## GPS-Glättung (R1-01)
 
 - Es werden zwei Logiken unterschieden:

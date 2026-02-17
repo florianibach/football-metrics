@@ -98,7 +98,7 @@ describe('App', () => {
 
     expect(screen.getByText('Session details')).toBeInTheDocument();
     expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
-    expect(screen.getByText(/5.1 km/)).toBeInTheDocument();
+    expect(screen.getByText(/5.100 km \(5,100(\.0)? m\)/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalled();
   });
 
@@ -241,6 +241,127 @@ describe('App', () => {
     expect(screen.getByText(/No GPS coordinates were detected in this file/)).toBeInTheDocument();
     expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
     expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
+  });
+
+
+  it('R1_02_Ac01_Ac02_switches_between_raw_and_smoothed_and_shows_data_change_metric', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          fileName: 'r1-02-gps.tcx',
+          summary: createSummary({
+            distanceMeters: 5100,
+            smoothing: {
+              selectedStrategy: 'FootballAdaptiveMedian',
+              selectedParameters: {
+                OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
+                EffectiveOutlierSpeedThresholdMps: '12.5'
+              },
+              rawDistanceMeters: 5200,
+              smoothedDistanceMeters: 5100,
+              rawDirectionChanges: 10,
+              baselineDirectionChanges: 4,
+              smoothedDirectionChanges: 9,
+              correctedOutlierCount: 1,
+              analyzedAtUtc: '2026-02-16T22:00:00.000Z'
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Raw vs. smoothed comparison')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Data change due to smoothing:/)).toBeInTheDocument();
+    expect(screen.getByText(/4.0% corrected points \(1\/25\), distance delta 100(\.000)? m/)).toBeInTheDocument();
+    expect(screen.getByText(/Direction changes:/)).toBeInTheDocument();
+    expect(screen.getByText('9')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Display mode'), { target: { value: 'raw' } });
+
+    expect(screen.getByText(/5.200 km \(5,200(\.0)? m\)/)).toBeInTheDocument();
+    expect(screen.getByText('10')).toBeInTheDocument();
+  });
+
+
+  it('R1_02_shows_small_distance_delta_with_meter_precision', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          fileName: 'r1-02-small-delta.tcx',
+          summary: createSummary({
+            trackpointCount: 6201,
+            smoothing: {
+              selectedStrategy: 'FootballAdaptiveMedian',
+              selectedParameters: {
+                OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
+                EffectiveOutlierSpeedThresholdMps: '7.69'
+              },
+              rawDistanceMeters: 7052.720691907273,
+              smoothedDistanceMeters: 7052.476360802489,
+              rawDirectionChanges: 1882,
+              baselineDirectionChanges: 770,
+              smoothedDirectionChanges: 2064,
+              correctedOutlierCount: 0,
+              analyzedAtUtc: '2026-02-16T22:00:00.000Z'
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Raw vs. smoothed comparison')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/distance delta 0\.244 m/)).toBeInTheDocument();
+  });
+
+  it('R1_02_Ac03_disables_comparison_for_sessions_without_gps_with_clear_hint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          fileName: 'r1-02-no-gps.tcx',
+          summary: createSummary({
+            hasGpsData: false,
+            distanceMeters: null,
+            distanceSource: 'NotAvailable',
+            smoothing: {
+              selectedStrategy: 'FootballAdaptiveMedian',
+              selectedParameters: {
+                OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
+                EffectiveOutlierSpeedThresholdMps: '12.5'
+              },
+              rawDistanceMeters: null,
+              smoothedDistanceMeters: null,
+              rawDirectionChanges: 0,
+              baselineDirectionChanges: 0,
+              smoothedDirectionChanges: 0,
+              correctedOutlierCount: 0,
+              analyzedAtUtc: '2026-02-16T22:00:00.000Z'
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Raw vs. smoothed comparison')).toBeInTheDocument();
+    });
+
+    expect(screen.getByLabelText('Display mode')).toBeDisabled();
+    expect(screen.getByText('Comparison is disabled because this session does not contain GPS coordinates.')).toBeInTheDocument();
   });
 
   it('Mvp06_Ac04_keeps_detail_view_readable_on_mobile_layout', async () => {
