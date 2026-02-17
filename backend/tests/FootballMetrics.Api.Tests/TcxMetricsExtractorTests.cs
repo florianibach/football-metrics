@@ -313,4 +313,84 @@ public class TcxMetricsExtractorTests
         effectiveThreshold.Should().BeLessOrEqualTo(12.5);
     }
 
+    [Fact]
+    public void R1_03_Ac01_Ac02_Ac05_Extract_ShouldCalculateFootballCoreMetricsWithDocumentedThresholdsAndExtendedMetrics()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Id>2026-02-16T10:00:00Z</Id>
+      <Lap>
+        <Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:01Z</Time><Position><LatitudeDegrees>50.00008</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>132</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:02Z</Time><Position><LatitudeDegrees>50.00016</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>134</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:03Z</Time><Position><LatitudeDegrees>50.00019</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>136</Value></HeartRateBpm></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.CoreMetrics.IsAvailable.Should().BeTrue();
+        summary.CoreMetrics.DistanceMeters.Should().Be(summary.DistanceMeters);
+        summary.CoreMetrics.SprintDistanceMeters.Should().BeGreaterThan(0);
+        summary.CoreMetrics.SprintCount.Should().BeGreaterThan(0);
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeGreaterThan(7.0);
+        summary.CoreMetrics.HighIntensityTimeSeconds.Should().BeGreaterThan(0);
+        summary.CoreMetrics.HighSpeedDistanceMeters.Should().BeGreaterThan(0);
+        summary.CoreMetrics.RunningDensityMetersPerMinute.Should().BeGreaterThan(0);
+        summary.CoreMetrics.AccelerationCount.Should().NotBeNull();
+        summary.CoreMetrics.DecelerationCount.Should().NotBeNull();
+        summary.CoreMetrics.HeartRateZoneLowSeconds.Should().NotBeNull();
+        summary.CoreMetrics.HeartRateZoneMediumSeconds.Should().NotBeNull();
+        summary.CoreMetrics.HeartRateZoneHighSeconds.Should().NotBeNull();
+        summary.CoreMetrics.TrainingImpulseEdwards.Should().BeGreaterThan(0);
+        summary.CoreMetrics.Thresholds["SprintSpeedThresholdMps"].Should().Be("7.0");
+        summary.CoreMetrics.Thresholds["HighIntensitySpeedThresholdMps"].Should().Be("5.5");
+        summary.CoreMetrics.Thresholds["AccelerationThresholdMps2"].Should().Be("2.0");
+        summary.CoreMetrics.Thresholds["DecelerationThresholdMps2"].Should().Be("-2.0");
+    }
+
+    [Fact]
+    public void R1_03_Ac03_Ac04_Extract_ShouldGateFootballCoreMetricsWhenQualityIsInsufficient()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Id>2026-02-16T10:00:00Z</Id>
+      <Lap>
+        <Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:10Z</Time></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:20Z</Time></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:30Z</Time></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.QualityStatus.Should().Be("Low");
+        summary.CoreMetrics.IsAvailable.Should().BeFalse();
+        summary.CoreMetrics.UnavailableReason.Should().Contain("Required: High");
+        summary.CoreMetrics.DistanceMeters.Should().BeNull();
+        summary.CoreMetrics.SprintDistanceMeters.Should().BeNull();
+        summary.CoreMetrics.SprintCount.Should().BeNull();
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeNull();
+        summary.CoreMetrics.HighIntensityTimeSeconds.Should().BeNull();
+        summary.CoreMetrics.HighSpeedDistanceMeters.Should().BeNull();
+        summary.CoreMetrics.RunningDensityMetersPerMinute.Should().BeNull();
+        summary.CoreMetrics.AccelerationCount.Should().BeNull();
+        summary.CoreMetrics.DecelerationCount.Should().BeNull();
+        summary.CoreMetrics.HeartRateZoneLowSeconds.Should().BeNull();
+        summary.CoreMetrics.HeartRateZoneMediumSeconds.Should().BeNull();
+        summary.CoreMetrics.HeartRateZoneHighSeconds.Should().BeNull();
+        summary.CoreMetrics.TrainingImpulseEdwards.Should().BeNull();
+    }
+
 }

@@ -12,6 +12,26 @@ type SmoothingTrace = {
   analyzedAtUtc: string;
 };
 
+type FootballCoreMetrics = {
+  isAvailable: boolean;
+  unavailableReason: string | null;
+  distanceMeters: number | null;
+  sprintDistanceMeters: number | null;
+  sprintCount: number | null;
+  maxSpeedMetersPerSecond: number | null;
+  highIntensityTimeSeconds: number | null;
+  highSpeedDistanceMeters: number | null;
+  runningDensityMetersPerMinute: number | null;
+  accelerationCount: number | null;
+  decelerationCount: number | null;
+  heartRateZoneLowSeconds: number | null;
+  heartRateZoneMediumSeconds: number | null;
+  heartRateZoneHighSeconds: number | null;
+  trainingImpulseEdwards: number | null;
+  heartRateRecoveryAfter60Seconds: number | null;
+  thresholds: Record<string, string>;
+};
+
 type ActivitySummary = {
   activityStartTimeUtc: string | null;
   durationSeconds: number | null;
@@ -26,6 +46,7 @@ type ActivitySummary = {
   qualityStatus: 'High' | 'Medium' | 'Low';
   qualityReasons: string[];
   smoothing: SmoothingTrace;
+  coreMetrics: FootballCoreMetrics;
 };
 
 type UploadRecord = {
@@ -102,7 +123,23 @@ type TranslationKey =
   | 'historyOpenDetails'
   | 'detailMissingHeartRateHint'
   | 'detailMissingDistanceHint'
-  | 'detailMissingGpsHint';
+  | 'detailMissingGpsHint'
+  | 'coreMetricsTitle'
+  | 'coreMetricsUnavailable'
+  | 'metricSprintDistance'
+  | 'metricSprintCount'
+  | 'metricMaxSpeed'
+  | 'metricHighIntensityTime'
+  | 'metricCoreThresholds'
+  | 'metricHighSpeedDistance'
+  | 'metricRunningDensity'
+  | 'metricAccelerationCount'
+  | 'metricDecelerationCount'
+  | 'metricHrZoneLow'
+  | 'metricHrZoneMedium'
+  | 'metricHrZoneHigh'
+  | 'metricTrimpEdwards'
+  | 'metricHrRecovery60';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -172,7 +209,23 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyOpenDetails: 'Open details',
     detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
     detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
-    detailMissingGpsHint: 'No GPS coordinates were detected in this file.'
+    detailMissingGpsHint: 'No GPS coordinates were detected in this file.',
+    coreMetricsTitle: 'Football core metrics (v1)',
+    coreMetricsUnavailable: 'Core metrics unavailable: {reason}',
+    metricSprintDistance: 'Sprint distance',
+    metricSprintCount: 'Sprint count',
+    metricMaxSpeed: 'Maximum speed',
+    metricHighIntensityTime: 'High-intensity time',
+    metricCoreThresholds: 'Thresholds',
+    metricHighSpeedDistance: 'High-speed distance',
+    metricRunningDensity: 'Running density (m/min)',
+    metricAccelerationCount: 'Accelerations',
+    metricDecelerationCount: 'Decelerations',
+    metricHrZoneLow: 'HR zone <70%',
+    metricHrZoneMedium: 'HR zone 70-85%',
+    metricHrZoneHigh: 'HR zone >85%',
+    metricTrimpEdwards: 'TRIMP (Edwards)',
+    metricHrRecovery60: 'HR recovery after 60s' 
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -237,7 +290,23 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyOpenDetails: 'Details öffnen',
     detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
     detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
-    detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.'
+    detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.',
+    coreMetricsTitle: 'Fußball-Kernmetriken (v1)',
+    coreMetricsUnavailable: 'Kernmetriken nicht verfügbar: {reason}',
+    metricSprintDistance: 'Sprintdistanz',
+    metricSprintCount: 'Anzahl Sprints',
+    metricMaxSpeed: 'Maximalgeschwindigkeit',
+    metricHighIntensityTime: 'Hochintensitätszeit',
+    metricCoreThresholds: 'Schwellenwerte',
+    metricHighSpeedDistance: 'Hochintensive Laufdistanz',
+    metricRunningDensity: 'Laufdichte (m/min)',
+    metricAccelerationCount: 'Beschleunigungen',
+    metricDecelerationCount: 'Abbremsungen',
+    metricHrZoneLow: 'HF-Zone <70%',
+    metricHrZoneMedium: 'HF-Zone 70-85%',
+    metricHrZoneHigh: 'HF-Zone >85%',
+    metricTrimpEdwards: 'TRIMP (Edwards)',
+    metricHrRecovery60: 'HF-Erholung nach 60s'
   }
 };
 
@@ -302,6 +371,29 @@ function formatHeartRate(summary: ActivitySummary, notAvailable: string): string
 
 function hasCompleteHeartRate(summary: ActivitySummary): boolean {
   return summary.heartRateMinBpm !== null && summary.heartRateAverageBpm !== null && summary.heartRateMaxBpm !== null;
+}
+
+function formatSpeedMetersPerSecond(value: number | null, notAvailableText: string): string {
+  if (value === null) {
+    return notAvailableText;
+  }
+
+  return `${value.toFixed(2)} m/s`;
+}
+
+
+function formatNumber(value: number | null, locale: Locale, notAvailable: string, digits = 1): string {
+  if (value === null) {
+    return notAvailable;
+  }
+
+  return value.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function formatThresholds(thresholds: Record<string, string>): string {
+  return Object.entries(thresholds)
+    .map(([key, value]) => `${key}=${value}`)
+    .join(' | ');
 }
 
 function qualityStatusText(status: ActivitySummary['qualityStatus'], t: Record<TranslationKey, string>): string {
@@ -634,6 +726,30 @@ export function App() {
             <li><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
             <li><strong>{t.metricSmoothingOutlier}:</strong> {selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: {selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)</li>
           </ul>
+          <div className="core-metrics-section">
+            <h3>{t.coreMetricsTitle}</h3>
+            {selectedSession.summary.coreMetrics.isAvailable ? (
+              <ul className="metrics-list">
+                <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricSprintCount}:</strong> {selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}</li>
+                <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}</li>
+                <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricRunningDensity}:</strong> {formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
+                <li><strong>{t.metricAccelerationCount}:</strong> {selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable}</li>
+                <li><strong>{t.metricDecelerationCount}:</strong> {selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable}</li>
+                <li><strong>{t.metricHrZoneLow}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
+                <li><strong>{t.metricHrRecovery60}:</strong> {selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
+                <li><strong>{t.metricCoreThresholds}:</strong> {formatThresholds(selectedSession.summary.coreMetrics.thresholds)}</li>
+              </ul>
+            ) : (
+              <p>{t.coreMetricsUnavailable.replace('{reason}', selectedSession.summary.coreMetrics.unavailableReason ?? t.notAvailable)}</p>
+            )}
+          </div>
           {(showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
             <div className="detail-hints" role="status">
               {showMissingHeartRateHint && <p>{t.detailMissingHeartRateHint}</p>}

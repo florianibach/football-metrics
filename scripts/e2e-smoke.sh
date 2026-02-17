@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Story reference: MVP-02, MVP-04, R1-01
+# Story reference: MVP-02, MVP-04, R1-01, R1-03
 # Ziel:
 # - MVP-02: Verifizieren, dass der Upload-Endpunkt erreichbar ist und ein valider TCX-Upload
 #   End-to-End durch die API verarbeitet wird.
 # - MVP-04: Verifizieren, dass der Upload-Response einen Qualitätsstatus und Klartext-Gründe enthält.
 # - R1-01: Verifizieren, dass die API pro Analyselauf eine nachvollziehbare Smoothing-Trace
 #   (Strategie + Parameter + Outlier-Korrektur) im Response zurückliefert.
+# - R1-03: Verifizieren, dass football core metrics inkl. quality-gated Struktur im Upload-Response
+#   vorhanden sind (coreMetrics + thresholds).
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_URL="${API_URL:-http://localhost:8080}"
@@ -123,6 +125,17 @@ echo "$upload_response" | jq -e '
   and ((.summary.smoothing.correctedOutlierCount | type) == "number")
 ' >/dev/null
 
+
+# R1-03 validation: core metrics payload exists and carries documented threshold keys
+# (Smoke: checks structure + representative fields, not full metric correctness)
+echo "$upload_response" | jq -e '
+  (.summary.coreMetrics | type) == "object"
+  and (.summary.coreMetrics.isAvailable | type) == "boolean"
+  and ((.summary.coreMetrics.thresholds.SprintSpeedThresholdMps | tonumber) == 7)
+  and ((.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps | tonumber) == 5.5)
+  and ((.summary.coreMetrics.thresholds.AccelerationThresholdMps2 | tonumber) == 2)
+  and ((.summary.coreMetrics.thresholds.DecelerationThresholdMps2 | tonumber) == -2)
+' >/dev/null
 curl -fsS "$API_URL/api/tcx" | jq 'length >= 1' | grep true
 
 echo "E2E smoke test passed"

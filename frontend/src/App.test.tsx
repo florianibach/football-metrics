@@ -20,6 +20,30 @@ describe('App', () => {
       distanceSource: 'CalculatedFromGps',
       qualityStatus: 'High',
       qualityReasons: ['Trackpoints are complete with GPS and heart rate data. No implausible jumps detected.'],
+      coreMetrics: {
+        isAvailable: true,
+        unavailableReason: null,
+        distanceMeters: 5100,
+        sprintDistanceMeters: 950,
+        sprintCount: 4,
+        maxSpeedMetersPerSecond: 7.42,
+        highIntensityTimeSeconds: 380,
+        highSpeedDistanceMeters: 1600,
+        runningDensityMetersPerMinute: 170,
+        accelerationCount: 14,
+        decelerationCount: 13,
+        heartRateZoneLowSeconds: 180,
+        heartRateZoneMediumSeconds: 900,
+        heartRateZoneHighSeconds: 720,
+        trainingImpulseEdwards: 83.5,
+        heartRateRecoveryAfter60Seconds: 22,
+        thresholds: {
+          SprintSpeedThresholdMps: '7.0',
+          HighIntensitySpeedThresholdMps: '5.5',
+          AccelerationThresholdMps2: '2.0',
+          DecelerationThresholdMps2: '-2.0'
+        }
+      },
       smoothing: {
         selectedStrategy: 'FootballAdaptiveMedian',
         selectedParameters: {
@@ -98,7 +122,7 @@ describe('App', () => {
 
     expect(screen.getByText('Session details')).toBeInTheDocument();
     expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
-    expect(screen.getByText(/5.100 km \(5,100(\.0)? m\)/)).toBeInTheDocument();
+    expect(screen.getAllByText(/5.100 km \(5,100(\.0)? m\)/).length).toBeGreaterThan(0);
     expect(fetchMock).toHaveBeenCalled();
   });
 
@@ -252,7 +276,31 @@ describe('App', () => {
           fileName: 'r1-02-gps.tcx',
           summary: createSummary({
             distanceMeters: 5100,
-            smoothing: {
+            coreMetrics: {
+        isAvailable: true,
+        unavailableReason: null,
+        distanceMeters: 5100,
+        sprintDistanceMeters: 950,
+        sprintCount: 4,
+        maxSpeedMetersPerSecond: 7.42,
+        highIntensityTimeSeconds: 380,
+        highSpeedDistanceMeters: 1600,
+        runningDensityMetersPerMinute: 170,
+        accelerationCount: 14,
+        decelerationCount: 13,
+        heartRateZoneLowSeconds: 180,
+        heartRateZoneMediumSeconds: 900,
+        heartRateZoneHighSeconds: 720,
+        trainingImpulseEdwards: 83.5,
+        heartRateRecoveryAfter60Seconds: 22,
+        thresholds: {
+          SprintSpeedThresholdMps: '7.0',
+          HighIntensitySpeedThresholdMps: '5.5',
+          AccelerationThresholdMps2: '2.0',
+          DecelerationThresholdMps2: '-2.0'
+        }
+      },
+      smoothing: {
               selectedStrategy: 'FootballAdaptiveMedian',
               selectedParameters: {
                 OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
@@ -297,7 +345,31 @@ describe('App', () => {
           fileName: 'r1-02-small-delta.tcx',
           summary: createSummary({
             trackpointCount: 6201,
-            smoothing: {
+            coreMetrics: {
+        isAvailable: true,
+        unavailableReason: null,
+        distanceMeters: 5100,
+        sprintDistanceMeters: 950,
+        sprintCount: 4,
+        maxSpeedMetersPerSecond: 7.42,
+        highIntensityTimeSeconds: 380,
+        highSpeedDistanceMeters: 1600,
+        runningDensityMetersPerMinute: 170,
+        accelerationCount: 14,
+        decelerationCount: 13,
+        heartRateZoneLowSeconds: 180,
+        heartRateZoneMediumSeconds: 900,
+        heartRateZoneHighSeconds: 720,
+        trainingImpulseEdwards: 83.5,
+        heartRateRecoveryAfter60Seconds: 22,
+        thresholds: {
+          SprintSpeedThresholdMps: '7.0',
+          HighIntensitySpeedThresholdMps: '5.5',
+          AccelerationThresholdMps2: '2.0',
+          DecelerationThresholdMps2: '-2.0'
+        }
+      },
+      smoothing: {
               selectedStrategy: 'FootballAdaptiveMedian',
               selectedParameters: {
                 OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
@@ -335,7 +407,31 @@ describe('App', () => {
             hasGpsData: false,
             distanceMeters: null,
             distanceSource: 'NotAvailable',
-            smoothing: {
+            coreMetrics: {
+        isAvailable: true,
+        unavailableReason: null,
+        distanceMeters: 5100,
+        sprintDistanceMeters: 950,
+        sprintCount: 4,
+        maxSpeedMetersPerSecond: 7.42,
+        highIntensityTimeSeconds: 380,
+        highSpeedDistanceMeters: 1600,
+        runningDensityMetersPerMinute: 170,
+        accelerationCount: 14,
+        decelerationCount: 13,
+        heartRateZoneLowSeconds: 180,
+        heartRateZoneMediumSeconds: 900,
+        heartRateZoneHighSeconds: 720,
+        trainingImpulseEdwards: 83.5,
+        heartRateRecoveryAfter60Seconds: 22,
+        thresholds: {
+          SprintSpeedThresholdMps: '7.0',
+          HighIntensitySpeedThresholdMps: '5.5',
+          AccelerationThresholdMps2: '2.0',
+          DecelerationThresholdMps2: '-2.0'
+        }
+      },
+      smoothing: {
               selectedStrategy: 'FootballAdaptiveMedian',
               selectedParameters: {
                 OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
@@ -362,6 +458,103 @@ describe('App', () => {
 
     expect(screen.getByLabelText('Display mode')).toBeDisabled();
     expect(screen.getByText('Comparison is disabled because this session does not contain GPS coordinates.')).toBeInTheDocument();
+  });
+
+
+  it('R1_03_Ac01_Ac04_Ac05_shows_football_core_metrics_extended_set_and_quality_gated_hint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          fileName: 'r1-03-high-quality.tcx',
+          summary: createSummary({
+            coreMetrics: {
+              isAvailable: true,
+              unavailableReason: null,
+              distanceMeters: 5100,
+              sprintDistanceMeters: 850,
+              sprintCount: 5,
+              maxSpeedMetersPerSecond: 7.75,
+              highIntensityTimeSeconds: 420,
+              highSpeedDistanceMeters: 1200,
+              runningDensityMetersPerMinute: 165,
+              accelerationCount: 11,
+              decelerationCount: 9,
+              heartRateZoneLowSeconds: 200,
+              heartRateZoneMediumSeconds: 850,
+              heartRateZoneHighSeconds: 750,
+              trainingImpulseEdwards: 78.4,
+              heartRateRecoveryAfter60Seconds: 19,
+              thresholds: {
+                SprintSpeedThresholdMps: '7.0',
+                HighIntensitySpeedThresholdMps: '5.5',
+                AccelerationThresholdMps2: '2.0',
+                DecelerationThresholdMps2: '-2.0'
+              }
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Sprint distance:/)).toBeInTheDocument();
+    expect(screen.getByText(/Sprint count:/)).toBeInTheDocument();
+    expect(screen.getByText(/Maximum speed:/)).toBeInTheDocument();
+    expect(screen.getByText(/High-intensity time:/)).toBeInTheDocument();
+    expect(screen.getByText(/High-speed distance:/)).toBeInTheDocument();
+    expect(screen.getByText(/Running density \(m\/min\):/)).toBeInTheDocument();
+    expect(screen.getByText(/Accelerations:/)).toBeInTheDocument();
+    expect(screen.getByText(/Decelerations:/)).toBeInTheDocument();
+    expect(screen.getByText(/TRIMP \(Edwards\):/)).toBeInTheDocument();
+
+    vi.restoreAllMocks();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          fileName: 'r1-03-low-quality.tcx',
+          summary: createSummary({
+            qualityStatus: 'Low',
+            coreMetrics: {
+              isAvailable: false,
+              unavailableReason: 'Core metrics unavailable because data quality is Low. Required: High.',
+              distanceMeters: null,
+              sprintDistanceMeters: null,
+              sprintCount: null,
+              maxSpeedMetersPerSecond: null,
+              highIntensityTimeSeconds: null,
+              highSpeedDistanceMeters: null,
+              runningDensityMetersPerMinute: null,
+              accelerationCount: null,
+              decelerationCount: null,
+              heartRateZoneLowSeconds: null,
+              heartRateZoneMediumSeconds: null,
+              heartRateZoneHighSeconds: null,
+              trainingImpulseEdwards: null,
+              heartRateRecoveryAfter60Seconds: null,
+              thresholds: {
+                SprintSpeedThresholdMps: '7.0',
+                HighIntensitySpeedThresholdMps: '5.5',
+                AccelerationThresholdMps2: '2.0',
+                DecelerationThresholdMps2: '-2.0'
+              }
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Core metrics unavailable:/)).toBeInTheDocument();
+    });
   });
 
   it('Mvp06_Ac04_keeps_detail_view_readable_on_mobile_layout', async () => {

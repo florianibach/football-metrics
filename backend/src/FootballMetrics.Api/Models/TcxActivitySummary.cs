@@ -13,4 +13,5 @@ public sealed record TcxActivitySummary(
     string DistanceSource,
     string QualityStatus,
     IReadOnlyList<string> QualityReasons,
-    TcxSmoothingTrace Smoothing);
+    TcxSmoothingTrace Smoothing,
+    TcxFootballCoreMetrics CoreMetrics);
