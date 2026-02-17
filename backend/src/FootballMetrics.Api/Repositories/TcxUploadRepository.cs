@@ -52,19 +52,44 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         while (await reader.ReadAsync(cancellationToken))
         {
-            uploads.Add(new TcxUpload
-            {
-                Id = Guid.Parse(reader.GetString(0)),
-                FileName = reader.GetString(1),
-                StoredFilePath = reader.GetString(2),
-                RawFileContent = (byte[])reader[3],
-                ContentHashSha256 = reader.GetString(4),
-                UploadStatus = reader.GetString(5),
-                FailureReason = reader.IsDBNull(6) ? null : reader.GetString(6),
-                UploadedAtUtc = DateTime.Parse(reader.GetString(7), null, System.Globalization.DateTimeStyles.RoundtripKind)
-            });
+            uploads.Add(MapUpload(reader));
         }
 
         return uploads;
     }
+
+    public async Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc
+            FROM TcxUploads
+            WHERE Id = $id;
+        ";
+        command.Parameters.AddWithValue("$id", id.ToString());
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return MapUpload(reader);
+    }
+
+    private static TcxUpload MapUpload(Microsoft.Data.Sqlite.SqliteDataReader reader)
+        => new()
+        {
+            Id = Guid.Parse(reader.GetString(0)),
+            FileName = reader.GetString(1),
+            StoredFilePath = reader.GetString(2),
+            RawFileContent = (byte[])reader[3],
+            ContentHashSha256 = reader.GetString(4),
+            UploadStatus = reader.GetString(5),
+            FailureReason = reader.IsDBNull(6) ? null : reader.GetString(6),
+            UploadedAtUtc = DateTime.Parse(reader.GetString(7), null, System.Globalization.DateTimeStyles.RoundtripKind)
+        };
 }

@@ -1,4 +1,4 @@
-import { ChangeEvent, DragEvent, FormEvent, useMemo, useState } from 'react';
+import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 
 type ActivitySummary = {
   activityStartTimeUtc: string | null;
@@ -23,6 +23,7 @@ type UploadRecord = {
 };
 
 type Locale = 'en' | 'de';
+type SortDirection = 'desc' | 'asc';
 
 type TranslationKey =
   | 'title'
@@ -64,7 +65,17 @@ type TranslationKey =
   | 'metricQualityReasons'
   | 'qualityStatusHigh'
   | 'qualityStatusMedium'
-  | 'qualityStatusLow';
+  | 'qualityStatusLow'
+  | 'historyTitle'
+  | 'historyEmpty'
+  | 'historyColumnFileName'
+  | 'historyColumnUploadTime'
+  | 'historyColumnActivityTime'
+  | 'historyColumnQuality'
+  | 'historySortLabel'
+  | 'historySortNewest'
+  | 'historySortOldest'
+  | 'historyOpenDetails';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -88,7 +99,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     languageEnglish: 'English',
     languageGerman: 'German',
     uploadInProgress: 'Upload in progress...',
-    summaryTitle: 'Extracted base metrics',
+    summaryTitle: 'Session details',
     metricStartTime: 'Start time',
     metricDuration: 'Duration',
     metricHeartRate: 'Heart rate (min/avg/max)',
@@ -111,7 +122,17 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricQualityReasons: 'Quality reasons',
     qualityStatusHigh: 'high',
     qualityStatusMedium: 'medium',
-    qualityStatusLow: 'low'
+    qualityStatusLow: 'low',
+    historyTitle: 'Upload history',
+    historyEmpty: 'No uploaded sessions yet.',
+    historyColumnFileName: 'File name',
+    historyColumnUploadTime: 'Upload time',
+    historyColumnActivityTime: 'Activity time',
+    historyColumnQuality: 'Quality status',
+    historySortLabel: 'Sort by upload time',
+    historySortNewest: 'Newest first',
+    historySortOldest: 'Oldest first',
+    historyOpenDetails: 'Open details'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -130,7 +151,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     languageEnglish: 'Englisch',
     languageGerman: 'Deutsch',
     uploadInProgress: 'Upload läuft...',
-    summaryTitle: 'Extrahierte Basisdaten',
+    summaryTitle: 'Session-Details',
     metricStartTime: 'Startzeit',
     metricDuration: 'Dauer',
     metricHeartRate: 'Herzfrequenz (min/avg/max)',
@@ -153,7 +174,17 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricQualityReasons: 'Qualitätsgründe',
     qualityStatusHigh: 'hoch',
     qualityStatusMedium: 'mittel',
-    qualityStatusLow: 'niedrig'
+    qualityStatusLow: 'niedrig',
+    historyTitle: 'Upload-Historie',
+    historyEmpty: 'Noch keine hochgeladenen Sessions.',
+    historyColumnFileName: 'Dateiname',
+    historyColumnUploadTime: 'Upload-Zeit',
+    historyColumnActivityTime: 'Aktivitätszeit',
+    historyColumnQuality: 'Qualitätsstatus',
+    historySortLabel: 'Nach Upload-Zeit sortieren',
+    historySortNewest: 'Neueste zuerst',
+    historySortOldest: 'Älteste zuerst',
+    historyOpenDetails: 'Details öffnen'
   }
 };
 
@@ -195,8 +226,6 @@ function formatHeartRate(summary: ActivitySummary, notAvailable: string): string
   return `${summary.heartRateMinBpm}/${summary.heartRateAverageBpm}/${summary.heartRateMaxBpm} bpm`;
 }
 
-
-
 function qualityStatusText(status: ActivitySummary['qualityStatus'], t: Record<TranslationKey, string>): string {
   switch (status) {
     case 'High':
@@ -207,6 +236,7 @@ function qualityStatusText(status: ActivitySummary['qualityStatus'], t: Record<T
       return t.qualityStatusLow;
   }
 }
+
 function interpolate(template: string, values: Record<string, string>): string {
   return Object.entries(values).reduce(
     (result, [key, value]) => result.replaceAll(`{${key}}`, value),
@@ -233,7 +263,9 @@ function getFileValidationMessage(file: File | null, locale: Locale): string | n
 export function App() {
   const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [lastSummary, setLastSummary] = useState<ActivitySummary | null>(null);
+  const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
+  const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -244,6 +276,44 @@ export function App() {
     () => !!selectedFile && !validationMessage && !isUploading,
     [selectedFile, validationMessage, isUploading]
   );
+
+  const sortedHistory = useMemo(() => {
+    const directionFactor = sortDirection === 'desc' ? -1 : 1;
+    return [...uploadHistory].sort((a, b) => {
+      const aTime = new Date(a.uploadedAtUtc).getTime();
+      const bTime = new Date(b.uploadedAtUtc).getTime();
+      return (aTime - bTime) * directionFactor;
+    });
+  }, [uploadHistory, sortDirection]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHistory() {
+      try {
+        const response = await fetch(`${apiBaseUrl}/tcx`);
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as UploadRecord[];
+        if (!cancelled) {
+          setUploadHistory(payload);
+          if (payload.length > 0) {
+            setSelectedSession(payload[0]);
+          }
+        }
+      } catch {
+        // Intentionally ignore: upload still works and user gets feedback on action.
+      }
+    }
+
+    void loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function onLocaleChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextLocale = event.target.value as Locale;
@@ -313,7 +383,8 @@ export function App() {
       const payload = (await response.json()) as UploadRecord;
       const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
       setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
-      setLastSummary(payload.summary);
+      setSelectedSession(payload);
+      setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setSelectedFile(null);
     } catch {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
@@ -364,18 +435,61 @@ export function App() {
       </form>
       <p>{validationMessage ?? message}</p>
 
-      {lastSummary && (
+      <section>
+        <h2>{t.historyTitle}</h2>
+        <div className="history-controls">
+          <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
+          <select id="history-sort-selector" value={sortDirection} onChange={(event) => setSortDirection(event.target.value as SortDirection)}>
+            <option value="desc">{t.historySortNewest}</option>
+            <option value="asc">{t.historySortOldest}</option>
+          </select>
+        </div>
+
+        {sortedHistory.length === 0 ? (
+          <p>{t.historyEmpty}</p>
+        ) : (
+          <table className="history-table">
+            <thead>
+              <tr>
+                <th>{t.historyColumnFileName}</th>
+                <th>{t.historyColumnUploadTime}</th>
+                <th>{t.historyColumnActivityTime}</th>
+                <th>{t.historyColumnQuality}</th>
+                <th>{t.historyOpenDetails}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedHistory.map((record) => (
+                <tr key={record.id}>
+                  <td>{record.fileName}</td>
+                  <td>{formatLocalDateTime(record.uploadedAtUtc)}</td>
+                  <td>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
+                  <td>{qualityStatusText(record.summary.qualityStatus, t)}</td>
+                  <td>
+                    <button type="button" className="secondary-button" onClick={() => setSelectedSession(record)}>
+                      {t.historyOpenDetails}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {selectedSession && (
         <section>
           <h2>{t.summaryTitle}</h2>
+          <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
           <ul>
-            <li><strong>{t.metricStartTime}:</strong> {lastSummary.activityStartTimeUtc ? formatLocalDateTime(lastSummary.activityStartTimeUtc) : t.notAvailable} ({t.metricHelpStartTime})</li>
-            <li><strong>{t.metricDuration}:</strong> {formatDuration(lastSummary.durationSeconds, locale, t.notAvailable)} ({t.metricHelpDuration})</li>
-            <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(lastSummary, t.notAvailable)} ({t.metricHelpHeartRate})</li>
-            <li><strong>{t.metricTrackpoints}:</strong> {lastSummary.trackpointCount} ({t.metricHelpTrackpoints})</li>
-            <li><strong>{t.metricDistance}:</strong> {formatDistance(lastSummary.distanceMeters, locale, t.notAvailable)} — {distanceSourceText(lastSummary.distanceSource)} ({t.metricHelpDistance})</li>
-            <li><strong>{t.metricGps}:</strong> {lastSummary.hasGpsData ? t.yes : t.no} ({t.metricHelpGps})</li>
-            <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(lastSummary.qualityStatus, t)}</li>
-            <li><strong>{t.metricQualityReasons}:</strong> {lastSummary.qualityReasons.join(' | ')}</li>
+            <li><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable} ({t.metricHelpStartTime})</li>
+            <li><strong>{t.metricDuration}:</strong> {formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable)} ({t.metricHelpDuration})</li>
+            <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)} ({t.metricHelpHeartRate})</li>
+            <li><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount} ({t.metricHelpTrackpoints})</li>
+            <li><strong>{t.metricDistance}:</strong> {formatDistance(selectedSession.summary.distanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)} ({t.metricHelpDistance})</li>
+            <li><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no} ({t.metricHelpGps})</li>
+            <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
+            <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
           </ul>
         </section>
       )}
