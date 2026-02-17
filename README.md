@@ -31,10 +31,13 @@ docker compose up --build
 ```
 
 - Frontend: `http://localhost:3000`
-- Backend API: `http://localhost:8080`
+- Backend API (direkt): `http://localhost:8080`
+- Backend API (über Frontend-Proxy): `http://localhost:3000/api/...`
 - Swagger: `http://localhost:8080/swagger`
 
 ## API Endpoints (initial)
+
+Hinweis: Das Frontend-Nginx proxyt `/api/*` an das Backend und erlaubt Uploads bis 25 MB (`client_max_body_size`), damit der 20 MB TCX-API-Limit korrekt erreicht werden kann.
 
 - `POST /api/tcx/upload` – nimmt eine `.tcx` Datei (max. 20 MB) entgegen, validiert Struktur (XML, Activity, Trackpoint) und gibt konkrete Fehlerhinweise bei ungültigen Dateien zurück.
 - `GET /api/tcx` – listet hochgeladene Dateien auf.

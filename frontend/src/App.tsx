@@ -27,7 +27,7 @@ type TranslationKey =
   | 'languageEnglish'
   | 'languageGerman';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080').trim();
 const maxFileSizeInBytes = 20 * 1024 * 1024;
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
