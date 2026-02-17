@@ -51,10 +51,10 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 **damit** die App auch ohne Standortdaten nützlich bleibt.
 
 ### Acceptance Criteria
-- [ ] Bei fehlendem GPS werden verfügbare Metriken (z. B. Dauer, HF-basierte Zonenzeit, HF-Belastung) weiterhin berechnet.
-- [ ] Nicht berechenbare GPS-Metriken werden klar als „nicht verfügbar“ markiert.
-- [ ] Die Oberfläche unterscheidet transparent zwischen „nicht gemessen“ und „Messung unbrauchbar“.
-- [ ] Keine fehlerhaften Nullwerte, die als echte Messwerte missverstanden werden könnten.
+- [x] Bei fehlendem GPS werden verfügbare Metriken (z. B. Dauer, HF-basierte Zonenzeit, HF-Belastung) weiterhin berechnet.
+- [x] Nicht berechenbare GPS-Metriken werden klar als „nicht verfügbar“ markiert.
+- [x] Die Oberfläche unterscheidet transparent zwischen „nicht gemessen“ und „Messung unbrauchbar“.
+- [x] Keine fehlerhaften Nullwerte, die als echte Messwerte missverstanden werden könnten.
 
 ---
 
@@ -113,4 +113,3 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 ## Release-Vorschlag (Filter-Themen)
 - **R1:** Session-bezogene Filterauswahl + Erklärung/Empfehlung (`R1-07`, `R1-08`).
 - **R1.5:** Profilweiter Default-Filter erst nach verfügbarem Profilbereich (siehe neue Story `R1.5-08`).
-

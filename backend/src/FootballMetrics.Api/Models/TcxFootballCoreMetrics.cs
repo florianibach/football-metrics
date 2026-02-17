@@ -17,4 +17,5 @@ public sealed record TcxFootballCoreMetrics(
     double? HeartRateZoneHighSeconds,
     double? TrainingImpulseEdwards,
     int? HeartRateRecoveryAfter60Seconds,
+    IReadOnlyDictionary<string, TcxMetricAvailability> MetricAvailability,
     IReadOnlyDictionary<string, string> Thresholds);
