@@ -5,14 +5,17 @@ Diese Definition of Done gilt releaseübergreifend (MVP, R1, R1.5, R2) für fach
 ## 1) Fachliche Abnahme
 - [ ] User Story ist vollständig umgesetzt und erfüllt alle definierten Acceptance Criteria.
 - [ ] Ergebnis ist aus Anwendersicht nachvollziehbar (Single-User-Perspektive).
-- [ ] Fachliche Grenzfälle wurden berücksichtigt (z. B. fehlendes GPS, fehlende HF, fehlerhafte TCX-Struktur).
+- [ ] Fachliche Grenzfälle wurden berücksichtigt (z. B. fehlendes GPS, fehlende HF, fehlerhafte Datei-/Datenstruktur).
+- [ ] Bei positionsabhängigen Features ist ein möglicher Positionswechsel pro Session berücksichtigt (Override gegenüber Profilposition).
 
 ## 2) Datenqualität & Analytik
-- [ ] Eingangsvalidierung für TCX-Daten ist vorhanden und getestet.
+- [ ] Eingangsvalidierung für unterstützte Dateiformate ist vorhanden und getestet (aktuell mindestens TCX).
 - [ ] Fehlende oder unplausible Daten werden transparent ausgewiesen (kein stilles „Durchmogeln“).
 - [ ] Berechnungen nutzen dokumentierte Regeln/Schwellen/Parameter.
 - [ ] Bei Änderungen an Algorithmen ist nachvollziehbar, was geändert wurde und warum.
 - [ ] Falls vorgesehen, wird die Rohdatei unverändert und referenzierbar gespeichert.
+- [ ] Für Import-/Parsing-Stories existiert ein klar dokumentiertes Mapping von Quellformat auf kanonisches Activity-Modell.
+- [ ] Import-/Upload-Verarbeitung ist idempotent abgesichert (Dublettenschutz oder gleichwertige Strategie dokumentiert).
 
 ## 3) UX & Transparenz
 - [ ] Mobile-First ist der Standard in Konzeption und Umsetzung (Layout, Navigation, Lesbarkeit, Interaktion).
@@ -22,6 +25,7 @@ Diese Definition of Done gilt releaseübergreifend (MVP, R1, R1.5, R2) für fach
 - [ ] Interne und externe Metriken sind in der UI eindeutig unterscheidbar.
 - [ ] Relevante Informationen sind auf Mobile und Desktop bedienbar.
 - [ ] Code ist in Englisch geschrieben; UI-Texte sind lokalisiert und werden abhängig von Browsersprache oder manuellem Sprachwechsel in Deutsch oder Englisch angezeigt (Fallback: Englisch).
+- [ ] Bei Session-Kontext (Training/Spiel etc.) ist klar erkennbar, ob Werte gesetzt, unbekannt oder nachträglich geändert wurden.
 
 ## 4) Technische Qualität
 - [ ] Code entspricht Projektkonventionen und wurde mit sinnvoller Struktur umgesetzt.

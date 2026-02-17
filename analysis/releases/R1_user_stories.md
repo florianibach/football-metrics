@@ -57,7 +57,20 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 
 ---
 
-## Story R1-05: Metrik-Erklärung direkt in der UI
+## Story R1-05: Upload-Pipeline für weitere Dateitypen vorbereiten
+**Als** Produktteam  
+**möchte ich** den Upload-Flow intern formatoffen strukturieren  
+**damit** später weitere Dateitypen ergänzt werden können, ohne den TCX-Flow zu brechen.
+
+### Acceptance Criteria
+- [ ] Der Upload- und Parsing-Flow verwendet eine klare Adapter-/Strategie-Schnittstelle je Dateityp.
+- [ ] TCX bleibt der einzig freigeschaltete Dateityp in der UI.
+- [ ] Nicht unterstützte Dateiendungen werden klar abgelehnt, aber technisch als „potenziell zukünftige Formate“ sauber behandelbar geloggt.
+- [ ] Mapping ins kanonische Activity-Modell ist für TCX dokumentiert.
+
+---
+
+## Story R1-06: Metrik-Erklärung direkt in der UI
 **Als** Nutzer  
 **möchte ich** zu jeder Metrik eine kurze Erklärung sehen  
 **damit** ich weiß, wofür die Metrik gedacht ist und wie ich sie interpretieren soll.

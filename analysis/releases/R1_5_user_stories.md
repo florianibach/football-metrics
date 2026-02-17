@@ -31,7 +31,33 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 
 ---
 
-## Story R1.5-03: Individuelle Metrik-Schwellen konfigurieren
+## Story R1.5-03: Session-Typ und Spielkontext erfassen
+**Als** Nutzer  
+**möchte ich** eine Einheit als Training, Spiel oder Reha markieren und bei Spielen Kontextdaten pflegen  
+**damit** die Analyse fachlich korrekt eingeordnet ist.
+
+### Acceptance Criteria
+- [ ] Jede Session kann mindestens als „Training“, „Spiel“, „Reha“, „Athletik“ oder „Sonstiges“ klassifiziert werden.
+- [ ] Für Spiel-Sessions sind Kontextfelder wie Ergebnis, Wettbewerb, Gegnername und optional Gegner-Logo erfassbar.
+- [ ] Kontextdaten sind nachträglich editierbar.
+- [ ] Session-Listen und Detailseiten zeigen den Session-Typ klar sichtbar an.
+
+---
+
+## Story R1.5-04: Position im Profil hinterlegen
+**Als** Nutzer  
+**möchte ich** meine Primär- und Sekundärposition im Profil speichern  
+**damit** spätere positionsspezifische Auswertungen auf einer sauberen Basis starten.
+
+### Acceptance Criteria
+- [ ] Profil erlaubt die Angabe einer Primärposition.
+- [ ] Optional kann eine Sekundärposition gepflegt werden.
+- [ ] Ungültige oder unvollständige Positionsangaben werden sauber validiert.
+- [ ] Die aktuell hinterlegte Position ist in den Profileinstellungen klar sichtbar.
+
+---
+
+## Story R1.5-05: Individuelle Metrik-Schwellen konfigurieren
 **Als** Nutzer  
 **möchte ich** Schwellenwerte (z. B. Sprinttempo, HF-Zonen) konfigurieren  
 **damit** die Auswertung zu meinem Leistungsstand passt.
@@ -44,7 +70,7 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 
 ---
 
-## Story R1.5-04: Interne und externe Metriken in der UI trennen
+## Story R1.5-06: Interne und externe Metriken in der UI trennen
 **Als** Nutzer  
 **möchte ich** interne und externe Metriken getrennt dargestellt sehen  
 **damit** ich Belastungssignale besser einordnen kann.
@@ -57,7 +83,7 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 
 ---
 
-## Story R1.5-05: Qualitäts- und Verarbeitungstransparenz erweitern
+## Story R1.5-07: Qualitäts- und Verarbeitungstransparenz erweitern
 **Als** Nutzer  
 **möchte ich** verstehen, wie Analyseergebnisse zustande kommen  
 **damit** ich den Kennzahlen besser vertraue.
