@@ -678,7 +678,7 @@ describe('App', () => {
     expect(distanceInfo).toHaveAttribute('title', expect.stringContaining('Unit: km and m'));
 
     const sprintDistanceInfo = screen.getByRole('note', { name: 'Sprint distance explanation' });
-    expect(sprintDistanceInfo).toHaveAttribute('title', expect.stringContaining('Unavailable when GPS quality is insufficient'));
+    expect(sprintDistanceInfo).toHaveAttribute('title', expect.stringContaining('very low values usually mean little sprint exposure'));
   });
 
   it('R1_06_Ac03_Ac04_localizes_and_explains_quality_gated_unavailable_metrics', async () => {
@@ -726,8 +726,14 @@ describe('App', () => {
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
 
-    const sprintDistanceInfoDe = screen.getByRole('note', { name: 'Sprintdistanz explanation' });
-    expect(sprintDistanceInfoDe).toHaveAttribute('title', expect.stringContaining('Nicht verfügbar bei unzureichender GPS-Qualität'));
+    const sprintDistanceInfoDe = screen.getByRole('note', { name: 'Anzahl Sprints explanation' });
+    expect(sprintDistanceInfoDe).toHaveAttribute('title', expect.stringContaining('0-2 eher niedrig, 3-6 mittel, >6 hoch'));
+
+    const trimpInfoDe = screen.getByRole('note', { name: 'TRIMP (Edwards) explanation' });
+    expect(trimpInfoDe).toHaveAttribute('title', expect.stringContaining('40-80 mittel'));
+
+    const recoveryInfoDe = screen.getByRole('note', { name: 'HF-Erholung nach 60s explanation' });
+    expect(recoveryInfoDe).toHaveAttribute('title', expect.stringContaining('12-20 mittel, >20 gut'));
   });
 
 });
