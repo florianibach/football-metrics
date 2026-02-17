@@ -82,12 +82,13 @@ Bewertete Signale:
 - Unplausible GPS-Sprünge auf Basis der Segmentgeschwindigkeit (Schwellwert: > 12.5 m/s)
 
 Scoring-Logik (erweiterbar):
+- Die Punkte sind **Auffälligkeits-/Risikopunkte** (keine Positivpunkte). Mehr Punkte bedeuten also schlechtere Datenqualität.
 - Kleine Auffälligkeit: +1 Punkt (Schwellwert **> 10 %** des Signals)
 - Große Auffälligkeit: +2 Punkte (Schwellwert **> 50 %** des Signals)
 - Für GPS-Sprünge gilt: 1 Sprung = +1, ab 2 Sprüngen = +2
-- 0-1 Punkte: `High`
-- 2-3 Punkte: `Medium`
-- ab 4 Punkte: `Low`
+- 0-1 Punkte: `High` (**hohe Datenqualität**)
+- 2-3 Punkte: `Medium` (**mittlere Datenqualität**)
+- ab 4 Punkte: `Low` (**niedrige Datenqualität**)
 
 Wenn keine Auffälligkeit erkannt wird, wird ein positiver Grundtext zurückgegeben. Die Logik ist zentral in `TcxMetricsExtractor` kapsuliert und kann in späteren Iterationen um zusätzliche Qualitätsindikatoren erweitert werden.
 
