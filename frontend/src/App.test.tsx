@@ -249,6 +249,47 @@ describe('App', () => {
     expect(screen.getByText(/5.1 km/)).toBeInTheDocument();
   });
 
+
+
+  it('Mvp04_Ac01_Ac03_shows_quality_status_and_plain_text_reasons', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => createMvp03SummaryResponse({
+        summary: {
+          activityStartTimeUtc: '2026-02-16T21:00:00.000Z',
+          durationSeconds: 1800,
+          trackpointCount: 25,
+          heartRateMinBpm: 120,
+          heartRateAverageBpm: 145,
+          heartRateMaxBpm: 170,
+          distanceMeters: 5100,
+          hasGpsData: true,
+          fileDistanceMeters: 5000,
+          distanceSource: 'CalculatedFromGps',
+          qualityStatus: 'Medium',
+          qualityReasons: ['Detected isolated implausible GPS jumps (1).', 'GPS data is partially missing (22/25 points with coordinates).']
+        }
+      })
+    } as Response);
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: {
+        files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'session.tcx', { type: 'application/xml' })]
+      }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Data quality:/)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/medium/)).toBeInTheDocument();
+    expect(screen.getByText(/Detected isolated implausible GPS jumps \(1\)\. \| GPS data is partially missing \(22\/25 points with coordinates\)\./)).toBeInTheDocument();
+  });
+
   it('Mvp03_Ac06_formats_activity_start_time_as_local_time_for_user', async () => {
     const localTimeSpy = vi.spyOn(Date.prototype, 'toLocaleString').mockReturnValue('LOCAL_USER_TIME');
 
