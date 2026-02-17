@@ -340,8 +340,18 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.SprintCount.Should().BeGreaterThan(0);
         summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeGreaterThan(7.0);
         summary.CoreMetrics.HighIntensityTimeSeconds.Should().BeGreaterThan(0);
+        summary.CoreMetrics.HighSpeedDistanceMeters.Should().BeGreaterThan(0);
+        summary.CoreMetrics.RunningDensityMetersPerMinute.Should().BeGreaterThan(0);
+        summary.CoreMetrics.AccelerationCount.Should().NotBeNull();
+        summary.CoreMetrics.DecelerationCount.Should().NotBeNull();
+        summary.CoreMetrics.HeartRateZoneLowSeconds.Should().NotBeNull();
+        summary.CoreMetrics.HeartRateZoneMediumSeconds.Should().NotBeNull();
+        summary.CoreMetrics.HeartRateZoneHighSeconds.Should().NotBeNull();
+        summary.CoreMetrics.TrainingImpulseEdwards.Should().BeGreaterThan(0);
         summary.CoreMetrics.Thresholds["SprintSpeedThresholdMps"].Should().Be("7.0");
         summary.CoreMetrics.Thresholds["HighIntensitySpeedThresholdMps"].Should().Be("5.5");
+        summary.CoreMetrics.Thresholds["AccelerationThresholdMps2"].Should().Be("2.0");
+        summary.CoreMetrics.Thresholds["DecelerationThresholdMps2"].Should().Be("-2.0");
     }
 
     [Fact]
@@ -373,6 +383,14 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.SprintCount.Should().BeNull();
         summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeNull();
         summary.CoreMetrics.HighIntensityTimeSeconds.Should().BeNull();
+        summary.CoreMetrics.HighSpeedDistanceMeters.Should().BeNull();
+        summary.CoreMetrics.RunningDensityMetersPerMinute.Should().BeNull();
+        summary.CoreMetrics.AccelerationCount.Should().BeNull();
+        summary.CoreMetrics.DecelerationCount.Should().BeNull();
+        summary.CoreMetrics.HeartRateZoneLowSeconds.Should().BeNull();
+        summary.CoreMetrics.HeartRateZoneMediumSeconds.Should().BeNull();
+        summary.CoreMetrics.HeartRateZoneHighSeconds.Should().BeNull();
+        summary.CoreMetrics.TrainingImpulseEdwards.Should().BeNull();
     }
 
 }

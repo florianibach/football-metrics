@@ -28,9 +28,20 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highSpeedDistanceMeters: 1600,
+        runningDensityMetersPerMinute: 170,
+        accelerationCount: 14,
+        decelerationCount: 13,
+        heartRateZoneLowSeconds: 180,
+        heartRateZoneMediumSeconds: 900,
+        heartRateZoneHighSeconds: 720,
+        trainingImpulseEdwards: 83.5,
+        heartRateRecoveryAfter60Seconds: 22,
         thresholds: {
           SprintSpeedThresholdMps: '7.0',
-          HighIntensitySpeedThresholdMps: '5.5'
+          HighIntensitySpeedThresholdMps: '5.5',
+          AccelerationThresholdMps2: '2.0',
+          DecelerationThresholdMps2: '-2.0'
         }
       },
       smoothing: {
@@ -273,9 +284,20 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highSpeedDistanceMeters: 1600,
+        runningDensityMetersPerMinute: 170,
+        accelerationCount: 14,
+        decelerationCount: 13,
+        heartRateZoneLowSeconds: 180,
+        heartRateZoneMediumSeconds: 900,
+        heartRateZoneHighSeconds: 720,
+        trainingImpulseEdwards: 83.5,
+        heartRateRecoveryAfter60Seconds: 22,
         thresholds: {
           SprintSpeedThresholdMps: '7.0',
-          HighIntensitySpeedThresholdMps: '5.5'
+          HighIntensitySpeedThresholdMps: '5.5',
+          AccelerationThresholdMps2: '2.0',
+          DecelerationThresholdMps2: '-2.0'
         }
       },
       smoothing: {
@@ -331,9 +353,20 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highSpeedDistanceMeters: 1600,
+        runningDensityMetersPerMinute: 170,
+        accelerationCount: 14,
+        decelerationCount: 13,
+        heartRateZoneLowSeconds: 180,
+        heartRateZoneMediumSeconds: 900,
+        heartRateZoneHighSeconds: 720,
+        trainingImpulseEdwards: 83.5,
+        heartRateRecoveryAfter60Seconds: 22,
         thresholds: {
           SprintSpeedThresholdMps: '7.0',
-          HighIntensitySpeedThresholdMps: '5.5'
+          HighIntensitySpeedThresholdMps: '5.5',
+          AccelerationThresholdMps2: '2.0',
+          DecelerationThresholdMps2: '-2.0'
         }
       },
       smoothing: {
@@ -382,9 +415,20 @@ describe('App', () => {
         sprintCount: 4,
         maxSpeedMetersPerSecond: 7.42,
         highIntensityTimeSeconds: 380,
+        highSpeedDistanceMeters: 1600,
+        runningDensityMetersPerMinute: 170,
+        accelerationCount: 14,
+        decelerationCount: 13,
+        heartRateZoneLowSeconds: 180,
+        heartRateZoneMediumSeconds: 900,
+        heartRateZoneHighSeconds: 720,
+        trainingImpulseEdwards: 83.5,
+        heartRateRecoveryAfter60Seconds: 22,
         thresholds: {
           SprintSpeedThresholdMps: '7.0',
-          HighIntensitySpeedThresholdMps: '5.5'
+          HighIntensitySpeedThresholdMps: '5.5',
+          AccelerationThresholdMps2: '2.0',
+          DecelerationThresholdMps2: '-2.0'
         }
       },
       smoothing: {
@@ -432,9 +476,20 @@ describe('App', () => {
               sprintCount: 5,
               maxSpeedMetersPerSecond: 7.75,
               highIntensityTimeSeconds: 420,
+              highSpeedDistanceMeters: 1200,
+              runningDensityMetersPerMinute: 165,
+              accelerationCount: 11,
+              decelerationCount: 9,
+              heartRateZoneLowSeconds: 200,
+              heartRateZoneMediumSeconds: 850,
+              heartRateZoneHighSeconds: 750,
+              trainingImpulseEdwards: 78.4,
+              heartRateRecoveryAfter60Seconds: 19,
               thresholds: {
                 SprintSpeedThresholdMps: '7.0',
-                HighIntensitySpeedThresholdMps: '5.5'
+                HighIntensitySpeedThresholdMps: '5.5',
+                AccelerationThresholdMps2: '2.0',
+                DecelerationThresholdMps2: '-2.0'
               }
             }
           })
@@ -452,6 +507,11 @@ describe('App', () => {
     expect(screen.getByText(/Sprint count:/)).toBeInTheDocument();
     expect(screen.getByText(/Maximum speed:/)).toBeInTheDocument();
     expect(screen.getByText(/High-intensity time:/)).toBeInTheDocument();
+    expect(screen.getByText(/High-speed distance:/)).toBeInTheDocument();
+    expect(screen.getByText(/Running density \(m\/min\):/)).toBeInTheDocument();
+    expect(screen.getByText(/Accelerations:/)).toBeInTheDocument();
+    expect(screen.getByText(/Decelerations:/)).toBeInTheDocument();
+    expect(screen.getByText(/TRIMP \(Edwards\):/)).toBeInTheDocument();
 
     vi.restoreAllMocks();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -469,9 +529,20 @@ describe('App', () => {
               sprintCount: null,
               maxSpeedMetersPerSecond: null,
               highIntensityTimeSeconds: null,
+              highSpeedDistanceMeters: null,
+              runningDensityMetersPerMinute: null,
+              accelerationCount: null,
+              decelerationCount: null,
+              heartRateZoneLowSeconds: null,
+              heartRateZoneMediumSeconds: null,
+              heartRateZoneHighSeconds: null,
+              trainingImpulseEdwards: null,
+              heartRateRecoveryAfter60Seconds: null,
               thresholds: {
                 SprintSpeedThresholdMps: '7.0',
-                HighIntensitySpeedThresholdMps: '5.5'
+                HighIntensitySpeedThresholdMps: '5.5',
+                AccelerationThresholdMps2: '2.0',
+                DecelerationThresholdMps2: '-2.0'
               }
             }
           })

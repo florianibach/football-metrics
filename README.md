@@ -174,6 +174,14 @@ Empfohlener Sammelcheck:
 - Bei unzureichender Qualität liefert die API einen verständlichen Hinweis in `summary.coreMetrics.unavailableReason`, statt numerischer Werte.
 - Die UI zeigt die Kernmetriken in der Session-Detailansicht an und blendet bei Quality-Gating den Hinweistext ein.
 
+- Ergänzt um weitere Fußball-Metriken aus `analysis/Auswertung von GPS- und Herzfrequenzdaten im Amateurfußball.pdf` (R1.5-07 Scope):
+  - `highSpeedDistanceMeters` (hochintensive Laufdistanz)
+  - `runningDensityMetersPerMinute` (Laufdichte)
+  - `accelerationCount` / `decelerationCount` (neuromuskuläre Last)
+  - Herzfrequenzzonenzeit `<70%`, `70-85%`, `>85%` (auf Basis session-interner HFmax)
+  - `trainingImpulseEdwards` (TRIMP)
+  - `heartRateRecoveryAfter60Seconds` (HF-Erholung)
+
 ## GPS-Glättung (R1-01)
 
 - Es werden zwei Logiken unterschieden:

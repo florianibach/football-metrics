@@ -20,6 +20,15 @@ type FootballCoreMetrics = {
   sprintCount: number | null;
   maxSpeedMetersPerSecond: number | null;
   highIntensityTimeSeconds: number | null;
+  highSpeedDistanceMeters: number | null;
+  runningDensityMetersPerMinute: number | null;
+  accelerationCount: number | null;
+  decelerationCount: number | null;
+  heartRateZoneLowSeconds: number | null;
+  heartRateZoneMediumSeconds: number | null;
+  heartRateZoneHighSeconds: number | null;
+  trainingImpulseEdwards: number | null;
+  heartRateRecoveryAfter60Seconds: number | null;
   thresholds: Record<string, string>;
 };
 
@@ -121,7 +130,16 @@ type TranslationKey =
   | 'metricSprintCount'
   | 'metricMaxSpeed'
   | 'metricHighIntensityTime'
-  | 'metricCoreThresholds';
+  | 'metricCoreThresholds'
+  | 'metricHighSpeedDistance'
+  | 'metricRunningDensity'
+  | 'metricAccelerationCount'
+  | 'metricDecelerationCount'
+  | 'metricHrZoneLow'
+  | 'metricHrZoneMedium'
+  | 'metricHrZoneHigh'
+  | 'metricTrimpEdwards'
+  | 'metricHrRecovery60';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -198,7 +216,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricSprintCount: 'Sprint count',
     metricMaxSpeed: 'Maximum speed',
     metricHighIntensityTime: 'High-intensity time',
-    metricCoreThresholds: 'Thresholds'
+    metricCoreThresholds: 'Thresholds',
+    metricHighSpeedDistance: 'High-speed distance',
+    metricRunningDensity: 'Running density (m/min)',
+    metricAccelerationCount: 'Accelerations',
+    metricDecelerationCount: 'Decelerations',
+    metricHrZoneLow: 'HR zone <70%',
+    metricHrZoneMedium: 'HR zone 70-85%',
+    metricHrZoneHigh: 'HR zone >85%',
+    metricTrimpEdwards: 'TRIMP (Edwards)',
+    metricHrRecovery60: 'HR recovery after 60s' 
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -270,7 +297,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricSprintCount: 'Anzahl Sprints',
     metricMaxSpeed: 'Maximalgeschwindigkeit',
     metricHighIntensityTime: 'Hochintensitätszeit',
-    metricCoreThresholds: 'Schwellenwerte'
+    metricCoreThresholds: 'Schwellenwerte',
+    metricHighSpeedDistance: 'Hochintensive Laufdistanz',
+    metricRunningDensity: 'Laufdichte (m/min)',
+    metricAccelerationCount: 'Beschleunigungen',
+    metricDecelerationCount: 'Abbremsungen',
+    metricHrZoneLow: 'HF-Zone <70%',
+    metricHrZoneMedium: 'HF-Zone 70-85%',
+    metricHrZoneHigh: 'HF-Zone >85%',
+    metricTrimpEdwards: 'TRIMP (Edwards)',
+    metricHrRecovery60: 'HF-Erholung nach 60s'
   }
 };
 
@@ -343,6 +379,15 @@ function formatSpeedMetersPerSecond(value: number | null, notAvailableText: stri
   }
 
   return `${value.toFixed(2)} m/s`;
+}
+
+
+function formatNumber(value: number | null, locale: Locale, notAvailable: string, digits = 1): string {
+  if (value === null) {
+    return notAvailable;
+  }
+
+  return value.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 function formatThresholds(thresholds: Record<string, string>): string {
@@ -690,6 +735,15 @@ export function App() {
                 <li><strong>{t.metricSprintCount}:</strong> {selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}</li>
                 <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}</li>
                 <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricRunningDensity}:</strong> {formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
+                <li><strong>{t.metricAccelerationCount}:</strong> {selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable}</li>
+                <li><strong>{t.metricDecelerationCount}:</strong> {selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable}</li>
+                <li><strong>{t.metricHrZoneLow}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
+                <li><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
+                <li><strong>{t.metricHrRecovery60}:</strong> {selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
                 <li><strong>{t.metricCoreThresholds}:</strong> {formatThresholds(selectedSession.summary.coreMetrics.thresholds)}</li>
               </ul>
             ) : (

@@ -10,6 +10,8 @@ public static class TcxMetricsExtractor
     private const double MaxPlausibleSpeedMetersPerSecond = 12.5;
     private const double SprintSpeedThresholdMetersPerSecond = 7.0;
     private const double HighIntensitySpeedThresholdMetersPerSecond = 5.5;
+    private const double AccelerationThresholdMetersPerSecondSquared = 2.0;
+    private const double DecelerationThresholdMetersPerSecondSquared = -2.0;
 
     public static TcxActivitySummary Extract(XDocument document)
     {
@@ -399,7 +401,12 @@ public static class TcxMetricsExtractor
         var thresholds = new Dictionary<string, string>
         {
             ["SprintSpeedThresholdMps"] = SprintSpeedThresholdMetersPerSecond.ToString("0.0", CultureInfo.InvariantCulture),
-            ["HighIntensitySpeedThresholdMps"] = HighIntensitySpeedThresholdMetersPerSecond.ToString("0.0", CultureInfo.InvariantCulture)
+            ["HighIntensitySpeedThresholdMps"] = HighIntensitySpeedThresholdMetersPerSecond.ToString("0.0", CultureInfo.InvariantCulture),
+            ["AccelerationThresholdMps2"] = AccelerationThresholdMetersPerSecondSquared.ToString("0.0", CultureInfo.InvariantCulture),
+            ["DecelerationThresholdMps2"] = DecelerationThresholdMetersPerSecondSquared.ToString("0.0", CultureInfo.InvariantCulture),
+            ["HeartRateZoneLowPercentMax"] = "<70",
+            ["HeartRateZoneMediumPercentMax"] = "70-85",
+            ["HeartRateZoneHighPercentMax"] = ">85"
         };
 
         if (!string.Equals(qualityStatus, "High", StringComparison.OrdinalIgnoreCase))
@@ -412,17 +419,25 @@ public static class TcxMetricsExtractor
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 thresholds);
         }
 
-        var segments = trackpoints
+        var gpsPoints = trackpoints
             .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
             .OrderBy(tp => tp.TimeUtc)
-            .Zip(trackpoints
-                    .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
-                    .OrderBy(tp => tp.TimeUtc)
-                    .Skip(1),
-                (previous, current) => (previous, current))
+            .ToList();
+
+        var segments = gpsPoints
+            .Zip(gpsPoints.Skip(1), (previous, current) => new { previous, current })
             .Select(pair =>
             {
                 var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
@@ -451,12 +466,20 @@ public static class TcxMetricsExtractor
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
                 thresholds);
         }
 
-        var sprintDistanceMeters = segments
-            .Where(segment => segment.Speed >= SprintSpeedThresholdMetersPerSecond)
-            .Sum(segment => segment.Distance);
+        var sprintDistanceMeters = segments.Where(segment => segment.Speed >= SprintSpeedThresholdMetersPerSecond).Sum(segment => segment.Distance);
+        var highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond).Sum(segment => segment.Distance);
 
         var sprintCount = 0;
         var currentlyInSprint = false;
@@ -472,9 +495,134 @@ public static class TcxMetricsExtractor
         }
 
         var maxSpeed = segments.Max(segment => segment.Speed);
-        var highIntensityTimeSeconds = segments
-            .Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond)
-            .Sum(segment => segment.Duration);
+        var highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond).Sum(segment => segment.Duration);
+
+        var totalDurationSeconds = segments.Sum(segment => segment.Duration);
+        var runningDensityMetersPerMinute = totalDurationSeconds > 0
+            ? (totalDistanceMeters ?? segments.Sum(segment => segment.Distance)) / (totalDurationSeconds / 60.0)
+            : (double?)null;
+
+        var accelerationCount = 0;
+        var decelerationCount = 0;
+        for (var index = 1; index < segments.Count; index++)
+        {
+            var elapsedSeconds = segments[index].Duration;
+            if (elapsedSeconds <= 0)
+            {
+                continue;
+            }
+
+            var acceleration = (segments[index].Speed - segments[index - 1].Speed) / elapsedSeconds;
+            if (acceleration >= AccelerationThresholdMetersPerSecondSquared)
+            {
+                accelerationCount++;
+            }
+            else if (acceleration <= DecelerationThresholdMetersPerSecondSquared)
+            {
+                decelerationCount++;
+            }
+        }
+
+        var pointsWithHrAndTime = trackpoints
+            .Where(tp => tp.TimeUtc.HasValue && tp.HeartRateBpm.HasValue)
+            .OrderBy(tp => tp.TimeUtc)
+            .ToList();
+
+        double? hrZoneLowSeconds = null;
+        double? hrZoneMediumSeconds = null;
+        double? hrZoneHighSeconds = null;
+        double? trimpEdwards = null;
+        int? hrRecoveryAfter60Seconds = null;
+
+        if (pointsWithHrAndTime.Count >= 2)
+        {
+            var hrMax = pointsWithHrAndTime.Max(tp => tp.HeartRateBpm!.Value);
+            if (hrMax > 0)
+            {
+                var lowSeconds = 0.0;
+                var mediumSeconds = 0.0;
+                var highSeconds = 0.0;
+
+                foreach (var pair in pointsWithHrAndTime.Zip(pointsWithHrAndTime.Skip(1), (previous, current) => new { previous, current }))
+                {
+                    var elapsed = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
+                    if (elapsed <= 0)
+                    {
+                        continue;
+                    }
+
+                    var hr = ((pair.previous.HeartRateBpm!.Value + pair.current.HeartRateBpm!.Value) / 2.0) / hrMax;
+                    if (hr < 0.70)
+                    {
+                        lowSeconds += elapsed;
+                    }
+                    else if (hr <= 0.85)
+                    {
+                        mediumSeconds += elapsed;
+                    }
+                    else
+                    {
+                        highSeconds += elapsed;
+                    }
+                }
+
+                hrZoneLowSeconds = lowSeconds;
+                hrZoneMediumSeconds = mediumSeconds;
+                hrZoneHighSeconds = highSeconds;
+
+                var zone50to60 = 0.0;
+                var zone60to70 = 0.0;
+                var zone70to80 = 0.0;
+                var zone80to90 = 0.0;
+                var zone90to100 = 0.0;
+
+                foreach (var pair in pointsWithHrAndTime.Zip(pointsWithHrAndTime.Skip(1), (previous, current) => new { previous, current }))
+                {
+                    var elapsedMinutes = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalMinutes;
+                    if (elapsedMinutes <= 0)
+                    {
+                        continue;
+                    }
+
+                    var hrPercent = ((pair.previous.HeartRateBpm!.Value + pair.current.HeartRateBpm!.Value) / 2.0) / hrMax;
+                    if (hrPercent < 0.50)
+                    {
+                        continue;
+                    }
+
+                    if (hrPercent < 0.60)
+                    {
+                        zone50to60 += elapsedMinutes;
+                    }
+                    else if (hrPercent < 0.70)
+                    {
+                        zone60to70 += elapsedMinutes;
+                    }
+                    else if (hrPercent < 0.80)
+                    {
+                        zone70to80 += elapsedMinutes;
+                    }
+                    else if (hrPercent < 0.90)
+                    {
+                        zone80to90 += elapsedMinutes;
+                    }
+                    else
+                    {
+                        zone90to100 += elapsedMinutes;
+                    }
+                }
+
+                trimpEdwards = (zone50to60 * 1) + (zone60to70 * 2) + (zone70to80 * 3) + (zone80to90 * 4) + (zone90to100 * 5);
+
+                var peakHrPoint = pointsWithHrAndTime.OrderByDescending(tp => tp.HeartRateBpm!.Value).ThenBy(tp => tp.TimeUtc).First();
+                var targetTime = peakHrPoint.TimeUtc!.Value.AddSeconds(60);
+                var recoveryPoint = pointsWithHrAndTime.FirstOrDefault(tp => tp.TimeUtc >= targetTime);
+                if (recoveryPoint is not null)
+                {
+                    hrRecoveryAfter60Seconds = peakHrPoint.HeartRateBpm!.Value - recoveryPoint.HeartRateBpm!.Value;
+                }
+            }
+        }
 
         return new TcxFootballCoreMetrics(
             true,
@@ -484,6 +632,15 @@ public static class TcxMetricsExtractor
             sprintCount,
             maxSpeed,
             highIntensityTimeSeconds,
+            highSpeedDistanceMeters,
+            runningDensityMetersPerMinute,
+            accelerationCount,
+            decelerationCount,
+            hrZoneLowSeconds,
+            hrZoneMediumSeconds,
+            hrZoneHighSeconds,
+            trimpEdwards,
+            hrRecoveryAfter60Seconds,
             thresholds);
     }
 
