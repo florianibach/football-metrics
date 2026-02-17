@@ -68,20 +68,14 @@ describe('App', () => {
   });
 
   it('Mvp01_Ac04_shows success message including filename and upload time', async () => {
-    const fetchMock = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: 'upload-1',
-          fileName: 'session.tcx',
-          uploadedAtUtc: '2026-02-16T22:00:00.000Z'
-        })
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => []
-      } as Response);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        id: 'upload-1',
+        fileName: 'session.tcx',
+        uploadedAtUtc: '2026-02-16T22:00:00.000Z'
+      })
+    } as Response);
 
     render(<App />);
 
@@ -99,22 +93,16 @@ describe('App', () => {
       expect(screen.getByText(/Upload successful: session\.tcx at/)).toBeInTheDocument();
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('Mvp01_Ac04_prevents_double_submit_while_upload_is_running', async () => {
+    let resolveRequest: (value: Response) => void;
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveRequest = resolve;
+    });
 
-
-  it('Mvp01_Ac04_keeps_success_confirmation_when_history_refresh_fails', async () => {
-    vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          id: 'upload-1',
-          fileName: 'session.tcx',
-          uploadedAtUtc: '2026-02-16T22:00:00.000Z'
-        })
-      } as Response)
-      .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockReturnValueOnce(pendingResponse);
 
     render(<App />);
 
@@ -126,11 +114,22 @@ describe('App', () => {
     );
 
     fireEvent.change(fileInput, { target: { files: [validFile] } });
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    const uploadButton = screen.getByRole('button', { name: 'Upload' });
+    fireEvent.click(uploadButton);
+    fireEvent.click(uploadButton);
+
+    expect(screen.getByText('Upload in progress...')).toBeInTheDocument();
+    expect(uploadButton).toBeDisabled();
+
+    resolveRequest!({
+      ok: true,
+      json: async () => ({ id: 'upload-1', fileName: 'session.tcx', uploadedAtUtc: '2026-02-16T22:00:00.000Z' })
+    } as Response);
 
     await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(screen.getByText(/Upload successful: session\.tcx at/)).toBeInTheDocument();
-      expect(screen.getByText(/upload history could not be refreshed/i)).toBeInTheDocument();
     });
   });
 

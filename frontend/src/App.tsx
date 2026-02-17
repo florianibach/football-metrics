@@ -15,10 +15,8 @@ type TranslationKey =
   | 'dropzoneText'
   | 'fileInputAriaLabel'
   | 'uploadButton'
-  | 'historyButton'
   | 'defaultMessage'
   | 'readyMessage'
-  | 'historyLoadError'
   | 'uploadFailedPrefix'
   | 'uploadSuccess'
   | 'invalidExtension'
@@ -26,7 +24,7 @@ type TranslationKey =
   | 'languageLabel'
   | 'languageEnglish'
   | 'languageGerman'
-  | 'uploadHistoryLoadWarning';
+  | 'uploadInProgress';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -40,10 +38,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     dropzoneText: 'Drag & drop a TCX file here or choose one.',
     fileInputAriaLabel: 'Select TCX file',
     uploadButton: 'Upload',
-    historyButton: 'Load upload history',
     defaultMessage: 'No file uploaded yet.',
     readyMessage: 'Ready to upload: {fileName}.',
-    historyLoadError: 'Upload history could not be loaded.',
     uploadFailedPrefix: 'Upload failed:',
     uploadSuccess: 'Upload successful: {fileName} at {uploadTime}.',
     invalidExtension: 'Only .tcx files are allowed.',
@@ -51,7 +47,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     languageLabel: 'Language',
     languageEnglish: 'English',
     languageGerman: 'German',
-    uploadHistoryLoadWarning: 'Upload succeeded, but upload history could not be refreshed.'
+    uploadInProgress: 'Upload in progress...'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -60,10 +56,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     dropzoneText: 'Ziehe eine TCX-Datei hierher oder wähle eine aus.',
     fileInputAriaLabel: 'TCX-Datei auswählen',
     uploadButton: 'Hochladen',
-    historyButton: 'Upload-Historie laden',
     defaultMessage: 'Noch keine Datei hochgeladen.',
     readyMessage: 'Bereit zum Hochladen: {fileName}.',
-    historyLoadError: 'Upload-Historie konnte nicht geladen werden.',
     uploadFailedPrefix: 'Upload fehlgeschlagen:',
     uploadSuccess: 'Upload erfolgreich: {fileName} um {uploadTime}.',
     invalidExtension: 'Nur .tcx-Dateien sind erlaubt.',
@@ -71,7 +65,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     languageLabel: 'Sprache',
     languageEnglish: 'Englisch',
     languageGerman: 'Deutsch',
-    uploadHistoryLoadWarning: 'Upload erfolgreich, aber die Upload-Historie konnte nicht aktualisiert werden.'
+    uploadInProgress: 'Upload läuft...'
   }
 };
 
@@ -114,29 +108,15 @@ export function App() {
   const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
-  const [uploads, setUploads] = useState<UploadRecord[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const t = translations[locale];
   const validationMessage = useMemo(() => getFileValidationMessage(selectedFile, locale), [selectedFile, locale]);
-  const canSubmit = useMemo(() => !!selectedFile && !validationMessage, [selectedFile, validationMessage]);
-
-  async function refreshUploads(): Promise<boolean> {
-    try {
-      const response = await fetch(`${apiBaseUrl}/tcx`);
-      if (!response.ok) {
-        setMessage(t.historyLoadError);
-        return false;
-      }
-
-      const payload = (await response.json()) as UploadRecord[];
-      setUploads(payload);
-      return true;
-    } catch {
-      setMessage(t.historyLoadError);
-      return false;
-    }
-  }
+  const canSubmit = useMemo(
+    () => !!selectedFile && !validationMessage && !isUploading,
+    [selectedFile, validationMessage, isUploading]
+  );
 
   function onLocaleChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextLocale = event.target.value as Locale;
@@ -145,6 +125,10 @@ export function App() {
   }
 
   function handleFileSelection(file: File | null) {
+    if (isUploading) {
+      return;
+    }
+
     setSelectedFile(file);
 
     const fileError = getFileValidationMessage(file, locale);
@@ -166,6 +150,10 @@ export function App() {
     event.preventDefault();
     setIsDragOver(false);
 
+    if (isUploading) {
+      return;
+    }
+
     const droppedFile = event.dataTransfer.files?.[0] ?? null;
     handleFileSelection(droppedFile);
   }
@@ -173,31 +161,36 @@ export function App() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!selectedFile || validationMessage) {
+    if (!selectedFile || validationMessage || isUploading) {
       return;
     }
 
     const formData = new FormData();
     formData.append('file', selectedFile);
 
-    const response = await fetch(`${apiBaseUrl}/tcx/upload`, {
-      method: 'POST',
-      body: formData
-    });
+    setIsUploading(true);
+    setMessage(t.uploadInProgress);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      setMessage(`${t.uploadFailedPrefix} ${errorText}`);
-      return;
-    }
+    try {
+      const response = await fetch(`${apiBaseUrl}/tcx/upload`, {
+        method: 'POST',
+        body: formData
+      });
 
-    const payload = (await response.json()) as UploadRecord;
-    const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
-    setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
-    setSelectedFile(null);
-    const historyLoaded = await refreshUploads();
-    if (!historyLoaded) {
-      setMessage(`${interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime })} ${t.uploadHistoryLoadWarning}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        setMessage(`${t.uploadFailedPrefix} ${errorText}`);
+        return;
+      }
+
+      const payload = (await response.json()) as UploadRecord;
+      const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
+      setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
+      setSelectedFile(null);
+    } catch {
+      setMessage(`${t.uploadFailedPrefix} Network error.`);
+    } finally {
+      setIsUploading(false);
     }
   }
 
@@ -224,28 +217,13 @@ export function App() {
           onDrop={onDrop}
         >
           <span>{t.dropzoneText}</span>
-          <input type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} />
+          <input type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} disabled={isUploading} />
         </label>
         <button type="submit" disabled={!canSubmit}>
           {t.uploadButton}
         </button>
       </form>
-      <button
-        type="button"
-        onClick={async () => {
-          await refreshUploads();
-        }}
-      >
-        {t.historyButton}
-      </button>
       <p>{validationMessage ?? message}</p>
-      <ul>
-        {uploads.map((upload) => (
-          <li key={upload.id}>
-            {upload.fileName} – {formatLocalDateTime(upload.uploadedAtUtc)}
-          </li>
-        ))}
-      </ul>
     </main>
   );
 }
