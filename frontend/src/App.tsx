@@ -279,6 +279,19 @@ function formatDistanceComparison(distanceMeters: number | null, locale: Locale,
   return `${(distanceMeters / 1000).toLocaleString(locale, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} km (${distanceMeters.toLocaleString(locale, { maximumFractionDigits: 1 })} m)`;
 }
 
+
+function formatDistanceDeltaMeters(distanceDeltaMeters: number | null, locale: Locale, notAvailable: string): string {
+  if (distanceDeltaMeters === null) {
+    return notAvailable;
+  }
+
+  if (distanceDeltaMeters > 0 && distanceDeltaMeters < 0.001) {
+    return '< 0.001 m';
+  }
+
+  return `${distanceDeltaMeters.toLocaleString(locale, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} m`;
+}
+
 function formatHeartRate(summary: ActivitySummary, notAvailable: string): string {
   if (summary.heartRateMinBpm === null || summary.heartRateAverageBpm === null || summary.heartRateMaxBpm === null) {
     return notAvailable;
@@ -498,7 +511,7 @@ export function App() {
           : null;
       const distanceDelta = distanceDeltaMeters === null
         ? t.notAvailable
-        : `${distanceDeltaMeters.toLocaleString(locale, { maximumFractionDigits: 1 })} m`;
+        : formatDistanceDeltaMeters(distanceDeltaMeters, locale, t.notAvailable);
 
       return interpolate(t.metricDataChangeHelp, {
         correctedShare,

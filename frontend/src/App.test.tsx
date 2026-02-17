@@ -278,7 +278,7 @@ describe('App', () => {
     });
 
     expect(screen.getByText(/Data change due to smoothing:/)).toBeInTheDocument();
-    expect(screen.getByText(/4.0% corrected points \(1\/25\), distance delta 100(\.0)? m/)).toBeInTheDocument();
+    expect(screen.getByText(/4.0% corrected points \(1\/25\), distance delta 100(\.000)? m/)).toBeInTheDocument();
     expect(screen.getByText(/Direction changes:/)).toBeInTheDocument();
     expect(screen.getByText('9')).toBeInTheDocument();
 
@@ -286,6 +286,43 @@ describe('App', () => {
 
     expect(screen.getByText(/5.200 km \(5,200(\.0)? m\)/)).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
+  });
+
+
+  it('R1_02_shows_small_distance_delta_with_meter_precision', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          fileName: 'r1-02-small-delta.tcx',
+          summary: createSummary({
+            trackpointCount: 6201,
+            smoothing: {
+              selectedStrategy: 'FootballAdaptiveMedian',
+              selectedParameters: {
+                OutlierDetectionMode: 'AdaptiveMadWithAbsoluteCap',
+                EffectiveOutlierSpeedThresholdMps: '7.69'
+              },
+              rawDistanceMeters: 7052.720691907273,
+              smoothedDistanceMeters: 7052.476360802489,
+              rawDirectionChanges: 1882,
+              baselineDirectionChanges: 770,
+              smoothedDirectionChanges: 2064,
+              correctedOutlierCount: 0,
+              analyzedAtUtc: '2026-02-16T22:00:00.000Z'
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Raw vs. smoothed comparison')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/distance delta 0\.244 m/)).toBeInTheDocument();
   });
 
   it('R1_02_Ac03_disables_comparison_for_sessions_without_gps_with_clear_hint', async () => {
