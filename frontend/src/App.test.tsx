@@ -678,7 +678,7 @@ describe('App', () => {
     expect(distanceInfo).toHaveAttribute('title', expect.stringContaining('Unit: km and m'));
 
     const sprintDistanceInfo = screen.getByRole('note', { name: 'Sprint distance explanation' });
-    expect(sprintDistanceInfo).toHaveAttribute('title', expect.stringContaining('very low values usually mean little sprint exposure'));
+    expect(sprintDistanceInfo).toHaveAttribute('title', expect.stringContaining('Very low values usually mean little sprint exposure'));
   });
 
   it('R1_06_Ac03_Ac04_localizes_and_explains_quality_gated_unavailable_metrics', async () => {
@@ -727,7 +727,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
 
     const sprintDistanceInfoDe = screen.getByRole('note', { name: 'Anzahl Sprints explanation' });
-    expect(sprintDistanceInfoDe).toHaveAttribute('title', expect.stringContaining('0-2 ist meist niedrig, 3-6 mittel und >6 hoch'));
+    expect(sprintDistanceInfoDe).toHaveAttribute('title', expect.stringContaining('0-2 niedrig, 3-6 mittel, >6 hoch'));
 
     const trimpInfoDe = screen.getByRole('note', { name: 'TRIMP (Edwards) explanation' });
     expect(trimpInfoDe).toHaveAttribute('title', expect.stringContaining('40-80 mittel'));
