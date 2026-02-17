@@ -865,4 +865,64 @@ describe('App', () => {
     expect(screen.getByText(/Tiefpassfilter für starke Rauschunterdrückung/)).toBeInTheDocument();
   });
 
+
+  it('R1_5_01_Ac01_Ac02_Ac03_Ac04_compares_multiple_sessions_with_quality_and_delta_highlights', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          id: 'base',
+          fileName: 'base-session.tcx',
+          uploadedAtUtc: '2026-02-16T20:00:00.000Z',
+          summary: createSummary({ qualityStatus: 'High' })
+        }),
+        createUploadRecord({
+          id: 'compare',
+          fileName: 'compare-session.tcx',
+          uploadedAtUtc: '2026-02-16T21:00:00.000Z',
+          summary: createSummary({
+            qualityStatus: 'Low',
+            durationSeconds: 2100,
+            coreMetrics: {
+              ...createSummary().coreMetrics,
+              distanceMeters: 6200,
+              sprintDistanceMeters: 1200,
+              sprintCount: 6,
+              highIntensityTimeSeconds: 420,
+              trainingImpulseEdwards: 95.0
+            }
+          })
+        }),
+        createUploadRecord({
+          id: 'third',
+          fileName: 'third-session.tcx',
+          uploadedAtUtc: '2026-02-16T22:00:00.000Z',
+          summary: createSummary({ qualityStatus: 'Medium' })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Session comparison')).toBeInTheDocument());
+
+    const compareCheckboxes = screen.getAllByRole('checkbox', { name: /Select for comparison/ });
+    expect(compareCheckboxes.length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByRole('checkbox', { name: 'Select for comparison: base-session.tcx' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select for comparison: compare-session.tcx' })).toBeChecked();
+
+    expect(screen.getByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).toBeInTheDocument();
+    expect(screen.getByText(/\(baseline\)$/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Delta vs baseline:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Delta \(%\) vs baseline:/).length).toBeGreaterThan(0);
+
+    const comparisonTable = screen.getAllByRole('table')[1];
+    expect(within(comparisonTable).getByText('Distance')).toBeInTheDocument();
+    expect(within(comparisonTable).getByText('Duration')).toBeInTheDocument();
+    expect(within(comparisonTable).getByText('TRIMP (Edwards)')).toBeInTheDocument();
+
+    fireEvent.click(compareCheckboxes[1]);
+    await waitFor(() => expect(screen.queryByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).not.toBeInTheDocument());
+  });
+
 });

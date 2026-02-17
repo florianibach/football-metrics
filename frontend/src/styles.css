@@ -99,6 +99,23 @@ button:disabled {
 }
 
 
+
+.session-compare {
+  margin-top: 1.5rem;
+}
+
+.comparison-table td div {
+  margin-bottom: 0.2rem;
+}
+
+.quality-warning {
+  border-left: 4px solid #f79009;
+  background: #fffaeb;
+  color: #7a2e0e;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+}
+
 .session-details {
   margin-top: 1.5rem;
 }
