@@ -82,8 +82,9 @@ Bewertete Signale:
 - Unplausible GPS-Sprünge auf Basis der Segmentgeschwindigkeit (Schwellwert: > 12.5 m/s)
 
 Scoring-Logik (erweiterbar):
-- Kleine Auffälligkeit: +1 Punkt
-- Große Auffälligkeit: +2 Punkte
+- Kleine Auffälligkeit: +1 Punkt (Schwellwert **> 10 %** des Signals)
+- Große Auffälligkeit: +2 Punkte (Schwellwert **> 50 %** des Signals)
+- Für GPS-Sprünge gilt: 1 Sprung = +1, ab 2 Sprüngen = +2
 - 0-1 Punkte: `High`
 - 2-3 Punkte: `Medium`
 - ab 4 Punkte: `Low`

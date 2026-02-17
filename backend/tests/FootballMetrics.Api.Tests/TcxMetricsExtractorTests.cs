@@ -169,4 +169,86 @@ public class TcxMetricsExtractorTests
         summary.QualityReasons.Should().Contain(reason => reason.Contains("missing timestamps"));
     }
 
+
+
+    [Fact]
+    public void Mvp04_Ac01_Scoring_WithSingleMinorIssue_ShouldRemainHigh()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Id>2026-02-16T10:00:00Z</Id>
+      <Lap>
+        <Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Position><LatitudeDegrees>50.0001</LatitudeDegrees><LongitudeDegrees>7.0001</LongitudeDegrees></Position><HeartRateBpm><Value>122</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:20Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position><HeartRateBpm><Value>124</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:30Z</Time><Position><LatitudeDegrees>50.0003</LatitudeDegrees><LongitudeDegrees>7.0003</LongitudeDegrees></Position><HeartRateBpm><Value>126</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:40Z</Time><Position><LatitudeDegrees>50.0004</LatitudeDegrees><LongitudeDegrees>7.0004</LongitudeDegrees></Position><HeartRateBpm><Value>128</Value></HeartRateBpm></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.QualityStatus.Should().Be("High");
+        summary.QualityReasons.Should().Contain(reason => reason.Contains("Some trackpoints are missing timestamps"));
+    }
+
+    [Fact]
+    public void Mvp04_Ac01_Scoring_WithTwoMinorIssues_ShouldBeMedium()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Id>2026-02-16T10:00:00Z</Id>
+      <Lap>
+        <Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Position><LatitudeDegrees>50.0001</LatitudeDegrees><LongitudeDegrees>7.0001</LongitudeDegrees></Position><HeartRateBpm><Value>122</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:20Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position><HeartRateBpm><Value>124</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:30Z</Time><Position><LatitudeDegrees>50.0003</LatitudeDegrees><LongitudeDegrees>7.0003</LongitudeDegrees></Position></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:40Z</Time><Position><LatitudeDegrees>50.0004</LatitudeDegrees><LongitudeDegrees>7.0004</LongitudeDegrees></Position><HeartRateBpm><Value>128</Value></HeartRateBpm></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.QualityStatus.Should().Be("Medium");
+        summary.QualityReasons.Should().Contain(reason => reason.Contains("missing timestamps"));
+        summary.QualityReasons.Should().Contain(reason => reason.Contains("Heart rate data is partially missing"));
+    }
+
+    [Fact]
+    public void Mvp04_Ac01_Scoring_WithTwoMajorIssues_ShouldBeLow()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Id>2026-02-16T10:00:00Z</Id>
+      <Lap>
+        <Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:10Z</Time></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:20Z</Time></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:30Z</Time></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:40Z</Time></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.QualityStatus.Should().Be("Low");
+        summary.QualityReasons.Should().Contain(reason => reason.Contains("GPS coverage is limited"));
+        summary.QualityReasons.Should().Contain(reason => reason.Contains("Heart rate data is mostly missing"));
+    }
+
 }
