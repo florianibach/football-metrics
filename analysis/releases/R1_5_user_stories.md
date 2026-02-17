@@ -94,9 +94,6 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 - [ ] Fehlgeschlagene Berechnungen enthalten einen klaren Grund und Handlungsempfehlung.
 - [ ] Das Protokoll ist exportier- oder kopierbar (für Nachvollziehbarkeit und Support).
 
-### Umgesetzte Metrik-Erweiterung (aktueller Stand)
-- [x] Zusätzliche Fußball-Metriken aus dem Dokument „Auswertung von GPS- und Herzfrequenzdaten im Amateurfußball“ sind im API-Payload verfügbar und in der UI sichtbar (High-Speed-Distanz, Laufdichte, Beschleunigungen/Abbremsungen, HF-Zonenzeit, TRIMP, HF-Erholung).
-
 ---
 
 ## Story R1.5-08: Bevorzugten Glättungsfilter im Profil hinterlegen

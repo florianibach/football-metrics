@@ -41,6 +41,7 @@ Aufbauend auf dem MVP wird die GPS-Verarbeitung fußballspezifisch verbessert: B
 - [x] Schwellen (z. B. Sprint-Tempo) sind initial sinnvoll vorbelegt und dokumentiert.
 - [x] Metriken werden nur berechnet, wenn die erforderliche Datenqualität erreicht ist.
 - [x] Bei zu geringer Qualität wird statt einer Zahl ein verständlicher Hinweis ausgegeben.
+- [x] Zusätzlich sind erweiterte Fußball-Metriken verfügbar (u. a. High-Speed-Distanz, Laufdichte, Beschleunigungen/Abbremsungen, HF-Zonenzeit, TRIMP, HF-Erholung).
 
 ---
 
