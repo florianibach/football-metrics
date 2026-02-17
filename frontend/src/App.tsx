@@ -12,6 +12,11 @@ type SmoothingTrace = {
   analyzedAtUtc: string;
 };
 
+type MetricAvailability = {
+  state: 'Available' | 'NotMeasured' | 'NotUsable';
+  reason: string | null;
+};
+
 type FootballCoreMetrics = {
   isAvailable: boolean;
   unavailableReason: string | null;
@@ -29,6 +34,7 @@ type FootballCoreMetrics = {
   heartRateZoneHighSeconds: number | null;
   trainingImpulseEdwards: number | null;
   heartRateRecoveryAfter60Seconds: number | null;
+  metricAvailability: Record<string, MetricAvailability>;
   thresholds: Record<string, string>;
 };
 
@@ -126,6 +132,8 @@ type TranslationKey =
   | 'detailMissingGpsHint'
   | 'coreMetricsTitle'
   | 'coreMetricsUnavailable'
+  | 'metricStateNotMeasured'
+  | 'metricStateNotUsable'
   | 'metricSprintDistance'
   | 'metricSprintCount'
   | 'metricMaxSpeed'
@@ -212,6 +220,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     detailMissingGpsHint: 'No GPS coordinates were detected in this file.',
     coreMetricsTitle: 'Football core metrics (v1)',
     coreMetricsUnavailable: 'Core metrics unavailable: {reason}',
+    metricStateNotMeasured: 'Not measured',
+    metricStateNotUsable: 'Measurement unusable',
     metricSprintDistance: 'Sprint distance',
     metricSprintCount: 'Sprint count',
     metricMaxSpeed: 'Maximum speed',
@@ -293,6 +303,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.',
     coreMetricsTitle: 'Fußball-Kernmetriken (v1)',
     coreMetricsUnavailable: 'Kernmetriken nicht verfügbar: {reason}',
+    metricStateNotMeasured: 'Nicht gemessen',
+    metricStateNotUsable: 'Messung unbrauchbar',
     metricSprintDistance: 'Sprintdistanz',
     metricSprintCount: 'Anzahl Sprints',
     metricMaxSpeed: 'Maximalgeschwindigkeit',
@@ -394,6 +406,16 @@ function formatThresholds(thresholds: Record<string, string>): string {
   return Object.entries(thresholds)
     .map(([key, value]) => `${key}=${value}`)
     .join(' | ');
+}
+
+function formatMetricStatus(metricKey: string, coreMetrics: FootballCoreMetrics, t: Record<TranslationKey, string>): string | null {
+  const status = coreMetrics.metricAvailability?.[metricKey];
+  if (!status || status.state === 'Available') {
+    return null;
+  }
+
+  const label = status.state === 'NotMeasured' ? t.metricStateNotMeasured : t.metricStateNotUsable;
+  return status.reason ? `${label}: ${status.reason}` : label;
 }
 
 function qualityStatusText(status: ActivitySummary['qualityStatus'], t: Record<TranslationKey, string>): string {
@@ -728,27 +750,26 @@ export function App() {
           </ul>
           <div className="core-metrics-section">
             <h3>{t.coreMetricsTitle}</h3>
-            {selectedSession.summary.coreMetrics.isAvailable ? (
-              <ul className="metrics-list">
-                <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
-                <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                <li><strong>{t.metricSprintCount}:</strong> {selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}</li>
-                <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}</li>
-                <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
-                <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
-                <li><strong>{t.metricRunningDensity}:</strong> {formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
-                <li><strong>{t.metricAccelerationCount}:</strong> {selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable}</li>
-                <li><strong>{t.metricDecelerationCount}:</strong> {selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable}</li>
-                <li><strong>{t.metricHrZoneLow}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
-                <li><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
-                <li><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
-                <li><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
-                <li><strong>{t.metricHrRecovery60}:</strong> {selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
-                <li><strong>{t.metricCoreThresholds}:</strong> {formatThresholds(selectedSession.summary.coreMetrics.thresholds)}</li>
-              </ul>
-            ) : (
+            {!selectedSession.summary.coreMetrics.isAvailable && (
               <p>{t.coreMetricsUnavailable.replace('{reason}', selectedSession.summary.coreMetrics.unavailableReason ?? t.notAvailable)}</p>
             )}
+            <ul className="metrics-list">
+              <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('distanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('sprintDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricSprintCount}:</strong> {selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}{(() => { const status = formatMetricStatus('sprintCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}{(() => { const status = formatMetricStatus('maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('highIntensityTimeSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('highSpeedDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricRunningDensity}:</strong> {formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}{(() => { const status = formatMetricStatus('runningDensityMetersPerMinute', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricAccelerationCount}:</strong> {selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable}{(() => { const status = formatMetricStatus('accelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricDecelerationCount}:</strong> {selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable}{(() => { const status = formatMetricStatus('decelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricHrZoneLow}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('heartRateZoneLowSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}{(() => { const status = formatMetricStatus('trainingImpulseEdwards', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricHrRecovery60}:</strong> {selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}{(() => { const status = formatMetricStatus('heartRateRecoveryAfter60Seconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
+              <li><strong>{t.metricCoreThresholds}:</strong> {formatThresholds(selectedSession.summary.coreMetrics.thresholds)}</li>
+            </ul>
           </div>
           {(showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
             <div className="detail-hints" role="status">

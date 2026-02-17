@@ -182,6 +182,16 @@ Empfohlener Sammelcheck:
   - `trainingImpulseEdwards` (TRIMP)
   - `heartRateRecoveryAfter60Seconds` (HF-Erholung)
 
+## GPS-/Nicht-GPS-Fallbacklogik in Metriken (R1-04)
+
+- Kernmetriken verwenden nun eine per-Metrik-Verfügbarkeit (`summary.coreMetrics.metricAvailability`) mit den Zuständen:
+  - `Available`
+  - `NotMeasured` (z. B. GPS nicht aufgezeichnet)
+  - `NotUsable` (Messung vorhanden, aber nicht zuverlässig nutzbar)
+- Bei Sessions ohne GPS werden HF-basierte Metriken weiterhin berechnet (u. a. HF-Zonenzeiten, TRIMP, HF-Erholung), sofern ausreichend HR+Zeitdaten vorliegen.
+- GPS-abhängige Metriken (z. B. Distanz, Sprintanzahl, Maximalgeschwindigkeit) liefern in diesem Fall keine irreführenden Nullwerte, sondern bleiben `null` und werden über `metricAvailability` transparent begründet.
+- Die UI zeigt für nicht verfügbare Kernmetriken nun explizit den Unterschied zwischen **Nicht gemessen** und **Messung unbrauchbar** inklusive Grundtext.
+
 ## GPS-Glättung (R1-01)
 
 - Es werden zwei Logiken unterschieden:

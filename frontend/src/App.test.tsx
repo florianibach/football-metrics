@@ -37,6 +37,22 @@ describe('App', () => {
         heartRateZoneHighSeconds: 720,
         trainingImpulseEdwards: 83.5,
         heartRateRecoveryAfter60Seconds: 22,
+        metricAvailability: {
+          distanceMeters: { state: 'Available', reason: null },
+          sprintDistanceMeters: { state: 'Available', reason: null },
+          sprintCount: { state: 'Available', reason: null },
+          maxSpeedMetersPerSecond: { state: 'Available', reason: null },
+          highIntensityTimeSeconds: { state: 'Available', reason: null },
+          highSpeedDistanceMeters: { state: 'Available', reason: null },
+          runningDensityMetersPerMinute: { state: 'Available', reason: null },
+          accelerationCount: { state: 'Available', reason: null },
+          decelerationCount: { state: 'Available', reason: null },
+          heartRateZoneLowSeconds: { state: 'Available', reason: null },
+          heartRateZoneMediumSeconds: { state: 'Available', reason: null },
+          heartRateZoneHighSeconds: { state: 'Available', reason: null },
+          trainingImpulseEdwards: { state: 'Available', reason: null },
+          heartRateRecoveryAfter60Seconds: { state: 'Available', reason: null }
+        },
         thresholds: {
           SprintSpeedThresholdMps: '7.0',
           HighIntensitySpeedThresholdMps: '5.5',
@@ -555,6 +571,75 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.getByText(/Core metrics unavailable:/)).toBeInTheDocument();
     });
+  });
+
+  it('R1_04_Ac02_Ac03_marks_unavailable_metrics_as_not_measured_or_unusable', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          fileName: 'r1-04-status.tcx',
+          summary: createSummary({
+            hasGpsData: false,
+            distanceMeters: null,
+            distanceSource: 'NotAvailable',
+            coreMetrics: {
+              ...createSummary().coreMetrics,
+              distanceMeters: null,
+              sprintCount: null,
+              metricAvailability: {
+                ...createSummary().coreMetrics.metricAvailability,
+                distanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
+                sprintCount: { state: 'NotUsable', reason: 'GPS measurements are present but do not contain usable time segments.' }
+              }
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Session details')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Not measured: GPS coordinates were not recorded/)).toBeInTheDocument();
+    expect(screen.getByText(/Measurement unusable: GPS measurements are present/)).toBeInTheDocument();
+  });
+
+  it('R1_04_Ac04_does_not_render_fake_zero_values_for_unavailable_metrics', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          fileName: 'r1-04-no-zero.tcx',
+          summary: createSummary({
+            coreMetrics: {
+              ...createSummary().coreMetrics,
+              distanceMeters: null,
+              sprintDistanceMeters: null,
+              sprintCount: null,
+              metricAvailability: {
+                ...createSummary().coreMetrics.metricAvailability,
+                distanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
+                sprintDistanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
+                sprintCount: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' }
+              }
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Session details')).toBeInTheDocument();
+    });
+
+    expect(screen.getAllByText(/Not available/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^0\.00 m\/s$/)).not.toBeInTheDocument();
   });
 
   it('Mvp06_Ac04_keeps_detail_view_readable_on_mobile_layout', async () => {

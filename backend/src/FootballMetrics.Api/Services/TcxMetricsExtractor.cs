@@ -409,27 +409,10 @@ public static class TcxMetricsExtractor
             ["HeartRateZoneHighPercentMax"] = ">85"
         };
 
-        if (!string.Equals(qualityStatus, "High", StringComparison.OrdinalIgnoreCase))
-        {
-            return new TcxFootballCoreMetrics(
-                false,
-                $"Core metrics unavailable because data quality is {qualityStatus}. Required: High.",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                thresholds);
-        }
+        var metricAvailability = new Dictionary<string, TcxMetricAvailability>();
+
+        void MarkMetric(string metricKey, string state, string? reason = null)
+            => metricAvailability[metricKey] = new TcxMetricAvailability(state, reason);
 
         var gpsPoints = trackpoints
             .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
@@ -456,70 +439,112 @@ public static class TcxMetricsExtractor
             .Where(x => x.IsValid)
             .ToList();
 
-        if (segments.Count == 0)
+        var hasGpsMeasurements = gpsPoints.Count > 0;
+        var gpsSegmentsAreUsable = segments.Count > 0;
+        var gpsQualityIsUsable = string.Equals(qualityStatus, "High", StringComparison.OrdinalIgnoreCase);
+
+        double? sprintDistanceMeters = null;
+        int? sprintCount = null;
+        double? maxSpeed = null;
+        double? highIntensityTimeSeconds = null;
+        double? highSpeedDistanceMeters = null;
+        double? runningDensityMetersPerMinute = null;
+        int? accelerationCount = null;
+        int? decelerationCount = null;
+        double? distanceMeters = null;
+
+        if (!hasGpsMeasurements)
         {
-            return new TcxFootballCoreMetrics(
-                false,
-                "Core metrics unavailable because GPS/time segments are incomplete.",
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                thresholds);
+            foreach (var key in new[]
+                     {
+                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds",
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                     })
+            {
+                MarkMetric(key, "NotMeasured", "GPS coordinates were not recorded for this session.");
+            }
         }
-
-        var sprintDistanceMeters = segments.Where(segment => segment.Speed >= SprintSpeedThresholdMetersPerSecond).Sum(segment => segment.Distance);
-        var highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond).Sum(segment => segment.Distance);
-
-        var sprintCount = 0;
-        var currentlyInSprint = false;
-        foreach (var segment in segments)
+        else if (!gpsSegmentsAreUsable)
         {
-            var isSprint = segment.Speed >= SprintSpeedThresholdMetersPerSecond;
-            if (isSprint && !currentlyInSprint)
+            foreach (var key in new[]
+                     {
+                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds",
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                     })
             {
-                sprintCount++;
+                MarkMetric(key, "NotUsable", "GPS measurements are present but do not contain usable time segments.");
             }
-
-            currentlyInSprint = isSprint;
         }
-
-        var maxSpeed = segments.Max(segment => segment.Speed);
-        var highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond).Sum(segment => segment.Duration);
-
-        var totalDurationSeconds = segments.Sum(segment => segment.Duration);
-        var runningDensityMetersPerMinute = totalDurationSeconds > 0
-            ? (totalDistanceMeters ?? segments.Sum(segment => segment.Distance)) / (totalDurationSeconds / 60.0)
-            : (double?)null;
-
-        var accelerationCount = 0;
-        var decelerationCount = 0;
-        for (var index = 1; index < segments.Count; index++)
+        else if (!gpsQualityIsUsable)
         {
-            var elapsedSeconds = segments[index].Duration;
-            if (elapsedSeconds <= 0)
+            foreach (var key in new[]
+                     {
+                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds",
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                     })
             {
-                continue;
+                MarkMetric(key, "NotUsable", $"GPS-derived metric is unusable because data quality is {qualityStatus}. Required: High.");
+            }
+        }
+        else
+        {
+            sprintDistanceMeters = segments.Where(segment => segment.Speed >= SprintSpeedThresholdMetersPerSecond).Sum(segment => segment.Distance);
+            highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond).Sum(segment => segment.Distance);
+
+            var sprintTransitions = 0;
+            var currentlyInSprint = false;
+            foreach (var segment in segments)
+            {
+                var isSprint = segment.Speed >= SprintSpeedThresholdMetersPerSecond;
+                if (isSprint && !currentlyInSprint)
+                {
+                    sprintTransitions++;
+                }
+
+                currentlyInSprint = isSprint;
             }
 
-            var acceleration = (segments[index].Speed - segments[index - 1].Speed) / elapsedSeconds;
-            if (acceleration >= AccelerationThresholdMetersPerSecondSquared)
+            sprintCount = sprintTransitions;
+            maxSpeed = segments.Max(segment => segment.Speed);
+            highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond).Sum(segment => segment.Duration);
+
+            var totalDurationSeconds = segments.Sum(segment => segment.Duration);
+            runningDensityMetersPerMinute = totalDurationSeconds > 0
+                ? (totalDistanceMeters ?? segments.Sum(segment => segment.Distance)) / (totalDurationSeconds / 60.0)
+                : (double?)null;
+
+            var localAccelerationCount = 0;
+            var localDecelerationCount = 0;
+            for (var index = 1; index < segments.Count; index++)
             {
-                accelerationCount++;
+                var elapsedSeconds = segments[index].Duration;
+                if (elapsedSeconds <= 0)
+                {
+                    continue;
+                }
+
+                var acceleration = (segments[index].Speed - segments[index - 1].Speed) / elapsedSeconds;
+                if (acceleration >= AccelerationThresholdMetersPerSecondSquared)
+                {
+                    localAccelerationCount++;
+                }
+                else if (acceleration <= DecelerationThresholdMetersPerSecondSquared)
+                {
+                    localDecelerationCount++;
+                }
             }
-            else if (acceleration <= DecelerationThresholdMetersPerSecondSquared)
+
+            accelerationCount = localAccelerationCount;
+            decelerationCount = localDecelerationCount;
+            distanceMeters = totalDistanceMeters;
+
+            foreach (var key in new[]
+                     {
+                         "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds",
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                     })
             {
-                decelerationCount++;
+                MarkMetric(key, "Available");
             }
         }
 
@@ -621,13 +646,34 @@ public static class TcxMetricsExtractor
                 {
                     hrRecoveryAfter60Seconds = peakHrPoint.HeartRateBpm!.Value - recoveryPoint.HeartRateBpm!.Value;
                 }
+
+                foreach (var key in new[] { "heartRateZoneLowSeconds", "heartRateZoneMediumSeconds", "heartRateZoneHighSeconds", "trainingImpulseEdwards", "heartRateRecoveryAfter60Seconds" })
+                {
+                    MarkMetric(key, "Available");
+                }
+            }
+            else
+            {
+                foreach (var key in new[] { "heartRateZoneLowSeconds", "heartRateZoneMediumSeconds", "heartRateZoneHighSeconds", "trainingImpulseEdwards", "heartRateRecoveryAfter60Seconds" })
+                {
+                    MarkMetric(key, "NotUsable", "Heart-rate values are present but not plausible for calculation.");
+                }
+            }
+        }
+        else
+        {
+            foreach (var key in new[] { "heartRateZoneLowSeconds", "heartRateZoneMediumSeconds", "heartRateZoneHighSeconds", "trainingImpulseEdwards", "heartRateRecoveryAfter60Seconds" })
+            {
+                MarkMetric(key, "NotMeasured", "Heart-rate values with timestamps are missing for this session.");
             }
         }
 
+        var availableMetrics = metricAvailability.Count(entry => string.Equals(entry.Value.State, "Available", StringComparison.OrdinalIgnoreCase));
+
         return new TcxFootballCoreMetrics(
-            true,
-            null,
-            totalDistanceMeters,
+            availableMetrics > 0,
+            availableMetrics > 0 ? null : "No core metric could be calculated from the available measurements.",
+            distanceMeters,
             sprintDistanceMeters,
             sprintCount,
             maxSpeed,
@@ -641,6 +687,7 @@ public static class TcxMetricsExtractor
             hrZoneHighSeconds,
             trimpEdwards,
             hrRecoveryAfter60Seconds,
+            metricAvailability,
             thresholds);
     }
 

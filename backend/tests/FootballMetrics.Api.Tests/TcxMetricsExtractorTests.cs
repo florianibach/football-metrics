@@ -355,7 +355,7 @@ public class TcxMetricsExtractorTests
     }
 
     [Fact]
-    public void R1_03_Ac03_Ac04_Extract_ShouldGateFootballCoreMetricsWhenQualityIsInsufficient()
+    public void R1_03_Ac03_Ac04_Extract_ShouldMarkGpsMetricsAsUnusableWhenQualityIsInsufficient()
     {
         var doc = XDocument.Parse(@"<TrainingCenterDatabase>
   <Activities>
@@ -377,7 +377,7 @@ public class TcxMetricsExtractorTests
 
         summary.QualityStatus.Should().Be("Low");
         summary.CoreMetrics.IsAvailable.Should().BeFalse();
-        summary.CoreMetrics.UnavailableReason.Should().Contain("Required: High");
+        summary.CoreMetrics.UnavailableReason.Should().Contain("No core metric");
         summary.CoreMetrics.DistanceMeters.Should().BeNull();
         summary.CoreMetrics.SprintDistanceMeters.Should().BeNull();
         summary.CoreMetrics.SprintCount.Should().BeNull();
@@ -391,6 +391,38 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.HeartRateZoneMediumSeconds.Should().BeNull();
         summary.CoreMetrics.HeartRateZoneHighSeconds.Should().BeNull();
         summary.CoreMetrics.TrainingImpulseEdwards.Should().BeNull();
+        summary.CoreMetrics.MetricAvailability["distanceMeters"].State.Should().Be("NotUsable");
+        summary.CoreMetrics.MetricAvailability["heartRateZoneLowSeconds"].State.Should().Be("NotMeasured");
+    }
+
+    [Fact]
+    public void R1_04_Ac01_Ac02_Ac03_Ac04_Extract_WithoutGpsButWithHeartRate_ShouldProvideFallbackMetricsAndReasons()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Id>2026-02-16T10:00:00Z</Id>
+      <Lap>
+        <Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:30Z</Time><HeartRateBpm><Value>140</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:01:00Z</Time><HeartRateBpm><Value>135</Value></HeartRateBpm></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.CoreMetrics.IsAvailable.Should().BeTrue();
+        summary.CoreMetrics.HeartRateZoneLowSeconds.Should().NotBeNull();
+        summary.CoreMetrics.TrainingImpulseEdwards.Should().NotBeNull();
+        summary.CoreMetrics.DistanceMeters.Should().BeNull();
+        summary.CoreMetrics.SprintCount.Should().BeNull();
+        summary.CoreMetrics.MetricAvailability["distanceMeters"].State.Should().Be("NotMeasured");
+        summary.CoreMetrics.MetricAvailability["distanceMeters"].Reason.Should().Contain("not recorded");
+        summary.CoreMetrics.MetricAvailability["heartRateZoneLowSeconds"].State.Should().Be("Available");
     }
 
 }
