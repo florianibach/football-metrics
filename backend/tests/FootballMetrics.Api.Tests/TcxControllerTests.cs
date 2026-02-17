@@ -248,6 +248,8 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         payload.Summary.DistanceSource.Should().Be("CalculatedFromGps");
         payload.Summary.DistanceMeters.Should().BeGreaterThan(0);
         payload.Summary.FileDistanceMeters.Should().Be(2000);
+        payload.Summary.QualityStatus.Should().Be("High");
+        payload.Summary.QualityReasons.Should().NotBeEmpty();
     }
 
     [Fact]
@@ -266,8 +268,28 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         payload!.Summary.HasGpsData.Should().BeFalse();
         payload.Summary.DistanceMeters.Should().BeNull();
         payload.Summary.HeartRateAverageBpm.Should().BeNull();
+        payload.Summary.QualityStatus.Should().Be("Low");
+        payload.Summary.QualityReasons.Should().Contain(reason => reason.Contains("missing"));
     }
 
+
+
+    [Fact]
+    public async Task Mvp04_Ac01_Ac02_Ac03_UploadingTcxWithImplausibleJumps_ShouldReturnMediumQualityWithReasons()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "mvp04-jumps.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:00:01Z</Time><Position><LatitudeDegrees>50.01</LatitudeDegrees><LongitudeDegrees>7.01</LongitudeDegrees></Position><HeartRateBpm><Value>132</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:00:02Z</Time><Position><LatitudeDegrees>50.02</LatitudeDegrees><LongitudeDegrees>7.02</LongitudeDegrees></Position><HeartRateBpm><Value>133</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var response = await client.PostAsync("/api/tcx/upload", form);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var payload = await response.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        payload.Should().NotBeNull();
+        payload!.Summary.QualityStatus.Should().Be("Medium");
+        payload.Summary.QualityReasons.Should().Contain(reason => reason.Contains("implausible GPS jumps"));
+    }
     private static MultipartFormDataContent CreateUploadForm(string fileName, string contentText)
     {
         var form = new MultipartFormDataContent();
@@ -353,5 +375,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         double? DistanceMeters,
         bool HasGpsData,
         double? FileDistanceMeters,
-        string DistanceSource);
+        string DistanceSource,
+        string QualityStatus,
+        IReadOnlyList<string> QualityReasons);
 }

@@ -10,4 +10,6 @@ public sealed record TcxActivitySummary(
     double? DistanceMeters,
     bool HasGpsData,
     double? FileDistanceMeters,
-    string DistanceSource);
+    string DistanceSource,
+    string QualityStatus,
+    IReadOnlyList<string> QualityReasons);

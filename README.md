@@ -70,6 +70,26 @@ dotnet run
 - Fallback ist immer Englisch.
 - Nutzer können die Sprache in der Oberfläche manuell umstellen.
 
+
+## Qualitätslogik (MVP-04)
+
+Die API berechnet für jede hochgeladene TCX-Datei einen Qualitätsstatus `High`, `Medium` oder `Low` und liefert zusätzlich Klartext-Gründe (`qualityReasons`).
+
+Bewertete Signale:
+- Anteil fehlender Zeitstempel je Trackpoint
+- Anteil fehlender GPS-Koordinaten je Trackpoint
+- Anteil fehlender Herzfrequenzwerte je Trackpoint
+- Unplausible GPS-Sprünge auf Basis der Segmentgeschwindigkeit (Schwellwert: > 12.5 m/s)
+
+Scoring-Logik (erweiterbar):
+- Kleine Auffälligkeit: +1 Punkt
+- Große Auffälligkeit: +2 Punkte
+- 0-1 Punkte: `High`
+- 2-3 Punkte: `Medium`
+- ab 4 Punkte: `Low`
+
+Wenn keine Auffälligkeit erkannt wird, wird ein positiver Grundtext zurückgegeben. Die Logik ist zentral in `TcxMetricsExtractor` kapsuliert und kann in späteren Iterationen um zusätzliche Qualitätsindikatoren erweitert werden.
+
 ## Tests
 
 - Backend Integrationstest: `./scripts/test-backend.sh` (installiert bei Bedarf automatisch .NET SDK 10 lokal in `~/.dotnet`)

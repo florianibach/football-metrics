@@ -114,7 +114,7 @@ public class TcxController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<TcxUploadResponse>>> GetUploads(CancellationToken cancellationToken)
     {
         var uploads = await _repository.ListAsync(cancellationToken);
-        return Ok(uploads.Select(item => new TcxUploadResponse(item.Id, item.FileName, item.UploadedAtUtc, new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable"))).ToList());
+        return Ok(uploads.Select(item => new TcxUploadResponse(item.Id, item.FileName, item.UploadedAtUtc, new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "No quality assessment available for list endpoint." }))).ToList());
     }
 
     private static async Task<(XDocument? Document, string? ErrorMessage)> ValidateTcxFileAsync(byte[] rawFileBytes, CancellationToken cancellationToken)

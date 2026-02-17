@@ -11,6 +11,8 @@ type ActivitySummary = {
   hasGpsData: boolean;
   fileDistanceMeters: number | null;
   distanceSource: 'CalculatedFromGps' | 'ProvidedByFile' | 'NotAvailable';
+  qualityStatus: 'High' | 'Medium' | 'Low';
+  qualityReasons: string[];
 };
 
 type UploadRecord = {
@@ -57,7 +59,12 @@ type TranslationKey =
   | 'metricHelpHeartRate'
   | 'metricHelpTrackpoints'
   | 'metricHelpDistance'
-  | 'metricHelpGps';
+  | 'metricHelpGps'
+  | 'metricQualityStatus'
+  | 'metricQualityReasons'
+  | 'qualityStatusHigh'
+  | 'qualityStatusMedium'
+  | 'qualityStatusLow';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -99,7 +106,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHelpHeartRate: 'Unit: bpm.',
     metricHelpTrackpoints: 'Number of recorded points.',
     metricHelpDistance: 'Unit: km. Prefer GPS calculation.',
-    metricHelpGps: 'Indicates if coordinate points exist.'
+    metricHelpGps: 'Indicates if coordinate points exist.',
+    metricQualityStatus: 'Data quality',
+    metricQualityReasons: 'Quality reasons',
+    qualityStatusHigh: 'high',
+    qualityStatusMedium: 'medium',
+    qualityStatusLow: 'low'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -136,7 +148,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHelpHeartRate: 'Einheit: bpm.',
     metricHelpTrackpoints: 'Anzahl erfasster Punkte.',
     metricHelpDistance: 'Einheit: km. GPS-Berechnung wird bevorzugt.',
-    metricHelpGps: 'Zeigt, ob Koordinatenpunkte vorhanden sind.'
+    metricHelpGps: 'Zeigt, ob Koordinatenpunkte vorhanden sind.',
+    metricQualityStatus: 'Datenqualität',
+    metricQualityReasons: 'Qualitätsgründe',
+    qualityStatusHigh: 'hoch',
+    qualityStatusMedium: 'mittel',
+    qualityStatusLow: 'niedrig'
   }
 };
 
@@ -178,6 +195,18 @@ function formatHeartRate(summary: ActivitySummary, notAvailable: string): string
   return `${summary.heartRateMinBpm}/${summary.heartRateAverageBpm}/${summary.heartRateMaxBpm} bpm`;
 }
 
+
+
+function qualityStatusText(status: ActivitySummary['qualityStatus'], t: Record<TranslationKey, string>): string {
+  switch (status) {
+    case 'High':
+      return t.qualityStatusHigh;
+    case 'Medium':
+      return t.qualityStatusMedium;
+    default:
+      return t.qualityStatusLow;
+  }
+}
 function interpolate(template: string, values: Record<string, string>): string {
   return Object.entries(values).reduce(
     (result, [key, value]) => result.replaceAll(`{${key}}`, value),
@@ -345,6 +374,8 @@ export function App() {
             <li><strong>{t.metricTrackpoints}:</strong> {lastSummary.trackpointCount} ({t.metricHelpTrackpoints})</li>
             <li><strong>{t.metricDistance}:</strong> {formatDistance(lastSummary.distanceMeters, locale, t.notAvailable)} — {distanceSourceText(lastSummary.distanceSource)} ({t.metricHelpDistance})</li>
             <li><strong>{t.metricGps}:</strong> {lastSummary.hasGpsData ? t.yes : t.no} ({t.metricHelpGps})</li>
+            <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(lastSummary.qualityStatus, t)}</li>
+            <li><strong>{t.metricQualityReasons}:</strong> {lastSummary.qualityReasons.join(' | ')}</li>
           </ul>
         </section>
       )}

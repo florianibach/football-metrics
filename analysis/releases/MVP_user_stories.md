@@ -56,11 +56,13 @@ Im MVP sollen Amateurspieler ihre TCX-Dateien selbst hochladen können und eine 
 **möchte ich** einen einfachen Qualitätsstatus für meine Datei sehen  
 **damit** ich weiß, wie belastbar die Analyse ist.
 
+**Status:** Done
+
 ### Acceptance Criteria
-- [ ] Das System zeigt einen Qualitätsstatus (z. B. „hoch“, „mittel“, „niedrig“).
-- [ ] Die Bewertung berücksichtigt mindestens: Anteil fehlender Punkte, unplausible Sprünge, Vollständigkeit von Herzfrequenz/GPS.
-- [ ] Die Gründe für die Einstufung werden transparent in Klartext angezeigt.
-- [ ] Die Qualitätslogik ist dokumentiert und für spätere Iterationen erweiterbar.
+- [x] Das System zeigt einen Qualitätsstatus (z. B. „hoch“, „mittel“, „niedrig“).
+- [x] Die Bewertung berücksichtigt mindestens: Anteil fehlender Punkte, unplausible Sprünge, Vollständigkeit von Herzfrequenz/GPS.
+- [x] Die Gründe für die Einstufung werden transparent in Klartext angezeigt.
+- [x] Die Qualitätslogik ist dokumentiert und für spätere Iterationen erweiterbar.
 
 ---
 

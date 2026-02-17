@@ -21,7 +21,9 @@ describe('App', () => {
         distanceMeters: 5100,
         hasGpsData: true,
         fileDistanceMeters: 5000,
-        distanceSource: 'CalculatedFromGps'
+        distanceSource: 'CalculatedFromGps',
+        qualityStatus: 'High',
+        qualityReasons: ['Trackpoints are complete with GPS and heart rate data. No implausible jumps detected.']
       },
       ...overrides
     };
@@ -156,7 +158,9 @@ describe('App', () => {
           distanceMeters: null,
           hasGpsData: false,
           fileDistanceMeters: null,
-          distanceSource: 'NotAvailable'
+          distanceSource: 'NotAvailable',
+          qualityStatus: 'Low',
+          qualityReasons: ['Heart rate data is mostly missing (0/2 points with heart rate).']
         }
       })
     } as Response);
@@ -194,7 +198,9 @@ describe('App', () => {
           distanceMeters: null,
           hasGpsData: false,
           fileDistanceMeters: null,
-          distanceSource: 'NotAvailable'
+          distanceSource: 'NotAvailable',
+          qualityStatus: 'Low',
+          qualityReasons: ['Heart rate data is mostly missing (0/2 points with heart rate).']
         }
       })
     } as Response);
@@ -215,6 +221,7 @@ describe('App', () => {
 
     expect(screen.queryAllByText(/Not available/).length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
+    expect(screen.getByText(/Data quality:/)).toBeInTheDocument();
   });
 
   it('Mvp03_Ac05_displays_consistent_units_for_duration_distance_and_heart_rate', async () => {
