@@ -49,6 +49,8 @@ describe('App', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => [] } as Response);
     render(<App />);
 
+    await waitFor(() => expect(screen.getByText('Upload history')).toBeInTheDocument());
+
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
     const fileInput = screen.getByLabelText('TCX-Datei auswählen');
     fireEvent.change(fileInput, { target: { files: [new File(['fake-content'], 'notes.txt', { type: 'text/plain' })] } });
@@ -112,6 +114,8 @@ describe('App', () => {
     expect(screen.getByText('Quality status')).toBeInTheDocument();
     expect(screen.getAllByText('session.tcx').length).toBeGreaterThan(0);
     expect(screen.getByText('session-2.tcx')).toBeInTheDocument();
+    expect(screen.getAllByText('high').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('medium').length).toBeGreaterThan(0);
   });
 
   it('Mvp05_Ac03_sorts_history_by_upload_time_with_newest_first_as_default', async () => {

@@ -356,7 +356,14 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var payload = await listResponse.Content.ReadFromJsonAsync<List<TcxUploadResponseWithSummaryDto>>();
         payload.Should().NotBeNull();
         payload!.Should().Contain(item => item.FileName == "mvp05-list.tcx");
-        payload[0].Summary.QualityStatus.Should().NotBeNullOrWhiteSpace();
+
+        var session = payload!
+            .Where(item => item.FileName == "mvp05-list.tcx")
+            .OrderByDescending(item => item.UploadedAtUtc)
+            .First();
+        session.UploadedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
+        session.Summary.ActivityStartTimeUtc.Should().NotBeNull();
+        session.Summary.QualityStatus.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
