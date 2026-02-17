@@ -24,11 +24,13 @@ Im MVP sollen Amateurspieler ihre TCX-Dateien selbst hochladen können und eine 
 **möchte ich** dass meine hochgeladene Datei zusätzlich im Rohformat gespeichert wird  
 **damit** Analysen reproduzierbar sind und die Datei bei Bedarf erneut verarbeitet werden kann.
 
+**Status:** Done
+
 ### Acceptance Criteria
-- [ ] Nach erfolgreichem Upload wird die originale TCX-Datei unverändert im Rohformat in der DB abgelegt.
-- [ ] Rohdatei ist eindeutig mit der Session verknüpft (z. B. via Session-ID/Upload-ID).
-- [ ] Es wird ein Hash/Prüfwert gespeichert, um Datenintegrität zu prüfen.
-- [ ] Bei Speicherfehler wird der Upload als fehlgeschlagen markiert und verständlich gemeldet.
+- [x] Nach erfolgreichem Upload wird die originale TCX-Datei unverändert im Rohformat in der DB abgelegt.
+- [x] Rohdatei ist eindeutig mit der Session verknüpft (z. B. via Session-ID/Upload-ID).
+- [x] Es wird ein Hash/Prüfwert gespeichert, um Datenintegrität zu prüfen.
+- [x] Bei Speicherfehler wird der Upload als fehlgeschlagen markiert und verständlich gemeldet.
 
 ---
 

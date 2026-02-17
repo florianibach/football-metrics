@@ -19,12 +19,15 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, UploadedAtUtc)
-            VALUES ($id, $fileName, $storedFilePath, $uploadedAtUtc);
+            INSERT INTO TcxUploads (Id, FileName, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc)
+            VALUES ($id, $fileName, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc);
         ";
         command.Parameters.AddWithValue("$id", upload.Id.ToString());
         command.Parameters.AddWithValue("$fileName", upload.FileName);
-        command.Parameters.AddWithValue("$storedFilePath", upload.StoredFilePath);
+        command.Parameters.AddWithValue("$rawFileContent", upload.RawFileContent);
+        command.Parameters.AddWithValue("$contentHashSha256", upload.ContentHashSha256);
+        command.Parameters.AddWithValue("$uploadStatus", upload.UploadStatus);
+        command.Parameters.AddWithValue("$failureReason", (object?)upload.FailureReason ?? DBNull.Value);
         command.Parameters.AddWithValue("$uploadedAtUtc", upload.UploadedAtUtc.ToString("O"));
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -38,7 +41,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, UploadedAtUtc
+            SELECT Id, FileName, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc
             FROM TcxUploads
             ORDER BY UploadedAtUtc DESC;
         ";
@@ -52,8 +55,11 @@ public class TcxUploadRepository : ITcxUploadRepository
             {
                 Id = Guid.Parse(reader.GetString(0)),
                 FileName = reader.GetString(1),
-                StoredFilePath = reader.GetString(2),
-                UploadedAtUtc = DateTime.Parse(reader.GetString(3), null, System.Globalization.DateTimeStyles.RoundtripKind)
+                RawFileContent = (byte[])reader[2],
+                ContentHashSha256 = reader.GetString(3),
+                UploadStatus = reader.GetString(4),
+                FailureReason = reader.IsDBNull(5) ? null : reader.GetString(5),
+                UploadedAtUtc = DateTime.Parse(reader.GetString(6), null, System.Globalization.DateTimeStyles.RoundtripKind)
             });
         }
 

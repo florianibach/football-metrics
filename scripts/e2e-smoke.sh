@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Story reference: MVP-02
+# Ziel: Verifizieren, dass der Upload-Endpunkt erreichbar ist und ein valider TCX-Upload
+# End-to-End durch die API verarbeitet wird.
+
 API_URL="${API_URL:-http://localhost:8080}"
 
 for i in {1..40}; do
