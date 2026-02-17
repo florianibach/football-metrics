@@ -1,22 +1,75 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Story reference: MVP-02
-# Ziel: Verifizieren, dass der Upload-Endpunkt erreichbar ist und ein valider TCX-Upload
-# End-to-End durch die API verarbeitet wird.
+# Story reference: MVP-02, MVP-04
+# Ziel:
+# - MVP-02: Verifizieren, dass der Upload-Endpunkt erreichbar ist und ein valider TCX-Upload
+#   End-to-End durch die API verarbeitet wird.
+# - MVP-04: Verifizieren, dass der Upload-Response einen Qualitätsstatus und Klartext-Gründe enthält.
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_URL="${API_URL:-http://localhost:8080}"
+AUTO_START_API="${AUTO_START_API:-1}"
+API_PID=""
+API_LOG_FILE="${API_LOG_FILE:-/tmp/football-metrics-e2e-api.log}"
 
-for i in {1..40}; do
-  if curl -fsS "$API_URL/api/tcx" >/dev/null 2>&1; then
-    break
+cleanup() {
+  if [[ -n "$API_PID" ]] && kill -0 "$API_PID" >/dev/null 2>&1; then
+    kill "$API_PID" >/dev/null 2>&1 || true
+    wait "$API_PID" >/dev/null 2>&1 || true
   fi
-  sleep 2
-  if [[ "$i" -eq 40 ]]; then
-    echo "API did not become ready in time"
-    exit 1
+}
+trap cleanup EXIT
+
+wait_for_api() {
+  for i in {1..40}; do
+    if curl -fsS "$API_URL/api/tcx" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 2
+  done
+
+  return 1
+}
+
+start_api_if_needed() {
+  if wait_for_api; then
+    echo "Using already running API at $API_URL"
+    return 0
   fi
-done
+
+  if [[ "$AUTO_START_API" != "1" ]]; then
+    echo "API not reachable at $API_URL and AUTO_START_API is disabled."
+    return 1
+  fi
+
+  echo "API not reachable at $API_URL. Attempting local API start via dotnet run ..."
+
+  if ! command -v dotnet >/dev/null 2>&1; then
+    "$REPO_ROOT/scripts/bootstrap-dotnet.sh"
+    export PATH="$HOME/.dotnet:$PATH"
+  fi
+
+  local api_hostport="${API_URL#http://}"
+  api_hostport="${api_hostport#https://}"
+  api_hostport="${api_hostport%%/*}"
+  local api_port="${api_hostport##*:}"
+  if [[ "$api_port" == "$api_hostport" ]]; then
+    api_port="8080"
+  fi
+
+  dotnet run --project "$REPO_ROOT/backend/src/FootballMetrics.Api/FootballMetrics.Api.csproj" --urls "http://0.0.0.0:${api_port}" >"$API_LOG_FILE" 2>&1 &
+  API_PID="$!"
+
+  if ! wait_for_api; then
+    echo "API did not become ready in time. Check logs: $API_LOG_FILE"
+    return 1
+  fi
+
+  echo "Started local API for smoke test (pid=$API_PID)."
+}
+
+start_api_if_needed
 
 cat > /tmp/sample.tcx <<'TCX'
 <TrainingCenterDatabase>
@@ -24,7 +77,30 @@ cat > /tmp/sample.tcx <<'TCX'
     <Activity>
       <Lap>
         <Track>
-          <Trackpoint />
+          <Trackpoint>
+            <Time>2026-02-16T10:00:00Z</Time>
+            <Position>
+              <LatitudeDegrees>50.0</LatitudeDegrees>
+              <LongitudeDegrees>7.0</LongitudeDegrees>
+            </Position>
+            <HeartRateBpm><Value>120</Value></HeartRateBpm>
+          </Trackpoint>
+          <Trackpoint>
+            <Time>2026-02-16T10:00:01Z</Time>
+            <Position>
+              <LatitudeDegrees>50.01</LatitudeDegrees>
+              <LongitudeDegrees>7.01</LongitudeDegrees>
+            </Position>
+            <HeartRateBpm><Value>121</Value></HeartRateBpm>
+          </Trackpoint>
+          <Trackpoint>
+            <Time>2026-02-16T10:00:02Z</Time>
+            <Position>
+              <LatitudeDegrees>50.02</LatitudeDegrees>
+              <LongitudeDegrees>7.02</LongitudeDegrees>
+            </Position>
+            <HeartRateBpm><Value>122</Value></HeartRateBpm>
+          </Trackpoint>
         </Track>
       </Lap>
     </Activity>
@@ -32,9 +108,10 @@ cat > /tmp/sample.tcx <<'TCX'
 </TrainingCenterDatabase>
 TCX
 
-curl -fsS -X POST "$API_URL/api/tcx/upload" \
-  -F "file=@/tmp/sample.tcx;type=application/xml"
+upload_response="$(curl -fsS -X POST "$API_URL/api/tcx/upload" \
+  -F "file=@/tmp/sample.tcx;type=application/xml")"
 
+echo "$upload_response" | jq -e '.summary.qualityStatus == "Medium" and (.summary.qualityReasons | length) > 0' >/dev/null
 curl -fsS "$API_URL/api/tcx" | jq 'length >= 1' | grep true
 
 echo "E2E smoke test passed"

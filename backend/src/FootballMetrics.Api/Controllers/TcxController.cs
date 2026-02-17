@@ -63,6 +63,7 @@ public class TcxController : ControllerBase
         {
             Id = uploadId,
             FileName = file.FileName,
+            StoredFilePath = string.Empty,
             RawFileContent = rawFileBytes,
             ContentHashSha256 = Convert.ToHexString(SHA256.HashData(rawFileBytes)),
             UploadStatus = TcxUploadStatuses.Succeeded,
@@ -81,6 +82,7 @@ public class TcxController : ControllerBase
             {
                 Id = entity.Id,
                 FileName = entity.FileName,
+                StoredFilePath = entity.StoredFilePath,
                 RawFileContent = Array.Empty<byte>(),
                 ContentHashSha256 = string.Empty,
                 UploadStatus = TcxUploadStatuses.Failed,
@@ -114,7 +116,7 @@ public class TcxController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<TcxUploadResponse>>> GetUploads(CancellationToken cancellationToken)
     {
         var uploads = await _repository.ListAsync(cancellationToken);
-        return Ok(uploads.Select(item => new TcxUploadResponse(item.Id, item.FileName, item.UploadedAtUtc, new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable"))).ToList());
+        return Ok(uploads.Select(item => new TcxUploadResponse(item.Id, item.FileName, item.UploadedAtUtc, new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "No quality assessment available for list endpoint." }))).ToList());
     }
 
     private static async Task<(XDocument? Document, string? ErrorMessage)> ValidateTcxFileAsync(byte[] rawFileBytes, CancellationToken cancellationToken)
@@ -179,6 +181,7 @@ public class TcxController : ControllerBase
         {
             Id = Guid.NewGuid(),
             FileName = failedUpload.FileName,
+            StoredFilePath = failedUpload.StoredFilePath,
             RawFileContent = failedUpload.RawFileContent,
             ContentHashSha256 = failedUpload.ContentHashSha256,
             UploadStatus = failedUpload.UploadStatus,

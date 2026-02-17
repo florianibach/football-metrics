@@ -7,6 +7,7 @@ namespace FootballMetrics.Api.Services;
 public static class TcxMetricsExtractor
 {
     private const double EarthRadiusMeters = 6_371_000;
+    private const double MaxPlausibleSpeedMetersPerSecond = 12.5;
 
     public static TcxActivitySummary Extract(XDocument document)
     {
@@ -18,30 +19,25 @@ public static class TcxMetricsExtractor
         var startTime = ResolveStartTimeUtc(document, trackpoints);
         var durationSeconds = ResolveDurationSeconds(trackpoints);
 
-        var heartRates = trackpoints
-            .Select(tp => ParseInt(tp
-                .Descendants()
-                .FirstOrDefault(node => string.Equals(node.Name.LocalName, "Value", StringComparison.OrdinalIgnoreCase))?.Value))
-            .Where(value => value.HasValue)
-            .Select(value => value!.Value)
+        var trackpointSnapshots = trackpoints
+            .Select(tp => new TrackpointSnapshot(
+                ParseDateTime(tp.Descendants().FirstOrDefault(node => string.Equals(node.Name.LocalName, "Time", StringComparison.OrdinalIgnoreCase))?.Value),
+                ParseInt(tp.Descendants().FirstOrDefault(node => string.Equals(node.Name.LocalName, "HeartRateBpm", StringComparison.OrdinalIgnoreCase))
+                    ?.Descendants().FirstOrDefault(node => string.Equals(node.Name.LocalName, "Value", StringComparison.OrdinalIgnoreCase))?.Value),
+                ParseDouble(tp.Descendants().FirstOrDefault(node => string.Equals(node.Name.LocalName, "Position", StringComparison.OrdinalIgnoreCase))
+                    ?.Descendants().FirstOrDefault(node => string.Equals(node.Name.LocalName, "LatitudeDegrees", StringComparison.OrdinalIgnoreCase))?.Value),
+                ParseDouble(tp.Descendants().FirstOrDefault(node => string.Equals(node.Name.LocalName, "Position", StringComparison.OrdinalIgnoreCase))
+                    ?.Descendants().FirstOrDefault(node => string.Equals(node.Name.LocalName, "LongitudeDegrees", StringComparison.OrdinalIgnoreCase))?.Value)))
             .ToList();
 
-        var gpsPoints = trackpoints
-            .Select(tp =>
-            {
-                var position = tp.Descendants().FirstOrDefault(node => string.Equals(node.Name.LocalName, "Position", StringComparison.OrdinalIgnoreCase));
-                if (position is null)
-                {
-                    return (Latitude: (double?)null, Longitude: (double?)null);
-                }
+        var heartRates = trackpointSnapshots
+            .Where(snapshot => snapshot.HeartRateBpm.HasValue)
+            .Select(snapshot => snapshot.HeartRateBpm!.Value)
+            .ToList();
 
-                return (
-                    Latitude: ParseDouble(position.Descendants().FirstOrDefault(node => string.Equals(node.Name.LocalName, "LatitudeDegrees", StringComparison.OrdinalIgnoreCase))?.Value),
-                    Longitude: ParseDouble(position.Descendants().FirstOrDefault(node => string.Equals(node.Name.LocalName, "LongitudeDegrees", StringComparison.OrdinalIgnoreCase))?.Value)
-                );
-            })
-            .Where(point => point.Latitude.HasValue && point.Longitude.HasValue)
-            .Select(point => (point.Latitude!.Value, point.Longitude!.Value))
+        var gpsPoints = trackpointSnapshots
+            .Where(snapshot => snapshot.Latitude.HasValue && snapshot.Longitude.HasValue)
+            .Select(snapshot => (snapshot.Latitude!.Value, snapshot.Longitude!.Value))
             .ToList();
 
         var calculatedDistanceMeters = gpsPoints.Count < 2
@@ -61,6 +57,8 @@ public static class TcxMetricsExtractor
         var finalDistance = calculatedDistanceMeters ?? (hasFileDistance ? fileDistanceMeters : null);
         var source = calculatedDistanceMeters.HasValue ? "CalculatedFromGps" : (hasFileDistance ? "ProvidedByFile" : "NotAvailable");
 
+        var qualityAssessment = AssessQuality(trackpointSnapshots);
+
         return new TcxActivitySummary(
             startTime,
             durationSeconds,
@@ -71,7 +69,123 @@ public static class TcxMetricsExtractor
             finalDistance,
             gpsPoints.Count > 0,
             hasFileDistance ? fileDistanceMeters : null,
-            source);
+            source,
+            qualityAssessment.Status,
+            qualityAssessment.Reasons);
+    }
+
+    private static QualityAssessment AssessQuality(IReadOnlyList<TrackpointSnapshot> trackpoints)
+    {
+        if (trackpoints.Count == 0)
+        {
+            return new QualityAssessment("Low", new List<string> { "No trackpoints found in TCX file." });
+        }
+
+        var reasons = new List<string>();
+        var penaltyPoints = 0;
+
+        var missingTimestampCount = trackpoints.Count(tp => !tp.TimeUtc.HasValue);
+        var missingGpsCount = trackpoints.Count(tp => !tp.Latitude.HasValue || !tp.Longitude.HasValue);
+        var missingHeartRateCount = trackpoints.Count(tp => !tp.HeartRateBpm.HasValue);
+
+        var missingTimestampRatio = (double)missingTimestampCount / trackpoints.Count;
+        var missingGpsRatio = (double)missingGpsCount / trackpoints.Count;
+        var missingHeartRateRatio = (double)missingHeartRateCount / trackpoints.Count;
+
+        if (missingTimestampRatio > 0.5)
+        {
+            penaltyPoints += 2;
+            reasons.Add($"Many trackpoints are missing timestamps ({missingTimestampCount}/{trackpoints.Count}).");
+        }
+        else if (missingTimestampRatio > 0.1)
+        {
+            penaltyPoints += 1;
+            reasons.Add($"Some trackpoints are missing timestamps ({missingTimestampCount}/{trackpoints.Count}).");
+        }
+
+        if (missingGpsRatio > 0.5)
+        {
+            penaltyPoints += 2;
+            reasons.Add($"GPS coverage is limited ({trackpoints.Count - missingGpsCount}/{trackpoints.Count} points with coordinates).");
+        }
+        else if (missingGpsRatio > 0.1)
+        {
+            penaltyPoints += 1;
+            reasons.Add($"GPS data is partially missing ({trackpoints.Count - missingGpsCount}/{trackpoints.Count} points with coordinates).");
+        }
+
+        if (missingHeartRateRatio > 0.5)
+        {
+            penaltyPoints += 2;
+            reasons.Add($"Heart rate data is mostly missing ({trackpoints.Count - missingHeartRateCount}/{trackpoints.Count} points with heart rate).");
+        }
+        else if (missingHeartRateRatio > 0.1)
+        {
+            penaltyPoints += 1;
+            reasons.Add($"Heart rate data is partially missing ({trackpoints.Count - missingHeartRateCount}/{trackpoints.Count} points with heart rate).");
+        }
+
+        var unplausibleJumpCount = CountUnplausibleGpsJumps(trackpoints);
+        if (unplausibleJumpCount >= 2)
+        {
+            penaltyPoints += 2;
+            reasons.Add($"Detected multiple implausible GPS jumps ({unplausibleJumpCount}).");
+        }
+        else if (unplausibleJumpCount > 0)
+        {
+            penaltyPoints += 1;
+            reasons.Add($"Detected isolated implausible GPS jumps ({unplausibleJumpCount}).");
+        }
+
+        var status = penaltyPoints >= 4
+            ? "Low"
+            : penaltyPoints >= 2
+                ? "Medium"
+                : "High";
+
+        if (reasons.Count == 0)
+        {
+            reasons.Add("Trackpoints are complete with GPS and heart rate data. No implausible jumps detected.");
+        }
+
+        return new QualityAssessment(status, reasons);
+    }
+
+    private static int CountUnplausibleGpsJumps(IReadOnlyList<TrackpointSnapshot> trackpoints)
+    {
+        var pointsWithGpsAndTime = trackpoints
+            .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
+            .OrderBy(tp => tp.TimeUtc)
+            .ToList();
+
+        if (pointsWithGpsAndTime.Count < 2)
+        {
+            return 0;
+        }
+
+        var unplausibleJumpCount = 0;
+        for (var index = 1; index < pointsWithGpsAndTime.Count; index++)
+        {
+            var previous = pointsWithGpsAndTime[index - 1];
+            var current = pointsWithGpsAndTime[index];
+            var elapsedSeconds = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
+            if (elapsedSeconds <= 0)
+            {
+                continue;
+            }
+
+            var distanceMeters = HaversineMeters(
+                (previous.Latitude!.Value, previous.Longitude!.Value),
+                (current.Latitude!.Value, current.Longitude!.Value));
+
+            var speedMetersPerSecond = distanceMeters / elapsedSeconds;
+            if (speedMetersPerSecond > MaxPlausibleSpeedMetersPerSecond)
+            {
+                unplausibleJumpCount++;
+            }
+        }
+
+        return unplausibleJumpCount;
     }
 
     private static DateTime? ResolveStartTimeUtc(XDocument document, IReadOnlyCollection<XElement> trackpoints)
@@ -146,4 +260,7 @@ public static class TcxMetricsExtractor
         => DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var parsed)
             ? parsed
             : null;
+
+    private sealed record TrackpointSnapshot(DateTime? TimeUtc, int? HeartRateBpm, double? Latitude, double? Longitude);
+    private sealed record QualityAssessment(string Status, IReadOnlyList<string> Reasons);
 }

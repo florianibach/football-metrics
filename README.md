@@ -70,6 +70,54 @@ dotnet run
 - Fallback ist immer Englisch.
 - Nutzer können die Sprache in der Oberfläche manuell umstellen.
 
+
+## Qualitätslogik (MVP-04)
+
+Die API berechnet für jede hochgeladene TCX-Datei einen Qualitätsstatus `High`, `Medium` oder `Low` und liefert zusätzlich Klartext-Gründe (`qualityReasons`).
+
+Bewertete Signale:
+- Anteil fehlender Zeitstempel je Trackpoint
+- Anteil fehlender GPS-Koordinaten je Trackpoint
+- Anteil fehlender Herzfrequenzwerte je Trackpoint
+- Unplausible GPS-Sprünge auf Basis der Segmentgeschwindigkeit (Schwellwert: > 12.5 m/s)
+
+Scoring-Logik (erweiterbar):
+- Die Punkte sind **Auffälligkeits-/Risikopunkte** (keine Positivpunkte). Mehr Punkte bedeuten also schlechtere Datenqualität.
+- Kleine Auffälligkeit: +1 Punkt (Schwellwert **> 10 %** des Signals)
+- Große Auffälligkeit: +2 Punkte (Schwellwert **> 50 %** des Signals)
+- Für GPS-Sprünge gilt: 1 Sprung = +1, ab 2 Sprüngen = +2
+- 0-1 Punkte: `High` (**hohe Datenqualität**)
+- 2-3 Punkte: `Medium` (**mittlere Datenqualität**)
+- ab 4 Punkte: `Low` (**niedrige Datenqualität**)
+
+Wenn keine Auffälligkeit erkannt wird, wird ein positiver Grundtext zurückgegeben. Die Logik ist zentral in `TcxMetricsExtractor` kapsuliert und kann in späteren Iterationen um zusätzliche Qualitätsindikatoren erweitert werden.
+
+
+## E2E Smoke ohne Docker (empfohlen für eingeschränkte Environments)
+
+Wenn `docker` lokal oder in CI nicht verfügbar ist, kann der E2E-Smoke-Test jetzt die API automatisch selbst starten.
+
+### Direkt ausführen
+```bash
+scripts/e2e-smoke.sh
+```
+
+Verhalten des Skripts:
+- Nutzt eine bereits laufende API, falls unter `API_URL` erreichbar.
+- Startet sonst automatisch die lokale API per `dotnet run` (inkl. .NET-Bootstrap über `scripts/bootstrap-dotnet.sh`, falls nötig).
+- Prüft weiterhin MVP-02 + MVP-04 (inkl. `qualityStatus` und `qualityReasons`).
+
+### Nützliche Parameter
+```bash
+API_URL=http://localhost:8080 scripts/e2e-smoke.sh
+AUTO_START_API=0 scripts/e2e-smoke.sh
+API_LOG_FILE=/tmp/fm-api-e2e.log scripts/e2e-smoke.sh
+```
+
+### Troubleshooting
+- **`docker: command not found`**: Für lokale Checks stattdessen `./scripts/check-local.sh` oder direkt `scripts/e2e-smoke.sh` nutzen.
+- **`API did not become ready in time`**: Logdatei prüfen (Default: `/tmp/football-metrics-e2e-api.log`), Port-Belegung (`8080`) kontrollieren und bei Bedarf `API_URL` setzen.
+
 ## Tests
 
 - Backend Integrationstest: `./scripts/test-backend.sh` (installiert bei Bedarf automatisch .NET SDK 10 lokal in `~/.dotnet`)

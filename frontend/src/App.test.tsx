@@ -21,7 +21,9 @@ describe('App', () => {
         distanceMeters: 5100,
         hasGpsData: true,
         fileDistanceMeters: 5000,
-        distanceSource: 'CalculatedFromGps'
+        distanceSource: 'CalculatedFromGps',
+        qualityStatus: 'High',
+        qualityReasons: ['Trackpoints are complete with GPS and heart rate data. No implausible jumps detected.']
       },
       ...overrides
     };
@@ -156,7 +158,9 @@ describe('App', () => {
           distanceMeters: null,
           hasGpsData: false,
           fileDistanceMeters: null,
-          distanceSource: 'NotAvailable'
+          distanceSource: 'NotAvailable',
+          qualityStatus: 'Low',
+          qualityReasons: ['Heart rate data is mostly missing (0/2 points with heart rate).']
         }
       })
     } as Response);
@@ -194,7 +198,9 @@ describe('App', () => {
           distanceMeters: null,
           hasGpsData: false,
           fileDistanceMeters: null,
-          distanceSource: 'NotAvailable'
+          distanceSource: 'NotAvailable',
+          qualityStatus: 'Low',
+          qualityReasons: ['Heart rate data is mostly missing (0/2 points with heart rate).']
         }
       })
     } as Response);
@@ -215,6 +221,7 @@ describe('App', () => {
 
     expect(screen.queryAllByText(/Not available/).length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
+    expect(screen.getByText(/Data quality:/)).toBeInTheDocument();
   });
 
   it('Mvp03_Ac05_displays_consistent_units_for_duration_distance_and_heart_rate', async () => {
@@ -240,6 +247,47 @@ describe('App', () => {
     expect(screen.getByText(/30 min 0 s/)).toBeInTheDocument();
     expect(screen.getByText(/120\/145\/170 bpm/)).toBeInTheDocument();
     expect(screen.getByText(/5.1 km/)).toBeInTheDocument();
+  });
+
+
+
+  it('Mvp04_Ac01_Ac03_shows_quality_status_and_plain_text_reasons', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => createMvp03SummaryResponse({
+        summary: {
+          activityStartTimeUtc: '2026-02-16T21:00:00.000Z',
+          durationSeconds: 1800,
+          trackpointCount: 25,
+          heartRateMinBpm: 120,
+          heartRateAverageBpm: 145,
+          heartRateMaxBpm: 170,
+          distanceMeters: 5100,
+          hasGpsData: true,
+          fileDistanceMeters: 5000,
+          distanceSource: 'CalculatedFromGps',
+          qualityStatus: 'Medium',
+          qualityReasons: ['Detected isolated implausible GPS jumps (1).', 'GPS data is partially missing (22/25 points with coordinates).']
+        }
+      })
+    } as Response);
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: {
+        files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'session.tcx', { type: 'application/xml' })]
+      }
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Data quality:/)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/medium/)).toBeInTheDocument();
+    expect(screen.getByText(/Detected isolated implausible GPS jumps \(1\)\. \| GPS data is partially missing \(22\/25 points with coordinates\)\./)).toBeInTheDocument();
   });
 
   it('Mvp03_Ac06_formats_activity_start_time_as_local_time_for_user', async () => {
