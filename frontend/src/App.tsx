@@ -322,6 +322,81 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
   }
 };
 
+const metricExplanations: Record<Locale, Record<string, string>> = {
+  en: {
+    startTime: 'Purpose: anchors session timing. Interpretation: reference timestamp for all values. Unit: local date/time.',
+    duration: 'Purpose: shows total load window. Interpretation: longer sessions can increase accumulated load. Unit: minutes and seconds.',
+    heartRate: 'Purpose: summarizes cardiovascular intensity. Interpretation: higher avg/max indicates stronger effort. Unit: bpm.',
+    trackpoints: 'Purpose: indicates sampling density. Interpretation: more points usually support more stable calculations. Unit: count.',
+    distance: 'Purpose: quantifies covered ground. Interpretation: higher value means more movement volume. Unit: km and m.',
+    gps: 'Purpose: indicates if location-based metrics can be computed. Interpretation: without GPS, running/sprint metrics can be unavailable. Unit: yes/no.',
+    qualityStatus: 'Purpose: summarizes data reliability. Interpretation: high quality means stronger confidence in metrics. Unit: categorical status.',
+    qualityReasons: 'Purpose: explains quality drivers. Interpretation: reasons clarify why metrics are trustworthy or limited. Unit: text reasons.',
+    dataChange: 'Purpose: shows smoothing impact. Interpretation: larger deltas indicate stronger correction of raw data. Unit: percent and meters.',
+    smoothingStrategy: 'Purpose: makes preprocessing transparent. Interpretation: selected method influences downstream metric values. Unit: strategy name.',
+    smoothingOutlier: 'Purpose: documents outlier handling. Interpretation: threshold/mode defines when points are corrected. Unit: mode and m/s threshold.',
+    directionChanges: 'Purpose: captures directional variability. Interpretation: higher value can indicate more stop-and-go movement. Unit: count.',
+    sprintDistance: 'Purpose: measures high-speed running volume. Interpretation: higher value means more sprint load. Unit: km and m. Unavailable when GPS quality is insufficient.',
+    sprintCount: 'Purpose: counts sprint events. Interpretation: higher value indicates more repeated high-intensity actions. Unit: count. Unavailable when GPS quality is insufficient.',
+    maxSpeed: 'Purpose: captures peak running speed. Interpretation: higher value shows top speed reached in session. Unit: m/s. Unavailable when GPS quality is insufficient.',
+    highIntensityTime: 'Purpose: tracks time at high movement intensity. Interpretation: more time means larger intense workload. Unit: minutes and seconds. Unavailable when GPS quality is insufficient.',
+    highSpeedDistance: 'Purpose: tracks distance above high-speed threshold. Interpretation: higher value means more sustained fast running. Unit: km and m. Unavailable when GPS quality is insufficient.',
+    runningDensity: 'Purpose: normalizes movement volume over time. Interpretation: higher m/min indicates denser running activity. Unit: meters per minute. Unavailable when GPS quality is insufficient.',
+    accelerationCount: 'Purpose: counts explosive speed-ups. Interpretation: more accelerations can increase neuromuscular load. Unit: count. Unavailable when GPS quality is insufficient.',
+    decelerationCount: 'Purpose: counts braking actions. Interpretation: more decelerations can increase eccentric load. Unit: count. Unavailable when GPS quality is insufficient.',
+    hrZoneLow: 'Purpose: tracks low-intensity heart-rate exposure. Interpretation: higher time indicates larger easy-load share. Unit: minutes and seconds. Unavailable when heart-rate quality is insufficient.',
+    hrZoneMedium: 'Purpose: tracks moderate-intensity heart-rate exposure. Interpretation: reflects sustained submaximal work. Unit: minutes and seconds. Unavailable when heart-rate quality is insufficient.',
+    hrZoneHigh: 'Purpose: tracks high-intensity heart-rate exposure. Interpretation: higher time reflects stronger cardiovascular stress. Unit: minutes and seconds. Unavailable when heart-rate quality is insufficient.',
+    trimpEdwards: 'Purpose: estimates internal load from heart-rate zones. Interpretation: higher TRIMP means higher cardio training stress. Unit: score. Unavailable when heart-rate quality is insufficient.',
+    hrRecovery60: 'Purpose: indicates short-term recovery capacity. Interpretation: larger drop after effort often indicates better recovery response. Unit: bpm drop after 60s. Unavailable when heart-rate quality is insufficient.',
+    coreThresholds: 'Purpose: documents active metric thresholds. Interpretation: values define how speed/intensity events are classified. Unit: parameter values.'
+  },
+  de: {
+    startTime: 'Zweck: zeitliche Einordnung der Session. Interpretation: Referenzzeitpunkt für alle Werte. Einheit: lokales Datum/Uhrzeit.',
+    duration: 'Zweck: zeigt das gesamte Belastungsfenster. Interpretation: längere Sessions erhöhen oft die kumulierte Last. Einheit: Minuten und Sekunden.',
+    heartRate: 'Zweck: fasst die kardiovaskuläre Intensität zusammen. Interpretation: höhere Ø/Max-Werte stehen meist für höhere Belastung. Einheit: bpm.',
+    trackpoints: 'Zweck: zeigt die Datendichte. Interpretation: mehr Punkte ermöglichen meist stabilere Berechnungen. Einheit: Anzahl.',
+    distance: 'Zweck: quantifiziert die zurückgelegte Strecke. Interpretation: höherer Wert bedeutet mehr Bewegungsvolumen. Einheit: km und m.',
+    gps: 'Zweck: zeigt, ob ortsbasierte Metriken berechenbar sind. Interpretation: ohne GPS können Lauf-/Sprintmetriken fehlen. Einheit: Ja/Nein.',
+    qualityStatus: 'Zweck: fasst die Datenzuverlässigkeit zusammen. Interpretation: hohe Qualität bedeutet mehr Vertrauen in die Metriken. Einheit: kategorialer Status.',
+    qualityReasons: 'Zweck: erklärt Treiber der Datenqualität. Interpretation: Gründe zeigen, warum Metriken belastbar oder eingeschränkt sind. Einheit: Textgründe.',
+    dataChange: 'Zweck: zeigt den Effekt der Glättung. Interpretation: größere Abweichungen bedeuten stärkere Korrektur der Rohdaten. Einheit: Prozent und Meter.',
+    smoothingStrategy: 'Zweck: macht die Vorverarbeitung transparent. Interpretation: die Methode beeinflusst nachgelagerte Metrikwerte. Einheit: Strategiename.',
+    smoothingOutlier: 'Zweck: dokumentiert die Ausreißerbehandlung. Interpretation: Modus/Schwelle definieren, wann Punkte korrigiert werden. Einheit: Modus und m/s-Schwelle.',
+    directionChanges: 'Zweck: erfasst Richtungsvariabilität. Interpretation: höhere Werte können mehr Stop-and-Go anzeigen. Einheit: Anzahl.',
+    sprintDistance: 'Zweck: misst hochintensives Laufvolumen. Interpretation: höherer Wert bedeutet mehr Sprintbelastung. Einheit: km und m. Nicht verfügbar bei unzureichender GPS-Qualität.',
+    sprintCount: 'Zweck: zählt Sprintaktionen. Interpretation: höherer Wert steht für mehr wiederholte Hochintensitätsaktionen. Einheit: Anzahl. Nicht verfügbar bei unzureichender GPS-Qualität.',
+    maxSpeed: 'Zweck: erfasst die Spitzengeschwindigkeit. Interpretation: höherer Wert zeigt das erreichte Toptempo. Einheit: m/s. Nicht verfügbar bei unzureichender GPS-Qualität.',
+    highIntensityTime: 'Zweck: misst Zeit in hoher Bewegungsintensität. Interpretation: mehr Zeit bedeutet höhere intensive Arbeitslast. Einheit: Minuten und Sekunden. Nicht verfügbar bei unzureichender GPS-Qualität.',
+    highSpeedDistance: 'Zweck: misst Distanz oberhalb der High-Speed-Schwelle. Interpretation: höherer Wert bedeutet mehr anhaltend schnelles Laufen. Einheit: km und m. Nicht verfügbar bei unzureichender GPS-Qualität.',
+    runningDensity: 'Zweck: normiert Bewegungsvolumen über die Zeit. Interpretation: höhere m/min bedeuten dichtere Laufaktivität. Einheit: Meter pro Minute. Nicht verfügbar bei unzureichender GPS-Qualität.',
+    accelerationCount: 'Zweck: zählt explosive Beschleunigungen. Interpretation: mehr Beschleunigungen erhöhen oft die neuromuskuläre Last. Einheit: Anzahl. Nicht verfügbar bei unzureichender GPS-Qualität.',
+    decelerationCount: 'Zweck: zählt Bremsaktionen. Interpretation: mehr Abbremsungen erhöhen oft die exzentrische Last. Einheit: Anzahl. Nicht verfügbar bei unzureichender GPS-Qualität.',
+    hrZoneLow: 'Zweck: misst HF-Exposition in niedriger Intensität. Interpretation: mehr Zeit bedeutet höheren Anteil lockerer Belastung. Einheit: Minuten und Sekunden. Nicht verfügbar bei unzureichender HF-Qualität.',
+    hrZoneMedium: 'Zweck: misst HF-Exposition in mittlerer Intensität. Interpretation: zeigt den Anteil dauerhaft submaximaler Arbeit. Einheit: Minuten und Sekunden. Nicht verfügbar bei unzureichender HF-Qualität.',
+    hrZoneHigh: 'Zweck: misst HF-Exposition in hoher Intensität. Interpretation: mehr Zeit steht für stärkeren kardiovaskulären Stress. Einheit: Minuten und Sekunden. Nicht verfügbar bei unzureichender HF-Qualität.',
+    trimpEdwards: 'Zweck: schätzt die interne Belastung über HF-Zonen. Interpretation: höherer TRIMP bedeutet höheren kardialen Trainingsstress. Einheit: Score. Nicht verfügbar bei unzureichender HF-Qualität.',
+    hrRecovery60: 'Zweck: zeigt kurzfristige Erholungsfähigkeit. Interpretation: größerer Pulsabfall nach Belastung spricht oft für bessere Erholung. Einheit: bpm-Abfall nach 60 s. Nicht verfügbar bei unzureichender HF-Qualität.',
+    coreThresholds: 'Zweck: dokumentiert aktive Metrik-Schwellenwerte. Interpretation: Werte definieren die Klassifikation von Tempo-/Intensitätsereignissen. Einheit: Parameterwerte.'
+  }
+};
+
+
+
+type MetricListItemProps = {
+  label: string;
+  value: string | number;
+  helpText: string;
+};
+
+function MetricListItem({ label, value, helpText }: MetricListItemProps) {
+  return (
+    <li>
+      <strong>{label}:</strong> {value} <span className="metric-help" role="note" aria-label={`${label} explanation`} title={helpText}>ⓘ</span>
+    </li>
+  );
+}
+
 function resolveInitialLocale(): Locale {
   if (typeof navigator === 'undefined') {
     return 'en';
@@ -464,6 +539,7 @@ export function App() {
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
 
   const t = translations[locale];
+  const metricHelp = metricExplanations[locale];
   const validationMessage = useMemo(() => getFileValidationMessage(selectedFile, locale), [selectedFile, locale]);
   const canSubmit = useMemo(
     () => !!selectedFile && !validationMessage && !isUploading,
@@ -735,18 +811,18 @@ export function App() {
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
           <ul className="metrics-list">
-            <li><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable} ({t.metricHelpStartTime})</li>
-            <li><strong>{t.metricDuration}:</strong> {formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable)} ({t.metricHelpDuration})</li>
-            <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)} ({t.metricHelpHeartRate})</li>
-            <li><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount} ({t.metricHelpTrackpoints})</li>
-            <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)} ({t.metricHelpDistance})</li>
-            <li><strong>{t.metricDirectionChanges}:</strong> {activeDirectionChanges ?? 0}</li>
-            <li><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no} ({t.metricHelpGps})</li>
-            <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
-            <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
-            <li><strong>{t.metricDataChange}:</strong> {dataChangeMetric}</li>
-            <li><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
-            <li><strong>{t.metricSmoothingOutlier}:</strong> {selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: {selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)</li>
+            <MetricListItem label={t.metricStartTime} value={selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable} helpText={`${metricHelp.startTime} ${t.metricHelpStartTime}`} />
+            <MetricListItem label={t.metricDuration} value={formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
+            <MetricListItem label={t.metricHeartRate} value={formatHeartRate(selectedSession.summary, t.notAvailable)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
+            <MetricListItem label={t.metricTrackpoints} value={selectedSession.summary.trackpointCount} helpText={`${metricHelp.trackpoints} ${t.metricHelpTrackpoints}`} />
+            <MetricListItem label={t.metricDistance} value={`${formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — ${distanceSourceText(selectedSession.summary.distanceSource)}`} helpText={`${metricHelp.distance} ${t.metricHelpDistance}`} />
+            <MetricListItem label={t.metricDirectionChanges} value={activeDirectionChanges ?? 0} helpText={metricHelp.directionChanges} />
+            <MetricListItem label={t.metricGps} value={selectedSession.summary.hasGpsData ? t.yes : t.no} helpText={`${metricHelp.gps} ${t.metricHelpGps}`} />
+            <MetricListItem label={t.metricQualityStatus} value={qualityStatusText(selectedSession.summary.qualityStatus, t)} helpText={metricHelp.qualityStatus} />
+            <MetricListItem label={t.metricQualityReasons} value={selectedSession.summary.qualityReasons.join(' | ')} helpText={metricHelp.qualityReasons} />
+            <MetricListItem label={t.metricDataChange} value={dataChangeMetric} helpText={metricHelp.dataChange} />
+            <MetricListItem label={t.metricSmoothingStrategy} value={selectedSession.summary.smoothing.selectedStrategy} helpText={metricHelp.smoothingStrategy} />
+            <MetricListItem label={t.metricSmoothingOutlier} value={`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`} helpText={metricHelp.smoothingOutlier} />
           </ul>
           <div className="core-metrics-section">
             <h3>{t.coreMetricsTitle}</h3>
@@ -754,21 +830,21 @@ export function App() {
               <p>{t.coreMetricsUnavailable.replace('{reason}', selectedSession.summary.coreMetrics.unavailableReason ?? t.notAvailable)}</p>
             )}
             <ul className="metrics-list">
-              <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('distanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('sprintDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricSprintCount}:</strong> {selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}{(() => { const status = formatMetricStatus('sprintCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}{(() => { const status = formatMetricStatus('maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('highIntensityTimeSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('highSpeedDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricRunningDensity}:</strong> {formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}{(() => { const status = formatMetricStatus('runningDensityMetersPerMinute', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricAccelerationCount}:</strong> {selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable}{(() => { const status = formatMetricStatus('accelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricDecelerationCount}:</strong> {selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable}{(() => { const status = formatMetricStatus('decelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHrZoneLow}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('heartRateZoneLowSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}{(() => { const status = formatMetricStatus('heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}{(() => { const status = formatMetricStatus('trainingImpulseEdwards', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricHrRecovery60}:</strong> {selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}{(() => { const status = formatMetricStatus('heartRateRecoveryAfter60Seconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}</li>
-              <li><strong>{t.metricCoreThresholds}:</strong> {formatThresholds(selectedSession.summary.coreMetrics.thresholds)}</li>
+              <MetricListItem label={t.metricDistance} value={`${formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('distanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.distance} />
+              <MetricListItem label={t.metricSprintDistance} value={`${formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('sprintDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.sprintDistance} />
+              <MetricListItem label={t.metricSprintCount} value={`${selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('sprintCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.sprintCount} />
+              <MetricListItem label={t.metricMaxSpeed} value={`${formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}${(() => { const status = formatMetricStatus('maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.maxSpeed} />
+              <MetricListItem label={t.metricHighIntensityTime} value={`${formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('highIntensityTimeSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.highIntensityTime} />
+              <MetricListItem label={t.metricHighSpeedDistance} value={`${formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('highSpeedDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.highSpeedDistance} />
+              <MetricListItem label={t.metricRunningDensity} value={`${formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}${(() => { const status = formatMetricStatus('runningDensityMetersPerMinute', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.runningDensity} />
+              <MetricListItem label={t.metricAccelerationCount} value={`${selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('accelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.accelerationCount} />
+              <MetricListItem label={t.metricDecelerationCount} value={`${selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('decelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.decelerationCount} />
+              <MetricListItem label={t.metricHrZoneLow} value={`${formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('heartRateZoneLowSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrZoneLow} />
+              <MetricListItem label={t.metricHrZoneMedium} value={`${formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrZoneMedium} />
+              <MetricListItem label={t.metricHrZoneHigh} value={`${formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrZoneHigh} />
+              <MetricListItem label={t.metricTrimpEdwards} value={`${formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}${(() => { const status = formatMetricStatus('trainingImpulseEdwards', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.trimpEdwards} />
+              <MetricListItem label={t.metricHrRecovery60} value={`${selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}${(() => { const status = formatMetricStatus('heartRateRecoveryAfter60Seconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrRecovery60} />
+              <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(selectedSession.summary.coreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
             </ul>
           </div>
           {(showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (

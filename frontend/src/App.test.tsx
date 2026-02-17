@@ -659,4 +659,75 @@ describe('App', () => {
     expect(screen.getByText(/Data quality:/)).toBeInTheDocument();
   });
 
+
+  it('R1_06_Ac01_Ac02_shows_info_elements_with_metric_explanations', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [createUploadRecord()]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Session details')).toBeInTheDocument();
+    });
+
+    const distanceInfo = screen.getAllByRole('note', { name: 'Distance explanation' })[0];
+    expect(distanceInfo).toBeInTheDocument();
+    expect(distanceInfo).toHaveAttribute('title', expect.stringContaining('Purpose: quantifies covered ground'));
+    expect(distanceInfo).toHaveAttribute('title', expect.stringContaining('Unit: km and m'));
+
+    const sprintDistanceInfo = screen.getByRole('note', { name: 'Sprint distance explanation' });
+    expect(sprintDistanceInfo).toHaveAttribute('title', expect.stringContaining('Unavailable when GPS quality is insufficient'));
+  });
+
+  it('R1_06_Ac03_Ac04_localizes_and_explains_quality_gated_unavailable_metrics', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          summary: createSummary({
+            coreMetrics: {
+              isAvailable: false,
+              unavailableReason: 'Quality status must be High.',
+              distanceMeters: null,
+              sprintDistanceMeters: null,
+              sprintCount: null,
+              maxSpeedMetersPerSecond: null,
+              highIntensityTimeSeconds: null,
+              highSpeedDistanceMeters: null,
+              runningDensityMetersPerMinute: null,
+              accelerationCount: null,
+              decelerationCount: null,
+              heartRateZoneLowSeconds: null,
+              heartRateZoneMediumSeconds: null,
+              heartRateZoneHighSeconds: null,
+              trainingImpulseEdwards: null,
+              heartRateRecoveryAfter60Seconds: null,
+              metricAvailability: {
+                sprintDistanceMeters: { state: 'NotUsable', reason: 'GPS quality below threshold.' }
+              },
+              thresholds: {
+                SprintSpeedThresholdMps: '7.0'
+              }
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Core metrics unavailable/)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Not available — Measurement unusable: GPS quality below threshold\./)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
+
+    const sprintDistanceInfoDe = screen.getByRole('note', { name: 'Sprintdistanz explanation' });
+    expect(sprintDistanceInfoDe).toHaveAttribute('title', expect.stringContaining('Nicht verfügbar bei unzureichender GPS-Qualität'));
+  });
+
 });

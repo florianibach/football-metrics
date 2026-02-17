@@ -149,6 +149,8 @@ Empfohlener Sammelcheck:
 ## Session-Detailseite (MVP-06)
 
 - Die Detailansicht zeigt Basiskennzahlen je Session: Startzeit, Dauer, Distanz, Herzfrequenz (min/avg/max), Trackpunkte, GPS-Status und Qualitätsinformationen.
+- Jede angezeigte Metrik besitzt ein Info-Element (`ⓘ` als Tooltip via `title`) mit Zweck, vereinfachter Interpretation und Einheit.
+- Bei quality-gated Kernmetriken enthalten die Erklärungstexte zusätzlich, wann Werte nicht verfügbar sind (z. B. unzureichende GPS- oder HF-Qualität).
 - Bei fehlenden Werten werden Metriken klar als **Not available / Nicht vorhanden** markiert.
 - Zusätzlich werden verständliche Hinweise eingeblendet, warum Herzfrequenz- oder Distanzwerte fehlen (z. B. keine GPS-Koordinaten).
 - Die Detailansicht wurde responsiv erweitert, damit Historie und Session-Daten auf Mobile und Desktop lesbar bleiben.
