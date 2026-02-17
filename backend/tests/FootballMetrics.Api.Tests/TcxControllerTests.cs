@@ -79,6 +79,53 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         reader.GetString(2).Should().Be(TcxUploadStatuses.Succeeded);
     }
 
+
+
+    [Fact]
+    public async Task Mvp02_Ac04_UploadingToSchemaWithStoredFilePathNotNull_ShouldPersistWithoutConstraintFailure()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"football-metrics-tests-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={databasePath}";
+
+        await using (var setupConnection = new SqliteConnection(connectionString))
+        {
+            await setupConnection.OpenAsync();
+            var command = setupConnection.CreateCommand();
+            command.CommandText = @"
+                CREATE TABLE IF NOT EXISTS TcxUploads (
+                    Id TEXT PRIMARY KEY,
+                    FileName TEXT NOT NULL,
+                    StoredFilePath TEXT NOT NULL,
+                    RawFileContent BLOB NOT NULL,
+                    ContentHashSha256 TEXT NOT NULL,
+                    UploadStatus TEXT NOT NULL DEFAULT 'Succeeded',
+                    FailureReason TEXT NULL,
+                    UploadedAtUtc TEXT NOT NULL
+                );";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var client = CreateClientWithConnectionString(connectionString);
+        const string tcxPayload = "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>";
+        using var form = CreateUploadForm("stored-path-required.tcx", tcxPayload);
+
+        var response = await client.PostAsync("/api/tcx/upload", form);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var uploadResponse = await response.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+        uploadResponse.Should().NotBeNull();
+
+        await using var verifyConnection = new SqliteConnection(connectionString);
+        await verifyConnection.OpenAsync();
+        var verifyCommand = verifyConnection.CreateCommand();
+        verifyCommand.CommandText = "SELECT StoredFilePath FROM TcxUploads WHERE Id = $id";
+        verifyCommand.Parameters.AddWithValue("$id", uploadResponse!.Id.ToString());
+
+        var storedPath = (string?)await verifyCommand.ExecuteScalarAsync();
+        storedPath.Should().NotBeNull();
+        storedPath.Should().Be(string.Empty);
+    }
+
     [Fact]
     public async Task Mvp02_Ac03_UploadingValidTcx_ShouldPersistSha256Hash()
     {

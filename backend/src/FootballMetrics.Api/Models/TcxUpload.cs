@@ -4,6 +4,7 @@ public class TcxUpload
 {
     public Guid Id { get; set; }
     public string FileName { get; set; } = string.Empty;
+    public string StoredFilePath { get; set; } = string.Empty;
     public byte[] RawFileContent { get; set; } = Array.Empty<byte>();
     public string ContentHashSha256 { get; set; } = string.Empty;
     public string UploadStatus { get; set; } = TcxUploadStatuses.Succeeded;

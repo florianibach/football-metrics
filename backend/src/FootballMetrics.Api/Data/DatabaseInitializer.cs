@@ -26,6 +26,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
             CREATE TABLE IF NOT EXISTS TcxUploads (
                 Id TEXT PRIMARY KEY,
                 FileName TEXT NOT NULL,
+                StoredFilePath TEXT NOT NULL DEFAULT '',
                 RawFileContent BLOB NOT NULL,
                 ContentHashSha256 TEXT NOT NULL,
                 UploadStatus TEXT NOT NULL DEFAULT 'Succeeded',
@@ -38,6 +39,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
 
         await command.ExecuteNonQueryAsync(cancellationToken);
 
+        await EnsureColumnExistsAsync(connection, "StoredFilePath", "TEXT NOT NULL DEFAULT ''", cancellationToken);
         await EnsureColumnExistsAsync(connection, "RawFileContent", "BLOB NOT NULL DEFAULT x''", cancellationToken);
         await EnsureColumnExistsAsync(connection, "ContentHashSha256", "TEXT NOT NULL DEFAULT ''", cancellationToken);
         await EnsureColumnExistsAsync(connection, "UploadStatus", "TEXT NOT NULL DEFAULT 'Succeeded'", cancellationToken);

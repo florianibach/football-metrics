@@ -63,6 +63,7 @@ public class TcxController : ControllerBase
         {
             Id = uploadId,
             FileName = file.FileName,
+            StoredFilePath = string.Empty,
             RawFileContent = rawFileBytes,
             ContentHashSha256 = Convert.ToHexString(SHA256.HashData(rawFileBytes)),
             UploadStatus = TcxUploadStatuses.Succeeded,
@@ -81,6 +82,7 @@ public class TcxController : ControllerBase
             {
                 Id = entity.Id,
                 FileName = entity.FileName,
+                StoredFilePath = entity.StoredFilePath,
                 RawFileContent = Array.Empty<byte>(),
                 ContentHashSha256 = string.Empty,
                 UploadStatus = TcxUploadStatuses.Failed,
@@ -179,6 +181,7 @@ public class TcxController : ControllerBase
         {
             Id = Guid.NewGuid(),
             FileName = failedUpload.FileName,
+            StoredFilePath = failedUpload.StoredFilePath,
             RawFileContent = failedUpload.RawFileContent,
             ContentHashSha256 = failedUpload.ContentHashSha256,
             UploadStatus = failedUpload.UploadStatus,
