@@ -25,6 +25,7 @@ builder.Services.AddSingleton<ISqliteConnectionFactory>(_ => new SqliteConnectio
 builder.Services.AddSingleton<IDatabaseInitializer, DatabaseInitializer>();
 builder.Services.AddScoped<ITcxUploadRepository, TcxUploadRepository>();
 builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+builder.Services.AddScoped<IMetricThresholdResolver, MetricThresholdResolver>();
 builder.Services.AddSingleton<IUploadFormatAdapter, TcxUploadFormatAdapter>();
 builder.Services.AddSingleton<IUploadFormatAdapterResolver, UploadFormatAdapterResolver>();
 

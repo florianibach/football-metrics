@@ -78,10 +78,16 @@ type SessionContext = {
 type PlayerPosition = 'Goalkeeper' | 'CentreBack' | 'FullBack' | 'DefensiveMidfielder' | 'CentralMidfielder' | 'AttackingMidfielder' | 'Winger' | 'Striker';
 
 type MetricThresholdProfile = {
-  sprintSpeedThresholdMps: number;
-  highIntensitySpeedThresholdMps: number;
+  maxSpeedMps: number;
+  maxSpeedMode: 'Fixed' | 'Adaptive';
+  maxHeartRateBpm: number;
+  maxHeartRateMode: 'Fixed' | 'Adaptive';
+  sprintSpeedPercentOfMaxSpeed: number;
+  highIntensitySpeedPercentOfMaxSpeed: number;
   accelerationThresholdMps2: number;
   decelerationThresholdMps2: number;
+  effectiveMaxSpeedMps: number;
+  effectiveMaxHeartRateBpm: number;
   version: number;
   updatedAtUtc: string;
 };
@@ -288,9 +294,17 @@ type TranslationKey =
   | 'profileCurrentPosition'
   | 'profileThresholdsTitle'
   | 'profileThresholdSprint'
+  | 'profileThresholdSprintMode'
   | 'profileThresholdHighIntensity'
+  | 'profileThresholdHighIntensityMode'
   | 'profileThresholdAcceleration'
+  | 'profileThresholdAccelerationMode'
   | 'profileThresholdDeceleration'
+  | 'profileThresholdDecelerationMode'
+  | 'profileThresholdModeLabel'
+  | 'profileThresholdModeFixed'
+  | 'profileThresholdModeAdaptive'
+  | 'profileAdaptiveDataBasisHint'
   | 'profileThresholdVersion'
   | 'profileThresholdUpdatedAt'
   | 'profileDefaultSmoothingFilter'
@@ -469,10 +483,18 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileValidationSecondaryDistinct: 'Primary and secondary position must differ.',
     profileCurrentPosition: 'Current profile: {primary} / {secondary}',
     profileThresholdsTitle: 'Metric thresholds',
-    profileThresholdSprint: 'Sprint speed threshold (m/s)',
-    profileThresholdHighIntensity: 'High-intensity speed threshold (m/s)',
+    profileThresholdSprint: 'Sprint speed threshold (% of max speed)',
+    profileThresholdSprintMode: 'Max speed mode',
+    profileThresholdHighIntensity: 'High-intensity speed threshold (% of max speed)',
+    profileThresholdHighIntensityMode: 'Max heartrate mode',
     profileThresholdAcceleration: 'Acceleration threshold (m/s²)',
+    profileThresholdAccelerationMode: 'Effective max speed (read-only in adaptive mode)',
     profileThresholdDeceleration: 'Deceleration threshold (m/s²)',
+    profileThresholdDecelerationMode: 'Effective max heartrate (read-only in adaptive mode)',
+    profileThresholdModeLabel: 'Threshold mode',
+    profileThresholdModeFixed: 'Fixed',
+    profileThresholdModeAdaptive: 'Adaptive (max over all sessions)',
+    profileAdaptiveDataBasisHint: 'Adaptive mode uses the current maximum value across all sessions as data basis.',
     profileThresholdVersion: 'Threshold version',
     profileThresholdUpdatedAt: 'Last updated (UTC)',
     profileDefaultSmoothingFilter: 'Default smoothing filter',
@@ -646,10 +668,18 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileValidationSecondaryDistinct: 'Primär- und Sekundärposition müssen unterschiedlich sein.',
     profileCurrentPosition: 'Aktuelles Profil: {primary} / {secondary}',
     profileThresholdsTitle: 'Metrik-Schwellenwerte',
-    profileThresholdSprint: 'Sprint-Schwelle (m/s)',
-    profileThresholdHighIntensity: 'High-Intensity-Schwelle (m/s)',
+    profileThresholdSprint: 'Sprint-Schwelle (% von Max Speed)',
+    profileThresholdSprintMode: 'Modus Max Speed',
+    profileThresholdHighIntensity: 'High-Intensity-Schwelle (% von Max Speed)',
+    profileThresholdHighIntensityMode: 'Modus Max Heartrate',
     profileThresholdAcceleration: 'Beschleunigungs-Schwelle (m/s²)',
+    profileThresholdAccelerationMode: 'Effektive Max Speed (read-only bei adaptiv)',
     profileThresholdDeceleration: 'Verzögerungs-Schwelle (m/s²)',
+    profileThresholdDecelerationMode: 'Effektive Max Heartrate (read-only bei adaptiv)',
+    profileThresholdModeLabel: 'Schwellenmodus',
+    profileThresholdModeFixed: 'Fix',
+    profileThresholdModeAdaptive: 'Adaptiv (Maximum über alle Sessions)',
+    profileAdaptiveDataBasisHint: 'Der adaptive Modus nutzt als Datenbasis den aktuellen Maximalwert über alle Sessions.',
     profileThresholdVersion: 'Schwellen-Version',
     profileThresholdUpdatedAt: 'Zuletzt aktualisiert (UTC)',
     profileDefaultSmoothingFilter: 'Standard-Glättungsfilter',
@@ -982,10 +1012,16 @@ export function App() {
     primaryPosition: 'CentralMidfielder',
     secondaryPosition: null,
     metricThresholds: {
-      sprintSpeedThresholdMps: 7.0,
-      highIntensitySpeedThresholdMps: 5.5,
+      maxSpeedMps: 8.0,
+      maxSpeedMode: 'Adaptive',
+      maxHeartRateBpm: 190,
+      maxHeartRateMode: 'Adaptive',
+      sprintSpeedPercentOfMaxSpeed: 90,
+      highIntensitySpeedPercentOfMaxSpeed: 70,
       accelerationThresholdMps2: 2.0,
       decelerationThresholdMps2: -2.0,
+      effectiveMaxSpeedMps: 8.0,
+      effectiveMaxHeartRateBpm: 190,
       version: 1,
       updatedAtUtc: new Date().toISOString()
     },
@@ -1306,6 +1342,17 @@ export function App() {
 
   const selectedFilterDescription = t[getFilterDescriptionKey(selectedFilter)];
 
+  const displayedMaxSpeedMps = profileForm.metricThresholds.maxSpeedMode === 'Adaptive'
+    ? profileForm.metricThresholds.effectiveMaxSpeedMps
+    : profileForm.metricThresholds.maxSpeedMps;
+
+  const displayedMaxHeartRateBpm = profileForm.metricThresholds.maxHeartRateMode === 'Adaptive'
+    ? profileForm.metricThresholds.effectiveMaxHeartRateBpm
+    : profileForm.metricThresholds.maxHeartRateBpm;
+
+  const sprintThresholdMpsPreview = displayedMaxSpeedMps * (profileForm.metricThresholds.sprintSpeedPercentOfMaxSpeed / 100);
+  const highIntensityThresholdMpsPreview = displayedMaxSpeedMps * (profileForm.metricThresholds.highIntensitySpeedPercentOfMaxSpeed / 100);
+
   const compareCandidates = sortedHistory.filter((record) => compareSelectedSessionIds.includes(record.id));
   const compareSessions = compareCandidates.slice(0, 4);
   const compareBaseline = compareSessions.find((session) => session.id === compareBaselineSessionId) ?? compareSessions[0] ?? null;
@@ -1467,30 +1514,80 @@ export function App() {
           <p>{t.profileDefaultSmoothingFilterHelp}</p>
 
           <h3>{t.profileThresholdsTitle}</h3>
+          <label htmlFor="profile-threshold-max-speed">Max speed (m/s)</label>
+          <input
+            id="profile-threshold-max-speed"
+            type="number"
+            step="0.1"
+            value={displayedMaxSpeedMps}
+            readOnly={profileForm.metricThresholds.maxSpeedMode === 'Adaptive'}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, maxSpeedMps: Number(event.target.value) }
+            }))}
+          />
+          <label htmlFor="profile-threshold-sprint-mode">{t.profileThresholdSprintMode}</label>
+          <select
+            id="profile-threshold-sprint-mode"
+            value={profileForm.metricThresholds.maxSpeedMode}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, maxSpeedMode: event.target.value as 'Fixed' | 'Adaptive' }
+            }))}
+          >
+            <option value="Fixed">{t.profileThresholdModeFixed}</option>
+            <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
+          </select>
+
+          <label htmlFor="profile-threshold-max-heartrate">Max heartrate (bpm)</label>
+          <input
+            id="profile-threshold-max-heartrate"
+            type="number"
+            step="1"
+            value={displayedMaxHeartRateBpm}
+            readOnly={profileForm.metricThresholds.maxHeartRateMode === 'Adaptive'}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, maxHeartRateBpm: Number(event.target.value) }
+            }))}
+          />
+          <label htmlFor="profile-threshold-high-intensity-mode">{t.profileThresholdHighIntensityMode}</label>
+          <select
+            id="profile-threshold-high-intensity-mode"
+            value={profileForm.metricThresholds.maxHeartRateMode}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, maxHeartRateMode: event.target.value as 'Fixed' | 'Adaptive' }
+            }))}
+          >
+            <option value="Fixed">{t.profileThresholdModeFixed}</option>
+            <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
+          </select>
+
           <label htmlFor="profile-threshold-sprint">{t.profileThresholdSprint}</label>
           <input
             id="profile-threshold-sprint"
             type="number"
             step="0.1"
-            value={profileForm.metricThresholds.sprintSpeedThresholdMps}
+            value={profileForm.metricThresholds.sprintSpeedPercentOfMaxSpeed}
             onChange={(event) => setProfileForm((current) => ({
               ...current,
-              metricThresholds: { ...current.metricThresholds, sprintSpeedThresholdMps: Number(event.target.value) }
+              metricThresholds: { ...current.metricThresholds, sprintSpeedPercentOfMaxSpeed: Number(event.target.value) }
             }))}
           />
-
+          <p>Calculated sprint threshold: {sprintThresholdMpsPreview.toFixed(2)} m/s</p>
           <label htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
           <input
             id="profile-threshold-high-intensity"
             type="number"
             step="0.1"
-            value={profileForm.metricThresholds.highIntensitySpeedThresholdMps}
+            value={profileForm.metricThresholds.highIntensitySpeedPercentOfMaxSpeed}
             onChange={(event) => setProfileForm((current) => ({
               ...current,
-              metricThresholds: { ...current.metricThresholds, highIntensitySpeedThresholdMps: Number(event.target.value) }
+              metricThresholds: { ...current.metricThresholds, highIntensitySpeedPercentOfMaxSpeed: Number(event.target.value) }
             }))}
           />
-
+          <p>Calculated high-intensity threshold: {highIntensityThresholdMpsPreview.toFixed(2)} m/s</p>
           <label htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
           <input
             id="profile-threshold-acceleration"
@@ -1502,7 +1599,6 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, accelerationThresholdMps2: Number(event.target.value) }
             }))}
           />
-
           <label htmlFor="profile-threshold-deceleration">{t.profileThresholdDeceleration}</label>
           <input
             id="profile-threshold-deceleration"
@@ -1514,6 +1610,7 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, decelerationThresholdMps2: Number(event.target.value) }
             }))}
           />
+          <p>{t.profileAdaptiveDataBasisHint}</p>
 
           <p>{t.profileThresholdVersion}: {profileForm.metricThresholds.version}</p>
           <p>{t.profileThresholdUpdatedAt}: {formatUtcDateTime(profileForm.metricThresholds.updatedAtUtc, locale, t.notAvailable)}</p>

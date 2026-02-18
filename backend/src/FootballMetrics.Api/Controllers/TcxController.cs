@@ -17,16 +17,19 @@ public class TcxController : ControllerBase
     private readonly ILogger<TcxController> _logger;
     private readonly IUploadFormatAdapterResolver _uploadFormatAdapterResolver;
     private readonly IUserProfileRepository _userProfileRepository;
+    private readonly IMetricThresholdResolver _metricThresholdResolver;
 
     public TcxController(
         ITcxUploadRepository repository,
         IUploadFormatAdapterResolver uploadFormatAdapterResolver,
         IUserProfileRepository userProfileRepository,
+        IMetricThresholdResolver metricThresholdResolver,
         ILogger<TcxController> logger)
     {
         _repository = repository;
         _uploadFormatAdapterResolver = uploadFormatAdapterResolver;
         _userProfileRepository = userProfileRepository;
+        _metricThresholdResolver = metricThresholdResolver;
         _logger = logger;
     }
 
@@ -75,7 +78,7 @@ public class TcxController : ControllerBase
 
         var summary = parseResult.Summary!;
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
-        var metricThresholdSnapshot = profile.MetricThresholds;
+        var metricThresholdSnapshot = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
         var defaultSmoothingFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
         var appliedProfileSnapshot = CreateAppliedProfileSnapshot(metricThresholdSnapshot, defaultSmoothingFilter);
 
@@ -250,7 +253,8 @@ public class TcxController : ControllerBase
 
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
         var normalizedFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
-        var newSnapshot = CreateAppliedProfileSnapshot(profile.MetricThresholds, normalizedFilter);
+        var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
+        var newSnapshot = CreateAppliedProfileSnapshot(effectiveThresholds, normalizedFilter);
         var previousSnapshot = ResolveAppliedProfileSnapshot(upload);
         var previousHistory = ResolveRecalculationHistory(upload);
         var nextHistory = previousHistory
@@ -266,7 +270,7 @@ public class TcxController : ControllerBase
         await _repository.UpdateSelectedSmoothingFilterSourceAsync(id, TcxSmoothingFilterSources.ProfileRecalculation, cancellationToken);
         await _repository.UpdateProfileSnapshotsAsync(
             id,
-            JsonSerializer.Serialize(profile.MetricThresholds),
+            JsonSerializer.Serialize(effectiveThresholds),
             JsonSerializer.Serialize(newSnapshot),
             JsonSerializer.Serialize(nextHistory),
             cancellationToken);

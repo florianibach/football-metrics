@@ -128,10 +128,10 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** ich je nach Metrik entweder stabile Zielwerte oder automatisch gelernte Grenzwerte nutzen kann.
 
 ### Acceptance Criteria
-- [ ] Für relevante Schwellen kann im Profil pro Feld der Modus „Fix“ oder „Adaptiv“ ausgewählt werden.
-- [ ] Der adaptive Modus berechnet den Schwellenwert als Maximum über alle Sessions des Nutzers (mit transparenter Datenbasis).
-- [ ] Der aktuell wirksame Wert (inkl. Quelle: fix/adaptiv) wird in Profil und Session nachvollziehbar angezeigt.
-- [ ] Validierung und Hinweise verhindern widersprüchliche Konfigurationen.
+- [x] Für relevante Schwellen kann im Profil pro Feld der Modus „Fix“ oder „Adaptiv“ ausgewählt werden.
+- [x] Der adaptive Modus berechnet den Schwellenwert als Maximum über alle Sessions des Nutzers (mit transparenter Datenbasis).
+- [x] Der aktuell wirksame Wert (inkl. Quelle: fix/adaptiv) wird in Profil und Session nachvollziehbar angezeigt.
+- [x] Validierung und Hinweise verhindern widersprüchliche Konfigurationen.
 
 ---
 
@@ -141,11 +141,11 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** ich ohne manuelle Feinkonfiguration mit fachlich konsistenten Auswertungen starten kann.
 
 ### Acceptance Criteria
-- [ ] Der High-Intensity-Speed-Threshold wird als prozentualer Anteil der Max Speed definiert.
-- [ ] Max Speed ist standardmäßig auf „Adaptiv“ konfiguriert (Maximum über alle Sessions).
-- [ ] Max Heartrate ist standardmäßig auf „Adaptiv“ konfiguriert (Maximum über alle Sessions).
-- [ ] Acceleration- und Deceleration-Thresholds sind als fixe Werte konfigurierbar, aber nicht adaptiv erforderlich.
-- [ ] In der UI wird pro Schwelle klar erklärt, warum der jeweilige Default gewählt wurde.
+- [x] Der High-Intensity-Speed-Threshold wird als prozentualer Anteil der Max Speed definiert.
+- [x] Max Speed ist standardmäßig auf „Adaptiv“ konfiguriert (Maximum über alle Sessions).
+- [x] Max Heartrate ist standardmäßig auf „Adaptiv“ konfiguriert (Maximum über alle Sessions).
+- [x] Acceleration- und Deceleration-Thresholds sind als fixe Werte konfigurierbar, aber nicht adaptiv erforderlich.
+- [x] In der UI wird pro Schwelle klar erklärt, warum der jeweilige Default gewählt wurde.
 
 ---
 
@@ -173,3 +173,17 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 - [ ] Jede überführte Metrik enthält einen detaillierten Erklärungstext (Definition, Berechnungslogik, Interpretationshilfe).
 - [ ] Bei fehlenden Eingangsdaten wird die Metrik transparent als nicht verfügbar gekennzeichnet.
 - [ ] Die überführten Metriken sind in Vergleichsansichten konsistent mit vorhandenen Core Metrics nutzbar.
+
+
+---
+
+## Story R1.5-14: Relative Speed-Profile konsistent und transparent darstellen
+**Als** Nutzer
+**möchte ich** sehen, welche Basiswerte im adaptiven Modus wirksam sind und welche Schwellen daraus abgeleitet werden
+**damit** ich fixe und adaptive Konfigurationen fachlich korrekt nachvollziehen kann.
+
+### Acceptance Criteria
+- [ ] Im Profil sind `Max Speed` und `Max Heartrate` als einzige adaptiv/fix konfigurierbare absolute Basiswerte verfügbar.
+- [ ] `Sprint` und `High-Intensity` werden ausschließlich als Prozentwerte der effektiven Max Speed konfiguriert.
+- [ ] Bei adaptiver Konfiguration werden die effektiven Basiswerte im Profil read-only angezeigt.
+- [ ] Session-Threshold-Transparenz zeigt Basiswert, Quelle und daraus abgeleitete Schwellen konsistent an.

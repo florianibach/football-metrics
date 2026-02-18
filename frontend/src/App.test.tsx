@@ -43,10 +43,24 @@ describe('App', () => {
         heartRateRecoveryAfter60Seconds: { state: 'Available', reason: null }
       },
       thresholds: {
-        SprintSpeedThresholdMps: '7.0',
-        HighIntensitySpeedThresholdMps: '5.5',
+        MaxSpeedMps: '8.0',
+        MaxSpeedMode: 'Fixed',
+        MaxSpeedEffectiveMps: '8.0',
+        MaxSpeedSource: 'Fixed',
+        SprintSpeedPercentOfMaxSpeed: '90.0',
+        SprintSpeedThresholdMps: '7.2',
+        MaxHeartRateBpm: '190',
+        MaxHeartRateMode: 'Fixed',
+        MaxHeartRateEffectiveBpm: '190',
+        MaxHeartRateSource: 'Fixed',
+        HighIntensitySpeedPercentOfMaxSpeed: '70.0',
+        HighIntensitySpeedThresholdMps: '5.6',
         AccelerationThresholdMps2: '2.0',
-        DecelerationThresholdMps2: '-2.0'
+        AccelerationThresholdMode: 'Fixed',
+        AccelerationThresholdSource: 'Fixed',
+        DecelerationThresholdMps2: '-2.0',
+        DecelerationThresholdMode: 'Fixed',
+        DecelerationThresholdSource: 'Fixed'
       }
     };
   }
@@ -136,10 +150,16 @@ describe('App', () => {
       primaryPosition: 'CentralMidfielder',
       secondaryPosition: null,
       metricThresholds: {
-        sprintSpeedThresholdMps: 7.0,
-        highIntensitySpeedThresholdMps: 5.5,
+        maxSpeedMps: 8.0,
+        maxSpeedMode: 'Adaptive',
+        maxHeartRateBpm: 190,
+        maxHeartRateMode: 'Adaptive',
+        sprintSpeedPercentOfMaxSpeed: 90,
+        highIntensitySpeedPercentOfMaxSpeed: 70,
         accelerationThresholdMps2: 2.0,
+        effectiveMaxSpeedMps: 8.0,
         decelerationThresholdMps2: -2.0,
+        effectiveMaxHeartRateBpm: 190,
         version: 1,
         updatedAtUtc: '2026-02-16T22:00:00.000Z'
       },
@@ -459,8 +479,8 @@ describe('App', () => {
         trainingImpulseEdwards: 83.5,
         heartRateRecoveryAfter60Seconds: 22,
         thresholds: {
-          SprintSpeedThresholdMps: '7.0',
-          HighIntensitySpeedThresholdMps: '5.5',
+          MaxSpeedMps: '7.0',
+          MaxHeartRateBpm: '5.5',
           AccelerationThresholdMps2: '2.0',
           DecelerationThresholdMps2: '-2.0'
         }
@@ -575,8 +595,8 @@ describe('App', () => {
         trainingImpulseEdwards: 83.5,
         heartRateRecoveryAfter60Seconds: 22,
         thresholds: {
-          SprintSpeedThresholdMps: '7.0',
-          HighIntensitySpeedThresholdMps: '5.5',
+          MaxSpeedMps: '7.0',
+          MaxHeartRateBpm: '5.5',
           AccelerationThresholdMps2: '2.0',
           DecelerationThresholdMps2: '-2.0'
         }
@@ -684,8 +704,8 @@ describe('App', () => {
         trainingImpulseEdwards: 83.5,
         heartRateRecoveryAfter60Seconds: 22,
         thresholds: {
-          SprintSpeedThresholdMps: '7.0',
-          HighIntensitySpeedThresholdMps: '5.5',
+          MaxSpeedMps: '7.0',
+          MaxHeartRateBpm: '5.5',
           AccelerationThresholdMps2: '2.0',
           DecelerationThresholdMps2: '-2.0'
         }
@@ -792,8 +812,8 @@ describe('App', () => {
               trainingImpulseEdwards: 78.4,
               heartRateRecoveryAfter60Seconds: 19,
               thresholds: {
-                SprintSpeedThresholdMps: '7.0',
-                HighIntensitySpeedThresholdMps: '5.5',
+                MaxSpeedMps: '7.0',
+                MaxHeartRateBpm: '5.5',
                 AccelerationThresholdMps2: '2.0',
                 DecelerationThresholdMps2: '-2.0'
               }
@@ -847,8 +867,8 @@ describe('App', () => {
               trainingImpulseEdwards: null,
               heartRateRecoveryAfter60Seconds: null,
               thresholds: {
-                SprintSpeedThresholdMps: '7.0',
-                HighIntensitySpeedThresholdMps: '5.5',
+                MaxSpeedMps: '7.0',
+                MaxHeartRateBpm: '5.5',
                 AccelerationThresholdMps2: '2.0',
                 DecelerationThresholdMps2: '-2.0'
               }
@@ -1001,7 +1021,7 @@ describe('App', () => {
                 sprintDistanceMeters: { state: 'NotUsable', reason: 'GPS quality below threshold.' }
               },
               thresholds: {
-                SprintSpeedThresholdMps: '7.0'
+                MaxSpeedMps: '7.0'
               }
             }
           })
@@ -1320,7 +1340,7 @@ describe('App', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       const url = String(input);
       if (url.endsWith('/profile')) {
-        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { sprintSpeedThresholdMps: 7.8, highIntensitySpeedThresholdMps: 6.2, accelerationThresholdMps2: 2.4, decelerationThresholdMps2: -2.8, version: 3, updatedAtUtc: '2026-02-16T22:00:00.000Z' } }) } as Response);
+        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { maxSpeedMps: 7.8, maxSpeedMode: 'Fixed', maxHeartRateBpm: 192, maxHeartRateMode: 'Adaptive', sprintSpeedPercentOfMaxSpeed: 88, highIntensitySpeedPercentOfMaxSpeed: 68, accelerationThresholdMps2: 2.4, effectiveMaxSpeedMps: 7.8, decelerationThresholdMps2: -2.8, effectiveMaxHeartRateBpm: 192, version: 3, updatedAtUtc: '2026-02-16T22:00:00.000Z' } }) } as Response);
       }
 
       return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
@@ -1329,7 +1349,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('Metric thresholds')).toBeInTheDocument());
-    expect((screen.getByLabelText('Sprint speed threshold (m/s)') as HTMLInputElement).value).toBe('7.8');
+    expect((screen.getByLabelText('Max speed (m/s)') as HTMLInputElement).value).toBe('7.8');
     expect(screen.getByText('Threshold version: 3')).toBeInTheDocument();
   });
 
@@ -1342,8 +1362,8 @@ describe('App', () => {
 
       if (url.endsWith('/profile') && init?.method === 'PUT') {
         const body = JSON.parse(String(init.body));
-        if (body.metricThresholds?.sprintSpeedThresholdMps === 3) {
-          return Promise.resolve({ ok: false, text: async () => 'SprintSpeedThresholdMps must be between 4.0 and 12.0.' } as Response);
+        if (body.metricThresholds?.maxSpeedMps === 3) {
+          return Promise.resolve({ ok: false, text: async () => 'MaxSpeedMps must be between 4.0 and 12.0.' } as Response);
         }
 
         return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { ...body.metricThresholds, version: 2, updatedAtUtc: '2026-02-17T12:00:00.000Z' } }) } as Response);
@@ -1356,11 +1376,11 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Profile settings')).toBeInTheDocument());
 
-    fireEvent.change(screen.getByLabelText('Sprint speed threshold (m/s)'), { target: { value: '3.0' } });
+    fireEvent.change(screen.getByLabelText('Max speed (m/s)'), { target: { value: '3.0' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
     await waitFor(() => expect(screen.getByText(/Upload failed:/)).toBeInTheDocument());
 
-    fireEvent.change(screen.getByLabelText('Sprint speed threshold (m/s)'), { target: { value: '8.1' } });
+    fireEvent.change(screen.getByLabelText('Max speed (m/s)'), { target: { value: '8.1' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
@@ -1393,6 +1413,35 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+  });
+
+  it('R1_5_10_Ac01_Ac03_shows_and_saves_threshold_modes_with_adaptive_source_visibility', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      if (url.endsWith('/profile') && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { ...body.metricThresholds, version: 2, updatedAtUtc: '2026-02-17T12:00:00.000Z' } }) } as Response);
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: async () => [createUploadRecord({ summary: createSummary({ coreMetrics: { ...baseCoreMetrics(), thresholds: { ...baseCoreMetrics().thresholds, SprintSpeedThresholdSource: 'Adaptive' } } }) })]
+      } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Metric thresholds')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Max speed mode'), { target: { value: 'Adaptive' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
+    expect(screen.getByText(/MaxSpeedSource=/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
   });
 

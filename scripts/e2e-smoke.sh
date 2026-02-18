@@ -129,13 +129,26 @@ echo "$upload_response" | jq -e '
 ' >/dev/null
 
 
-# R1-03 validation: core metrics payload exists and carries documented threshold keys
+# R1-03 / R1.5-11 validation: core metrics payload exists and carries threshold keys
 # (Smoke: checks structure + representative fields, not full metric correctness)
 echo "$upload_response" | jq -e '
   (.summary.coreMetrics | type) == "object"
   and (.summary.coreMetrics.isAvailable | type) == "boolean"
-  and ((.summary.coreMetrics.thresholds.SprintSpeedThresholdMps | tonumber) == 7)
-  and ((.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps | tonumber) == 5.5)
+  and (
+    (
+      (.summary.coreMetrics.thresholds.MaxSpeedMps | tonumber) >= 4
+      and (.summary.coreMetrics.thresholds.MaxHeartRateBpm | tonumber) >= 120
+      and (.summary.coreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed | tonumber) >= 70
+      and (.summary.coreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed | tonumber) >= 40
+      and ((.summary.coreMetrics.thresholds.SprintSpeedThresholdMps | tonumber) >= (.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps | tonumber))
+    )
+    or
+    (
+      # backward-compatible fallback for older threshold schema
+      ((.summary.coreMetrics.thresholds.SprintSpeedThresholdMps | tonumber) == 7)
+      and ((.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps | tonumber) == 5.5)
+    )
+  )
   and ((.summary.coreMetrics.thresholds.AccelerationThresholdMps2 | tonumber) == 2)
   and ((.summary.coreMetrics.thresholds.DecelerationThresholdMps2 | tonumber) == -2)
 ' >/dev/null

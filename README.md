@@ -188,6 +188,21 @@ Empfohlener Sammelcheck:
 - Die Session-Filterauswahl bleibt pro Session manuell überschreibbar (`PUT /api/tcx/{id}/smoothing-filter`).
 - Die API liefert transparent die Herkunft des aktiven Filters über `selectedSmoothingFilterSource` mit `ProfileDefault` oder `ManualOverride`; die UI zeigt diese Herkunft in der Session-Detailansicht an.
 
+## Adaptive vs. fixe Schwellen im Profil (R1.5-10)
+
+- In den Profileinstellungen kann pro Schwelle ein Modus gewählt werden: `Fixed` oder `Adaptive`.
+- Für adaptive Schwellen berechnet das Backend den aktuell wirksamen Wert als Maximum über alle vorhandenen Sessions des Nutzers (Datenbasis: gespeicherte Session-Rohdaten).
+- In der Session-Ansicht werden Schwellen transparent mit Wert, Modus und Quelle (`...Source=Fixed|Adaptive`) angezeigt.
+- Validierung verhindert widersprüchliche Konfigurationen (Sprint- und High-Intensity-Schwelle können nicht gleichzeitig adaptiv sein).
+
+## Standardlogik für High-Intensity und physiologische Grenzwerte (R1.5-11)
+
+- `Max Speed` und `Max Heartrate` sind die einzigen absoluten Basiswerte mit Modus `Fixed`/`Adaptive`.
+- `Sprint` und `High-Intensity` werden als Prozentwerte der effektiven Max Speed konfiguriert und berechnet.
+- Herzfrequenzzonen werden auf Basis der effektiven Max Heartrate berechnet.
+- `Acceleration` und `Deceleration` bleiben feste Schwellen (fixed-only).
+- Im adaptiven Modus zeigt die Profil-UI den berechneten effektiven Basiswert read-only an.
+
 ## Fußball-Kernmetriken (R1-03)
 
 - Die API liefert unter `summary.coreMetrics` die v1-Kernmetriken: Distanz, Sprintdistanz, Anzahl Sprints, Maximalgeschwindigkeit, Hochintensitätszeit und Anzahl hochintensiver Läufe.

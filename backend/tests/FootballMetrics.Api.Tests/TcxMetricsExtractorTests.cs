@@ -413,8 +413,8 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.HeartRateZoneMediumSeconds.Should().NotBeNull();
         summary.CoreMetrics.HeartRateZoneHighSeconds.Should().NotBeNull();
         summary.CoreMetrics.TrainingImpulseEdwards.Should().BeGreaterThan(0);
-        summary.CoreMetrics.Thresholds["SprintSpeedThresholdMps"].Should().Be("7.0");
-        summary.CoreMetrics.Thresholds["HighIntensitySpeedThresholdMps"].Should().Be("5.5");
+        summary.CoreMetrics.Thresholds["SprintSpeedThresholdMps"].Should().Be("7.2");
+        summary.CoreMetrics.Thresholds["HighIntensitySpeedThresholdMps"].Should().Be("5.6");
         summary.CoreMetrics.Thresholds["AccelerationThresholdMps2"].Should().Be("2.0");
         summary.CoreMetrics.Thresholds["DecelerationThresholdMps2"].Should().Be("-2.0");
     }
