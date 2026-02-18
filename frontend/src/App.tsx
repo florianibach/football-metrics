@@ -93,13 +93,28 @@ type UserProfile = {
   defaultSmoothingFilter: SmoothingFilter;
 };
 
+type AppliedProfileSnapshot = {
+  thresholdVersion: number;
+  thresholdUpdatedAtUtc: string;
+  smoothingFilter: SmoothingFilter;
+  capturedAtUtc: string;
+};
+
+type SessionRecalculationEntry = {
+  recalculatedAtUtc: string;
+  previousProfile: AppliedProfileSnapshot;
+  newProfile: AppliedProfileSnapshot;
+};
+
 type UploadRecord = {
   id: string;
   fileName: string;
   uploadedAtUtc: string;
   summary: ActivitySummary;
   sessionContext: SessionContext;
-  selectedSmoothingFilterSource: 'ProfileDefault' | 'ManualOverride';
+  selectedSmoothingFilterSource: 'ProfileDefault' | 'ManualOverride' | 'ProfileRecalculation';
+  appliedProfileSnapshot: AppliedProfileSnapshot;
+  recalculationHistory: SessionRecalculationEntry[];
 };
 
 
@@ -291,7 +306,13 @@ type TranslationKey =
   | 'coreMetricsCategoryExternalTitle'
   | 'coreMetricsCategoryExternalHelp'
   | 'coreMetricsCategoryInternalTitle'
-  | 'coreMetricsCategoryInternalHelp';
+  | 'coreMetricsCategoryInternalHelp'
+  | 'sessionRecalculateButton'
+  | 'sessionRecalculateSuccess'
+  | 'sessionRecalculateProfileInfo'
+  | 'sessionRecalculateHistoryTitle'
+  | 'sessionRecalculateHistoryEmpty'
+  | 'filterSourceProfileRecalculation';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -459,6 +480,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterSourceLabel: 'Filter source',
     filterSourceProfileDefault: 'Profile default',
     filterSourceManualOverride: 'Manual override',
+    sessionRecalculateButton: 'Recalculate with current profile',
+    sessionRecalculateSuccess: 'Session recalculated with current profile settings.',
+    sessionRecalculateProfileInfo: 'Applied profile: threshold version {version} (updated {thresholdUpdated}), smoothing filter {filter} (captured {capturedAt}).',
+    sessionRecalculateHistoryTitle: 'Recalculation history',
+    sessionRecalculateHistoryEmpty: 'No recalculations yet.',
+    filterSourceProfileRecalculation: 'Profile recalculation',
     coreMetricsCategoryTitle: 'Metric categories',
     coreMetricsCategoryDescription: 'Separate external and internal load metrics to focus your interpretation. External metrics show what you did physically on the pitch, while internal metrics show how hard your body had to work to produce that output.',
     coreMetricsCategoryTabAll: 'All metrics',
@@ -630,6 +657,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterSourceLabel: 'Filter-Herkunft',
     filterSourceProfileDefault: 'Profil-Standard',
     filterSourceManualOverride: 'Manuelle Änderung',
+    sessionRecalculateButton: 'Mit aktuellem Profil neu berechnen',
+    sessionRecalculateSuccess: 'Session wurde mit aktuellen Profileinstellungen neu berechnet.',
+    sessionRecalculateProfileInfo: 'Aktiver Profilstand: Schwellen-Version {version} (aktualisiert {thresholdUpdated}), Glättungsfilter {filter} (übernommen {capturedAt}).',
+    sessionRecalculateHistoryTitle: 'Neuberechnungsverlauf',
+    sessionRecalculateHistoryEmpty: 'Noch keine Neuberechnungen.',
+    filterSourceProfileRecalculation: 'Profil-Neuberechnung',
     coreMetricsCategoryTitle: 'Metrik-Kategorien',
     coreMetricsCategoryDescription: 'Trenne externe und interne Belastungsmetriken für eine fokussierte Einordnung. Externe Metriken zeigen, was du auf dem Platz körperlich gemacht hast, interne Metriken zeigen, wie stark dein Körper dafür belastet wurde.',
     coreMetricsCategoryTabAll: 'Alle Metriken',
@@ -1103,6 +1136,25 @@ export function App() {
   }
 
 
+  async function onRecalculateWithCurrentProfile() {
+    if (!selectedSession) {
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}/recalculate`, { method: 'POST' });
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = (await response.json()) as UploadRecord;
+    setSelectedSession(payload);
+    setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
+    setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
+    setSessionContextForm(payload.sessionContext);
+    setMessage(t.sessionRecalculateSuccess);
+  }
+
+
   async function onSaveSessionContext() {
     if (!selectedSession) {
       return;
@@ -1408,7 +1460,7 @@ export function App() {
           >
             {smoothingFilterOptions.map((option) => (
               <option key={`profile-default-filter-${option}`} value={option}>
-                {getFilterLabel(option, t)}
+                {option === 'AdaptiveMedian' ? `${getFilterLabel(option, t)} (${t.filterRecommendedBadge})` : getFilterLabel(option, t)}
               </option>
             ))}
           </select>
@@ -1623,6 +1675,10 @@ export function App() {
       {selectedSession && (
         <section className="session-details" aria-live="polite">
           <h2>{t.summaryTitle}</h2>
+          <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
+          <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
+          <h3>{t.sessionRecalculateHistoryTitle}</h3>
+          {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className="metrics-list">{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
           <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
           <div className="session-context">
             <h3>{t.sessionContextTitle}</h3>
@@ -1696,7 +1752,7 @@ export function App() {
             <MetricListItem label={t.metricQualityStatus} value={qualityStatusText(selectedSession.summary.qualityStatus, t)} helpText={metricHelp.qualityStatus} />
             <MetricListItem label={t.metricQualityReasons} value={selectedSession.summary.qualityReasons.join(' | ')} helpText={metricHelp.qualityReasons} />
             <MetricListItem label={t.metricDataChange} value={dataChangeMetric} helpText={metricHelp.dataChange} />
-            <MetricListItem label={t.filterSourceLabel} value={selectedSession.selectedSmoothingFilterSource === 'ManualOverride' ? t.filterSourceManualOverride : t.filterSourceProfileDefault} />
+            <MetricListItem label={t.filterSourceLabel} value={selectedSession.selectedSmoothingFilterSource === 'ManualOverride' ? t.filterSourceManualOverride : selectedSession.selectedSmoothingFilterSource === 'ProfileRecalculation' ? t.filterSourceProfileRecalculation : t.filterSourceProfileDefault} />
             <MetricListItem label={t.metricSmoothingStrategy} value={selectedSession.summary.smoothing.selectedStrategy} helpText={metricHelp.smoothingStrategy} />
             <MetricListItem label={t.metricSmoothingOutlier} value={`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`} helpText={metricHelp.smoothingOutlier} />
           </ul>

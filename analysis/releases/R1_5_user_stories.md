@@ -115,10 +115,10 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** ich nach Profiländerungen direkt vergleichbare und aktuelle Kennzahlen erhalte.
 
 ### Acceptance Criteria
-- [ ] In der Session-Ansicht gibt es eine klare Aktion „Mit aktuellem Profil neu berechnen“.
-- [ ] Die Rekalkulation verwendet die aktuell aktiven Profileinstellungen (z. B. Schwellen, Filter-Default, Einheitenpräferenzen).
-- [ ] Das System dokumentiert, mit welchem Profilstand (Version/Timestamp) die alte und neue Berechnung erfolgt ist.
-- [ ] Historische Ergebnisse bleiben nachvollziehbar (keine stille Überschreibung ohne Hinweis).
+- [x] In der Session-Ansicht gibt es eine klare Aktion „Mit aktuellem Profil neu berechnen“.
+- [x] Die Rekalkulation verwendet die aktuell aktiven Profileinstellungen (z. B. Schwellen, Filter-Default, Einheitenpräferenzen).
+- [x] Das System dokumentiert, mit welchem Profilstand (Version/Timestamp) die alte und neue Berechnung erfolgt ist.
+- [x] Historische Ergebnisse bleiben nachvollziehbar (keine stille Überschreibung ohne Hinweis).
 
 ---
 

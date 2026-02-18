@@ -162,9 +162,79 @@ describe('App', () => {
         opponentLogoUrl: null
       },
       selectedSmoothingFilterSource: 'ProfileDefault',
+      appliedProfileSnapshot: {
+        thresholdVersion: 1,
+        thresholdUpdatedAtUtc: '2026-02-16T22:00:00.000Z',
+        smoothingFilter: 'AdaptiveMedian',
+        capturedAtUtc: '2026-02-16T22:00:00.000Z'
+      },
+      recalculationHistory: [],
       ...overrides
     };
   }
+
+
+
+  it('R1_5_09_Ac01_Ac04_recalculates_session_with_current_profile_and_shows_profile_history', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      if (url.includes('/recalculate') && init?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => createUploadRecord({
+            selectedSmoothingFilterSource: 'ProfileRecalculation',
+            appliedProfileSnapshot: {
+              thresholdVersion: 2,
+              thresholdUpdatedAtUtc: '2026-02-17T10:00:00.000Z',
+              smoothingFilter: 'Butterworth',
+              capturedAtUtc: '2026-02-17T10:01:00.000Z'
+            },
+            recalculationHistory: [{
+              recalculatedAtUtc: '2026-02-17T10:01:00.000Z',
+              previousProfile: {
+                thresholdVersion: 1,
+                thresholdUpdatedAtUtc: '2026-02-16T22:00:00.000Z',
+                smoothingFilter: 'AdaptiveMedian',
+                capturedAtUtc: '2026-02-16T22:00:00.000Z'
+              },
+              newProfile: {
+                thresholdVersion: 2,
+                thresholdUpdatedAtUtc: '2026-02-17T10:00:00.000Z',
+                smoothingFilter: 'Butterworth',
+                capturedAtUtc: '2026-02-17T10:01:00.000Z'
+              }
+            }],
+            summary: createSummary({
+              smoothing: {
+                ...createSummary().smoothing,
+                selectedStrategy: 'Butterworth'
+              }
+            })
+          })
+        } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Session details')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Recalculate with current profile' }));
+
+    await waitFor(() => expect(screen.getByText('Session recalculated with current profile settings.')).toBeInTheDocument());
+    expect(screen.getByText('Profile recalculation')).toBeInTheDocument();
+    expect(screen.getByText('Recalculation history')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('/api/tcx/upload-1/recalculate', expect.objectContaining({ method: 'POST' }));
+  });
 
   it('Mvp01_Ac01_renders english UI by default as browser language fallback', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => [] } as Response);
@@ -1073,7 +1143,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText(/low-pass filtering for strong noise suppression/)).toBeInTheDocument());
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
-    await waitFor(() => expect(screen.getByRole('option', { name: /AdaptiveMedian \(empfohlen\)/ })).toBeInTheDocument());
+    await waitFor(() => expect(within(filterSelector).getByRole('option', { name: /AdaptiveMedian \(empfohlen\)/ })).toBeInTheDocument());
     expect(screen.getByText(/Produktempfehlung: AdaptiveMedian ist der Standard/)).toBeInTheDocument();
     expect(screen.getByText(/Beim Wechsel des Glättungsfilters können sich Distanz/)).toBeInTheDocument();
     expect(screen.getByText(/Tiefpassfilter für starke Rauschunterdrückung/)).toBeInTheDocument();
@@ -1309,13 +1379,15 @@ describe('App', () => {
         return Promise.resolve({ ok: true, json: async () => createProfile(body) } as Response);
       }
 
-      return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
     });
 
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('Profile settings')).toBeInTheDocument());
     expect((screen.getByLabelText('Default smoothing filter') as HTMLSelectElement).value).toBe('Butterworth');
+    const profileFilterSelector = screen.getByLabelText('Default smoothing filter');
+    expect(within(profileFilterSelector).getByRole('option', { name: 'AdaptiveMedian (recommended)' })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Default smoothing filter'), { target: { value: 'Raw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
@@ -1323,6 +1395,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
   });
+
 
   it('R1_5_08_Ac04_shows_if_filter_is_profile_default_or_manual_override', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({

@@ -39,7 +39,9 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 Competition TEXT NULL,
                 OpponentName TEXT NULL,
                 OpponentLogoUrl TEXT NULL,
-                MetricThresholdSnapshotJson TEXT NULL
+                MetricThresholdSnapshotJson TEXT NULL,
+                AppliedProfileSnapshotJson TEXT NULL,
+                RecalculationHistoryJson TEXT NULL
             );
 
             CREATE INDEX IF NOT EXISTS IX_TcxUploads_UploadedAtUtc ON TcxUploads (UploadedAtUtc DESC);
@@ -68,6 +70,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "OpponentName", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "OpponentLogoUrl", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "MetricThresholdSnapshotJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "AppliedProfileSnapshotJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "RecalculationHistoryJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "MetricThresholdsJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "DefaultSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
     }
