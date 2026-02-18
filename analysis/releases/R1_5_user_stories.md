@@ -102,8 +102,8 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** neue Sessions automatisch mit meiner bevorzugten Voreinstellung starten.
 
 ### Acceptance Criteria
-- [ ] Im Profil kann ein Default-Filter (Raw, AdaptiveMedian, Savitzky-Golay, Butterworth) gesetzt werden.
-- [ ] Der Profil-Default wird bei neuen Session-Analysen automatisch vorausgewählt.
-- [ ] Pro Session kann der Nutzer den Profil-Default weiterhin manuell überschreiben.
-- [ ] In der Session ist transparent erkennbar, ob der aktive Filter aus dem Profil-Default stammt oder manuell geändert wurde.
+- [x] Im Profil kann ein Default-Filter (Raw, AdaptiveMedian, Savitzky-Golay, Butterworth) gesetzt werden.
+- [x] Der Profil-Default wird bei neuen Session-Analysen automatisch vorausgewählt.
+- [x] Pro Session kann der Nutzer den Profil-Default weiterhin manuell überschreiben.
+- [x] In der Session ist transparent erkennbar, ob der aktive Filter aus dem Profil-Default stammt oder manuell geändert wurde.
 

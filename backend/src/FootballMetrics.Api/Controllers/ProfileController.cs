@@ -19,7 +19,7 @@ public class ProfileController : ControllerBase
     public async Task<ActionResult<UserProfileResponse>> GetProfile(CancellationToken cancellationToken)
     {
         var profile = await _repository.GetAsync(cancellationToken);
-        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds));
+        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter));
     }
 
     [HttpPut]
@@ -55,6 +55,12 @@ public class ProfileController : ControllerBase
         }
 
         var existingProfile = await _repository.GetAsync(cancellationToken);
+        var normalizedDefaultSmoothingFilter = NormalizeDefaultSmoothingFilter(request.DefaultSmoothingFilter, existingProfile.DefaultSmoothingFilter);
+        if (normalizedDefaultSmoothingFilter is null)
+        {
+            return BadRequest($"Unsupported default smoothing filter. Supported values: {string.Join(", ", TcxSmoothingFilters.Supported)}.");
+        }
+
         var submittedThresholds = request.MetricThresholds ?? existingProfile.MetricThresholds;
         var validationError = MetricThresholdProfile.Validate(submittedThresholds);
         if (validationError is not null)
@@ -83,11 +89,23 @@ public class ProfileController : ControllerBase
             {
                 PrimaryPosition = primaryPosition,
                 SecondaryPosition = secondaryPosition,
-                MetricThresholds = normalizedThresholds
+                MetricThresholds = normalizedThresholds,
+                DefaultSmoothingFilter = normalizedDefaultSmoothingFilter
             },
             cancellationToken);
 
-        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds));
+        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter));
+    }
+
+    private static string? NormalizeDefaultSmoothingFilter(string? requestedFilter, string fallbackFilter)
+    {
+        if (string.IsNullOrWhiteSpace(requestedFilter))
+        {
+            return fallbackFilter;
+        }
+
+        return TcxSmoothingFilters.Supported.FirstOrDefault(filter =>
+            string.Equals(filter, requestedFilter.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 
     private static string? NormalizeSupportedPosition(string value)

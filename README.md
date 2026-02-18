@@ -181,6 +181,13 @@ Empfohlener Sammelcheck:
 - Alle Texte sind konsistent in **Deutsch/Englisch** lokalisiert und direkt im Bereich der Filterauswahl erreichbar.
 
 
+## Profil-Default für Glättungsfilter (R1.5-08)
+
+- Im Profil kann ein bevorzugter Standard-Glättungsfilter gesetzt werden (`Raw`, `AdaptiveMedian`, `Savitzky-Golay`, `Butterworth`).
+- Neue Uploads übernehmen diesen Profil-Default automatisch als initial aktiven Session-Filter.
+- Die Session-Filterauswahl bleibt pro Session manuell überschreibbar (`PUT /api/tcx/{id}/smoothing-filter`).
+- Die API liefert transparent die Herkunft des aktiven Filters über `selectedSmoothingFilterSource` mit `ProfileDefault` oder `ManualOverride`; die UI zeigt diese Herkunft in der Session-Detailansicht an.
+
 ## Fußball-Kernmetriken (R1-03)
 
 - Die API liefert unter `summary.coreMetrics` die v1-Kernmetriken: Distanz, Sprintdistanz, Anzahl Sprints, Maximalgeschwindigkeit, Hochintensitätszeit und Anzahl hochintensiver Läufe.

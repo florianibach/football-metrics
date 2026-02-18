@@ -90,6 +90,7 @@ type UserProfile = {
   primaryPosition: PlayerPosition;
   secondaryPosition: PlayerPosition | null;
   metricThresholds: MetricThresholdProfile;
+  defaultSmoothingFilter: SmoothingFilter;
 };
 
 type UploadRecord = {
@@ -98,6 +99,7 @@ type UploadRecord = {
   uploadedAtUtc: string;
   summary: ActivitySummary;
   sessionContext: SessionContext;
+  selectedSmoothingFilterSource: 'ProfileDefault' | 'ManualOverride';
 };
 
 
@@ -276,6 +278,11 @@ type TranslationKey =
   | 'profileThresholdDeceleration'
   | 'profileThresholdVersion'
   | 'profileThresholdUpdatedAt'
+  | 'profileDefaultSmoothingFilter'
+  | 'profileDefaultSmoothingFilterHelp'
+  | 'filterSourceLabel'
+  | 'filterSourceProfileDefault'
+  | 'filterSourceManualOverride'
   | 'coreMetricsCategoryTitle'
   | 'coreMetricsCategoryDescription'
   | 'coreMetricsCategoryTabAll'
@@ -447,6 +454,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdDeceleration: 'Deceleration threshold (m/s²)',
     profileThresholdVersion: 'Threshold version',
     profileThresholdUpdatedAt: 'Last updated (UTC)',
+    profileDefaultSmoothingFilter: 'Default smoothing filter',
+    profileDefaultSmoothingFilterHelp: 'Used as preselected filter for new session analyses. You can still override per session.',
+    filterSourceLabel: 'Filter source',
+    filterSourceProfileDefault: 'Profile default',
+    filterSourceManualOverride: 'Manual override',
     coreMetricsCategoryTitle: 'Metric categories',
     coreMetricsCategoryDescription: 'Separate external and internal load metrics to focus your interpretation. External metrics show what you did physically on the pitch, while internal metrics show how hard your body had to work to produce that output.',
     coreMetricsCategoryTabAll: 'All metrics',
@@ -613,6 +625,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdDeceleration: 'Verzögerungs-Schwelle (m/s²)',
     profileThresholdVersion: 'Schwellen-Version',
     profileThresholdUpdatedAt: 'Zuletzt aktualisiert (UTC)',
+    profileDefaultSmoothingFilter: 'Standard-Glättungsfilter',
+    profileDefaultSmoothingFilterHelp: 'Wird bei neuen Session-Analysen vorausgewählt. Pro Session kannst du weiterhin manuell überschreiben.',
+    filterSourceLabel: 'Filter-Herkunft',
+    filterSourceProfileDefault: 'Profil-Standard',
+    filterSourceManualOverride: 'Manuelle Änderung',
     coreMetricsCategoryTitle: 'Metrik-Kategorien',
     coreMetricsCategoryDescription: 'Trenne externe und interne Belastungsmetriken für eine fokussierte Einordnung. Externe Metriken zeigen, was du auf dem Platz körperlich gemacht hast, interne Metriken zeigen, wie stark dein Körper dafür belastet wurde.',
     coreMetricsCategoryTabAll: 'Alle Metriken',
@@ -878,6 +895,21 @@ function getFileValidationMessage(file: File | null, locale: Locale): string | n
   return null;
 }
 
+const smoothingFilterOptions: SmoothingFilter[] = ['Raw', 'AdaptiveMedian', 'Savitzky-Golay', 'Butterworth'];
+
+function getFilterLabel(filter: SmoothingFilter, t: Record<TranslationKey, string>): string {
+  switch (filter) {
+    case 'Raw':
+      return t.filterRaw;
+    case 'Savitzky-Golay':
+      return t.filterSavitzkyGolay;
+    case 'Butterworth':
+      return t.filterButterworth;
+    default:
+      return t.filterAdaptiveMedian;
+  }
+}
+
 function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
   switch (filter) {
     case 'Raw':
@@ -923,7 +955,8 @@ export function App() {
       decelerationThresholdMps2: -2.0,
       version: 1,
       updatedAtUtc: new Date().toISOString()
-    }
+    },
+    defaultSmoothingFilter: 'AdaptiveMedian'
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
 
@@ -977,7 +1010,8 @@ export function App() {
             setProfileForm({
               primaryPosition: profilePayload.primaryPosition as PlayerPosition,
               secondaryPosition: (profilePayload.secondaryPosition as PlayerPosition | null) ?? null,
-              metricThresholds: profilePayload.metricThresholds as MetricThresholdProfile
+              metricThresholds: profilePayload.metricThresholds as MetricThresholdProfile,
+              defaultSmoothingFilter: (profilePayload.defaultSmoothingFilter as SmoothingFilter) ?? 'AdaptiveMedian'
             });
           }
           setUploadHistory(payload);
@@ -1163,7 +1197,8 @@ export function App() {
     setProfileForm({
       primaryPosition: payload.primaryPosition,
       secondaryPosition: payload.secondaryPosition,
-      metricThresholds: payload.metricThresholds
+      metricThresholds: payload.metricThresholds,
+      defaultSmoothingFilter: payload.defaultSmoothingFilter
     });
     setProfileValidationMessage(t.profileSaveSuccess);
   }
@@ -1364,6 +1399,20 @@ export function App() {
               <option key={position} value={position}>{playerPositionLabels[locale][position]}</option>
             ))}
           </select>
+
+          <label htmlFor="profile-default-filter">{t.profileDefaultSmoothingFilter}</label>
+          <select
+            id="profile-default-filter"
+            value={profileForm.defaultSmoothingFilter}
+            onChange={(event) => setProfileForm((current) => ({ ...current, defaultSmoothingFilter: event.target.value as SmoothingFilter }))}
+          >
+            {smoothingFilterOptions.map((option) => (
+              <option key={`profile-default-filter-${option}`} value={option}>
+                {getFilterLabel(option, t)}
+              </option>
+            ))}
+          </select>
+          <p>{t.profileDefaultSmoothingFilterHelp}</p>
 
           <h3>{t.profileThresholdsTitle}</h3>
           <label htmlFor="profile-threshold-sprint">{t.profileThresholdSprint}</label>
@@ -1647,6 +1696,7 @@ export function App() {
             <MetricListItem label={t.metricQualityStatus} value={qualityStatusText(selectedSession.summary.qualityStatus, t)} helpText={metricHelp.qualityStatus} />
             <MetricListItem label={t.metricQualityReasons} value={selectedSession.summary.qualityReasons.join(' | ')} helpText={metricHelp.qualityReasons} />
             <MetricListItem label={t.metricDataChange} value={dataChangeMetric} helpText={metricHelp.dataChange} />
+            <MetricListItem label={t.filterSourceLabel} value={selectedSession.selectedSmoothingFilterSource === 'ManualOverride' ? t.filterSourceManualOverride : t.filterSourceProfileDefault} />
             <MetricListItem label={t.metricSmoothingStrategy} value={selectedSession.summary.smoothing.selectedStrategy} helpText={metricHelp.smoothingStrategy} />
             <MetricListItem label={t.metricSmoothingOutlier} value={`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`} helpText={metricHelp.smoothingOutlier} />
           </ul>

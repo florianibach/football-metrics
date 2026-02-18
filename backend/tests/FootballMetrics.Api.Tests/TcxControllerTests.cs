@@ -464,6 +464,49 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
 
     [Fact]
+    public async Task R1_5_08_Ac02_UploadShouldUseProfileDefaultSmoothingFilter()
+    {
+        var client = _factory.CreateClient();
+
+        var profileUpdate = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth));
+        profileUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var form = CreateUploadForm(
+            "r1-5-08-profile-default.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        created.Should().NotBeNull();
+        created!.Summary.Smoothing.SelectedStrategy.Should().Be(TcxSmoothingFilters.Butterworth);
+        created.SelectedSmoothingFilterSource.Should().Be(TcxSmoothingFilterSources.ProfileDefault);
+    }
+
+    [Fact]
+    public async Task R1_5_08_Ac03_Ac04_ManualSessionFilterChange_ShouldMarkManualOverrideAndKeepTransparentSource()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "r1-5-08-manual-override.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+
+        var putResponse = await client.PutAsJsonAsync($"/api/tcx/{created!.Id}/smoothing-filter", new { filter = "Raw" });
+        putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var updated = await putResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        updated.Should().NotBeNull();
+        updated!.Summary.Smoothing.SelectedStrategy.Should().Be(TcxSmoothingFilters.Raw);
+        updated.SelectedSmoothingFilterSource.Should().Be(TcxSmoothingFilterSources.ManualOverride);
+    }
+
+
+    [Fact]
     public async Task R1_5_03_Ac01_Ac02_Ac03_Ac04_UpdateSessionContext_ShouldPersistAndReturnUpdatedContext()
     {
         var client = _factory.CreateClient();
@@ -550,6 +593,8 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+        public Task<bool> UpdateSelectedSmoothingFilterSourceAsync(Guid id, string selectedSmoothingFilterSource, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 
     private sealed class ThrowingThenRejectingSameIdRepository : ITcxUploadRepository
@@ -586,13 +631,15 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+        public Task<bool> UpdateSelectedSmoothingFilterSourceAsync(Guid id, string selectedSmoothingFilterSource, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 
     public record TcxUploadResponseDto(Guid Id, string FileName, DateTime UploadedAtUtc);
 
-    public record TcxUploadResponseWithSummaryDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary);
+    public record TcxUploadResponseWithSummaryDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, string SelectedSmoothingFilterSource);
 
-    public record TcxUploadResponseWithSummaryAndContextDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, SessionContextDto SessionContext);
+    public record TcxUploadResponseWithSummaryAndContextDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, SessionContextDto SessionContext, string SelectedSmoothingFilterSource);
 
     public record SessionContextDto(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);
 
