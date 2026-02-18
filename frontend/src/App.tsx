@@ -39,6 +39,19 @@ type FootballCoreMetrics = {
   thresholds: Record<string, string>;
 };
 
+type IntervalAggregate = {
+  windowMinutes: number;
+  windowIndex: number;
+  windowStartUtc: string;
+  windowEndUtc: string;
+  coveredSeconds: number;
+  missingSeconds: number;
+  hasMissingData: boolean;
+  externalDistanceMeters: number | null;
+  internalAverageHeartRateBpm: number | null;
+  internalTrainingImpulseEdwards: number | null;
+};
+
 type ActivitySummary = {
   activityStartTimeUtc: string | null;
   durationSeconds: number | null;
@@ -54,6 +67,7 @@ type ActivitySummary = {
   qualityReasons: string[];
   smoothing: SmoothingTrace;
   coreMetrics: FootballCoreMetrics;
+  intervalAggregates: IntervalAggregate[];
 };
 
 type UploadRecord = {
@@ -192,7 +206,19 @@ type TranslationKey =
   | 'metricHrZoneMedium'
   | 'metricHrZoneHigh'
   | 'metricTrimpEdwards'
-  | 'metricHrRecovery60';
+  | 'metricHrRecovery60'
+  | 'intervalAggregationTitle'
+  | 'intervalAggregationWindowLabel'
+  | 'intervalAggregationWindow1'
+  | 'intervalAggregationWindow2'
+  | 'intervalAggregationWindow5'
+  | 'intervalAggregationStart'
+  | 'intervalAggregationExternalDistance'
+  | 'intervalAggregationInternalAvgHeartRate'
+  | 'intervalAggregationInternalLoad'
+  | 'intervalAggregationMissing'
+  | 'intervalAggregationMissingBadge'
+  | 'intervalAggregationNoData';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -309,7 +335,19 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHrZoneMedium: 'HR zone 70-85%',
     metricHrZoneHigh: 'HR zone >85%',
     metricTrimpEdwards: 'TRIMP (Edwards)',
-    metricHrRecovery60: 'HR recovery after 60s' 
+    metricHrRecovery60: 'HR recovery after 60s',
+    intervalAggregationTitle: 'Interval aggregation (1 / 2 / 5 minutes)',
+    intervalAggregationWindowLabel: 'Aggregation window',
+    intervalAggregationWindow1: '1 minute',
+    intervalAggregationWindow2: '2 minutes',
+    intervalAggregationWindow5: '5 minutes',
+    intervalAggregationStart: 'Window start',
+    intervalAggregationExternalDistance: 'External: distance',
+    intervalAggregationInternalAvgHeartRate: 'Internal: average heart rate',
+    intervalAggregationInternalLoad: 'Internal: load (TRIMP)',
+    intervalAggregationMissing: 'Missing data',
+    intervalAggregationMissingBadge: 'Data gap',
+    intervalAggregationNoData: 'No interval data available for this session.'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -663,6 +701,7 @@ export function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
+  const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(1);
 
   const t = translations[locale];
   const metricHelp = metricExplanations[locale];
@@ -965,6 +1004,16 @@ export function App() {
       cells
     };
   });
+  const selectedSessionAggregates = useMemo(() => {
+    if (!selectedSession) {
+      return [];
+    }
+
+    return selectedSession.summary.intervalAggregates
+      .filter((aggregate) => aggregate.windowMinutes === aggregationWindowMinutes)
+      .sort((a, b) => a.windowIndex - b.windowIndex);
+  }, [selectedSession, aggregationWindowMinutes]);
+
 
   return (
     <main className="container">
@@ -1193,6 +1242,50 @@ export function App() {
               <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(selectedSession.summary.coreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
             </ul>
           </div>
+          <div className="interval-aggregation">
+            <h3>{t.intervalAggregationTitle}</h3>
+            <label htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
+            <select
+              id="interval-window-selector"
+              value={aggregationWindowMinutes}
+              onChange={(event) => setAggregationWindowMinutes(Number(event.target.value) as 1 | 2 | 5)}
+            >
+              <option value={1}>{t.intervalAggregationWindow1}</option>
+              <option value={2}>{t.intervalAggregationWindow2}</option>
+              <option value={5}>{t.intervalAggregationWindow5}</option>
+            </select>
+            {selectedSessionAggregates.length === 0 ? (
+              <p>{t.intervalAggregationNoData}</p>
+            ) : (
+              <table className="history-table interval-table">
+                <thead>
+                  <tr>
+                    <th>{t.intervalAggregationStart}</th>
+                    <th>{t.intervalAggregationExternalDistance}</th>
+                    <th>{t.intervalAggregationInternalAvgHeartRate}</th>
+                    <th>{t.intervalAggregationInternalLoad}</th>
+                    <th>{t.intervalAggregationMissing}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedSessionAggregates.map((aggregate) => (
+                    <tr key={`${aggregate.windowMinutes}-${aggregate.windowIndex}`}>
+                      <td>{formatLocalDateTime(aggregate.windowStartUtc)}</td>
+                      <td>{formatDistanceComparison(aggregate.externalDistanceMeters, locale, t.notAvailable)}</td>
+                      <td>{aggregate.internalAverageHeartRateBpm !== null ? `${aggregate.internalAverageHeartRateBpm} bpm` : t.notAvailable}</td>
+                      <td>{formatNumber(aggregate.internalTrainingImpulseEdwards, locale, t.notAvailable, 2)}</td>
+                      <td>
+                        {aggregate.hasMissingData
+                          ? `${t.intervalAggregationMissingBadge} (${formatNumber(aggregate.missingSeconds, locale, t.notAvailable, 1)}s)`
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
           {(showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
             <div className="detail-hints" role="status">
               {showMissingHeartRateHint && <p>{t.detailMissingHeartRateHint}</p>}

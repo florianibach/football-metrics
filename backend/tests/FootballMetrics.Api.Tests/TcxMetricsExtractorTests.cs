@@ -252,6 +252,68 @@ public class TcxMetricsExtractorTests
     }
 
 
+
+    [Fact]
+    public void R1_5_02_Ac01_Ac02_Extract_ShouldBuildAggregatesForOneTwoAndFiveMinuteWindows()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Id>2026-02-16T10:00:00Z</Id>
+      <Lap>
+        <Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0000</LatitudeDegrees><LongitudeDegrees>7.0000</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:45Z</Time><Position><LatitudeDegrees>50.0003</LatitudeDegrees><LongitudeDegrees>7.0003</LongitudeDegrees></Position><HeartRateBpm><Value>140</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:01:50Z</Time><Position><LatitudeDegrees>50.0006</LatitudeDegrees><LongitudeDegrees>7.0006</LongitudeDegrees></Position><HeartRateBpm><Value>150</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:03:20Z</Time><Position><LatitudeDegrees>50.0010</LatitudeDegrees><LongitudeDegrees>7.0010</LongitudeDegrees></Position><HeartRateBpm><Value>155</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:05:00Z</Time><Position><LatitudeDegrees>50.0013</LatitudeDegrees><LongitudeDegrees>7.0013</LongitudeDegrees></Position><HeartRateBpm><Value>148</Value></HeartRateBpm></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.IntervalAggregates.Should().Contain(item => item.WindowMinutes == 1);
+        summary.IntervalAggregates.Should().Contain(item => item.WindowMinutes == 2);
+        summary.IntervalAggregates.Should().Contain(item => item.WindowMinutes == 5);
+
+        summary.IntervalAggregates
+            .Where(item => item.WindowMinutes == 1)
+            .Should()
+            .OnlyContain(item => item.ExternalDistanceMeters.HasValue || item.InternalAverageHeartRateBpm.HasValue || item.InternalTrainingImpulseEdwards.HasValue);
+    }
+
+    [Fact]
+    public void R1_5_02_Ac03_Ac04_Extract_ShouldMarkMissingDataWithoutSilentInterpolation()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Id>2026-02-16T10:00:00Z</Id>
+      <Lap>
+        <Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0000</LatitudeDegrees><LongitudeDegrees>7.0000</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:15Z</Time><Position><LatitudeDegrees>50.0001</LatitudeDegrees><LongitudeDegrees>7.0001</LongitudeDegrees></Position><HeartRateBpm><Value>132</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:02:40Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position><HeartRateBpm><Value>135</Value></HeartRateBpm></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        var oneMinuteWindows = summary.IntervalAggregates.Where(item => item.WindowMinutes == 1).ToList();
+        oneMinuteWindows.Should().NotBeEmpty();
+        oneMinuteWindows.Should().Contain(item => item.HasMissingData);
+
+        var missingWindow = oneMinuteWindows.First(item => item.HasMissingData);
+        missingWindow.MissingSeconds.Should().BeGreaterThan(0);
+        missingWindow.CoveredSeconds.Should().BeLessThanOrEqualTo(60);
+    }
+
     [Fact]
     public void R1_01_Ac01_Ac03_Extract_ShouldApplyFootballAdaptiveSmoothingAndCorrectOutlier()
     {

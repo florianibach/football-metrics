@@ -62,6 +62,56 @@ describe('App', () => {
           DecelerationThresholdMps2: '-2.0'
         }
       },
+      intervalAggregates: [
+        {
+          windowMinutes: 1,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:01:00.000Z',
+          coveredSeconds: 60,
+          missingSeconds: 0,
+          hasMissingData: false,
+          externalDistanceMeters: 180,
+          internalAverageHeartRateBpm: 142,
+          internalTrainingImpulseEdwards: 1.8
+        },
+        {
+          windowMinutes: 1,
+          windowIndex: 1,
+          windowStartUtc: '2026-02-16T21:01:00.000Z',
+          windowEndUtc: '2026-02-16T21:02:00.000Z',
+          coveredSeconds: 45,
+          missingSeconds: 15,
+          hasMissingData: true,
+          externalDistanceMeters: 150,
+          internalAverageHeartRateBpm: 150,
+          internalTrainingImpulseEdwards: 2.3
+        },
+        {
+          windowMinutes: 2,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:02:00.000Z',
+          coveredSeconds: 105,
+          missingSeconds: 15,
+          hasMissingData: true,
+          externalDistanceMeters: 330,
+          internalAverageHeartRateBpm: 146,
+          internalTrainingImpulseEdwards: 4.1
+        },
+        {
+          windowMinutes: 5,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:05:00.000Z',
+          coveredSeconds: 180,
+          missingSeconds: 120,
+          hasMissingData: true,
+          externalDistanceMeters: 510,
+          internalAverageHeartRateBpm: 148,
+          internalTrainingImpulseEdwards: 7.6
+        }
+      ],
       smoothing: {
         selectedStrategy: 'AdaptiveMedian',
         selectedParameters: {
@@ -319,6 +369,56 @@ describe('App', () => {
           DecelerationThresholdMps2: '-2.0'
         }
       },
+      intervalAggregates: [
+        {
+          windowMinutes: 1,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:01:00.000Z',
+          coveredSeconds: 60,
+          missingSeconds: 0,
+          hasMissingData: false,
+          externalDistanceMeters: 180,
+          internalAverageHeartRateBpm: 142,
+          internalTrainingImpulseEdwards: 1.8
+        },
+        {
+          windowMinutes: 1,
+          windowIndex: 1,
+          windowStartUtc: '2026-02-16T21:01:00.000Z',
+          windowEndUtc: '2026-02-16T21:02:00.000Z',
+          coveredSeconds: 45,
+          missingSeconds: 15,
+          hasMissingData: true,
+          externalDistanceMeters: 150,
+          internalAverageHeartRateBpm: 150,
+          internalTrainingImpulseEdwards: 2.3
+        },
+        {
+          windowMinutes: 2,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:02:00.000Z',
+          coveredSeconds: 105,
+          missingSeconds: 15,
+          hasMissingData: true,
+          externalDistanceMeters: 330,
+          internalAverageHeartRateBpm: 146,
+          internalTrainingImpulseEdwards: 4.1
+        },
+        {
+          windowMinutes: 5,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:05:00.000Z',
+          coveredSeconds: 180,
+          missingSeconds: 120,
+          hasMissingData: true,
+          externalDistanceMeters: 510,
+          internalAverageHeartRateBpm: 148,
+          internalTrainingImpulseEdwards: 7.6
+        }
+      ],
       smoothing: {
               selectedStrategy: 'AdaptiveMedian',
               selectedParameters: {
@@ -389,6 +489,56 @@ describe('App', () => {
           DecelerationThresholdMps2: '-2.0'
         }
       },
+      intervalAggregates: [
+        {
+          windowMinutes: 1,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:01:00.000Z',
+          coveredSeconds: 60,
+          missingSeconds: 0,
+          hasMissingData: false,
+          externalDistanceMeters: 180,
+          internalAverageHeartRateBpm: 142,
+          internalTrainingImpulseEdwards: 1.8
+        },
+        {
+          windowMinutes: 1,
+          windowIndex: 1,
+          windowStartUtc: '2026-02-16T21:01:00.000Z',
+          windowEndUtc: '2026-02-16T21:02:00.000Z',
+          coveredSeconds: 45,
+          missingSeconds: 15,
+          hasMissingData: true,
+          externalDistanceMeters: 150,
+          internalAverageHeartRateBpm: 150,
+          internalTrainingImpulseEdwards: 2.3
+        },
+        {
+          windowMinutes: 2,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:02:00.000Z',
+          coveredSeconds: 105,
+          missingSeconds: 15,
+          hasMissingData: true,
+          externalDistanceMeters: 330,
+          internalAverageHeartRateBpm: 146,
+          internalTrainingImpulseEdwards: 4.1
+        },
+        {
+          windowMinutes: 5,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:05:00.000Z',
+          coveredSeconds: 180,
+          missingSeconds: 120,
+          hasMissingData: true,
+          externalDistanceMeters: 510,
+          internalAverageHeartRateBpm: 148,
+          internalTrainingImpulseEdwards: 7.6
+        }
+      ],
       smoothing: {
               selectedStrategy: 'AdaptiveMedian',
               selectedParameters: {
@@ -452,6 +602,56 @@ describe('App', () => {
           DecelerationThresholdMps2: '-2.0'
         }
       },
+      intervalAggregates: [
+        {
+          windowMinutes: 1,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:01:00.000Z',
+          coveredSeconds: 60,
+          missingSeconds: 0,
+          hasMissingData: false,
+          externalDistanceMeters: 180,
+          internalAverageHeartRateBpm: 142,
+          internalTrainingImpulseEdwards: 1.8
+        },
+        {
+          windowMinutes: 1,
+          windowIndex: 1,
+          windowStartUtc: '2026-02-16T21:01:00.000Z',
+          windowEndUtc: '2026-02-16T21:02:00.000Z',
+          coveredSeconds: 45,
+          missingSeconds: 15,
+          hasMissingData: true,
+          externalDistanceMeters: 150,
+          internalAverageHeartRateBpm: 150,
+          internalTrainingImpulseEdwards: 2.3
+        },
+        {
+          windowMinutes: 2,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:02:00.000Z',
+          coveredSeconds: 105,
+          missingSeconds: 15,
+          hasMissingData: true,
+          externalDistanceMeters: 330,
+          internalAverageHeartRateBpm: 146,
+          internalTrainingImpulseEdwards: 4.1
+        },
+        {
+          windowMinutes: 5,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowEndUtc: '2026-02-16T21:05:00.000Z',
+          coveredSeconds: 180,
+          missingSeconds: 120,
+          hasMissingData: true,
+          externalDistanceMeters: 510,
+          internalAverageHeartRateBpm: 148,
+          internalTrainingImpulseEdwards: 7.6
+        }
+      ],
       smoothing: {
               selectedStrategy: 'AdaptiveMedian',
               selectedParameters: {
@@ -928,6 +1128,25 @@ describe('App', () => {
 
     fireEvent.click(compareCheckboxes[1]);
     await waitFor(() => expect(screen.queryByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).not.toBeInTheDocument());
+  });
+
+
+  it('R1_5_02_Ac01_Ac02_Ac04_shows_aggregated_intervals_with_window_switch_and_missing_data_marker', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => [createUploadRecord()] } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Data gap (15.0s)')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Data gap (120.0s)')).toBeInTheDocument();
+    });
   });
 
 });
