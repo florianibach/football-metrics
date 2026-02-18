@@ -1307,8 +1307,8 @@ describe('App', () => {
 
     expect(screen.getByText('External metrics (movement-based)')).toBeInTheDocument();
     expect(screen.getByText('Internal metrics (heart-rate-based)')).toBeInTheDocument();
-    expect(screen.getByText(/External metrics describe physical output/)).toBeInTheDocument();
-    expect(screen.getByText(/Internal metrics describe physiological response/)).toBeInTheDocument();
+    expect(screen.getByText(/External metrics describe your visible physical output/)).toBeInTheDocument();
+    expect(screen.getByText(/Internal metrics describe your physiological response/)).toBeInTheDocument();
   });
 
   it('R1_5_06_Ac04_filters_metric_view_by_category_tabs', async () => {

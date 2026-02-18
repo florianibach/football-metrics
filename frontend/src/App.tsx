@@ -448,14 +448,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdVersion: 'Threshold version',
     profileThresholdUpdatedAt: 'Last updated (UTC)',
     coreMetricsCategoryTitle: 'Metric categories',
-    coreMetricsCategoryDescription: 'Separate external and internal load metrics to focus your interpretation.',
+    coreMetricsCategoryDescription: 'Separate external and internal load metrics to focus your interpretation. External metrics show what you did physically on the pitch, while internal metrics show how hard your body had to work to produce that output.',
     coreMetricsCategoryTabAll: 'All metrics',
     coreMetricsCategoryTabExternal: 'External metrics',
     coreMetricsCategoryTabInternal: 'Internal metrics',
     coreMetricsCategoryExternalTitle: 'External metrics (movement-based)',
-    coreMetricsCategoryExternalHelp: 'External metrics describe physical output measured from movement and speed data (distance, speed, accelerations).',
+    coreMetricsCategoryExternalHelp: 'External metrics describe your visible physical output and answer: What did I do on the pitch? They are built from movement and speed data, for example distance covered, top speed, and acceleration/deceleration events. In simple terms, these values show your running volume and intensity independent of how your body felt internally. A high external load usually means many intense actions, but it does not automatically mean your body coped well with them.',
     coreMetricsCategoryInternalTitle: 'Internal metrics (heart-rate-based)',
-    coreMetricsCategoryInternalHelp: 'Internal metrics describe physiological response measured from heart-rate intensity and recovery behavior.'
+    coreMetricsCategoryInternalHelp: 'Internal metrics describe your physiological response and answer: How hard did this session feel for my body? They are derived from heart-rate intensity and recovery behavior, for example time in heart-rate zones, TRIMP load, and heart-rate recovery. In simple terms, these values show your cardiovascular strain and recovery quality, even when movement output is similar. If internal load is unusually high compared with external load, this can indicate fatigue, stress, heat effects, or incomplete recovery.'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -614,14 +614,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdVersion: 'Schwellen-Version',
     profileThresholdUpdatedAt: 'Zuletzt aktualisiert (UTC)',
     coreMetricsCategoryTitle: 'Metrik-Kategorien',
-    coreMetricsCategoryDescription: 'Trenne externe und interne Belastungsmetriken für eine fokussierte Einordnung.',
+    coreMetricsCategoryDescription: 'Trenne externe und interne Belastungsmetriken für eine fokussierte Einordnung. Externe Metriken zeigen, was du auf dem Platz körperlich gemacht hast, interne Metriken zeigen, wie stark dein Körper dafür belastet wurde.',
     coreMetricsCategoryTabAll: 'Alle Metriken',
     coreMetricsCategoryTabExternal: 'Externe Metriken',
     coreMetricsCategoryTabInternal: 'Interne Metriken',
     coreMetricsCategoryExternalTitle: 'Externe Metriken (bewegungsbasiert)',
-    coreMetricsCategoryExternalHelp: 'Externe Metriken beschreiben die physische Leistung anhand von Bewegungs- und Geschwindigkeitsdaten (Distanz, Tempo, Beschleunigungen).',
+    coreMetricsCategoryExternalHelp: 'Externe Metriken beschreiben deine sichtbare körperliche Leistung und beantworten: Was habe ich auf dem Platz gemacht? Sie basieren auf Bewegungs- und Geschwindigkeitsdaten, zum Beispiel Distanz, Maximaltempo sowie Beschleunigungs- und Abbremsaktionen. Vereinfacht zeigen diese Werte Laufumfang und Bewegungsintensität – unabhängig davon, wie sich dein Körper dabei intern belastet hat. Eine hohe externe Last bedeutet meist viele intensive Aktionen, sagt aber allein noch nicht, wie gut dein Körper diese Last verkraftet hat.',
     coreMetricsCategoryInternalTitle: 'Interne Metriken (herzfrequenzbasiert)',
-    coreMetricsCategoryInternalHelp: 'Interne Metriken beschreiben die physiologische Reaktion über Herzfrequenzintensität und Erholungsverhalten.'
+    coreMetricsCategoryInternalHelp: 'Interne Metriken beschreiben deine physiologische Reaktion und beantworten: Wie anstrengend war die Einheit für meinen Körper? Sie werden aus Herzfrequenzintensität und Erholungsverhalten abgeleitet, zum Beispiel Zeit in HF-Zonen, TRIMP-Belastung und Herzfrequenz-Erholung. Vereinfacht zeigen diese Werte die innere Herz-Kreislauf-Belastung und die Erholungsqualität – auch dann, wenn die äußere Laufleistung ähnlich war. Ist die interne Last im Verhältnis zur externen Last ungewöhnlich hoch, kann das auf Müdigkeit, Stress, Hitzeeinfluss oder unvollständige Regeneration hindeuten.'
   }
 };
 
