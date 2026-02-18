@@ -128,10 +128,10 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** ich je nach Metrik entweder stabile Zielwerte oder automatisch gelernte Grenzwerte nutzen kann.
 
 ### Acceptance Criteria
-- [ ] Für relevante Schwellen kann im Profil pro Feld der Modus „Fix“ oder „Adaptiv“ ausgewählt werden.
-- [ ] Der adaptive Modus berechnet den Schwellenwert als Maximum über alle Sessions des Nutzers (mit transparenter Datenbasis).
-- [ ] Der aktuell wirksame Wert (inkl. Quelle: fix/adaptiv) wird in Profil und Session nachvollziehbar angezeigt.
-- [ ] Validierung und Hinweise verhindern widersprüchliche Konfigurationen.
+- [x] Für relevante Schwellen kann im Profil pro Feld der Modus „Fix“ oder „Adaptiv“ ausgewählt werden.
+- [x] Der adaptive Modus berechnet den Schwellenwert als Maximum über alle Sessions des Nutzers (mit transparenter Datenbasis).
+- [x] Der aktuell wirksame Wert (inkl. Quelle: fix/adaptiv) wird in Profil und Session nachvollziehbar angezeigt.
+- [x] Validierung und Hinweise verhindern widersprüchliche Konfigurationen.
 
 ---
 

@@ -128,4 +128,44 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task R1_5_10_Ac01_Ac04_UpdateProfile_ShouldPersistThresholdModesAndRejectInvalidMode()
+    {
+        var client = _factory.CreateClient();
+
+        var validRequest = new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, new MetricThresholdProfile
+        {
+            SprintSpeedThresholdMps = 8.0,
+            SprintSpeedThresholdMode = MetricThresholdModes.Adaptive,
+            HighIntensitySpeedThresholdMps = 6.0,
+            HighIntensitySpeedThresholdMode = MetricThresholdModes.Fixed,
+            AccelerationThresholdMps2 = 2.5,
+            AccelerationThresholdMode = MetricThresholdModes.Fixed,
+            DecelerationThresholdMps2 = -2.5,
+            DecelerationThresholdMode = MetricThresholdModes.Adaptive
+        }, null);
+
+        var updateResponse = await client.PutAsJsonAsync("/api/profile", validRequest);
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updatedPayload = await updateResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
+        updatedPayload.Should().NotBeNull();
+        updatedPayload!.MetricThresholds.SprintSpeedThresholdMode.Should().Be(MetricThresholdModes.Adaptive);
+        updatedPayload.MetricThresholds.DecelerationThresholdMode.Should().Be(MetricThresholdModes.Adaptive);
+
+        var invalidRequest = new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, new MetricThresholdProfile
+        {
+            SprintSpeedThresholdMps = 8.0,
+            SprintSpeedThresholdMode = "BrokenMode",
+            HighIntensitySpeedThresholdMps = 6.0,
+            HighIntensitySpeedThresholdMode = MetricThresholdModes.Fixed,
+            AccelerationThresholdMps2 = 2.5,
+            AccelerationThresholdMode = MetricThresholdModes.Fixed,
+            DecelerationThresholdMps2 = -2.5,
+            DecelerationThresholdMode = MetricThresholdModes.Fixed
+        }, null);
+
+        var invalidResponse = await client.PutAsJsonAsync("/api/profile", invalidRequest);
+        invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }

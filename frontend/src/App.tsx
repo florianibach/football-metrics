@@ -79,9 +79,13 @@ type PlayerPosition = 'Goalkeeper' | 'CentreBack' | 'FullBack' | 'DefensiveMidfi
 
 type MetricThresholdProfile = {
   sprintSpeedThresholdMps: number;
+  sprintSpeedThresholdMode: 'Fixed' | 'Adaptive';
   highIntensitySpeedThresholdMps: number;
+  highIntensitySpeedThresholdMode: 'Fixed' | 'Adaptive';
   accelerationThresholdMps2: number;
+  accelerationThresholdMode: 'Fixed' | 'Adaptive';
   decelerationThresholdMps2: number;
+  decelerationThresholdMode: 'Fixed' | 'Adaptive';
   version: number;
   updatedAtUtc: string;
 };
@@ -288,9 +292,17 @@ type TranslationKey =
   | 'profileCurrentPosition'
   | 'profileThresholdsTitle'
   | 'profileThresholdSprint'
+  | 'profileThresholdSprintMode'
   | 'profileThresholdHighIntensity'
+  | 'profileThresholdHighIntensityMode'
   | 'profileThresholdAcceleration'
+  | 'profileThresholdAccelerationMode'
   | 'profileThresholdDeceleration'
+  | 'profileThresholdDecelerationMode'
+  | 'profileThresholdModeLabel'
+  | 'profileThresholdModeFixed'
+  | 'profileThresholdModeAdaptive'
+  | 'profileAdaptiveDataBasisHint'
   | 'profileThresholdVersion'
   | 'profileThresholdUpdatedAt'
   | 'profileDefaultSmoothingFilter'
@@ -470,9 +482,17 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileCurrentPosition: 'Current profile: {primary} / {secondary}',
     profileThresholdsTitle: 'Metric thresholds',
     profileThresholdSprint: 'Sprint speed threshold (m/s)',
+    profileThresholdSprintMode: 'Sprint threshold mode',
     profileThresholdHighIntensity: 'High-intensity speed threshold (m/s)',
+    profileThresholdHighIntensityMode: 'High-intensity threshold mode',
     profileThresholdAcceleration: 'Acceleration threshold (m/s²)',
+    profileThresholdAccelerationMode: 'Acceleration threshold mode',
     profileThresholdDeceleration: 'Deceleration threshold (m/s²)',
+    profileThresholdDecelerationMode: 'Deceleration threshold mode',
+    profileThresholdModeLabel: 'Threshold mode',
+    profileThresholdModeFixed: 'Fixed',
+    profileThresholdModeAdaptive: 'Adaptive (max over all sessions)',
+    profileAdaptiveDataBasisHint: 'Adaptive mode uses the current maximum value across all sessions as data basis.',
     profileThresholdVersion: 'Threshold version',
     profileThresholdUpdatedAt: 'Last updated (UTC)',
     profileDefaultSmoothingFilter: 'Default smoothing filter',
@@ -647,9 +667,17 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileCurrentPosition: 'Aktuelles Profil: {primary} / {secondary}',
     profileThresholdsTitle: 'Metrik-Schwellenwerte',
     profileThresholdSprint: 'Sprint-Schwelle (m/s)',
+    profileThresholdSprintMode: 'Modus Sprint-Schwelle',
     profileThresholdHighIntensity: 'High-Intensity-Schwelle (m/s)',
+    profileThresholdHighIntensityMode: 'Modus High-Intensity-Schwelle',
     profileThresholdAcceleration: 'Beschleunigungs-Schwelle (m/s²)',
+    profileThresholdAccelerationMode: 'Modus Beschleunigungs-Schwelle',
     profileThresholdDeceleration: 'Verzögerungs-Schwelle (m/s²)',
+    profileThresholdDecelerationMode: 'Modus Verzögerungs-Schwelle',
+    profileThresholdModeLabel: 'Schwellenmodus',
+    profileThresholdModeFixed: 'Fix',
+    profileThresholdModeAdaptive: 'Adaptiv (Maximum über alle Sessions)',
+    profileAdaptiveDataBasisHint: 'Der adaptive Modus nutzt als Datenbasis den aktuellen Maximalwert über alle Sessions.',
     profileThresholdVersion: 'Schwellen-Version',
     profileThresholdUpdatedAt: 'Zuletzt aktualisiert (UTC)',
     profileDefaultSmoothingFilter: 'Standard-Glättungsfilter',
@@ -983,9 +1011,13 @@ export function App() {
     secondaryPosition: null,
     metricThresholds: {
       sprintSpeedThresholdMps: 7.0,
+      sprintSpeedThresholdMode: 'Fixed',
       highIntensitySpeedThresholdMps: 5.5,
+      highIntensitySpeedThresholdMode: 'Fixed',
       accelerationThresholdMps2: 2.0,
+      accelerationThresholdMode: 'Fixed',
       decelerationThresholdMps2: -2.0,
+      decelerationThresholdMode: 'Fixed',
       version: 1,
       updatedAtUtc: new Date().toISOString()
     },
@@ -1478,6 +1510,18 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, sprintSpeedThresholdMps: Number(event.target.value) }
             }))}
           />
+          <label htmlFor="profile-threshold-sprint-mode">{t.profileThresholdSprintMode}</label>
+          <select
+            id="profile-threshold-sprint-mode"
+            value={profileForm.metricThresholds.sprintSpeedThresholdMode}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, sprintSpeedThresholdMode: event.target.value as 'Fixed' | 'Adaptive' }
+            }))}
+          >
+            <option value="Fixed">{t.profileThresholdModeFixed}</option>
+            <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
+          </select>
 
           <label htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
           <input
@@ -1490,6 +1534,18 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, highIntensitySpeedThresholdMps: Number(event.target.value) }
             }))}
           />
+          <label htmlFor="profile-threshold-high-intensity-mode">{t.profileThresholdHighIntensityMode}</label>
+          <select
+            id="profile-threshold-high-intensity-mode"
+            value={profileForm.metricThresholds.highIntensitySpeedThresholdMode}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, highIntensitySpeedThresholdMode: event.target.value as 'Fixed' | 'Adaptive' }
+            }))}
+          >
+            <option value="Fixed">{t.profileThresholdModeFixed}</option>
+            <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
+          </select>
 
           <label htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
           <input
@@ -1502,6 +1558,18 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, accelerationThresholdMps2: Number(event.target.value) }
             }))}
           />
+          <label htmlFor="profile-threshold-acceleration-mode">{t.profileThresholdAccelerationMode}</label>
+          <select
+            id="profile-threshold-acceleration-mode"
+            value={profileForm.metricThresholds.accelerationThresholdMode}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, accelerationThresholdMode: event.target.value as 'Fixed' | 'Adaptive' }
+            }))}
+          >
+            <option value="Fixed">{t.profileThresholdModeFixed}</option>
+            <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
+          </select>
 
           <label htmlFor="profile-threshold-deceleration">{t.profileThresholdDeceleration}</label>
           <input
@@ -1514,6 +1582,20 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, decelerationThresholdMps2: Number(event.target.value) }
             }))}
           />
+          <label htmlFor="profile-threshold-deceleration-mode">{t.profileThresholdDecelerationMode}</label>
+          <select
+            id="profile-threshold-deceleration-mode"
+            value={profileForm.metricThresholds.decelerationThresholdMode}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, decelerationThresholdMode: event.target.value as 'Fixed' | 'Adaptive' }
+            }))}
+          >
+            <option value="Fixed">{t.profileThresholdModeFixed}</option>
+            <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
+          </select>
+
+          <p>{t.profileAdaptiveDataBasisHint}</p>
 
           <p>{t.profileThresholdVersion}: {profileForm.metricThresholds.version}</p>
           <p>{t.profileThresholdUpdatedAt}: {formatUtcDateTime(profileForm.metricThresholds.updatedAtUtc, locale, t.notAvailable)}</p>

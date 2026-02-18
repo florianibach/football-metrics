@@ -44,9 +44,17 @@ describe('App', () => {
       },
       thresholds: {
         SprintSpeedThresholdMps: '7.0',
+        SprintSpeedThresholdMode: 'Fixed',
+        SprintSpeedThresholdSource: 'Fixed',
         HighIntensitySpeedThresholdMps: '5.5',
+        HighIntensitySpeedThresholdMode: 'Fixed',
+        HighIntensitySpeedThresholdSource: 'Fixed',
         AccelerationThresholdMps2: '2.0',
-        DecelerationThresholdMps2: '-2.0'
+        AccelerationThresholdMode: 'Fixed',
+        AccelerationThresholdSource: 'Fixed',
+        DecelerationThresholdMps2: '-2.0',
+        DecelerationThresholdMode: 'Fixed',
+        DecelerationThresholdSource: 'Fixed'
       }
     };
   }
@@ -137,9 +145,13 @@ describe('App', () => {
       secondaryPosition: null,
       metricThresholds: {
         sprintSpeedThresholdMps: 7.0,
+        sprintSpeedThresholdMode: 'Fixed',
         highIntensitySpeedThresholdMps: 5.5,
+        highIntensitySpeedThresholdMode: 'Fixed',
         accelerationThresholdMps2: 2.0,
+        accelerationThresholdMode: 'Fixed',
         decelerationThresholdMps2: -2.0,
+        decelerationThresholdMode: 'Fixed',
         version: 1,
         updatedAtUtc: '2026-02-16T22:00:00.000Z'
       },
@@ -1320,7 +1332,7 @@ describe('App', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       const url = String(input);
       if (url.endsWith('/profile')) {
-        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { sprintSpeedThresholdMps: 7.8, highIntensitySpeedThresholdMps: 6.2, accelerationThresholdMps2: 2.4, decelerationThresholdMps2: -2.8, version: 3, updatedAtUtc: '2026-02-16T22:00:00.000Z' } }) } as Response);
+        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { sprintSpeedThresholdMps: 7.8, sprintSpeedThresholdMode: 'Fixed', highIntensitySpeedThresholdMps: 6.2, highIntensitySpeedThresholdMode: 'Fixed', accelerationThresholdMps2: 2.4, accelerationThresholdMode: 'Fixed', decelerationThresholdMps2: -2.8, decelerationThresholdMode: 'Fixed', version: 3, updatedAtUtc: '2026-02-16T22:00:00.000Z' } }) } as Response);
       }
 
       return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
@@ -1393,6 +1405,35 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+  });
+
+  it('R1_5_10_Ac01_Ac03_shows_and_saves_threshold_modes_with_adaptive_source_visibility', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      if (url.endsWith('/profile') && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { ...body.metricThresholds, version: 2, updatedAtUtc: '2026-02-17T12:00:00.000Z' } }) } as Response);
+      }
+
+      return Promise.resolve({
+        ok: true,
+        json: async () => [createUploadRecord({ summary: createSummary({ coreMetrics: { ...baseCoreMetrics(), thresholds: { ...baseCoreMetrics().thresholds, SprintSpeedThresholdSource: 'Adaptive' } } }) })]
+      } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Metric thresholds')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Sprint threshold mode'), { target: { value: 'Adaptive' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
+    expect(screen.getByText(/SprintSpeedThresholdSource=Adaptive/)).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
   });
 
