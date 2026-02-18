@@ -1539,15 +1539,6 @@ export function App() {
             <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
           </select>
 
-          <label htmlFor="profile-threshold-effective-max-speed">{t.profileThresholdAccelerationMode}</label>
-          <input
-            id="profile-threshold-effective-max-speed"
-            type="number"
-            step="0.1"
-            value={profileForm.metricThresholds.effectiveMaxSpeedMps}
-            readOnly
-          />
-
           <label htmlFor="profile-threshold-max-heartrate">Max heartrate (bpm)</label>
           <input
             id="profile-threshold-max-heartrate"
@@ -1572,15 +1563,6 @@ export function App() {
             <option value="Fixed">{t.profileThresholdModeFixed}</option>
             <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
           </select>
-
-          <label htmlFor="profile-threshold-effective-max-heartrate">{t.profileThresholdDecelerationMode}</label>
-          <input
-            id="profile-threshold-effective-max-heartrate"
-            type="number"
-            step="1"
-            value={profileForm.metricThresholds.effectiveMaxHeartRateBpm}
-            readOnly
-          />
 
           <label htmlFor="profile-threshold-sprint">{t.profileThresholdSprint}</label>
           <input
