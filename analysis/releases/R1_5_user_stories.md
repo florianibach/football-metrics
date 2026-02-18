@@ -164,11 +164,12 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 
 ## Story R1.5-13: Football Core Metrics um Basis-Belastungsmetriken erweitern
 **Als** Nutzer
-**möchte ich** zusätzliche Core Metrics (Duration, Heart Rate min/avg/max, Direction Changes) sehen
+**möchte ich** Duration, Heart Rate (min/avg/max) und Direction Changes im Bereich „Football Core Metrics“ sehen
 **damit** ich die Session-Belastung vollständiger bewerten kann.
 
 ### Acceptance Criteria
-- [ ] Die Football Core Metrics enthalten zusätzlich: Duration, Heart Rate (min/avg/max) und Direction Changes.
-- [ ] Jede neue Metrik enthält einen detaillierten Erklärungstext (Definition, Berechnungslogik, Interpretationshilfe).
+- [ ] Die bereits in der UI vorhandenen Metriken Duration, Heart Rate (min/avg/max) und Direction Changes werden in den Bereich „Football Core Metrics“ überführt (keine Doppelanzeige in alten Bereichen).
+- [ ] Die Metriken sind fachlich kategorisiert: Heart Rate (min/avg/max) als interne Metriken; Duration und Direction Changes als externe Metriken.
+- [ ] Jede überführte Metrik enthält einen detaillierten Erklärungstext (Definition, Berechnungslogik, Interpretationshilfe).
 - [ ] Bei fehlenden Eingangsdaten wird die Metrik transparent als nicht verfügbar gekennzeichnet.
-- [ ] Die neuen Metriken sind in Vergleichsansichten konsistent mit vorhandenen Core Metrics nutzbar.
+- [ ] Die überführten Metriken sind in Vergleichsansichten konsistent mit vorhandenen Core Metrics nutzbar.
