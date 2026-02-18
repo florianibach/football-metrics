@@ -1460,7 +1460,7 @@ export function App() {
           >
             {smoothingFilterOptions.map((option) => (
               <option key={`profile-default-filter-${option}`} value={option}>
-                {getFilterLabel(option, t)}
+                {option === 'AdaptiveMedian' ? `${getFilterLabel(option, t)} (${t.filterRecommendedBadge})` : getFilterLabel(option, t)}
               </option>
             ))}
           </select>

@@ -1143,7 +1143,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText(/low-pass filtering for strong noise suppression/)).toBeInTheDocument());
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
-    await waitFor(() => expect(screen.getByRole('option', { name: /AdaptiveMedian \(empfohlen\)/ })).toBeInTheDocument());
+    await waitFor(() => expect(within(filterSelector).getByRole('option', { name: /AdaptiveMedian \(empfohlen\)/ })).toBeInTheDocument());
     expect(screen.getByText(/Produktempfehlung: AdaptiveMedian ist der Standard/)).toBeInTheDocument();
     expect(screen.getByText(/Beim Wechsel des Glättungsfilters können sich Distanz/)).toBeInTheDocument();
     expect(screen.getByText(/Tiefpassfilter für starke Rauschunterdrückung/)).toBeInTheDocument();
@@ -1379,13 +1379,15 @@ describe('App', () => {
         return Promise.resolve({ ok: true, json: async () => createProfile(body) } as Response);
       }
 
-      return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
     });
 
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('Profile settings')).toBeInTheDocument());
     expect((screen.getByLabelText('Default smoothing filter') as HTMLSelectElement).value).toBe('Butterworth');
+    const profileFilterSelector = screen.getByLabelText('Default smoothing filter');
+    expect(within(profileFilterSelector).getByRole('option', { name: 'AdaptiveMedian (recommended)' })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Default smoothing filter'), { target: { value: 'Raw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
@@ -1393,6 +1395,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
   });
+
 
   it('R1_5_08_Ac04_shows_if_filter_is_profile_default_or_manual_override', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
