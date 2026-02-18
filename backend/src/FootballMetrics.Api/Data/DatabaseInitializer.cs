@@ -33,6 +33,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 FailureReason TEXT NULL,
                 UploadedAtUtc TEXT NOT NULL,
                 SelectedSmoothingFilter TEXT NOT NULL DEFAULT 'AdaptiveMedian',
+                SelectedSmoothingFilterSource TEXT NOT NULL DEFAULT 'ProfileDefault',
                 SessionType TEXT NOT NULL DEFAULT 'Training',
                 MatchResult TEXT NULL,
                 Competition TEXT NULL,
@@ -47,7 +48,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 Id INTEGER PRIMARY KEY,
                 PrimaryPosition TEXT NOT NULL,
                 SecondaryPosition TEXT NULL,
-                MetricThresholdsJson TEXT NULL
+                MetricThresholdsJson TEXT NULL,
+                DefaultSmoothingFilter TEXT NOT NULL DEFAULT 'AdaptiveMedian'
             );
         ";
 
@@ -59,6 +61,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "UploadStatus", "TEXT NOT NULL DEFAULT 'Succeeded'", cancellationToken);
         await EnsureColumnExistsAsync(connection, "FailureReason", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SelectedSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "SelectedSmoothingFilterSource", "TEXT NOT NULL DEFAULT 'ProfileDefault'", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SessionType", "TEXT NOT NULL DEFAULT 'Training'", cancellationToken);
         await EnsureColumnExistsAsync(connection, "MatchResult", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "Competition", "TEXT NULL", cancellationToken);
@@ -66,6 +69,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "OpponentLogoUrl", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "MetricThresholdSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "MetricThresholdsJson", "TEXT NULL", cancellationToken);
+        await EnsureUserProfileColumnExistsAsync(connection, "DefaultSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
     }
 
     private static async Task EnsureColumnExistsAsync(SqliteConnection connection, string columnName, string columnDefinition, CancellationToken cancellationToken)

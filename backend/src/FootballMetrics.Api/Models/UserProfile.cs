@@ -5,6 +5,7 @@ public class UserProfile
     public string PrimaryPosition { get; set; } = PlayerPositions.CentralMidfielder;
     public string? SecondaryPosition { get; set; }
     public MetricThresholdProfile MetricThresholds { get; set; } = MetricThresholdProfile.CreateDefault();
+    public string DefaultSmoothingFilter { get; set; } = TcxSmoothingFilters.AdaptiveMedian;
 }
 
 public static class PlayerPositions
@@ -74,5 +75,5 @@ public class MetricThresholdProfile
     }
 }
 
-public record UpdateUserProfileRequest(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile? MetricThresholds);
-public record UserProfileResponse(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile MetricThresholds);
+public record UpdateUserProfileRequest(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile? MetricThresholds, string? DefaultSmoothingFilter);
+public record UserProfileResponse(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile MetricThresholds, string DefaultSmoothingFilter);

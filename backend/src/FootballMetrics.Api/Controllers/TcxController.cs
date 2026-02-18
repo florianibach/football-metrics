@@ -76,6 +76,7 @@ public class TcxController : ControllerBase
         var summary = parseResult.Summary!;
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
         var metricThresholdSnapshot = profile.MetricThresholds;
+        var defaultSmoothingFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
 
         var uploadId = Guid.NewGuid();
 
@@ -88,7 +89,8 @@ public class TcxController : ControllerBase
             ContentHashSha256 = Convert.ToHexString(SHA256.HashData(rawFileBytes)),
             UploadStatus = TcxUploadStatuses.Succeeded,
             UploadedAtUtc = DateTime.UtcNow,
-            SelectedSmoothingFilter = TcxSmoothingFilters.AdaptiveMedian,
+            SelectedSmoothingFilter = defaultSmoothingFilter,
+            SelectedSmoothingFilterSource = TcxSmoothingFilterSources.ProfileDefault,
             SessionType = TcxSessionTypes.Training,
             MetricThresholdSnapshotJson = JsonSerializer.Serialize(metricThresholdSnapshot)
         };
@@ -134,7 +136,7 @@ public class TcxController : ControllerBase
         }
 
         var responseSummary = CreateSummaryFromRawContent(entity.RawFileContent, entity.SelectedSmoothingFilter, entity.MetricThresholdSnapshotJson);
-        var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc, responseSummary, entity.SessionContext());
+        var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc, responseSummary, entity.SessionContext(), entity.SelectedSmoothingFilterSource);
         return CreatedAtAction(nameof(GetUploadById), new { id = entity.Id }, response);
     }
 
@@ -143,7 +145,7 @@ public class TcxController : ControllerBase
     {
         var uploads = await _repository.ListAsync(cancellationToken);
         var responses = uploads
-            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext()))
+            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource))
             .ToList();
 
         return Ok(responses);
@@ -158,7 +160,7 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext());
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource);
         return Ok(response);
     }
 
@@ -201,7 +203,7 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext());
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource);
         return Ok(response);
     }
 
@@ -220,13 +222,15 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
+        await _repository.UpdateSelectedSmoothingFilterSourceAsync(id, TcxSmoothingFilterSources.ManualOverride, cancellationToken);
+
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
         {
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext());
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource);
         return Ok(response);
     }
 
@@ -255,6 +259,18 @@ public class TcxController : ControllerBase
         }
     }
 
+
+
+    private static string NormalizeSmoothingFilter(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return TcxSmoothingFilters.AdaptiveMedian;
+        }
+
+        return TcxSmoothingFilters.Supported.FirstOrDefault(filter => string.Equals(filter, value, StringComparison.OrdinalIgnoreCase))
+            ?? TcxSmoothingFilters.AdaptiveMedian;
+    }
 
     private static string? NormalizeOptional(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -310,7 +326,7 @@ public class TcxController : ControllerBase
     }
 }
 
-public record TcxUploadResponse(Guid Id, string FileName, DateTime UploadedAtUtc, TcxActivitySummary Summary, SessionContextResponse SessionContext);
+public record TcxUploadResponse(Guid Id, string FileName, DateTime UploadedAtUtc, TcxActivitySummary Summary, SessionContextResponse SessionContext, string SelectedSmoothingFilterSource);
 public record SessionContextResponse(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);
 public record UpdateSmoothingFilterRequest(string Filter);
 public record UpdateSessionContextRequest(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);

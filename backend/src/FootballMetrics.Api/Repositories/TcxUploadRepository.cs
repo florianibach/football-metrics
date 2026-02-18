@@ -19,8 +19,8 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson)
-            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter, $sessionType, $matchResult, $competition, $opponentName, $opponentLogoUrl, $metricThresholdSnapshotJson);
+            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson)
+            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter, $selectedSmoothingFilterSource, $sessionType, $matchResult, $competition, $opponentName, $opponentLogoUrl, $metricThresholdSnapshotJson);
         ";
         command.Parameters.AddWithValue("$id", upload.Id.ToString());
         command.Parameters.AddWithValue("$fileName", upload.FileName);
@@ -31,6 +31,7 @@ public class TcxUploadRepository : ITcxUploadRepository
         command.Parameters.AddWithValue("$failureReason", (object?)upload.FailureReason ?? DBNull.Value);
         command.Parameters.AddWithValue("$uploadedAtUtc", upload.UploadedAtUtc.ToString("O"));
         command.Parameters.AddWithValue("$selectedSmoothingFilter", upload.SelectedSmoothingFilter);
+        command.Parameters.AddWithValue("$selectedSmoothingFilterSource", upload.SelectedSmoothingFilterSource);
         command.Parameters.AddWithValue("$sessionType", upload.SessionType);
         command.Parameters.AddWithValue("$matchResult", (object?)upload.MatchResult ?? DBNull.Value);
         command.Parameters.AddWithValue("$competition", (object?)upload.Competition ?? DBNull.Value);
@@ -49,7 +50,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson
             FROM TcxUploads
             ORDER BY UploadedAtUtc DESC;
         ";
@@ -72,7 +73,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson
             FROM TcxUploads
             WHERE Id = $id;
         ";
@@ -99,12 +100,13 @@ public class TcxUploadRepository : ITcxUploadRepository
             FailureReason = reader.IsDBNull(6) ? null : reader.GetString(6),
             UploadedAtUtc = DateTime.Parse(reader.GetString(7), null, System.Globalization.DateTimeStyles.RoundtripKind),
             SelectedSmoothingFilter = reader.IsDBNull(8) ? TcxSmoothingFilters.AdaptiveMedian : reader.GetString(8),
-            SessionType = reader.IsDBNull(9) ? TcxSessionTypes.Training : reader.GetString(9),
-            MatchResult = reader.IsDBNull(10) ? null : reader.GetString(10),
-            Competition = reader.IsDBNull(11) ? null : reader.GetString(11),
-            OpponentName = reader.IsDBNull(12) ? null : reader.GetString(12),
-            OpponentLogoUrl = reader.IsDBNull(13) ? null : reader.GetString(13),
-            MetricThresholdSnapshotJson = reader.IsDBNull(14) ? null : reader.GetString(14)
+            SelectedSmoothingFilterSource = reader.IsDBNull(9) ? TcxSmoothingFilterSources.ProfileDefault : reader.GetString(9),
+            SessionType = reader.IsDBNull(10) ? TcxSessionTypes.Training : reader.GetString(10),
+            MatchResult = reader.IsDBNull(11) ? null : reader.GetString(11),
+            Competition = reader.IsDBNull(12) ? null : reader.GetString(12),
+            OpponentName = reader.IsDBNull(13) ? null : reader.GetString(13),
+            OpponentLogoUrl = reader.IsDBNull(14) ? null : reader.GetString(14),
+            MetricThresholdSnapshotJson = reader.IsDBNull(15) ? null : reader.GetString(15)
         };
 
 
@@ -151,4 +153,22 @@ public class TcxUploadRepository : ITcxUploadRepository
         var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
         return affectedRows > 0;
     }
+    public async Task<bool> UpdateSelectedSmoothingFilterSourceAsync(Guid id, string selectedSmoothingFilterSource, CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE TcxUploads
+            SET SelectedSmoothingFilterSource = $selectedSmoothingFilterSource
+            WHERE Id = $id;
+        ";
+        command.Parameters.AddWithValue("$id", id.ToString());
+        command.Parameters.AddWithValue("$selectedSmoothingFilterSource", selectedSmoothingFilterSource);
+
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        return affectedRows > 0;
+    }
+
 }

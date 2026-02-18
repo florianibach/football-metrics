@@ -143,6 +143,7 @@ describe('App', () => {
         version: 1,
         updatedAtUtc: '2026-02-16T22:00:00.000Z'
       },
+      defaultSmoothingFilter: 'AdaptiveMedian',
       ...overrides
     };
   }
@@ -160,6 +161,7 @@ describe('App', () => {
         opponentName: null,
         opponentLogoUrl: null
       },
+      selectedSmoothingFilterSource: 'ProfileDefault',
       ...overrides
     };
   }
@@ -1295,6 +1297,52 @@ describe('App', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
     expect(screen.getByText('Threshold version: 2')).toBeInTheDocument();
   });
+  it('R1_5_08_Ac01_shows_profile_default_filter_setting_and_saves_it', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ defaultSmoothingFilter: 'Butterworth' }) } as Response);
+      }
+
+      if (url.endsWith('/profile') && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        return Promise.resolve({ ok: true, json: async () => createProfile(body) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Profile settings')).toBeInTheDocument());
+    expect((screen.getByLabelText('Default smoothing filter') as HTMLSelectElement).value).toBe('Butterworth');
+
+    fireEvent.change(screen.getByLabelText('Default smoothing filter'), { target: { value: 'Raw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+  });
+
+  it('R1_5_08_Ac04_shows_if_filter_is_profile_default_or_manual_override', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({ id: 'profile-default', selectedSmoothingFilterSource: 'ProfileDefault' }),
+        createUploadRecord({ id: 'manual-override', fileName: 'manual.tcx', selectedSmoothingFilterSource: 'ManualOverride' })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText(/Filter source/)).toBeInTheDocument());
+    expect(screen.getByText('Profile default')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[1]);
+    await waitFor(() => expect(screen.getByText('Manual override')).toBeInTheDocument());
+  });
+
+
   it('R1_5_06_Ac01_Ac02_Ac03_separates_external_and_internal_metrics_with_explanations', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,

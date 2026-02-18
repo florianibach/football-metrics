@@ -11,12 +11,19 @@ public class TcxUpload
     public string? FailureReason { get; set; }
     public DateTime UploadedAtUtc { get; set; }
     public string SelectedSmoothingFilter { get; set; } = TcxSmoothingFilters.AdaptiveMedian;
+    public string SelectedSmoothingFilterSource { get; set; } = TcxSmoothingFilterSources.ProfileDefault;
     public string SessionType { get; set; } = TcxSessionTypes.Training;
     public string? MatchResult { get; set; }
     public string? Competition { get; set; }
     public string? OpponentName { get; set; }
     public string? OpponentLogoUrl { get; set; }
     public string? MetricThresholdSnapshotJson { get; set; }
+}
+
+public static class TcxSmoothingFilterSources
+{
+    public const string ProfileDefault = "ProfileDefault";
+    public const string ManualOverride = "ManualOverride";
 }
 
 public static class TcxUploadStatuses
