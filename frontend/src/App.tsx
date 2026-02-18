@@ -540,6 +540,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHrZoneHigh: 'HF-Zone >85%',
     metricTrimpEdwards: 'TRIMP (Edwards)',
     metricHrRecovery60: 'HF-Erholung nach 60s',
+    intervalAggregationTitle: 'Intervall-Aggregation (1 / 2 / 5 Minuten)',
+    intervalAggregationWindowLabel: 'Aggregationsfenster',
+    intervalAggregationWindow1: '1 Minute',
+    intervalAggregationWindow2: '2 Minuten',
+    intervalAggregationWindow5: '5 Minuten',
+    intervalAggregationStart: 'Fensterstart',
+    intervalAggregationExternalDistance: 'Extern: Distanz',
+    intervalAggregationInternalAvgHeartRate: 'Intern: durchschnittliche Herzfrequenz',
+    intervalAggregationInternalLoad: 'Intern: Belastung (TRIMP)',
     intervalAggregationDuration: 'Dauer',
     intervalAggregationNoData: 'Für diese Session sind keine Intervall-Daten verfügbar.',
     intervalAggregationCoreMetrics: 'Kernmetriken',
@@ -845,7 +854,16 @@ export function App() {
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
 
-  const t = translations[locale];
+  const t = useMemo(() => {
+    const localizedTranslations = translations[locale];
+
+    return new Proxy(localizedTranslations, {
+      get(target, property: string) {
+        const key = property as TranslationKey;
+        return target[key] ?? translations.en[key] ?? '';
+      }
+    }) as Record<TranslationKey, string>;
+  }, [locale]);
   const metricHelp = metricExplanations[locale];
   const validationMessage = useMemo(() => getFileValidationMessage(selectedFile, locale), [selectedFile, locale]);
   const canSubmit = useMemo(
