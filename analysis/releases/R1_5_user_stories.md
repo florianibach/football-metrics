@@ -63,10 +63,10 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** die Auswertung zu meinem Leistungsstand passt.
 
 ### Acceptance Criteria
-- [ ] Einstellbare Schwellen sind in einem persönlichen Profilbereich änderbar.
-- [ ] Änderungen gelten mindestens für neue Analysen und sind nachvollziehbar versioniert.
-- [ ] Das System validiert Eingaben (z. B. realistische Wertebereiche).
-- [ ] Die aktuell verwendeten Schwellen sind in der Session-Ansicht sichtbar.
+- [x] Einstellbare Schwellen sind in einem persönlichen Profilbereich änderbar.
+- [x] Änderungen gelten mindestens für neue Analysen und sind nachvollziehbar versioniert.
+- [x] Das System validiert Eingaben (z. B. realistische Wertebereiche).
+- [x] Die aktuell verwendeten Schwellen sind in der Session-Ansicht sichtbar.
 
 ---
 

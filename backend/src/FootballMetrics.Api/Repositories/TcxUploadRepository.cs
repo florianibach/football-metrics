@@ -19,8 +19,8 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl)
-            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter, $sessionType, $matchResult, $competition, $opponentName, $opponentLogoUrl);
+            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson)
+            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter, $sessionType, $matchResult, $competition, $opponentName, $opponentLogoUrl, $metricThresholdSnapshotJson);
         ";
         command.Parameters.AddWithValue("$id", upload.Id.ToString());
         command.Parameters.AddWithValue("$fileName", upload.FileName);
@@ -36,6 +36,7 @@ public class TcxUploadRepository : ITcxUploadRepository
         command.Parameters.AddWithValue("$competition", (object?)upload.Competition ?? DBNull.Value);
         command.Parameters.AddWithValue("$opponentName", (object?)upload.OpponentName ?? DBNull.Value);
         command.Parameters.AddWithValue("$opponentLogoUrl", (object?)upload.OpponentLogoUrl ?? DBNull.Value);
+        command.Parameters.AddWithValue("$metricThresholdSnapshotJson", (object?)upload.MetricThresholdSnapshotJson ?? DBNull.Value);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return upload;
@@ -48,7 +49,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson
             FROM TcxUploads
             ORDER BY UploadedAtUtc DESC;
         ";
@@ -71,7 +72,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson
             FROM TcxUploads
             WHERE Id = $id;
         ";
@@ -102,7 +103,8 @@ public class TcxUploadRepository : ITcxUploadRepository
             MatchResult = reader.IsDBNull(10) ? null : reader.GetString(10),
             Competition = reader.IsDBNull(11) ? null : reader.GetString(11),
             OpponentName = reader.IsDBNull(12) ? null : reader.GetString(12),
-            OpponentLogoUrl = reader.IsDBNull(13) ? null : reader.GetString(13)
+            OpponentLogoUrl = reader.IsDBNull(13) ? null : reader.GetString(13),
+            MetricThresholdSnapshotJson = reader.IsDBNull(14) ? null : reader.GetString(14)
         };
 
 

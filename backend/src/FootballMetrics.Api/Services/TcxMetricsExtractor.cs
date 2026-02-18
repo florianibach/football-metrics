@@ -14,9 +14,12 @@ public static class TcxMetricsExtractor
     private const double DecelerationThresholdMetersPerSecondSquared = -2.0;
 
     public static TcxActivitySummary Extract(XDocument document)
-        => Extract(document, TcxSmoothingFilters.AdaptiveMedian);
+        => Extract(document, TcxSmoothingFilters.AdaptiveMedian, null);
 
     public static TcxActivitySummary Extract(XDocument document, string selectedSmoothingFilter)
+        => Extract(document, selectedSmoothingFilter, null);
+
+    public static TcxActivitySummary Extract(XDocument document, string selectedSmoothingFilter, MetricThresholdProfile? thresholdProfile)
     {
         var trackpoints = document
             .Descendants()
@@ -81,8 +84,9 @@ public static class TcxMetricsExtractor
 
         var qualityAssessment = AssessQuality(smoothedTrackpoints, outlierSpeedThresholdMps);
         var smoothingTrace = BuildSmoothingTrace(normalizedFilter, trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
-        var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance);
-        var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints);
+        var effectiveThresholds = thresholdProfile ?? MetricThresholdProfile.CreateDefault();
+        var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
+        var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints, effectiveThresholds);
 
         return new TcxActivitySummary(
             startTime,
@@ -439,7 +443,9 @@ public static class TcxMetricsExtractor
     }
 
 
-    private static IReadOnlyList<TcxIntervalAggregate> BuildIntervalAggregates(IReadOnlyList<TrackpointSnapshot> smoothedTrackpoints)
+    private static IReadOnlyList<TcxIntervalAggregate> BuildIntervalAggregates(
+        IReadOnlyList<TrackpointSnapshot> smoothedTrackpoints,
+        MetricThresholdProfile thresholdsProfile)
     {
         var pointsWithTime = smoothedTrackpoints
             .Where(tp => tp.TimeUtc.HasValue)
@@ -454,13 +460,16 @@ public static class TcxMetricsExtractor
         var aggregates = new List<TcxIntervalAggregate>();
         foreach (var windowMinutes in new[] { 1, 2, 5 })
         {
-            aggregates.AddRange(BuildWindowAggregates(pointsWithTime, windowMinutes));
+                aggregates.AddRange(BuildWindowAggregates(pointsWithTime, windowMinutes, thresholdsProfile));
         }
 
         return aggregates;
     }
 
-    private static IEnumerable<TcxIntervalAggregate> BuildWindowAggregates(IReadOnlyList<TrackpointSnapshot> orderedPoints, int windowMinutes)
+    private static IEnumerable<TcxIntervalAggregate> BuildWindowAggregates(
+        IReadOnlyList<TrackpointSnapshot> orderedPoints,
+        int windowMinutes,
+        MetricThresholdProfile thresholdsProfile)
     {
         var windowDurationSeconds = windowMinutes * 60d;
         var startTime = orderedPoints[0].TimeUtc!.Value;
@@ -525,7 +534,8 @@ public static class TcxMetricsExtractor
             var intervalCoreMetrics = BuildFootballCoreMetrics(
                 windowTrackpoints,
                 "High",
-                coveredSeconds > 0 ? distanceMeters : null);
+                coveredSeconds > 0 ? distanceMeters : null,
+                thresholdsProfile);
 
             yield return new TcxIntervalAggregate(
                 windowMinutes,
@@ -615,17 +625,20 @@ public static class TcxMetricsExtractor
     private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
         IReadOnlyList<TrackpointSnapshot> trackpoints,
         string qualityStatus,
-        double? totalDistanceMeters)
+        double? totalDistanceMeters,
+        MetricThresholdProfile thresholdsProfile)
     {
         var thresholds = new Dictionary<string, string>
         {
-            ["SprintSpeedThresholdMps"] = SprintSpeedThresholdMetersPerSecond.ToString("0.0", CultureInfo.InvariantCulture),
-            ["HighIntensitySpeedThresholdMps"] = HighIntensitySpeedThresholdMetersPerSecond.ToString("0.0", CultureInfo.InvariantCulture),
-            ["AccelerationThresholdMps2"] = AccelerationThresholdMetersPerSecondSquared.ToString("0.0", CultureInfo.InvariantCulture),
-            ["DecelerationThresholdMps2"] = DecelerationThresholdMetersPerSecondSquared.ToString("0.0", CultureInfo.InvariantCulture),
+            ["SprintSpeedThresholdMps"] = thresholdsProfile.SprintSpeedThresholdMps.ToString("0.0", CultureInfo.InvariantCulture),
+            ["HighIntensitySpeedThresholdMps"] = thresholdsProfile.HighIntensitySpeedThresholdMps.ToString("0.0", CultureInfo.InvariantCulture),
+            ["AccelerationThresholdMps2"] = thresholdsProfile.AccelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["DecelerationThresholdMps2"] = thresholdsProfile.DecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
             ["HeartRateZoneLowPercentMax"] = "<70",
             ["HeartRateZoneMediumPercentMax"] = "70-85",
-            ["HeartRateZoneHighPercentMax"] = ">85"
+            ["HeartRateZoneHighPercentMax"] = ">85",
+            ["ThresholdVersion"] = thresholdsProfile.Version.ToString(CultureInfo.InvariantCulture),
+            ["ThresholdUpdatedAtUtc"] = thresholdsProfile.UpdatedAtUtc.ToString("O", CultureInfo.InvariantCulture)
         };
 
         var metricAvailability = new Dictionary<string, TcxMetricAvailability>();
@@ -708,14 +721,14 @@ public static class TcxMetricsExtractor
         }
         else
         {
-            sprintDistanceMeters = segments.Where(segment => segment.Speed >= SprintSpeedThresholdMetersPerSecond).Sum(segment => segment.Distance);
-            highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond).Sum(segment => segment.Distance);
+            sprintDistanceMeters = segments.Where(segment => segment.Speed >= thresholdsProfile.SprintSpeedThresholdMps).Sum(segment => segment.Distance);
+            highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= thresholdsProfile.HighIntensitySpeedThresholdMps).Sum(segment => segment.Distance);
 
             var sprintTransitions = 0;
             var currentlyInSprint = false;
             foreach (var segment in segments)
             {
-                var isSprint = segment.Speed >= SprintSpeedThresholdMetersPerSecond;
+                var isSprint = segment.Speed >= thresholdsProfile.SprintSpeedThresholdMps;
                 if (isSprint && !currentlyInSprint)
                 {
                     sprintTransitions++;
@@ -726,13 +739,13 @@ public static class TcxMetricsExtractor
 
             sprintCount = sprintTransitions;
             maxSpeed = segments.Max(segment => segment.Speed);
-            highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond).Sum(segment => segment.Duration);
+            highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= thresholdsProfile.HighIntensitySpeedThresholdMps).Sum(segment => segment.Duration);
 
             var highIntensityTransitions = 0;
             var currentlyInHighIntensity = false;
             foreach (var segment in segments)
             {
-                var isHighIntensity = segment.Speed >= HighIntensitySpeedThresholdMetersPerSecond;
+                var isHighIntensity = segment.Speed >= thresholdsProfile.HighIntensitySpeedThresholdMps;
                 if (isHighIntensity && !currentlyInHighIntensity)
                 {
                     highIntensityTransitions++;
@@ -759,11 +772,11 @@ public static class TcxMetricsExtractor
                 }
 
                 var acceleration = (segments[index].Speed - segments[index - 1].Speed) / elapsedSeconds;
-                if (acceleration >= AccelerationThresholdMetersPerSecondSquared)
+                if (acceleration >= thresholdsProfile.AccelerationThresholdMps2)
                 {
                     localAccelerationCount++;
                 }
-                else if (acceleration <= DecelerationThresholdMetersPerSecondSquared)
+                else if (acceleration <= thresholdsProfile.DecelerationThresholdMps2)
                 {
                     localDecelerationCount++;
                 }

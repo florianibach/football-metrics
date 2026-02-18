@@ -77,9 +77,19 @@ type SessionContext = {
 
 type PlayerPosition = 'Goalkeeper' | 'CentreBack' | 'FullBack' | 'DefensiveMidfielder' | 'CentralMidfielder' | 'AttackingMidfielder' | 'Winger' | 'Striker';
 
+type MetricThresholdProfile = {
+  sprintSpeedThresholdMps: number;
+  highIntensitySpeedThresholdMps: number;
+  accelerationThresholdMps2: number;
+  decelerationThresholdMps2: number;
+  version: number;
+  updatedAtUtc: string;
+};
+
 type UserProfile = {
   primaryPosition: PlayerPosition;
   secondaryPosition: PlayerPosition | null;
+  metricThresholds: MetricThresholdProfile;
 };
 
 type UploadRecord = {
@@ -257,7 +267,14 @@ type TranslationKey =
   | 'profileSaveSuccess'
   | 'profileValidationPrimaryRequired'
   | 'profileValidationSecondaryDistinct'
-  | 'profileCurrentPosition';
+  | 'profileCurrentPosition'
+  | 'profileThresholdsTitle'
+  | 'profileThresholdSprint'
+  | 'profileThresholdHighIntensity'
+  | 'profileThresholdAcceleration'
+  | 'profileThresholdDeceleration'
+  | 'profileThresholdVersion'
+  | 'profileThresholdUpdatedAt';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -412,7 +429,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileSaveSuccess: 'Profile updated successfully.',
     profileValidationPrimaryRequired: 'Please select a primary position.',
     profileValidationSecondaryDistinct: 'Primary and secondary position must differ.',
-    profileCurrentPosition: 'Current profile: {primary} / {secondary}' 
+    profileCurrentPosition: 'Current profile: {primary} / {secondary}',
+    profileThresholdsTitle: 'Metric thresholds',
+    profileThresholdSprint: 'Sprint speed threshold (m/s)',
+    profileThresholdHighIntensity: 'High-intensity speed threshold (m/s)',
+    profileThresholdAcceleration: 'Acceleration threshold (m/s²)',
+    profileThresholdDeceleration: 'Deceleration threshold (m/s²)',
+    profileThresholdVersion: 'Threshold version',
+    profileThresholdUpdatedAt: 'Last updated (UTC)' 
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -562,7 +586,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileSaveSuccess: 'Profil erfolgreich gespeichert.',
     profileValidationPrimaryRequired: 'Bitte wähle eine Primärposition aus.',
     profileValidationSecondaryDistinct: 'Primär- und Sekundärposition müssen unterschiedlich sein.',
-    profileCurrentPosition: 'Aktuelles Profil: {primary} / {secondary}'
+    profileCurrentPosition: 'Aktuelles Profil: {primary} / {secondary}',
+    profileThresholdsTitle: 'Metrik-Schwellenwerte',
+    profileThresholdSprint: 'Sprint-Schwelle (m/s)',
+    profileThresholdHighIntensity: 'High-Intensity-Schwelle (m/s)',
+    profileThresholdAcceleration: 'Beschleunigungs-Schwelle (m/s²)',
+    profileThresholdDeceleration: 'Verzögerungs-Schwelle (m/s²)',
+    profileThresholdVersion: 'Schwellen-Version',
+    profileThresholdUpdatedAt: 'Zuletzt aktualisiert (UTC)'
   }
 };
 
@@ -850,7 +881,15 @@ export function App() {
   });
   const [profileForm, setProfileForm] = useState<UserProfile>({
     primaryPosition: 'CentralMidfielder',
-    secondaryPosition: null
+    secondaryPosition: null,
+    metricThresholds: {
+      sprintSpeedThresholdMps: 7.0,
+      highIntensitySpeedThresholdMps: 5.5,
+      accelerationThresholdMps2: 2.0,
+      decelerationThresholdMps2: -2.0,
+      version: 1,
+      updatedAtUtc: new Date().toISOString()
+    }
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
 
@@ -903,7 +942,8 @@ export function App() {
           if (profilePayload && typeof profilePayload.primaryPosition === 'string') {
             setProfileForm({
               primaryPosition: profilePayload.primaryPosition as PlayerPosition,
-              secondaryPosition: (profilePayload.secondaryPosition as PlayerPosition | null) ?? null
+              secondaryPosition: (profilePayload.secondaryPosition as PlayerPosition | null) ?? null,
+              metricThresholds: profilePayload.metricThresholds as MetricThresholdProfile
             });
           }
           setUploadHistory(payload);
@@ -1088,7 +1128,8 @@ export function App() {
     const payload = (await response.json()) as UserProfile;
     setProfileForm({
       primaryPosition: payload.primaryPosition,
-      secondaryPosition: payload.secondaryPosition
+      secondaryPosition: payload.secondaryPosition,
+      metricThresholds: payload.metricThresholds
     });
     setProfileValidationMessage(t.profileSaveSuccess);
   }
@@ -1289,6 +1330,58 @@ export function App() {
               <option key={position} value={position}>{playerPositionLabels[locale][position]}</option>
             ))}
           </select>
+
+          <h3>{t.profileThresholdsTitle}</h3>
+          <label htmlFor="profile-threshold-sprint">{t.profileThresholdSprint}</label>
+          <input
+            id="profile-threshold-sprint"
+            type="number"
+            step="0.1"
+            value={profileForm.metricThresholds.sprintSpeedThresholdMps}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, sprintSpeedThresholdMps: Number(event.target.value) }
+            }))}
+          />
+
+          <label htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
+          <input
+            id="profile-threshold-high-intensity"
+            type="number"
+            step="0.1"
+            value={profileForm.metricThresholds.highIntensitySpeedThresholdMps}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, highIntensitySpeedThresholdMps: Number(event.target.value) }
+            }))}
+          />
+
+          <label htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
+          <input
+            id="profile-threshold-acceleration"
+            type="number"
+            step="0.1"
+            value={profileForm.metricThresholds.accelerationThresholdMps2}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, accelerationThresholdMps2: Number(event.target.value) }
+            }))}
+          />
+
+          <label htmlFor="profile-threshold-deceleration">{t.profileThresholdDeceleration}</label>
+          <input
+            id="profile-threshold-deceleration"
+            type="number"
+            step="0.1"
+            value={profileForm.metricThresholds.decelerationThresholdMps2}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: { ...current.metricThresholds, decelerationThresholdMps2: Number(event.target.value) }
+            }))}
+          />
+
+          <p>{t.profileThresholdVersion}: {profileForm.metricThresholds.version}</p>
+          <p>{t.profileThresholdUpdatedAt}: {formatUtcDateTime(profileForm.metricThresholds.updatedAtUtc, locale, t.notAvailable)}</p>
 
           <button type="submit">{t.profileSave}</button>
         </form>
@@ -1614,4 +1707,26 @@ export function App() {
       )}
     </main>
   );
+}function formatUtcDateTime(value: string | null | undefined, locale: Locale, fallback: string): string {
+  if (!value) {
+    return fallback;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return fallback;
+  }
+
+  return new Intl.DateTimeFormat(locale === 'de' ? 'de-DE' : 'en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: 'UTC'
+  }).format(date);
 }
+
+

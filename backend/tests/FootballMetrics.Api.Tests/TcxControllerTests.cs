@@ -159,7 +159,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Mvp02_Ac04_WhenStorageFails_ShouldReturnServerErrorAndMarkUploadAsFailed()
     {
         var repository = new ThrowingOnceRepository();
-        var controller = new TcxController(repository, CreateAdapterResolver(), NullLogger<TcxController>.Instance);
+        var controller = new TcxController(repository, CreateAdapterResolver(), new InMemoryUserProfileRepository(), NullLogger<TcxController>.Instance);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
         var file = new FormFile(stream, 0, stream.Length, "file", "failure-case.tcx")
@@ -181,7 +181,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Mvp02_Ac04_WhenFailedMarkerWithOriginalIdCannotBeSaved_ShouldPersistFallbackFailedMarker()
     {
         var repository = new ThrowingThenRejectingSameIdRepository();
-        var controller = new TcxController(repository, CreateAdapterResolver(), NullLogger<TcxController>.Instance);
+        var controller = new TcxController(repository, CreateAdapterResolver(), new InMemoryUserProfileRepository(), NullLogger<TcxController>.Instance);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
         var file = new FormFile(stream, 0, stream.Length, "file", "failure-fallback-case.tcx")
@@ -621,4 +621,18 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         int SmoothedDirectionChanges,
         int CorrectedOutlierCount,
         DateTime AnalyzedAtUtc);
+}
+
+
+internal sealed class InMemoryUserProfileRepository : IUserProfileRepository
+{
+    private UserProfile _profile = new();
+
+    public Task<UserProfile> GetAsync(CancellationToken cancellationToken = default) => Task.FromResult(_profile);
+
+    public Task<UserProfile> UpsertAsync(UserProfile profile, CancellationToken cancellationToken = default)
+    {
+        _profile = profile;
+        return Task.FromResult(profile);
+    }
 }
