@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Xml.Linq;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
@@ -15,14 +16,17 @@ public class TcxController : ControllerBase
     private readonly ITcxUploadRepository _repository;
     private readonly ILogger<TcxController> _logger;
     private readonly IUploadFormatAdapterResolver _uploadFormatAdapterResolver;
+    private readonly IUserProfileRepository _userProfileRepository;
 
     public TcxController(
         ITcxUploadRepository repository,
         IUploadFormatAdapterResolver uploadFormatAdapterResolver,
+        IUserProfileRepository userProfileRepository,
         ILogger<TcxController> logger)
     {
         _repository = repository;
         _uploadFormatAdapterResolver = uploadFormatAdapterResolver;
+        _userProfileRepository = userProfileRepository;
         _logger = logger;
     }
 
@@ -70,6 +74,8 @@ public class TcxController : ControllerBase
         }
 
         var summary = parseResult.Summary!;
+        var profile = await _userProfileRepository.GetAsync(cancellationToken);
+        var metricThresholdSnapshot = profile.MetricThresholds;
 
         var uploadId = Guid.NewGuid();
 
@@ -83,7 +89,8 @@ public class TcxController : ControllerBase
             UploadStatus = TcxUploadStatuses.Succeeded,
             UploadedAtUtc = DateTime.UtcNow,
             SelectedSmoothingFilter = TcxSmoothingFilters.AdaptiveMedian,
-            SessionType = TcxSessionTypes.Training
+            SessionType = TcxSessionTypes.Training,
+            MetricThresholdSnapshotJson = JsonSerializer.Serialize(metricThresholdSnapshot)
         };
 
         try
@@ -104,7 +111,8 @@ public class TcxController : ControllerBase
                 UploadStatus = TcxUploadStatuses.Failed,
                 FailureReason = "StorageError",
                 UploadedAtUtc = entity.UploadedAtUtc,
-                SessionType = TcxSessionTypes.Training
+                SessionType = TcxSessionTypes.Training,
+                MetricThresholdSnapshotJson = JsonSerializer.Serialize(metricThresholdSnapshot)
             };
 
             await EnsureFailedUploadMarkerAsync(failedEntity, cancellationToken);
@@ -125,7 +133,8 @@ public class TcxController : ControllerBase
                 summary.DistanceMeters.Value - summary.FileDistanceMeters.Value);
         }
 
-        var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc, summary, entity.SessionContext());
+        var responseSummary = CreateSummaryFromRawContent(entity.RawFileContent, entity.SelectedSmoothingFilter, entity.MetricThresholdSnapshotJson);
+        var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc, responseSummary, entity.SessionContext());
         return CreatedAtAction(nameof(GetUploadById), new { id = entity.Id }, response);
     }
 
@@ -134,7 +143,7 @@ public class TcxController : ControllerBase
     {
         var uploads = await _repository.ListAsync(cancellationToken);
         var responses = uploads
-            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter), upload.SessionContext()))
+            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext()))
             .ToList();
 
         return Ok(responses);
@@ -149,7 +158,7 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter), upload.SessionContext());
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext());
         return Ok(response);
     }
 
@@ -192,7 +201,7 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter), upload.SessionContext());
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext());
         return Ok(response);
     }
 
@@ -217,11 +226,11 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter), upload.SessionContext());
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext());
         return Ok(response);
     }
 
-    private static TcxActivitySummary CreateSummaryFromRawContent(byte[] rawFileContent, string selectedSmoothingFilter)
+    private static TcxActivitySummary CreateSummaryFromRawContent(byte[] rawFileContent, string selectedSmoothingFilter, string? metricThresholdSnapshotJson)
     {
         if (rawFileContent.Length == 0)
         {
@@ -232,7 +241,13 @@ public class TcxController : ControllerBase
         {
             using var stream = new MemoryStream(rawFileContent, writable: false);
             var document = XDocument.Load(stream);
-            return TcxMetricsExtractor.Extract(document, selectedSmoothingFilter);
+            MetricThresholdProfile? thresholdProfile = null;
+            if (!string.IsNullOrWhiteSpace(metricThresholdSnapshotJson))
+            {
+                thresholdProfile = JsonSerializer.Deserialize<MetricThresholdProfile>(metricThresholdSnapshotJson);
+            }
+
+            return TcxMetricsExtractor.Extract(document, selectedSmoothingFilter, thresholdProfile);
         }
         catch
         {

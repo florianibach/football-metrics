@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FootballMetrics.Api.Data;
 using FootballMetrics.Api.Models;
 
@@ -20,7 +21,7 @@ public class UserProfileRepository : IUserProfileRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT PrimaryPosition, SecondaryPosition
+            SELECT PrimaryPosition, SecondaryPosition, MetricThresholdsJson
             FROM UserProfiles
             WHERE Id = $id;
         ";
@@ -35,7 +36,8 @@ public class UserProfileRepository : IUserProfileRepository
         return new UserProfile
         {
             PrimaryPosition = reader.GetString(0),
-            SecondaryPosition = reader.IsDBNull(1) ? null : reader.GetString(1)
+            SecondaryPosition = reader.IsDBNull(1) ? null : reader.GetString(1),
+            MetricThresholds = DeserializeThresholds(reader.IsDBNull(2) ? null : reader.GetString(2))
         };
     }
 
@@ -46,17 +48,36 @@ public class UserProfileRepository : IUserProfileRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO UserProfiles (Id, PrimaryPosition, SecondaryPosition)
-            VALUES ($id, $primaryPosition, $secondaryPosition)
+            INSERT INTO UserProfiles (Id, PrimaryPosition, SecondaryPosition, MetricThresholdsJson)
+            VALUES ($id, $primaryPosition, $secondaryPosition, $metricThresholdsJson)
             ON CONFLICT(Id) DO UPDATE SET
                 PrimaryPosition = excluded.PrimaryPosition,
-                SecondaryPosition = excluded.SecondaryPosition;
+                SecondaryPosition = excluded.SecondaryPosition,
+                MetricThresholdsJson = excluded.MetricThresholdsJson;
         ";
         command.Parameters.AddWithValue("$id", SingletonProfileId);
         command.Parameters.AddWithValue("$primaryPosition", profile.PrimaryPosition);
         command.Parameters.AddWithValue("$secondaryPosition", (object?)profile.SecondaryPosition ?? DBNull.Value);
+        command.Parameters.AddWithValue("$metricThresholdsJson", JsonSerializer.Serialize(profile.MetricThresholds));
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return profile;
+    }
+
+    private static MetricThresholdProfile DeserializeThresholds(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return MetricThresholdProfile.CreateDefault();
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<MetricThresholdProfile>(json) ?? MetricThresholdProfile.CreateDefault();
+        }
+        catch
+        {
+            return MetricThresholdProfile.CreateDefault();
+        }
     }
 }

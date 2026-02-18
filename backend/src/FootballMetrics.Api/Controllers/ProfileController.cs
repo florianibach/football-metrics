@@ -19,7 +19,7 @@ public class ProfileController : ControllerBase
     public async Task<ActionResult<UserProfileResponse>> GetProfile(CancellationToken cancellationToken)
     {
         var profile = await _repository.GetAsync(cancellationToken);
-        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition));
+        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds));
     }
 
     [HttpPut]
@@ -54,15 +54,40 @@ public class ProfileController : ControllerBase
             return BadRequest("Secondary position must differ from primary position.");
         }
 
+        var existingProfile = await _repository.GetAsync(cancellationToken);
+        var submittedThresholds = request.MetricThresholds ?? existingProfile.MetricThresholds;
+        var validationError = MetricThresholdProfile.Validate(submittedThresholds);
+        if (validationError is not null)
+        {
+            return BadRequest(validationError);
+        }
+
+        var thresholdsChanged =
+            existingProfile.MetricThresholds.SprintSpeedThresholdMps != submittedThresholds.SprintSpeedThresholdMps ||
+            existingProfile.MetricThresholds.HighIntensitySpeedThresholdMps != submittedThresholds.HighIntensitySpeedThresholdMps ||
+            existingProfile.MetricThresholds.AccelerationThresholdMps2 != submittedThresholds.AccelerationThresholdMps2 ||
+            existingProfile.MetricThresholds.DecelerationThresholdMps2 != submittedThresholds.DecelerationThresholdMps2;
+
+        var normalizedThresholds = new MetricThresholdProfile
+        {
+            SprintSpeedThresholdMps = submittedThresholds.SprintSpeedThresholdMps,
+            HighIntensitySpeedThresholdMps = submittedThresholds.HighIntensitySpeedThresholdMps,
+            AccelerationThresholdMps2 = submittedThresholds.AccelerationThresholdMps2,
+            DecelerationThresholdMps2 = submittedThresholds.DecelerationThresholdMps2,
+            Version = thresholdsChanged ? existingProfile.MetricThresholds.Version + 1 : existingProfile.MetricThresholds.Version,
+            UpdatedAtUtc = thresholdsChanged ? DateTime.UtcNow : existingProfile.MetricThresholds.UpdatedAtUtc
+        };
+
         var profile = await _repository.UpsertAsync(
             new UserProfile
             {
                 PrimaryPosition = primaryPosition,
-                SecondaryPosition = secondaryPosition
+                SecondaryPosition = secondaryPosition,
+                MetricThresholds = normalizedThresholds
             },
             cancellationToken);
 
-        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition));
+        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds));
     }
 
     private static string? NormalizeSupportedPosition(string value)

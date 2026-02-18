@@ -135,6 +135,14 @@ describe('App', () => {
     return {
       primaryPosition: 'CentralMidfielder',
       secondaryPosition: null,
+      metricThresholds: {
+        sprintSpeedThresholdMps: 7.0,
+        highIntensitySpeedThresholdMps: 5.5,
+        accelerationThresholdMps2: 2.0,
+        decelerationThresholdMps2: -2.0,
+        version: 1,
+        updatedAtUtc: '2026-02-16T22:00:00.000Z'
+      },
       ...overrides
     };
   }
@@ -1234,4 +1242,58 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
   });
+
+
+  it('R1_5_05_Ac01_Ac04_shows_editable_thresholds_in_profile_and_session_thresholds', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/profile')) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { sprintSpeedThresholdMps: 7.8, highIntensitySpeedThresholdMps: 6.2, accelerationThresholdMps2: 2.4, decelerationThresholdMps2: -2.8, version: 3, updatedAtUtc: '2026-02-16T22:00:00.000Z' } }) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Metric thresholds')).toBeInTheDocument());
+    expect((screen.getByLabelText('Sprint speed threshold (m/s)') as HTMLInputElement).value).toBe('7.8');
+    expect(screen.getByText('Threshold version: 3')).toBeInTheDocument();
+  });
+
+  it('R1_5_05_Ac02_Ac03_saves_threshold_changes_with_validation_feedback_from_api', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      if (url.endsWith('/profile') && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        if (body.metricThresholds?.sprintSpeedThresholdMps === 3) {
+          return Promise.resolve({ ok: false, text: async () => 'SprintSpeedThresholdMps must be between 4.0 and 12.0.' } as Response);
+        }
+
+        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { ...body.metricThresholds, version: 2, updatedAtUtc: '2026-02-17T12:00:00.000Z' } }) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Profile settings')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Sprint speed threshold (m/s)'), { target: { value: '3.0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+    await waitFor(() => expect(screen.getByText(/Upload failed:/)).toBeInTheDocument());
+
+    fireEvent.change(screen.getByLabelText('Sprint speed threshold (m/s)'), { target: { value: '8.1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+    expect(screen.getByText('Threshold version: 2')).toBeInTheDocument();
+  });
+
 });

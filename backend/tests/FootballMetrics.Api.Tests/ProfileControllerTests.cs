@@ -27,13 +27,14 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
         var payload = await response.Content.ReadFromJsonAsync<UserProfileResponse>();
         payload.Should().NotBeNull();
         payload!.PrimaryPosition.Should().NotBeNullOrWhiteSpace();
+        payload.MetricThresholds.Should().NotBeNull();
     }
 
     [Fact]
     public async Task R1_5_04_Ac02_UpdateProfile_ShouldPersistOptionalSecondaryPosition()
     {
         var client = _factory.CreateClient();
-        var request = new UpdateUserProfileRequest(PlayerPositions.FullBack, PlayerPositions.Winger);
+        var request = new UpdateUserProfileRequest(PlayerPositions.FullBack, PlayerPositions.Winger, null);
 
         var updateResponse = await client.PutAsJsonAsync("/api/profile", request);
 
@@ -55,13 +56,46 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var invalidPrimaryResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest("", PlayerPositions.Winger));
+        var invalidPrimaryResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest("", PlayerPositions.Winger, null));
         invalidPrimaryResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var invalidSecondaryResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, "UnknownPosition"));
+        var invalidSecondaryResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, "UnknownPosition", null));
         invalidSecondaryResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var duplicateResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, PlayerPositions.Striker));
+        var duplicateResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, PlayerPositions.Striker, null));
         duplicateResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+    [Fact]
+    public async Task R1_5_05_Ac02_Ac03_UpdateProfile_ShouldValidateAndVersionMetricThresholds()
+    {
+        var client = _factory.CreateClient();
+
+        var invalidRequest = new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, new MetricThresholdProfile
+        {
+            SprintSpeedThresholdMps = 3.0,
+            HighIntensitySpeedThresholdMps = 2.0,
+            AccelerationThresholdMps2 = 2.0,
+            DecelerationThresholdMps2 = -2.0
+        });
+
+        var invalidResponse = await client.PutAsJsonAsync("/api/profile", invalidRequest);
+        invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var validRequest = new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, new MetricThresholdProfile
+        {
+            SprintSpeedThresholdMps = 8.0,
+            HighIntensitySpeedThresholdMps = 6.0,
+            AccelerationThresholdMps2 = 2.5,
+            DecelerationThresholdMps2 = -2.5
+        });
+
+        var updateResponse = await client.PutAsJsonAsync("/api/profile", validRequest);
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var updated = await updateResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
+        updated.Should().NotBeNull();
+        updated!.MetricThresholds.SprintSpeedThresholdMps.Should().Be(8.0);
+        updated.MetricThresholds.Version.Should().BeGreaterThanOrEqualTo(2);
+    }
+
 }

@@ -16,6 +16,7 @@ public class TcxUpload
     public string? Competition { get; set; }
     public string? OpponentName { get; set; }
     public string? OpponentLogoUrl { get; set; }
+    public string? MetricThresholdSnapshotJson { get; set; }
 }
 
 public static class TcxUploadStatuses
