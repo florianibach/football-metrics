@@ -304,6 +304,13 @@ type TranslationKey =
   | 'profileThresholdSprintMode'
   | 'profileThresholdHighIntensity'
   | 'profileThresholdHighIntensityMode'
+  | 'profileThresholdMaxSpeedMode'
+  | 'profileThresholdMaxHeartRateMode'
+  | 'profileEffectiveMaxSpeed'
+  | 'profileEffectiveMaxHeartRate'
+  | 'profileDerivedSprintThreshold'
+  | 'profileDerivedHighIntensityThreshold'
+  | 'sessionThresholdTransparencyTitle'
   | 'profileThresholdAcceleration'
   | 'profileThresholdAccelerationMode'
   | 'profileThresholdDeceleration'
@@ -493,13 +500,20 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileCurrentPosition: 'Current profile: {primary} / {secondary}',
     profileThresholdsTitle: 'Metric thresholds',
     profileThresholdSprint: 'Sprint speed threshold (% of max speed)',
-    profileThresholdSprintMode: 'Max speed mode',
+    profileThresholdSprintMode: 'Sprint speed threshold (% of max speed)',
     profileThresholdHighIntensity: 'High-intensity speed threshold (% of max speed)',
-    profileThresholdHighIntensityMode: 'Max heartrate mode',
+    profileThresholdHighIntensityMode: 'High-intensity speed threshold (% of max speed)',
+    profileThresholdMaxSpeedMode: 'Max speed mode',
+    profileThresholdMaxHeartRateMode: 'Max heartrate mode',
     profileThresholdAcceleration: 'Acceleration threshold (m/s²)',
     profileThresholdAccelerationMode: 'Effective max speed (read-only in adaptive mode)',
     profileThresholdDeceleration: 'Deceleration threshold (m/s²)',
     profileThresholdDecelerationMode: 'Effective max heartrate (read-only in adaptive mode)',
+    profileEffectiveMaxSpeed: 'Effective max speed',
+    profileEffectiveMaxHeartRate: 'Effective max heartrate',
+    profileDerivedSprintThreshold: 'Derived sprint threshold',
+    profileDerivedHighIntensityThreshold: 'Derived high-intensity threshold',
+    sessionThresholdTransparencyTitle: 'Session threshold transparency',
     profileThresholdModeLabel: 'Threshold mode',
     profileThresholdModeFixed: 'Fixed',
     profileThresholdModeAdaptive: 'Adaptive (max over all sessions)',
@@ -687,13 +701,20 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileCurrentPosition: 'Aktuelles Profil: {primary} / {secondary}',
     profileThresholdsTitle: 'Metrik-Schwellenwerte',
     profileThresholdSprint: 'Sprint-Schwelle (% von Max Speed)',
-    profileThresholdSprintMode: 'Modus Max Speed',
+    profileThresholdSprintMode: 'Sprint-Schwelle (% von Max Speed)',
     profileThresholdHighIntensity: 'High-Intensity-Schwelle (% von Max Speed)',
-    profileThresholdHighIntensityMode: 'Modus Max Heartrate',
+    profileThresholdHighIntensityMode: 'High-Intensity-Schwelle (% von Max Speed)',
+    profileThresholdMaxSpeedMode: 'Modus Max Speed',
+    profileThresholdMaxHeartRateMode: 'Modus Max Heartrate',
     profileThresholdAcceleration: 'Beschleunigungs-Schwelle (m/s²)',
     profileThresholdAccelerationMode: 'Effektive Max Speed (read-only bei adaptiv)',
     profileThresholdDeceleration: 'Verzögerungs-Schwelle (m/s²)',
     profileThresholdDecelerationMode: 'Effektive Max Heartrate (read-only bei adaptiv)',
+    profileEffectiveMaxSpeed: 'Effektive Max Speed',
+    profileEffectiveMaxHeartRate: 'Effektive Max Heartrate',
+    profileDerivedSprintThreshold: 'Abgeleitete Sprint-Schwelle',
+    profileDerivedHighIntensityThreshold: 'Abgeleitete High-Intensity-Schwelle',
+    sessionThresholdTransparencyTitle: 'Schwellen-Transparenz der Session',
     profileThresholdModeLabel: 'Schwellenmodus',
     profileThresholdModeFixed: 'Fix',
     profileThresholdModeAdaptive: 'Adaptiv (Maximum über alle Sessions)',
@@ -1653,7 +1674,7 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, maxSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit) }
             }))}
           />
-          <label htmlFor="profile-threshold-sprint-mode">{t.profileThresholdSprintMode}</label>
+          <label htmlFor="profile-threshold-sprint-mode">{t.profileThresholdMaxSpeedMode}</label>
           <select
             id="profile-threshold-sprint-mode"
             value={profileForm.metricThresholds.maxSpeedMode}
@@ -1678,7 +1699,7 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, maxHeartRateBpm: Number(event.target.value) }
             }))}
           />
-          <label htmlFor="profile-threshold-high-intensity-mode">{t.profileThresholdHighIntensityMode}</label>
+          <label htmlFor="profile-threshold-high-intensity-mode">{t.profileThresholdMaxHeartRateMode}</label>
           <select
             id="profile-threshold-high-intensity-mode"
             value={profileForm.metricThresholds.maxHeartRateMode}
@@ -1702,7 +1723,7 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, sprintSpeedPercentOfMaxSpeed: Number(event.target.value) }
             }))}
           />
-          <p>Calculated sprint threshold: {formatSpeed(sprintThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
+          <p>{t.profileDerivedSprintThreshold}: {formatSpeed(sprintThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
           <label htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
           <input
             id="profile-threshold-high-intensity"
@@ -1714,7 +1735,7 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, highIntensitySpeedPercentOfMaxSpeed: Number(event.target.value) }
             }))}
           />
-          <p>Calculated high-intensity threshold: {formatSpeed(highIntensityThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
+          <p>{t.profileDerivedHighIntensityThreshold}: {formatSpeed(highIntensityThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
           <label htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
           <input
             id="profile-threshold-acceleration"
@@ -1737,6 +1758,8 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, decelerationThresholdMps2: Number(event.target.value) }
             }))}
           />
+          <p>{t.profileEffectiveMaxSpeed}: {formatSpeed(profileForm.metricThresholds.effectiveMaxSpeedMps, profileForm.preferredSpeedUnit, t.notAvailable)} ({profileForm.metricThresholds.maxSpeedMode})</p>
+          <p>{t.profileEffectiveMaxHeartRate}: {profileForm.metricThresholds.effectiveMaxHeartRateBpm} bpm ({profileForm.metricThresholds.maxHeartRateMode})</p>
           <p>{t.profileAdaptiveDataBasisHint}</p>
 
           <p>{t.profileThresholdVersion}: {profileForm.metricThresholds.version}</p>
@@ -2037,6 +2060,7 @@ export function App() {
             )}
             <ul className="metrics-list">
               <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(selectedSession.summary.coreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
+              <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
             </ul>
           </div>
           <div className="interval-aggregation">
