@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text.Json;
-using System.Globalization;
 using System.Xml.Linq;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
@@ -18,16 +17,19 @@ public class TcxController : ControllerBase
     private readonly ILogger<TcxController> _logger;
     private readonly IUploadFormatAdapterResolver _uploadFormatAdapterResolver;
     private readonly IUserProfileRepository _userProfileRepository;
+    private readonly IMetricThresholdResolver _metricThresholdResolver;
 
     public TcxController(
         ITcxUploadRepository repository,
         IUploadFormatAdapterResolver uploadFormatAdapterResolver,
         IUserProfileRepository userProfileRepository,
+        IMetricThresholdResolver metricThresholdResolver,
         ILogger<TcxController> logger)
     {
         _repository = repository;
         _uploadFormatAdapterResolver = uploadFormatAdapterResolver;
         _userProfileRepository = userProfileRepository;
+        _metricThresholdResolver = metricThresholdResolver;
         _logger = logger;
     }
 
@@ -76,7 +78,7 @@ public class TcxController : ControllerBase
 
         var summary = parseResult.Summary!;
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
-        var metricThresholdSnapshot = await ResolveEffectiveThresholdProfileAsync(profile.MetricThresholds, cancellationToken);
+        var metricThresholdSnapshot = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
         var defaultSmoothingFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
         var appliedProfileSnapshot = CreateAppliedProfileSnapshot(metricThresholdSnapshot, defaultSmoothingFilter);
 
@@ -251,7 +253,7 @@ public class TcxController : ControllerBase
 
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
         var normalizedFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
-        var effectiveThresholds = await ResolveEffectiveThresholdProfileAsync(profile.MetricThresholds, cancellationToken);
+        var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
         var newSnapshot = CreateAppliedProfileSnapshot(effectiveThresholds, normalizedFilter);
         var previousSnapshot = ResolveAppliedProfileSnapshot(upload);
         var previousHistory = ResolveRecalculationHistory(upload);
@@ -381,167 +383,6 @@ public class TcxController : ControllerBase
         if (string.Equals(sessionType, TcxSessionTypes.Rehab, StringComparison.OrdinalIgnoreCase)) return TcxSessionTypes.Rehab;
         if (string.Equals(sessionType, TcxSessionTypes.Athletics, StringComparison.OrdinalIgnoreCase)) return TcxSessionTypes.Athletics;
         return TcxSessionTypes.Other;
-    }
-
-    private async Task<MetricThresholdProfile> ResolveEffectiveThresholdProfileAsync(MetricThresholdProfile baseProfile, CancellationToken cancellationToken)
-    {
-        var uploads = await _repository.ListAsync(cancellationToken);
-        var stats = uploads
-            .Select(upload => TryGetSessionAdaptiveStats(upload.RawFileContent))
-            .Where(item => item is not null)
-            .Select(item => item!)
-            .ToList();
-
-        var maxSpeed = stats.Count > 0 ? stats.Max(item => item.MaxSpeedMps) : (double?)null;
-        var maxAcceleration = stats.Count > 0 ? stats.Max(item => item.MaxAccelerationMps2) : (double?)null;
-        var maxDeceleration = stats.Count > 0 ? stats.Min(item => item.MaxDecelerationMps2) : (double?)null;
-
-        var resolvedSprint = string.Equals(baseProfile.SprintSpeedThresholdMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && maxSpeed.HasValue
-            ? maxSpeed.Value
-            : baseProfile.SprintSpeedThresholdMps;
-
-        var resolvedHighIntensity = string.Equals(baseProfile.HighIntensitySpeedThresholdMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && maxSpeed.HasValue
-            ? maxSpeed.Value
-            : baseProfile.HighIntensitySpeedThresholdMps;
-
-        var resolvedAcceleration = string.Equals(baseProfile.AccelerationThresholdMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && maxAcceleration.HasValue
-            ? maxAcceleration.Value
-            : baseProfile.AccelerationThresholdMps2;
-
-        var resolvedDeceleration = string.Equals(baseProfile.DecelerationThresholdMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && maxDeceleration.HasValue
-            ? maxDeceleration.Value
-            : baseProfile.DecelerationThresholdMps2;
-
-        return new MetricThresholdProfile
-        {
-            SprintSpeedThresholdMps = Math.Clamp(Math.Round(resolvedSprint, 2), 4.0, 12.0),
-            SprintSpeedThresholdMode = NormalizeThresholdMode(baseProfile.SprintSpeedThresholdMode),
-            HighIntensitySpeedThresholdMps = Math.Clamp(Math.Round(resolvedHighIntensity, 2), 3.0, 10.0),
-            HighIntensitySpeedThresholdMode = NormalizeThresholdMode(baseProfile.HighIntensitySpeedThresholdMode),
-            AccelerationThresholdMps2 = Math.Clamp(Math.Round(resolvedAcceleration, 2), 0.5, 6.0),
-            AccelerationThresholdMode = NormalizeThresholdMode(baseProfile.AccelerationThresholdMode),
-            DecelerationThresholdMps2 = Math.Clamp(Math.Round(resolvedDeceleration, 2), -6.0, -0.5),
-            DecelerationThresholdMode = NormalizeThresholdMode(baseProfile.DecelerationThresholdMode),
-            Version = baseProfile.Version,
-            UpdatedAtUtc = baseProfile.UpdatedAtUtc
-        };
-    }
-
-    private static string NormalizeThresholdMode(string? value)
-        => MetricThresholdModes.Supported.FirstOrDefault(mode => string.Equals(mode, value, StringComparison.OrdinalIgnoreCase))
-           ?? MetricThresholdModes.Fixed;
-
-    private sealed record SessionAdaptiveStats(double MaxSpeedMps, double MaxAccelerationMps2, double MaxDecelerationMps2);
-
-    private static SessionAdaptiveStats? TryGetSessionAdaptiveStats(byte[] rawFileContent)
-    {
-        if (rawFileContent.Length == 0)
-        {
-            return null;
-        }
-
-        try
-        {
-            using var stream = new MemoryStream(rawFileContent, writable: false);
-            var document = XDocument.Load(stream);
-            XNamespace tcxNs = "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2";
-
-            var points = document.Descendants(tcxNs + "Trackpoint")
-                .Select(tp => new
-                {
-                    TimeUtc = DateTime.TryParse(tp.Element(tcxNs + "Time")?.Value, null, DateTimeStyles.RoundtripKind, out var timestamp)
-                        ? (DateTime?)timestamp
-                        : null,
-                    Latitude = double.TryParse(tp.Element(tcxNs + "Position")?.Element(tcxNs + "LatitudeDegrees")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var lat)
-                        ? (double?)lat
-                        : null,
-                    Longitude = double.TryParse(tp.Element(tcxNs + "Position")?.Element(tcxNs + "LongitudeDegrees")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var lon)
-                        ? (double?)lon
-                        : null
-                })
-                .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
-                .OrderBy(tp => tp.TimeUtc)
-                .ToList();
-
-            if (points.Count < 2)
-            {
-                return null;
-            }
-
-            var segments = new List<(double speedMps, double durationSeconds)>();
-            for (var index = 1; index < points.Count; index++)
-            {
-                var previous = points[index - 1];
-                var current = points[index];
-                var elapsedSeconds = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
-                if (elapsedSeconds <= 0)
-                {
-                    continue;
-                }
-
-                var distanceMeters = HaversineMeters(previous.Latitude!.Value, previous.Longitude!.Value, current.Latitude!.Value, current.Longitude!.Value);
-                segments.Add((distanceMeters / elapsedSeconds, elapsedSeconds));
-            }
-
-            if (segments.Count == 0)
-            {
-                return null;
-            }
-
-            var maxSpeed = segments.Max(segment => segment.speedMps);
-            var maxAcceleration = double.MinValue;
-            var maxDeceleration = double.MaxValue;
-
-            for (var index = 1; index < segments.Count; index++)
-            {
-                var elapsedSeconds = segments[index].durationSeconds;
-                if (elapsedSeconds <= 0)
-                {
-                    continue;
-                }
-
-                var acceleration = (segments[index].speedMps - segments[index - 1].speedMps) / elapsedSeconds;
-                if (acceleration > maxAcceleration)
-                {
-                    maxAcceleration = acceleration;
-                }
-
-                if (acceleration < maxDeceleration)
-                {
-                    maxDeceleration = acceleration;
-                }
-            }
-
-            if (maxAcceleration == double.MinValue)
-            {
-                maxAcceleration = 0.5;
-            }
-
-            if (maxDeceleration == double.MaxValue)
-            {
-                maxDeceleration = -0.5;
-            }
-
-            return new SessionAdaptiveStats(maxSpeed, maxAcceleration, maxDeceleration);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static double HaversineMeters(double lat1, double lon1, double lat2, double lon2)
-    {
-        const double earthRadius = 6371000.0;
-        static double ToRadians(double degrees) => degrees * Math.PI / 180.0;
-
-        var dLat = ToRadians(lat2 - lat1);
-        var dLon = ToRadians(lon2 - lon1);
-        var a = Math.Pow(Math.Sin(dLat / 2), 2)
-                + Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) * Math.Pow(Math.Sin(dLon / 2), 2);
-
-        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-        return earthRadius * c;
     }
 
     private async Task EnsureFailedUploadMarkerAsync(TcxUpload failedUpload, CancellationToken cancellationToken)

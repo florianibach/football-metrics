@@ -34,14 +34,24 @@ public static class PlayerPositions
 
 public class MetricThresholdProfile
 {
-    public double SprintSpeedThresholdMps { get; set; } = 7.0;
-    public string SprintSpeedThresholdMode { get; set; } = MetricThresholdModes.Fixed;
-    public double HighIntensitySpeedThresholdMps { get; set; } = 5.5;
-    public string HighIntensitySpeedThresholdMode { get; set; } = MetricThresholdModes.Fixed;
+    // Absolute profile values (only these can be adaptive)
+    public double MaxSpeedMps { get; set; } = 8.0;
+    public string MaxSpeedMode { get; set; } = MetricThresholdModes.Adaptive;
+    public int MaxHeartRateBpm { get; set; } = 190;
+    public string MaxHeartRateMode { get; set; } = MetricThresholdModes.Adaptive;
+
+    // Relative speed thresholds (always fixed percentages of max speed)
+    public double SprintSpeedPercentOfMaxSpeed { get; set; } = 90;
+    public double HighIntensitySpeedPercentOfMaxSpeed { get; set; } = 70;
+
+    // Fixed-only thresholds
     public double AccelerationThresholdMps2 { get; set; } = 2.0;
-    public string AccelerationThresholdMode { get; set; } = MetricThresholdModes.Fixed;
     public double DecelerationThresholdMps2 { get; set; } = -2.0;
-    public string DecelerationThresholdMode { get; set; } = MetricThresholdModes.Fixed;
+
+    // Effective readonly values for UI transparency in adaptive mode
+    public double EffectiveMaxSpeedMps { get; set; } = 8.0;
+    public int EffectiveMaxHeartRateBpm { get; set; } = 190;
+
     public int Version { get; set; } = 1;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 
@@ -50,39 +60,39 @@ public class MetricThresholdProfile
 
     public static string? Validate(MetricThresholdProfile profile)
     {
-        if (!MetricThresholdModes.Supported.Contains(profile.SprintSpeedThresholdMode, StringComparer.OrdinalIgnoreCase))
+        if (!MetricThresholdModes.Supported.Contains(profile.MaxSpeedMode, StringComparer.OrdinalIgnoreCase))
         {
-            return $"SprintSpeedThresholdMode must be one of: {string.Join(", ", MetricThresholdModes.Supported)}.";
+            return $"MaxSpeedMode must be one of: {string.Join(", ", MetricThresholdModes.Supported)}.";
         }
 
-        if (!MetricThresholdModes.Supported.Contains(profile.HighIntensitySpeedThresholdMode, StringComparer.OrdinalIgnoreCase))
+        if (!MetricThresholdModes.Supported.Contains(profile.MaxHeartRateMode, StringComparer.OrdinalIgnoreCase))
         {
-            return $"HighIntensitySpeedThresholdMode must be one of: {string.Join(", ", MetricThresholdModes.Supported)}.";
+            return $"MaxHeartRateMode must be one of: {string.Join(", ", MetricThresholdModes.Supported)}.";
         }
 
-        if (!MetricThresholdModes.Supported.Contains(profile.AccelerationThresholdMode, StringComparer.OrdinalIgnoreCase))
+        if (profile.MaxSpeedMps < 4 || profile.MaxSpeedMps > 12)
         {
-            return $"AccelerationThresholdMode must be one of: {string.Join(", ", MetricThresholdModes.Supported)}.";
+            return "MaxSpeedMps must be between 4.0 and 12.0.";
         }
 
-        if (!MetricThresholdModes.Supported.Contains(profile.DecelerationThresholdMode, StringComparer.OrdinalIgnoreCase))
+        if (profile.MaxHeartRateBpm < 120 || profile.MaxHeartRateBpm > 240)
         {
-            return $"DecelerationThresholdMode must be one of: {string.Join(", ", MetricThresholdModes.Supported)}.";
+            return "MaxHeartRateBpm must be between 120 and 240.";
         }
 
-        if (profile.SprintSpeedThresholdMps < 4 || profile.SprintSpeedThresholdMps > 12)
+        if (profile.SprintSpeedPercentOfMaxSpeed < 70 || profile.SprintSpeedPercentOfMaxSpeed > 100)
         {
-            return "SprintSpeedThresholdMps must be between 4.0 and 12.0.";
+            return "SprintSpeedPercentOfMaxSpeed must be between 70 and 100.";
         }
 
-        if (profile.HighIntensitySpeedThresholdMps < 3 || profile.HighIntensitySpeedThresholdMps > 10)
+        if (profile.HighIntensitySpeedPercentOfMaxSpeed < 40 || profile.HighIntensitySpeedPercentOfMaxSpeed > 95)
         {
-            return "HighIntensitySpeedThresholdMps must be between 3.0 and 10.0.";
+            return "HighIntensitySpeedPercentOfMaxSpeed must be between 40 and 95.";
         }
 
-        if (profile.HighIntensitySpeedThresholdMps >= profile.SprintSpeedThresholdMps)
+        if (profile.HighIntensitySpeedPercentOfMaxSpeed >= profile.SprintSpeedPercentOfMaxSpeed)
         {
-            return "HighIntensitySpeedThresholdMps must be lower than SprintSpeedThresholdMps.";
+            return "HighIntensitySpeedPercentOfMaxSpeed must be lower than SprintSpeedPercentOfMaxSpeed.";
         }
 
         if (profile.AccelerationThresholdMps2 < 0.5 || profile.AccelerationThresholdMps2 > 6)

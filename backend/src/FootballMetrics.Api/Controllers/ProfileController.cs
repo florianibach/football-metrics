@@ -1,5 +1,6 @@
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
+using FootballMetrics.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace FootballMetrics.Api.Controllers;
@@ -9,17 +10,20 @@ namespace FootballMetrics.Api.Controllers;
 public class ProfileController : ControllerBase
 {
     private readonly IUserProfileRepository _repository;
+    private readonly IMetricThresholdResolver _metricThresholdResolver;
 
-    public ProfileController(IUserProfileRepository repository)
+    public ProfileController(IUserProfileRepository repository, IMetricThresholdResolver metricThresholdResolver)
     {
         _repository = repository;
+        _metricThresholdResolver = metricThresholdResolver;
     }
 
     [HttpGet]
     public async Task<ActionResult<UserProfileResponse>> GetProfile(CancellationToken cancellationToken)
     {
         var profile = await _repository.GetAsync(cancellationToken);
-        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter));
+        var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
+        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, effectiveThresholds, profile.DefaultSmoothingFilter));
     }
 
     [HttpPut]
@@ -62,11 +66,13 @@ public class ProfileController : ControllerBase
         }
 
         var submittedThresholds = request.MetricThresholds ?? existingProfile.MetricThresholds;
-        if (string.Equals(submittedThresholds.SprintSpeedThresholdMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase)
-            && string.Equals(submittedThresholds.HighIntensitySpeedThresholdMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest("Sprint and high-intensity thresholds cannot both be adaptive because it creates ambiguous ordering. Keep at least one threshold fixed.");
-        }
+
+        // AC / fachlich: acceleration + deceleration are fixed-only
+        submittedThresholds.AccelerationThresholdMps2 = submittedThresholds.AccelerationThresholdMps2;
+        submittedThresholds.DecelerationThresholdMps2 = submittedThresholds.DecelerationThresholdMps2;
+
+        submittedThresholds.MaxSpeedMode = NormalizeThresholdMode(submittedThresholds.MaxSpeedMode);
+        submittedThresholds.MaxHeartRateMode = NormalizeThresholdMode(submittedThresholds.MaxHeartRateMode);
 
         var validationError = MetricThresholdProfile.Validate(submittedThresholds);
         if (validationError is not null)
@@ -75,30 +81,27 @@ public class ProfileController : ControllerBase
         }
 
         var thresholdsChanged =
-            existingProfile.MetricThresholds.SprintSpeedThresholdMps != submittedThresholds.SprintSpeedThresholdMps ||
-            !string.Equals(existingProfile.MetricThresholds.SprintSpeedThresholdMode, submittedThresholds.SprintSpeedThresholdMode, StringComparison.OrdinalIgnoreCase) ||
-            existingProfile.MetricThresholds.HighIntensitySpeedThresholdMps != submittedThresholds.HighIntensitySpeedThresholdMps ||
-            !string.Equals(existingProfile.MetricThresholds.HighIntensitySpeedThresholdMode, submittedThresholds.HighIntensitySpeedThresholdMode, StringComparison.OrdinalIgnoreCase) ||
+            existingProfile.MetricThresholds.MaxSpeedMps != submittedThresholds.MaxSpeedMps ||
+            !string.Equals(existingProfile.MetricThresholds.MaxSpeedMode, submittedThresholds.MaxSpeedMode, StringComparison.OrdinalIgnoreCase) ||
+            existingProfile.MetricThresholds.MaxHeartRateBpm != submittedThresholds.MaxHeartRateBpm ||
+            !string.Equals(existingProfile.MetricThresholds.MaxHeartRateMode, submittedThresholds.MaxHeartRateMode, StringComparison.OrdinalIgnoreCase) ||
+            existingProfile.MetricThresholds.SprintSpeedPercentOfMaxSpeed != submittedThresholds.SprintSpeedPercentOfMaxSpeed ||
+            existingProfile.MetricThresholds.HighIntensitySpeedPercentOfMaxSpeed != submittedThresholds.HighIntensitySpeedPercentOfMaxSpeed ||
             existingProfile.MetricThresholds.AccelerationThresholdMps2 != submittedThresholds.AccelerationThresholdMps2 ||
-            !string.Equals(existingProfile.MetricThresholds.AccelerationThresholdMode, submittedThresholds.AccelerationThresholdMode, StringComparison.OrdinalIgnoreCase) ||
-            existingProfile.MetricThresholds.DecelerationThresholdMps2 != submittedThresholds.DecelerationThresholdMps2 ||
-            !string.Equals(existingProfile.MetricThresholds.DecelerationThresholdMode, submittedThresholds.DecelerationThresholdMode, StringComparison.OrdinalIgnoreCase);
-
-        var normalizedSprintMode = NormalizeThresholdMode(submittedThresholds.SprintSpeedThresholdMode);
-        var normalizedHighIntensityMode = NormalizeThresholdMode(submittedThresholds.HighIntensitySpeedThresholdMode);
-        var normalizedAccelerationMode = NormalizeThresholdMode(submittedThresholds.AccelerationThresholdMode);
-        var normalizedDecelerationMode = NormalizeThresholdMode(submittedThresholds.DecelerationThresholdMode);
+            existingProfile.MetricThresholds.DecelerationThresholdMps2 != submittedThresholds.DecelerationThresholdMps2;
 
         var normalizedThresholds = new MetricThresholdProfile
         {
-            SprintSpeedThresholdMps = submittedThresholds.SprintSpeedThresholdMps,
-            SprintSpeedThresholdMode = normalizedSprintMode,
-            HighIntensitySpeedThresholdMps = submittedThresholds.HighIntensitySpeedThresholdMps,
-            HighIntensitySpeedThresholdMode = normalizedHighIntensityMode,
+            MaxSpeedMps = submittedThresholds.MaxSpeedMps,
+            MaxSpeedMode = submittedThresholds.MaxSpeedMode,
+            MaxHeartRateBpm = submittedThresholds.MaxHeartRateBpm,
+            MaxHeartRateMode = submittedThresholds.MaxHeartRateMode,
+            SprintSpeedPercentOfMaxSpeed = submittedThresholds.SprintSpeedPercentOfMaxSpeed,
+            HighIntensitySpeedPercentOfMaxSpeed = submittedThresholds.HighIntensitySpeedPercentOfMaxSpeed,
             AccelerationThresholdMps2 = submittedThresholds.AccelerationThresholdMps2,
-            AccelerationThresholdMode = normalizedAccelerationMode,
             DecelerationThresholdMps2 = submittedThresholds.DecelerationThresholdMps2,
-            DecelerationThresholdMode = normalizedDecelerationMode,
+            EffectiveMaxSpeedMps = submittedThresholds.EffectiveMaxSpeedMps,
+            EffectiveMaxHeartRateBpm = submittedThresholds.EffectiveMaxHeartRateBpm,
             Version = thresholdsChanged ? existingProfile.MetricThresholds.Version + 1 : existingProfile.MetricThresholds.Version,
             UpdatedAtUtc = thresholdsChanged ? DateTime.UtcNow : existingProfile.MetricThresholds.UpdatedAtUtc
         };
@@ -113,7 +116,8 @@ public class ProfileController : ControllerBase
             },
             cancellationToken);
 
-        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter));
+        var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
+        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, effectiveThresholds, profile.DefaultSmoothingFilter));
     }
 
     private static string? NormalizeDefaultSmoothingFilter(string? requestedFilter, string fallbackFilter)

@@ -195,6 +195,14 @@ Empfohlener Sammelcheck:
 - In der Session-Ansicht werden Schwellen transparent mit Wert, Modus und Quelle (`...Source=Fixed|Adaptive`) angezeigt.
 - Validierung verhindert widersprüchliche Konfigurationen (Sprint- und High-Intensity-Schwelle können nicht gleichzeitig adaptiv sein).
 
+## Standardlogik für High-Intensity und physiologische Grenzwerte (R1.5-11)
+
+- `Max Speed` und `Max Heartrate` sind die einzigen absoluten Basiswerte mit Modus `Fixed`/`Adaptive`.
+- `Sprint` und `High-Intensity` werden als Prozentwerte der effektiven Max Speed konfiguriert und berechnet.
+- Herzfrequenzzonen werden auf Basis der effektiven Max Heartrate berechnet.
+- `Acceleration` und `Deceleration` bleiben feste Schwellen (fixed-only).
+- Im adaptiven Modus zeigt die Profil-UI den berechneten effektiven Basiswert read-only an.
+
 ## Fußball-Kernmetriken (R1-03)
 
 - Die API liefert unter `summary.coreMetrics` die v1-Kernmetriken: Distanz, Sprintdistanz, Anzahl Sprints, Maximalgeschwindigkeit, Hochintensitätszeit und Anzahl hochintensiver Läufe.

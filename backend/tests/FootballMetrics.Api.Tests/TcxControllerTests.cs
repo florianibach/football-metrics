@@ -159,7 +159,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Mvp02_Ac04_WhenStorageFails_ShouldReturnServerErrorAndMarkUploadAsFailed()
     {
         var repository = new ThrowingOnceRepository();
-        var controller = new TcxController(repository, CreateAdapterResolver(), new InMemoryUserProfileRepository(), NullLogger<TcxController>.Instance);
+        var controller = new TcxController(repository, CreateAdapterResolver(), new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxController>.Instance);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
         var file = new FormFile(stream, 0, stream.Length, "file", "failure-case.tcx")
@@ -181,7 +181,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Mvp02_Ac04_WhenFailedMarkerWithOriginalIdCannotBeSaved_ShouldPersistFallbackFailedMarker()
     {
         var repository = new ThrowingThenRejectingSameIdRepository();
-        var controller = new TcxController(repository, CreateAdapterResolver(), new InMemoryUserProfileRepository(), NullLogger<TcxController>.Instance);
+        var controller = new TcxController(repository, CreateAdapterResolver(), new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxController>.Instance);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
         var file = new FormFile(stream, 0, stream.Length, "file", "failure-fallback-case.tcx")
@@ -556,8 +556,8 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         var profileUpdate = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, new MetricThresholdProfile
         {
-            SprintSpeedThresholdMps = 8.3,
-            HighIntensitySpeedThresholdMps = 6.1,
+            MaxSpeedMps = 8.3,
+            MaxHeartRateBpm = 191,
             AccelerationThresholdMps2 = 2.4,
             DecelerationThresholdMps2 = -2.6,
             Version = 1,
@@ -730,4 +730,10 @@ internal sealed class InMemoryUserProfileRepository : IUserProfileRepository
         _profile = profile;
         return Task.FromResult(profile);
     }
+}
+
+internal sealed class PassThroughMetricThresholdResolver : IMetricThresholdResolver
+{
+    public Task<MetricThresholdProfile> ResolveEffectiveAsync(MetricThresholdProfile baseProfile, CancellationToken cancellationToken = default)
+        => Task.FromResult(baseProfile);
 }

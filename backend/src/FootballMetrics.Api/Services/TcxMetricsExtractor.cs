@@ -630,18 +630,24 @@ public static class TcxMetricsExtractor
     {
         var thresholds = new Dictionary<string, string>
         {
-            ["SprintSpeedThresholdMps"] = thresholdsProfile.SprintSpeedThresholdMps.ToString("0.0", CultureInfo.InvariantCulture),
-            ["SprintSpeedThresholdMode"] = thresholdsProfile.SprintSpeedThresholdMode,
-            ["SprintSpeedThresholdSource"] = string.Equals(thresholdsProfile.SprintSpeedThresholdMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) ? "Adaptive" : "Fixed",
-            ["HighIntensitySpeedThresholdMps"] = thresholdsProfile.HighIntensitySpeedThresholdMps.ToString("0.0", CultureInfo.InvariantCulture),
-            ["HighIntensitySpeedThresholdMode"] = thresholdsProfile.HighIntensitySpeedThresholdMode,
-            ["HighIntensitySpeedThresholdSource"] = string.Equals(thresholdsProfile.HighIntensitySpeedThresholdMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) ? "Adaptive" : "Fixed",
+            ["MaxSpeedMps"] = thresholdsProfile.MaxSpeedMps.ToString("0.0", CultureInfo.InvariantCulture),
+            ["MaxSpeedMode"] = thresholdsProfile.MaxSpeedMode,
+            ["MaxSpeedEffectiveMps"] = thresholdsProfile.EffectiveMaxSpeedMps.ToString("0.0", CultureInfo.InvariantCulture),
+            ["MaxSpeedSource"] = string.Equals(thresholdsProfile.MaxSpeedMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) ? "Adaptive" : "Fixed",
+            ["SprintSpeedPercentOfMaxSpeed"] = thresholdsProfile.SprintSpeedPercentOfMaxSpeed.ToString("0.0", CultureInfo.InvariantCulture),
+            ["SprintSpeedThresholdMps"] = (thresholdsProfile.EffectiveMaxSpeedMps * (thresholdsProfile.SprintSpeedPercentOfMaxSpeed / 100.0)).ToString("0.0", CultureInfo.InvariantCulture),
+            ["HighIntensitySpeedPercentOfMaxSpeed"] = thresholdsProfile.HighIntensitySpeedPercentOfMaxSpeed.ToString("0.0", CultureInfo.InvariantCulture),
+            ["HighIntensitySpeedThresholdMps"] = (thresholdsProfile.EffectiveMaxSpeedMps * (thresholdsProfile.HighIntensitySpeedPercentOfMaxSpeed / 100.0)).ToString("0.0", CultureInfo.InvariantCulture),
             ["AccelerationThresholdMps2"] = thresholdsProfile.AccelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
-            ["AccelerationThresholdMode"] = thresholdsProfile.AccelerationThresholdMode,
-            ["AccelerationThresholdSource"] = string.Equals(thresholdsProfile.AccelerationThresholdMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) ? "Adaptive" : "Fixed",
+            ["AccelerationThresholdMode"] = "Fixed",
+            ["AccelerationThresholdSource"] = "Fixed",
             ["DecelerationThresholdMps2"] = thresholdsProfile.DecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
-            ["DecelerationThresholdMode"] = thresholdsProfile.DecelerationThresholdMode,
-            ["DecelerationThresholdSource"] = string.Equals(thresholdsProfile.DecelerationThresholdMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) ? "Adaptive" : "Fixed",
+            ["DecelerationThresholdMode"] = "Fixed",
+            ["DecelerationThresholdSource"] = "Fixed",
+            ["MaxHeartRateBpm"] = thresholdsProfile.MaxHeartRateBpm.ToString(CultureInfo.InvariantCulture),
+            ["MaxHeartRateMode"] = thresholdsProfile.MaxHeartRateMode,
+            ["MaxHeartRateEffectiveBpm"] = thresholdsProfile.EffectiveMaxHeartRateBpm.ToString(CultureInfo.InvariantCulture),
+            ["MaxHeartRateSource"] = string.Equals(thresholdsProfile.MaxHeartRateMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) ? "Adaptive" : "Fixed",
             ["HeartRateZoneLowPercentMax"] = "<70",
             ["HeartRateZoneMediumPercentMax"] = "70-85",
             ["HeartRateZoneHighPercentMax"] = ">85",
@@ -729,14 +735,17 @@ public static class TcxMetricsExtractor
         }
         else
         {
-            sprintDistanceMeters = segments.Where(segment => segment.Speed >= thresholdsProfile.SprintSpeedThresholdMps).Sum(segment => segment.Distance);
-            highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= thresholdsProfile.HighIntensitySpeedThresholdMps).Sum(segment => segment.Distance);
+            var sprintThresholdMps = thresholdsProfile.EffectiveMaxSpeedMps * (thresholdsProfile.SprintSpeedPercentOfMaxSpeed / 100.0);
+            var highIntensityThresholdMps = thresholdsProfile.EffectiveMaxSpeedMps * (thresholdsProfile.HighIntensitySpeedPercentOfMaxSpeed / 100.0);
+
+            sprintDistanceMeters = segments.Where(segment => segment.Speed >= sprintThresholdMps).Sum(segment => segment.Distance);
+            highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= highIntensityThresholdMps).Sum(segment => segment.Distance);
 
             var sprintTransitions = 0;
             var currentlyInSprint = false;
             foreach (var segment in segments)
             {
-                var isSprint = segment.Speed >= thresholdsProfile.SprintSpeedThresholdMps;
+                var isSprint = segment.Speed >= sprintThresholdMps;
                 if (isSprint && !currentlyInSprint)
                 {
                     sprintTransitions++;
@@ -747,13 +756,13 @@ public static class TcxMetricsExtractor
 
             sprintCount = sprintTransitions;
             maxSpeed = segments.Max(segment => segment.Speed);
-            highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= thresholdsProfile.HighIntensitySpeedThresholdMps).Sum(segment => segment.Duration);
+            highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= highIntensityThresholdMps).Sum(segment => segment.Duration);
 
             var highIntensityTransitions = 0;
             var currentlyInHighIntensity = false;
             foreach (var segment in segments)
             {
-                var isHighIntensity = segment.Speed >= thresholdsProfile.HighIntensitySpeedThresholdMps;
+                var isHighIntensity = segment.Speed >= highIntensityThresholdMps;
                 if (isHighIntensity && !currentlyInHighIntensity)
                 {
                     highIntensityTransitions++;
@@ -817,7 +826,7 @@ public static class TcxMetricsExtractor
 
         if (pointsWithHrAndTime.Count >= 2)
         {
-            var hrMax = pointsWithHrAndTime.Max(tp => tp.HeartRateBpm!.Value);
+            var hrMax = thresholdsProfile.EffectiveMaxHeartRateBpm;
             if (hrMax > 0)
             {
                 var lowSeconds = 0.0;
