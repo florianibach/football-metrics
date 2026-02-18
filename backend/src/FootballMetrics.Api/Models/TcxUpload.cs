@@ -11,6 +11,11 @@ public class TcxUpload
     public string? FailureReason { get; set; }
     public DateTime UploadedAtUtc { get; set; }
     public string SelectedSmoothingFilter { get; set; } = TcxSmoothingFilters.AdaptiveMedian;
+    public string SessionType { get; set; } = TcxSessionTypes.Training;
+    public string? MatchResult { get; set; }
+    public string? Competition { get; set; }
+    public string? OpponentName { get; set; }
+    public string? OpponentLogoUrl { get; set; }
 }
 
 public static class TcxUploadStatuses
@@ -32,5 +37,23 @@ public static class TcxSmoothingFilters
         AdaptiveMedian,
         SavitzkyGolay,
         Butterworth
+    };
+}
+
+public static class TcxSessionTypes
+{
+    public const string Training = "Training";
+    public const string Match = "Match";
+    public const string Rehab = "Rehab";
+    public const string Athletics = "Athletics";
+    public const string Other = "Other";
+
+    public static readonly HashSet<string> Supported = new(StringComparer.OrdinalIgnoreCase)
+    {
+        Training,
+        Match,
+        Rehab,
+        Athletics,
+        Other
     };
 }

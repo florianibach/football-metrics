@@ -32,7 +32,12 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 UploadStatus TEXT NOT NULL DEFAULT 'Succeeded',
                 FailureReason TEXT NULL,
                 UploadedAtUtc TEXT NOT NULL,
-                SelectedSmoothingFilter TEXT NOT NULL DEFAULT 'AdaptiveMedian'
+                SelectedSmoothingFilter TEXT NOT NULL DEFAULT 'AdaptiveMedian',
+                SessionType TEXT NOT NULL DEFAULT 'Training',
+                MatchResult TEXT NULL,
+                Competition TEXT NULL,
+                OpponentName TEXT NULL,
+                OpponentLogoUrl TEXT NULL
             );
 
             CREATE INDEX IF NOT EXISTS IX_TcxUploads_UploadedAtUtc ON TcxUploads (UploadedAtUtc DESC);
@@ -46,6 +51,11 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "UploadStatus", "TEXT NOT NULL DEFAULT 'Succeeded'", cancellationToken);
         await EnsureColumnExistsAsync(connection, "FailureReason", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SelectedSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "SessionType", "TEXT NOT NULL DEFAULT 'Training'", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "MatchResult", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "Competition", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "OpponentName", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "OpponentLogoUrl", "TEXT NULL", cancellationToken);
     }
 
     private static async Task EnsureColumnExistsAsync(SqliteConnection connection, string columnName, string columnDefinition, CancellationToken cancellationToken)

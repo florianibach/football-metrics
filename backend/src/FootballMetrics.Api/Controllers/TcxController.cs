@@ -82,7 +82,8 @@ public class TcxController : ControllerBase
             ContentHashSha256 = Convert.ToHexString(SHA256.HashData(rawFileBytes)),
             UploadStatus = TcxUploadStatuses.Succeeded,
             UploadedAtUtc = DateTime.UtcNow,
-            SelectedSmoothingFilter = TcxSmoothingFilters.AdaptiveMedian
+            SelectedSmoothingFilter = TcxSmoothingFilters.AdaptiveMedian,
+            SessionType = TcxSessionTypes.Training
         };
 
         try
@@ -102,7 +103,8 @@ public class TcxController : ControllerBase
                 ContentHashSha256 = string.Empty,
                 UploadStatus = TcxUploadStatuses.Failed,
                 FailureReason = "StorageError",
-                UploadedAtUtc = entity.UploadedAtUtc
+                UploadedAtUtc = entity.UploadedAtUtc,
+                SessionType = TcxSessionTypes.Training
             };
 
             await EnsureFailedUploadMarkerAsync(failedEntity, cancellationToken);
@@ -123,7 +125,7 @@ public class TcxController : ControllerBase
                 summary.DistanceMeters.Value - summary.FileDistanceMeters.Value);
         }
 
-        var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc, summary);
+        var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc, summary, entity.SessionContext());
         return CreatedAtAction(nameof(GetUploadById), new { id = entity.Id }, response);
     }
 
@@ -132,7 +134,7 @@ public class TcxController : ControllerBase
     {
         var uploads = await _repository.ListAsync(cancellationToken);
         var responses = uploads
-            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter)))
+            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter), upload.SessionContext()))
             .ToList();
 
         return Ok(responses);
@@ -147,7 +149,50 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter));
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter), upload.SessionContext());
+        return Ok(response);
+    }
+
+    [HttpPut("{id:guid}/session-context")]
+    public async Task<ActionResult<TcxUploadResponse>> UpdateSessionContext(Guid id, [FromBody] UpdateSessionContextRequest request, CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.SessionType) || !TcxSessionTypes.Supported.Contains(request.SessionType))
+        {
+            return BadRequest($"Unsupported session type. Supported values: {string.Join(", ", TcxSessionTypes.Supported)}.");
+        }
+
+        var normalizedSessionType = NormalizeSessionType(request.SessionType);
+        var matchResult = NormalizeOptional(request.MatchResult);
+        var competition = NormalizeOptional(request.Competition);
+        var opponentName = NormalizeOptional(request.OpponentName);
+        var opponentLogoUrl = NormalizeOptional(request.OpponentLogoUrl);
+
+        if (!string.IsNullOrWhiteSpace(opponentLogoUrl) && !Uri.TryCreate(opponentLogoUrl, UriKind.Absolute, out _))
+        {
+            return BadRequest("OpponentLogoUrl must be an absolute URL.");
+        }
+
+        if (!string.Equals(normalizedSessionType, TcxSessionTypes.Match, StringComparison.Ordinal))
+        {
+            matchResult = null;
+            competition = null;
+            opponentName = null;
+            opponentLogoUrl = null;
+        }
+
+        var updated = await _repository.UpdateSessionContextAsync(id, normalizedSessionType, matchResult, competition, opponentName, opponentLogoUrl, cancellationToken);
+        if (!updated)
+        {
+            return NotFound();
+        }
+
+        var upload = await _repository.GetByIdAsync(id, cancellationToken);
+        if (upload is null)
+        {
+            return NotFound();
+        }
+
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter), upload.SessionContext());
         return Ok(response);
     }
 
@@ -172,7 +217,7 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter));
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter), upload.SessionContext());
         return Ok(response);
     }
 
@@ -193,6 +238,20 @@ public class TcxController : ControllerBase
         {
             return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "TCX summary unavailable due to invalid stored content." }, new TcxSmoothingTrace("NotAvailable", new Dictionary<string, string>(), null, null, 0, 0, 0, 0, DateTime.UtcNow), new TcxFootballCoreMetrics(false, "Core metrics unavailable.", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, new Dictionary<string, TcxMetricAvailability>(), new Dictionary<string, string>()), Array.Empty<TcxIntervalAggregate>());
         }
+    }
+
+
+    private static string? NormalizeOptional(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string NormalizeSessionType(string value)
+    {
+        var sessionType = value.Trim();
+        if (string.Equals(sessionType, TcxSessionTypes.Training, StringComparison.OrdinalIgnoreCase)) return TcxSessionTypes.Training;
+        if (string.Equals(sessionType, TcxSessionTypes.Match, StringComparison.OrdinalIgnoreCase)) return TcxSessionTypes.Match;
+        if (string.Equals(sessionType, TcxSessionTypes.Rehab, StringComparison.OrdinalIgnoreCase)) return TcxSessionTypes.Rehab;
+        if (string.Equals(sessionType, TcxSessionTypes.Athletics, StringComparison.OrdinalIgnoreCase)) return TcxSessionTypes.Athletics;
+        return TcxSessionTypes.Other;
     }
 
     private async Task EnsureFailedUploadMarkerAsync(TcxUpload failedUpload, CancellationToken cancellationToken)
@@ -236,5 +295,13 @@ public class TcxController : ControllerBase
     }
 }
 
-public record TcxUploadResponse(Guid Id, string FileName, DateTime UploadedAtUtc, TcxActivitySummary Summary);
+public record TcxUploadResponse(Guid Id, string FileName, DateTime UploadedAtUtc, TcxActivitySummary Summary, SessionContextResponse SessionContext);
+public record SessionContextResponse(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);
 public record UpdateSmoothingFilterRequest(string Filter);
+public record UpdateSessionContextRequest(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);
+
+internal static class TcxUploadSessionContextExtensions
+{
+    public static SessionContextResponse SessionContext(this TcxUpload upload)
+        => new(upload.SessionType, upload.MatchResult, upload.Competition, upload.OpponentName, upload.OpponentLogoUrl);
+}

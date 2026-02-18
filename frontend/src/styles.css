@@ -141,6 +141,32 @@ button:disabled {
   margin-top: 1.5rem;
 }
 
+
+.session-context {
+  margin: 1rem 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.session-context h3 {
+  margin: 0;
+}
+
+.session-context input,
+.session-context select {
+  width: min(100%, 420px);
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  background: #fff;
+}
+
+.session-context p {
+  margin: 0;
+  color: #475467;
+  font-size: 0.9rem;
+}
+
 .comparison-controls {
   margin: 1rem 0;
   display: grid;

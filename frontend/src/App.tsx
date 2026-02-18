@@ -65,11 +65,22 @@ type ActivitySummary = {
   intervalAggregates: IntervalAggregate[];
 };
 
+type SessionType = 'Training' | 'Match' | 'Rehab' | 'Athletics' | 'Other';
+
+type SessionContext = {
+  sessionType: SessionType;
+  matchResult: string | null;
+  competition: string | null;
+  opponentName: string | null;
+  opponentLogoUrl: string | null;
+};
+
 type UploadRecord = {
   id: string;
   fileName: string;
   uploadedAtUtc: string;
   summary: ActivitySummary;
+  sessionContext: SessionContext;
 };
 
 
@@ -162,6 +173,21 @@ type TranslationKey =
   | 'historyColumnUploadTime'
   | 'historyColumnActivityTime'
   | 'historyColumnQuality'
+  | 'historyColumnSessionType'
+  | 'sessionContextTitle'
+  | 'sessionTypeLabel'
+  | 'sessionTypeTraining'
+  | 'sessionTypeMatch'
+  | 'sessionTypeRehab'
+  | 'sessionTypeAthletics'
+  | 'sessionTypeOther'
+  | 'sessionContextMatchResult'
+  | 'sessionContextCompetition'
+  | 'sessionContextOpponentName'
+  | 'sessionContextOpponentLogoUrl'
+  | 'sessionContextSave'
+  | 'sessionContextSaveSuccess'
+  | 'sessionContextOnlyForMatches'
   | 'historySortLabel'
   | 'historySortNewest'
   | 'historySortOldest'
@@ -293,6 +319,21 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyColumnUploadTime: 'Upload time',
     historyColumnActivityTime: 'Activity time',
     historyColumnQuality: 'Quality status',
+    historyColumnSessionType: 'Session type',
+    sessionContextTitle: 'Session context',
+    sessionTypeLabel: 'Type',
+    sessionTypeTraining: 'Training',
+    sessionTypeMatch: 'Match',
+    sessionTypeRehab: 'Rehab',
+    sessionTypeAthletics: 'Athletics',
+    sessionTypeOther: 'Other',
+    sessionContextMatchResult: 'Result',
+    sessionContextCompetition: 'Competition',
+    sessionContextOpponentName: 'Opponent',
+    sessionContextOpponentLogoUrl: 'Opponent logo URL (optional)',
+    sessionContextSave: 'Save context',
+    sessionContextSaveSuccess: 'Session context saved.',
+    sessionContextOnlyForMatches: 'Game context fields are only used for sessions of type Match.',
     historySortLabel: 'Sort by upload time',
     historySortNewest: 'Newest first',
     historySortOldest: 'Oldest first',
@@ -419,6 +460,21 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyColumnUploadTime: 'Upload-Zeit',
     historyColumnActivityTime: 'Aktivitätszeit',
     historyColumnQuality: 'Qualitätsstatus',
+    historyColumnSessionType: 'Session-Typ',
+    sessionContextTitle: 'Session-Kontext',
+    sessionTypeLabel: 'Typ',
+    sessionTypeTraining: 'Training',
+    sessionTypeMatch: 'Spiel',
+    sessionTypeRehab: 'Reha',
+    sessionTypeAthletics: 'Athletik',
+    sessionTypeOther: 'Sonstiges',
+    sessionContextMatchResult: 'Ergebnis',
+    sessionContextCompetition: 'Wettbewerb',
+    sessionContextOpponentName: 'Gegner',
+    sessionContextOpponentLogoUrl: 'Gegner-Logo-URL (optional)',
+    sessionContextSave: 'Kontext speichern',
+    sessionContextSaveSuccess: 'Session-Kontext gespeichert.',
+    sessionContextOnlyForMatches: 'Spielkontext-Felder werden nur für Sessions vom Typ Spiel verwendet.',
     historySortLabel: 'Nach Upload-Zeit sortieren',
     historySortNewest: 'Neueste zuerst',
     historySortOldest: 'Älteste zuerst',
@@ -645,6 +701,17 @@ function formatMetricStatus(metricKey: string, coreMetrics: FootballCoreMetrics,
   return status.reason ? `${label}: ${status.reason}` : label;
 }
 
+
+function sessionTypeText(sessionType: SessionType, t: Record<TranslationKey, string>): string {
+  switch (sessionType) {
+    case 'Match': return t.sessionTypeMatch;
+    case 'Rehab': return t.sessionTypeRehab;
+    case 'Athletics': return t.sessionTypeAthletics;
+    case 'Other': return t.sessionTypeOther;
+    default: return t.sessionTypeTraining;
+  }
+}
+
 function qualityStatusText(status: ActivitySummary['qualityStatus'], t: Record<TranslationKey, string>): string {
   switch (status) {
     case 'High':
@@ -706,6 +773,13 @@ export function App() {
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(1);
+  const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
+    sessionType: 'Training',
+    matchResult: null,
+    competition: null,
+    opponentName: null,
+    opponentLogoUrl: null
+  });
 
   const t = translations[locale];
   const metricHelp = metricExplanations[locale];
@@ -740,6 +814,7 @@ export function App() {
           if (payload.length > 0) {
             setSelectedSession(payload[0]);
             setSelectedFilter(payload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
+            setSessionContextForm(payload[0].sessionContext);
             const initialCompareSelection = payload.slice(0, 2).map((item) => item.id);
             setCompareSelectedSessionIds(initialCompareSelection);
             setCompareBaselineSessionId(initialCompareSelection[0] ?? null);
@@ -820,6 +895,30 @@ export function App() {
     setSelectedSession(payload);
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
+      setSessionContextForm(payload.sessionContext);
+  }
+
+
+  async function onSaveSessionContext() {
+    if (!selectedSession) {
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}/session-context`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sessionContextForm)
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = (await response.json()) as UploadRecord;
+    setSelectedSession(payload);
+    setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
+      setSessionContextForm(payload.sessionContext);
+    setMessage(t.sessionContextSaveSuccess);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -853,6 +952,7 @@ export function App() {
       setSelectedSession(payload);
       setCompareMode('smoothed');
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
+      setSessionContextForm(payload.sessionContext);
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setCompareSelectedSessionIds((current) => [payload.id, ...current.filter((item) => item !== payload.id)].slice(0, 4));
       setCompareBaselineSessionId(payload.id);
@@ -1070,6 +1170,7 @@ export function App() {
                 <th>{t.historyColumnUploadTime}</th>
                 <th>{t.historyColumnActivityTime}</th>
                 <th>{t.historyColumnQuality}</th>
+                <th>{t.historyColumnSessionType}</th>
                 <th>{t.historySelectForComparison}</th>
                 <th>{t.historyOpenDetails}</th>
               </tr>
@@ -1081,6 +1182,7 @@ export function App() {
                   <td>{formatLocalDateTime(record.uploadedAtUtc)}</td>
                   <td>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
                   <td>{qualityStatusText(record.summary.qualityStatus, t)}</td>
+                  <td>{sessionTypeText(record.sessionContext.sessionType, t)}</td>
                   <td>
                     <input
                       type="checkbox"
@@ -1105,6 +1207,7 @@ export function App() {
                         setSelectedSession(record);
                         setCompareMode('smoothed');
                         setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
+                        setSessionContextForm(record.sessionContext);
                       }}
                     >
                       {t.historyOpenDetails}
@@ -1176,6 +1279,35 @@ export function App() {
         <section className="session-details" aria-live="polite">
           <h2>{t.summaryTitle}</h2>
           <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
+          <div className="session-context">
+            <h3>{t.sessionContextTitle}</h3>
+            <label htmlFor="session-type-selector">{t.sessionTypeLabel}</label>
+            <select
+              id="session-type-selector"
+              value={sessionContextForm.sessionType}
+              onChange={(event) => setSessionContextForm((current) => ({ ...current, sessionType: event.target.value as SessionType }))}
+            >
+              <option value="Training">{t.sessionTypeTraining}</option>
+              <option value="Match">{t.sessionTypeMatch}</option>
+              <option value="Rehab">{t.sessionTypeRehab}</option>
+              <option value="Athletics">{t.sessionTypeAthletics}</option>
+              <option value="Other">{t.sessionTypeOther}</option>
+            </select>
+
+            {sessionContextForm.sessionType === 'Match' && (
+              <>
+                <label htmlFor="session-match-result">{t.sessionContextMatchResult}</label>
+                <input id="session-match-result" value={sessionContextForm.matchResult ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, matchResult: event.target.value }))} />
+                <label htmlFor="session-competition">{t.sessionContextCompetition}</label>
+                <input id="session-competition" value={sessionContextForm.competition ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, competition: event.target.value }))} />
+                <label htmlFor="session-opponent">{t.sessionContextOpponentName}</label>
+                <input id="session-opponent" value={sessionContextForm.opponentName ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentName: event.target.value }))} />
+                <label htmlFor="session-opponent-logo">{t.sessionContextOpponentLogoUrl}</label>
+                <input id="session-opponent-logo" value={sessionContextForm.opponentLogoUrl ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentLogoUrl: event.target.value }))} />
+              </>
+            )}
+            <button type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
+          </div>
           <div className="comparison-controls">
             <h3>{t.compareTitle}</h3>
             <label htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
