@@ -47,9 +47,7 @@ type IntervalAggregate = {
   coveredSeconds: number;
   missingSeconds: number;
   hasMissingData: boolean;
-  externalDistanceMeters: number | null;
-  internalAverageHeartRateBpm: number | null;
-  internalTrainingImpulseEdwards: number | null;
+  coreMetrics: FootballCoreMetrics;
 };
 
 type ActivitySummary = {
@@ -218,7 +216,8 @@ type TranslationKey =
   | 'intervalAggregationInternalLoad'
   | 'intervalAggregationMissing'
   | 'intervalAggregationMissingBadge'
-  | 'intervalAggregationNoData';
+  | 'intervalAggregationNoData'
+  | 'intervalAggregationCoreMetrics';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -347,7 +346,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationInternalLoad: 'Internal: load (TRIMP)',
     intervalAggregationMissing: 'Missing data',
     intervalAggregationMissingBadge: 'Data gap',
-    intervalAggregationNoData: 'No interval data available for this session.'
+    intervalAggregationNoData: 'No interval data available for this session.',
+    intervalAggregationCoreMetrics: 'Core metrics' 
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -1261,9 +1261,7 @@ export function App() {
                 <thead>
                   <tr>
                     <th>{t.intervalAggregationStart}</th>
-                    <th>{t.intervalAggregationExternalDistance}</th>
-                    <th>{t.intervalAggregationInternalAvgHeartRate}</th>
-                    <th>{t.intervalAggregationInternalLoad}</th>
+                    <th>{t.intervalAggregationCoreMetrics}</th>
                     <th>{t.intervalAggregationMissing}</th>
                   </tr>
                 </thead>
@@ -1271,9 +1269,25 @@ export function App() {
                   {selectedSessionAggregates.map((aggregate) => (
                     <tr key={`${aggregate.windowMinutes}-${aggregate.windowIndex}`}>
                       <td>{formatLocalDateTime(aggregate.windowStartUtc)}</td>
-                      <td>{formatDistanceComparison(aggregate.externalDistanceMeters, locale, t.notAvailable)}</td>
-                      <td>{aggregate.internalAverageHeartRateBpm !== null ? `${aggregate.internalAverageHeartRateBpm} bpm` : t.notAvailable}</td>
-                      <td>{formatNumber(aggregate.internalTrainingImpulseEdwards, locale, t.notAvailable, 2)}</td>
+                      <td>
+                        <ul className="metrics-list interval-core-metrics-list">
+                          <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricSprintCount}:</strong> {aggregate.coreMetrics.sprintCount ?? t.notAvailable}</li>
+                          <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeedMetersPerSecond(aggregate.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}</li>
+                          <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(aggregate.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricHighIntensityRunCount}:</strong> {aggregate.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
+                          <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricRunningDensity}:</strong> {formatNumber(aggregate.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
+                          <li><strong>{t.metricAccelerationCount}:</strong> {aggregate.coreMetrics.accelerationCount ?? t.notAvailable}</li>
+                          <li><strong>{t.metricDecelerationCount}:</strong> {aggregate.coreMetrics.decelerationCount ?? t.notAvailable}</li>
+                          <li><strong>{t.metricHrZoneLow}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(aggregate.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
+                          <li><strong>{t.metricHrRecovery60}:</strong> {aggregate.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
+                        </ul>
+                      </td>
                       <td>
                         {aggregate.hasMissingData
                           ? `${t.intervalAggregationMissingBadge} (${formatNumber(aggregate.missingSeconds, locale, t.notAvailable, 1)}s)`

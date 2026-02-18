@@ -6,6 +6,51 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
+  function baseCoreMetrics() {
+    return {
+      isAvailable: true,
+      unavailableReason: null,
+      distanceMeters: 5100,
+      sprintDistanceMeters: 950,
+      sprintCount: 4,
+      maxSpeedMetersPerSecond: 7.42,
+      highIntensityTimeSeconds: 380,
+      highIntensityRunCount: 7,
+      highSpeedDistanceMeters: 1600,
+      runningDensityMetersPerMinute: 170,
+      accelerationCount: 14,
+      decelerationCount: 13,
+      heartRateZoneLowSeconds: 180,
+      heartRateZoneMediumSeconds: 900,
+      heartRateZoneHighSeconds: 720,
+      trainingImpulseEdwards: 83.5,
+      heartRateRecoveryAfter60Seconds: 22,
+      metricAvailability: {
+        distanceMeters: { state: 'Available', reason: null },
+        sprintDistanceMeters: { state: 'Available', reason: null },
+        sprintCount: { state: 'Available', reason: null },
+        maxSpeedMetersPerSecond: { state: 'Available', reason: null },
+        highIntensityTimeSeconds: { state: 'Available', reason: null },
+        highIntensityRunCount: { state: 'Available', reason: null },
+        highSpeedDistanceMeters: { state: 'Available', reason: null },
+        runningDensityMetersPerMinute: { state: 'Available', reason: null },
+        accelerationCount: { state: 'Available', reason: null },
+        decelerationCount: { state: 'Available', reason: null },
+        heartRateZoneLowSeconds: { state: 'Available', reason: null },
+        heartRateZoneMediumSeconds: { state: 'Available', reason: null },
+        heartRateZoneHighSeconds: { state: 'Available', reason: null },
+        trainingImpulseEdwards: { state: 'Available', reason: null },
+        heartRateRecoveryAfter60Seconds: { state: 'Available', reason: null }
+      },
+      thresholds: {
+        SprintSpeedThresholdMps: '7.0',
+        HighIntensitySpeedThresholdMps: '5.5',
+        AccelerationThresholdMps2: '2.0',
+        DecelerationThresholdMps2: '-2.0'
+      }
+    };
+  }
+
   function createSummary(overrides?: Partial<Record<string, unknown>>) {
     return {
       activityStartTimeUtc: '2026-02-16T21:00:00.000Z',
@@ -20,48 +65,7 @@ describe('App', () => {
       distanceSource: 'CalculatedFromGps',
       qualityStatus: 'High',
       qualityReasons: ['Trackpoints are complete with GPS and heart rate data. No implausible jumps detected.'],
-      coreMetrics: {
-        isAvailable: true,
-        unavailableReason: null,
-        distanceMeters: 5100,
-        sprintDistanceMeters: 950,
-        sprintCount: 4,
-        maxSpeedMetersPerSecond: 7.42,
-        highIntensityTimeSeconds: 380,
-        highIntensityRunCount: 7,
-        highSpeedDistanceMeters: 1600,
-        runningDensityMetersPerMinute: 170,
-        accelerationCount: 14,
-        decelerationCount: 13,
-        heartRateZoneLowSeconds: 180,
-        heartRateZoneMediumSeconds: 900,
-        heartRateZoneHighSeconds: 720,
-        trainingImpulseEdwards: 83.5,
-        heartRateRecoveryAfter60Seconds: 22,
-        metricAvailability: {
-          distanceMeters: { state: 'Available', reason: null },
-          sprintDistanceMeters: { state: 'Available', reason: null },
-          sprintCount: { state: 'Available', reason: null },
-          maxSpeedMetersPerSecond: { state: 'Available', reason: null },
-          highIntensityTimeSeconds: { state: 'Available', reason: null },
-          highIntensityRunCount: { state: 'Available', reason: null },
-          highSpeedDistanceMeters: { state: 'Available', reason: null },
-          runningDensityMetersPerMinute: { state: 'Available', reason: null },
-          accelerationCount: { state: 'Available', reason: null },
-          decelerationCount: { state: 'Available', reason: null },
-          heartRateZoneLowSeconds: { state: 'Available', reason: null },
-          heartRateZoneMediumSeconds: { state: 'Available', reason: null },
-          heartRateZoneHighSeconds: { state: 'Available', reason: null },
-          trainingImpulseEdwards: { state: 'Available', reason: null },
-          heartRateRecoveryAfter60Seconds: { state: 'Available', reason: null }
-        },
-        thresholds: {
-          SprintSpeedThresholdMps: '7.0',
-          HighIntensitySpeedThresholdMps: '5.5',
-          AccelerationThresholdMps2: '2.0',
-          DecelerationThresholdMps2: '-2.0'
-        }
-      },
+      coreMetrics: baseCoreMetrics(),
       intervalAggregates: [
         {
           windowMinutes: 1,
@@ -71,9 +75,11 @@ describe('App', () => {
           coveredSeconds: 60,
           missingSeconds: 0,
           hasMissingData: false,
-          externalDistanceMeters: 180,
-          internalAverageHeartRateBpm: 142,
-          internalTrainingImpulseEdwards: 1.8
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 180,
+            trainingImpulseEdwards: 1.8
+          }
         },
         {
           windowMinutes: 1,
@@ -83,9 +89,11 @@ describe('App', () => {
           coveredSeconds: 45,
           missingSeconds: 15,
           hasMissingData: true,
-          externalDistanceMeters: 150,
-          internalAverageHeartRateBpm: 150,
-          internalTrainingImpulseEdwards: 2.3
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 150,
+            trainingImpulseEdwards: 2.3
+          }
         },
         {
           windowMinutes: 2,
@@ -95,9 +103,11 @@ describe('App', () => {
           coveredSeconds: 105,
           missingSeconds: 15,
           hasMissingData: true,
-          externalDistanceMeters: 330,
-          internalAverageHeartRateBpm: 146,
-          internalTrainingImpulseEdwards: 4.1
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 330,
+            trainingImpulseEdwards: 4.1
+          }
         },
         {
           windowMinutes: 5,
@@ -107,9 +117,11 @@ describe('App', () => {
           coveredSeconds: 180,
           missingSeconds: 120,
           hasMissingData: true,
-          externalDistanceMeters: 510,
-          internalAverageHeartRateBpm: 148,
-          internalTrainingImpulseEdwards: 7.6
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 510,
+            trainingImpulseEdwards: 7.6
+          }
         }
       ],
       smoothing: {
@@ -378,9 +390,11 @@ describe('App', () => {
           coveredSeconds: 60,
           missingSeconds: 0,
           hasMissingData: false,
-          externalDistanceMeters: 180,
-          internalAverageHeartRateBpm: 142,
-          internalTrainingImpulseEdwards: 1.8
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 180,
+            trainingImpulseEdwards: 1.8
+          }
         },
         {
           windowMinutes: 1,
@@ -390,9 +404,11 @@ describe('App', () => {
           coveredSeconds: 45,
           missingSeconds: 15,
           hasMissingData: true,
-          externalDistanceMeters: 150,
-          internalAverageHeartRateBpm: 150,
-          internalTrainingImpulseEdwards: 2.3
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 150,
+            trainingImpulseEdwards: 2.3
+          }
         },
         {
           windowMinutes: 2,
@@ -402,9 +418,11 @@ describe('App', () => {
           coveredSeconds: 105,
           missingSeconds: 15,
           hasMissingData: true,
-          externalDistanceMeters: 330,
-          internalAverageHeartRateBpm: 146,
-          internalTrainingImpulseEdwards: 4.1
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 330,
+            trainingImpulseEdwards: 4.1
+          }
         },
         {
           windowMinutes: 5,
@@ -414,9 +432,11 @@ describe('App', () => {
           coveredSeconds: 180,
           missingSeconds: 120,
           hasMissingData: true,
-          externalDistanceMeters: 510,
-          internalAverageHeartRateBpm: 148,
-          internalTrainingImpulseEdwards: 7.6
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 510,
+            trainingImpulseEdwards: 7.6
+          }
         }
       ],
       smoothing: {
@@ -498,9 +518,11 @@ describe('App', () => {
           coveredSeconds: 60,
           missingSeconds: 0,
           hasMissingData: false,
-          externalDistanceMeters: 180,
-          internalAverageHeartRateBpm: 142,
-          internalTrainingImpulseEdwards: 1.8
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 180,
+            trainingImpulseEdwards: 1.8
+          }
         },
         {
           windowMinutes: 1,
@@ -510,9 +532,11 @@ describe('App', () => {
           coveredSeconds: 45,
           missingSeconds: 15,
           hasMissingData: true,
-          externalDistanceMeters: 150,
-          internalAverageHeartRateBpm: 150,
-          internalTrainingImpulseEdwards: 2.3
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 150,
+            trainingImpulseEdwards: 2.3
+          }
         },
         {
           windowMinutes: 2,
@@ -522,9 +546,11 @@ describe('App', () => {
           coveredSeconds: 105,
           missingSeconds: 15,
           hasMissingData: true,
-          externalDistanceMeters: 330,
-          internalAverageHeartRateBpm: 146,
-          internalTrainingImpulseEdwards: 4.1
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 330,
+            trainingImpulseEdwards: 4.1
+          }
         },
         {
           windowMinutes: 5,
@@ -534,9 +560,11 @@ describe('App', () => {
           coveredSeconds: 180,
           missingSeconds: 120,
           hasMissingData: true,
-          externalDistanceMeters: 510,
-          internalAverageHeartRateBpm: 148,
-          internalTrainingImpulseEdwards: 7.6
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 510,
+            trainingImpulseEdwards: 7.6
+          }
         }
       ],
       smoothing: {
@@ -611,9 +639,11 @@ describe('App', () => {
           coveredSeconds: 60,
           missingSeconds: 0,
           hasMissingData: false,
-          externalDistanceMeters: 180,
-          internalAverageHeartRateBpm: 142,
-          internalTrainingImpulseEdwards: 1.8
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 180,
+            trainingImpulseEdwards: 1.8
+          }
         },
         {
           windowMinutes: 1,
@@ -623,9 +653,11 @@ describe('App', () => {
           coveredSeconds: 45,
           missingSeconds: 15,
           hasMissingData: true,
-          externalDistanceMeters: 150,
-          internalAverageHeartRateBpm: 150,
-          internalTrainingImpulseEdwards: 2.3
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 150,
+            trainingImpulseEdwards: 2.3
+          }
         },
         {
           windowMinutes: 2,
@@ -635,9 +667,11 @@ describe('App', () => {
           coveredSeconds: 105,
           missingSeconds: 15,
           hasMissingData: true,
-          externalDistanceMeters: 330,
-          internalAverageHeartRateBpm: 146,
-          internalTrainingImpulseEdwards: 4.1
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 330,
+            trainingImpulseEdwards: 4.1
+          }
         },
         {
           windowMinutes: 5,
@@ -647,9 +681,11 @@ describe('App', () => {
           coveredSeconds: 180,
           missingSeconds: 120,
           hasMissingData: true,
-          externalDistanceMeters: 510,
-          internalAverageHeartRateBpm: 148,
-          internalTrainingImpulseEdwards: 7.6
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 510,
+            trainingImpulseEdwards: 7.6
+          }
         }
       ],
       smoothing: {
@@ -725,16 +761,16 @@ describe('App', () => {
       expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Sprint distance:/)).toBeInTheDocument();
-    expect(screen.getByText(/Sprint count:/)).toBeInTheDocument();
-    expect(screen.getByText(/Maximum speed:/)).toBeInTheDocument();
-    expect(screen.getByText(/High-intensity time:/)).toBeInTheDocument();
-    expect(screen.getByText(/High-intensity runs:/)).toBeInTheDocument();
-    expect(screen.getByText(/High-speed distance:/)).toBeInTheDocument();
-    expect(screen.getByText(/Running density \(m\/min\):/)).toBeInTheDocument();
-    expect(screen.getByText(/Accelerations:/)).toBeInTheDocument();
-    expect(screen.getByText(/Decelerations:/)).toBeInTheDocument();
-    expect(screen.getByText(/TRIMP \(Edwards\):/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Sprint distance:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Sprint count:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Maximum speed:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/High-intensity time:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/High-intensity runs:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/High-speed distance:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Running density \(m\/min\):/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Accelerations:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Decelerations:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/TRIMP \(Edwards\):/).length).toBeGreaterThan(0);
 
     vi.restoreAllMocks();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -792,11 +828,11 @@ describe('App', () => {
             distanceMeters: null,
             distanceSource: 'NotAvailable',
             coreMetrics: {
-              ...createSummary().coreMetrics,
+              ...baseCoreMetrics(),
               distanceMeters: null,
               sprintCount: null,
               metricAvailability: {
-                ...createSummary().coreMetrics.metricAvailability,
+                ...baseCoreMetrics().metricAvailability,
                 distanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
                 sprintCount: { state: 'NotUsable', reason: 'GPS measurements are present but do not contain usable time segments.' }
               }
@@ -824,12 +860,12 @@ describe('App', () => {
           fileName: 'r1-04-no-zero.tcx',
           summary: createSummary({
             coreMetrics: {
-              ...createSummary().coreMetrics,
+              ...baseCoreMetrics(),
               distanceMeters: null,
               sprintDistanceMeters: null,
               sprintCount: null,
               metricAvailability: {
-                ...createSummary().coreMetrics.metricAvailability,
+                ...baseCoreMetrics().metricAvailability,
                 distanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
                 sprintDistanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
                 sprintCount: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' }
@@ -1084,7 +1120,7 @@ describe('App', () => {
             qualityStatus: 'Low',
             durationSeconds: 2100,
             coreMetrics: {
-              ...createSummary().coreMetrics,
+              ...baseCoreMetrics(),
               distanceMeters: 6200,
               sprintDistanceMeters: 1200,
               sprintCount: 6,

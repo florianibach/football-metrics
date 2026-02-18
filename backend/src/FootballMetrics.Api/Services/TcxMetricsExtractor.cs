@@ -474,10 +474,6 @@ public static class TcxMetricsExtractor
 
             var distanceMeters = 0d;
             var coveredSeconds = 0d;
-            var heartRateArea = 0d;
-            var heartRateCoveredSeconds = 0d;
-            var trimpArea = 0d;
-            var trimpCoveredSeconds = 0d;
 
             for (var pointIndex = 1; pointIndex < orderedPoints.Count; pointIndex++)
             {
@@ -517,28 +513,20 @@ public static class TcxMetricsExtractor
                     distanceMeters += segmentDistance * (overlapSeconds / segmentSeconds);
                 }
 
-                if (previous.HeartRateBpm.HasValue && current.HeartRateBpm.HasValue)
-                {
-                    var avgHeartRate = (previous.HeartRateBpm.Value + current.HeartRateBpm.Value) / 2d;
-                    heartRateArea += avgHeartRate * overlapSeconds;
-                    heartRateCoveredSeconds += overlapSeconds;
-
-                    var relativeHr = avgHeartRate / 190d;
-                    var zoneWeight = relativeHr switch
-                    {
-                        < 0.70 => 1d,
-                        < 0.85 => 2d,
-                        _ => 3d
-                    };
-
-                    trimpArea += zoneWeight * (overlapSeconds / 60d);
-                    trimpCoveredSeconds += overlapSeconds;
-                }
             }
 
             var clippedCoveredSeconds = Math.Min(windowDurationSeconds, coveredSeconds);
             var missingSeconds = Math.Max(0d, windowDurationSeconds - clippedCoveredSeconds);
             var hasMissingData = missingSeconds > 0.001;
+
+            var windowTrackpoints = orderedPoints
+                .Where(point => point.TimeUtc.HasValue && point.TimeUtc.Value >= windowStart && point.TimeUtc.Value <= windowEnd)
+                .ToList();
+
+            var intervalCoreMetrics = BuildFootballCoreMetrics(
+                windowTrackpoints,
+                "High",
+                coveredSeconds > 0 ? distanceMeters : null);
 
             yield return new TcxIntervalAggregate(
                 windowMinutes,
@@ -548,9 +536,7 @@ public static class TcxMetricsExtractor
                 clippedCoveredSeconds,
                 missingSeconds,
                 hasMissingData,
-                coveredSeconds > 0 ? distanceMeters : null,
-                heartRateCoveredSeconds > 0 ? (int?)Math.Round(heartRateArea / heartRateCoveredSeconds) : null,
-                trimpCoveredSeconds > 0 ? (double?)Math.Round(trimpArea, 2) : null);
+                intervalCoreMetrics);
         }
     }
     private static QualityAssessment AssessQuality(IReadOnlyList<TrackpointSnapshot> trackpoints, double outlierSpeedThresholdMps)

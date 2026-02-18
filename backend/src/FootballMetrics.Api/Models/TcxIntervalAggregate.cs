@@ -8,6 +8,4 @@ public sealed record TcxIntervalAggregate(
     double CoveredSeconds,
     double MissingSeconds,
     bool HasMissingData,
-    double? ExternalDistanceMeters,
-    int? InternalAverageHeartRateBpm,
-    double? InternalTrainingImpulseEdwards);
+    TcxFootballCoreMetrics CoreMetrics);

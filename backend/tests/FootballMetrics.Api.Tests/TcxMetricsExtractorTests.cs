@@ -279,10 +279,13 @@ public class TcxMetricsExtractorTests
         summary.IntervalAggregates.Should().Contain(item => item.WindowMinutes == 2);
         summary.IntervalAggregates.Should().Contain(item => item.WindowMinutes == 5);
 
-        summary.IntervalAggregates
+        var oneMinuteAggregates = summary.IntervalAggregates
             .Where(item => item.WindowMinutes == 1)
-            .Should()
-            .OnlyContain(item => item.ExternalDistanceMeters.HasValue || item.InternalAverageHeartRateBpm.HasValue || item.InternalTrainingImpulseEdwards.HasValue);
+            .ToList();
+
+        oneMinuteAggregates.Should().NotBeEmpty();
+        oneMinuteAggregates.Should().OnlyContain(item => item.CoreMetrics != null);
+        oneMinuteAggregates.Should().Contain(item => item.CoreMetrics.DistanceMeters.HasValue || item.CoreMetrics.TrainingImpulseEdwards.HasValue);
     }
 
     [Fact]
