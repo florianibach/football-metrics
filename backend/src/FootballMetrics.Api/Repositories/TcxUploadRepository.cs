@@ -221,15 +221,15 @@ public class TcxUploadRepository : ITcxUploadRepository
     }
 
 
-    public async Task<bool> RecalculateSessionWithProfileAsync(
+    public async Task<bool> UpdateSessionPreferencesAndSnapshotsAsync(
         Guid id,
-        string selectedSmoothingFilter,
-        string selectedSmoothingFilterSource,
-        string selectedSpeedUnit,
-        string selectedSpeedUnitSource,
-        string metricThresholdSnapshotJson,
-        string appliedProfileSnapshotJson,
-        string recalculationHistoryJson,
+        string? selectedSmoothingFilter,
+        string? selectedSmoothingFilterSource,
+        string? selectedSpeedUnit,
+        string? selectedSpeedUnitSource,
+        string? metricThresholdSnapshotJson,
+        string? appliedProfileSnapshotJson,
+        string? recalculationHistoryJson,
         CancellationToken cancellationToken = default)
     {
         await using var connection = _connectionFactory.CreateConnection();
@@ -241,23 +241,23 @@ public class TcxUploadRepository : ITcxUploadRepository
         command.Transaction = transaction;
         command.CommandText = @"
             UPDATE TcxUploads
-            SET SelectedSmoothingFilter = $selectedSmoothingFilter,
-                SelectedSmoothingFilterSource = $selectedSmoothingFilterSource,
-                SelectedSpeedUnit = $selectedSpeedUnit,
-                SelectedSpeedUnitSource = $selectedSpeedUnitSource,
-                MetricThresholdSnapshotJson = $metricThresholdSnapshotJson,
-                AppliedProfileSnapshotJson = $appliedProfileSnapshotJson,
-                RecalculationHistoryJson = $recalculationHistoryJson
+            SET SelectedSmoothingFilter = COALESCE($selectedSmoothingFilter, SelectedSmoothingFilter),
+                SelectedSmoothingFilterSource = COALESCE($selectedSmoothingFilterSource, SelectedSmoothingFilterSource),
+                SelectedSpeedUnit = COALESCE($selectedSpeedUnit, SelectedSpeedUnit),
+                SelectedSpeedUnitSource = COALESCE($selectedSpeedUnitSource, SelectedSpeedUnitSource),
+                MetricThresholdSnapshotJson = COALESCE($metricThresholdSnapshotJson, MetricThresholdSnapshotJson),
+                AppliedProfileSnapshotJson = COALESCE($appliedProfileSnapshotJson, AppliedProfileSnapshotJson),
+                RecalculationHistoryJson = COALESCE($recalculationHistoryJson, RecalculationHistoryJson)
             WHERE Id = $id;
         ";
         command.Parameters.AddWithValue("$id", id.ToString());
-        command.Parameters.AddWithValue("$selectedSmoothingFilter", selectedSmoothingFilter);
-        command.Parameters.AddWithValue("$selectedSmoothingFilterSource", selectedSmoothingFilterSource);
-        command.Parameters.AddWithValue("$selectedSpeedUnit", selectedSpeedUnit);
-        command.Parameters.AddWithValue("$selectedSpeedUnitSource", selectedSpeedUnitSource);
-        command.Parameters.AddWithValue("$metricThresholdSnapshotJson", metricThresholdSnapshotJson);
-        command.Parameters.AddWithValue("$appliedProfileSnapshotJson", appliedProfileSnapshotJson);
-        command.Parameters.AddWithValue("$recalculationHistoryJson", recalculationHistoryJson);
+        command.Parameters.AddWithValue("$selectedSmoothingFilter", (object?)selectedSmoothingFilter ?? DBNull.Value);
+        command.Parameters.AddWithValue("$selectedSmoothingFilterSource", (object?)selectedSmoothingFilterSource ?? DBNull.Value);
+        command.Parameters.AddWithValue("$selectedSpeedUnit", (object?)selectedSpeedUnit ?? DBNull.Value);
+        command.Parameters.AddWithValue("$selectedSpeedUnitSource", (object?)selectedSpeedUnitSource ?? DBNull.Value);
+        command.Parameters.AddWithValue("$metricThresholdSnapshotJson", (object?)metricThresholdSnapshotJson ?? DBNull.Value);
+        command.Parameters.AddWithValue("$appliedProfileSnapshotJson", (object?)appliedProfileSnapshotJson ?? DBNull.Value);
+        command.Parameters.AddWithValue("$recalculationHistoryJson", (object?)recalculationHistoryJson ?? DBNull.Value);
 
         var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
         if (affectedRows <= 0)

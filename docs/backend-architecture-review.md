@@ -104,7 +104,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 
 > Priorisierung nach: (1) Risiko/Fehleranfälligkeit, (2) Impact auf Erweiterbarkeit, (3) Aufwand.
 
-### BAR-001 — Use-Case-Schicht zwischen Controller und Repositories einziehen
+### BAR-001 — ✅ Done — Use-Case-Schicht zwischen Controller und Repositories einziehen
 - **Kategorie:** Architektur
 - **Problem:** Controller enthalten Orchestrierung + Fachlogik + Mapping (`TcxController`, `ProfileController`).
 - **Vorschlag:** Pro kritischem Flow einen Application-Service/Use-Case einführen (z. B. `UploadSessionUseCase`, `RecalculateSessionUseCase`, `UpdateProfileUseCase`), Controller nur für I/O und HTTP-Details.
@@ -114,7 +114,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 - **Abhängigkeiten/Reihenfolge:** Startmaßnahme für viele Folgepunkte.
 - **Quick Win:** **Nein**
 
-### BAR-002 — Transaktionale Repository-Operationen für Multi-Step-Updates
+### BAR-002 — ✅ Done — Transaktionale Repository-Operationen für Multi-Step-Updates
 - **Kategorie:** Data Access
 - **Problem:** Mehrere `Update*Async`-Aufrufe ohne gemeinsame Transaktion (z. B. Recalculate-Flow).
 - **Vorschlag:** Repository-Methoden zu atomaren Kommandos bündeln (z. B. `UpdateSessionPreferencesAndSnapshotsAsync(...)`), intern `BEGIN/COMMIT/ROLLBACK`.
@@ -164,7 +164,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 - **Abhängigkeiten/Reihenfolge:** Vor größeren Schema-Änderungen (z. B. BAR-005) erledigen.
 - **Quick Win:** **Ja**
 
-### BAR-007 — Security-Härtung für R1+ (Auth explizit ausgenommen)
+### BAR-007 — ✅ Done — Security-Härtung für R1+ (Auth explizit ausgenommen)
 - **Kategorie:** Security
 - **Problem:** API-Härtung ist minimal (CORS statisch, keine klaren Security-Header, keine Rate-Limits für Upload/Traffic-Spitzen).
 - **Vorschlag:** Schrittweise: (1) CORS per Environment-Konfiguration, (2) Security Headers, (3) Request-/Rate-Limits für Upload, (4) restriktivere Payload-/Timeout-Limits, (5) Dependency-Vulnerability-Checks in CI.
@@ -184,7 +184,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 - **Abhängigkeiten/Reihenfolge:** Parallel zu BAR-003 möglich.
 - **Quick Win:** **Ja**
 
-### BAR-009 — API-Kontrakt absichern (Versionierung + DTO-Entkopplung)
+### BAR-009 — ✅ Done — API-Kontrakt absichern (Versionierung + DTO-Entkopplung)
 - **Kategorie:** API
 - **Problem:** Controller-Response nutzt stark interne Modellstrukturen; Versionierung fehlt.
 - **Vorschlag:** API-Versionierungsstrategie (`/api/v1`), explizite DTOs getrennt von Persistenz-/Domain-Modellen, Contract-Tests für kritische Endpunkte.
@@ -230,6 +230,13 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 2. **BAR-002 (vollständig)** alle Mehrfach-Updates transaktional.
 3. **BAR-007 (Baseline)** CORS env-gesteuert, Security-Headers, Upload-Ratelimit, CI-Vulnerability-Check.
 4. **BAR-009 (Start)** API v1-Namespace + DTO-Entkopplung für Kernendpunkte.
+
+### Umsetzungsstatus Phase 1 (Story R2-08)
+
+- [x] **BAR-001** — Done
+- [x] **BAR-002 (vollständig)** — Done
+- [x] **BAR-007 (Baseline)** — Done
+- [x] **BAR-009 (Start)** — Done
 
 **Ergebnis:** Stabiler Kern für kommende Features, reduzierte Kopplung.
 

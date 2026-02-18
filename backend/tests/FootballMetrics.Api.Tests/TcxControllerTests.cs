@@ -726,6 +726,18 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         public Task<bool> RecalculateSessionWithProfileAsync(Guid id, string selectedSmoothingFilter, string selectedSmoothingFilterSource, string selectedSpeedUnit, string selectedSpeedUnitSource, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+        public Task<bool> UpdateSessionPreferencesAndSnapshotsAsync(
+            Guid id,
+            string? selectedSmoothingFilter,
+            string? selectedSmoothingFilterSource,
+            string? selectedSpeedUnit,
+            string? selectedSpeedUnitSource,
+            string? metricThresholdSnapshotJson,
+            string? appliedProfileSnapshotJson,
+            string? recalculationHistoryJson,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
     }
 
     private sealed class ThrowingThenRejectingSameIdRepository : ITcxUploadRepository
@@ -776,6 +788,18 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         public Task<bool> RecalculateSessionWithProfileAsync(Guid id, string selectedSmoothingFilter, string selectedSmoothingFilterSource, string selectedSpeedUnit, string selectedSpeedUnitSource, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+        public Task<bool> UpdateSessionPreferencesAndSnapshotsAsync(
+            Guid id,
+            string? selectedSmoothingFilter,
+            string? selectedSmoothingFilterSource,
+            string? selectedSpeedUnit,
+            string? selectedSpeedUnitSource,
+            string? metricThresholdSnapshotJson,
+            string? appliedProfileSnapshotJson,
+            string? recalculationHistoryJson,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
     }
 
     public record TcxUploadResponseDto(Guid Id, string FileName, DateTime UploadedAtUtc);

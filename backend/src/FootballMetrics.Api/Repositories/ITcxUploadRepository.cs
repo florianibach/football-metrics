@@ -13,14 +13,14 @@ public interface ITcxUploadRepository
     Task<bool> UpdateSelectedSpeedUnitAsync(Guid id, string selectedSpeedUnit, CancellationToken cancellationToken = default);
     Task<bool> UpdateSelectedSpeedUnitSourceAsync(Guid id, string selectedSpeedUnitSource, CancellationToken cancellationToken = default);
     Task<bool> UpdateProfileSnapshotsAsync(Guid id, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default);
-    Task<bool> RecalculateSessionWithProfileAsync(
+    Task<bool> UpdateSessionPreferencesAndSnapshotsAsync(
         Guid id,
-        string selectedSmoothingFilter,
-        string selectedSmoothingFilterSource,
-        string selectedSpeedUnit,
-        string selectedSpeedUnitSource,
-        string metricThresholdSnapshotJson,
-        string appliedProfileSnapshotJson,
-        string recalculationHistoryJson,
+        string? selectedSmoothingFilter,
+        string? selectedSmoothingFilterSource,
+        string? selectedSpeedUnit,
+        string? selectedSpeedUnitSource,
+        string? metricThresholdSnapshotJson,
+        string? appliedProfileSnapshotJson,
+        string? recalculationHistoryJson,
         CancellationToken cancellationToken = default);
 }
