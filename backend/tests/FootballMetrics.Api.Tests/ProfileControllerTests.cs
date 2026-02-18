@@ -35,7 +35,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     public async Task R1_5_04_Ac02_UpdateProfile_ShouldPersistOptionalSecondaryPosition()
     {
         var client = _factory.CreateClient();
-        var request = new UpdateUserProfileRequest(PlayerPositions.FullBack, PlayerPositions.Winger, null, null);
+        var request = new UpdateUserProfileRequest(PlayerPositions.FullBack, PlayerPositions.Winger, null, null, null);
 
         var updateResponse = await client.PutAsJsonAsync("/api/profile", request);
 
@@ -54,13 +54,13 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var invalidPrimaryResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest("", PlayerPositions.Winger, null, null));
+        var invalidPrimaryResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest("", PlayerPositions.Winger, null, null, null));
         invalidPrimaryResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var invalidSecondaryResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, "UnknownPosition", null, null));
+        var invalidSecondaryResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, "UnknownPosition", null, null, null));
         invalidSecondaryResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var duplicateResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, PlayerPositions.Striker, null, null));
+        var duplicateResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, PlayerPositions.Striker, null, null, null));
         duplicateResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
@@ -75,7 +75,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             MaxHeartRateBpm = 100,
             AccelerationThresholdMps2 = 2.0,
             DecelerationThresholdMps2 = -2.0
-        }, null);
+        }, null, null);
 
         var invalidResponse = await client.PutAsJsonAsync("/api/profile", invalidRequest);
         invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -88,7 +88,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             HighIntensitySpeedPercentOfMaxSpeed = 70,
             AccelerationThresholdMps2 = 2.5,
             DecelerationThresholdMps2 = -2.5
-        }, null);
+        }, null, null);
 
         var updateResponse = await client.PutAsJsonAsync("/api/profile", validRequest);
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -104,7 +104,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var updateResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth));
+        var updateResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth, null));
 
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var updatedPayload = await updateResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
@@ -123,7 +123,31 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var response = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, "InvalidFilter"));
+        var response = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, "InvalidFilter", null));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+
+    [Fact]
+    public async Task R1_5_12_Ac01_UpdateProfile_ShouldPersistPreferredSpeedUnit()
+    {
+        var client = _factory.CreateClient();
+
+        var updateResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, SpeedUnits.MinutesPerKilometer));
+
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updatedPayload = await updateResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
+        updatedPayload.Should().NotBeNull();
+        updatedPayload!.PreferredSpeedUnit.Should().Be(SpeedUnits.MinutesPerKilometer);
+    }
+
+    [Fact]
+    public async Task R1_5_12_Ac01_UpdateProfile_ShouldRejectUnsupportedPreferredSpeedUnit()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, "mph"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -145,7 +169,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             DecelerationThresholdMps2 = -2.5,
             EffectiveMaxSpeedMps = 8.0,
             EffectiveMaxHeartRateBpm = 196
-        }, null);
+        }, null, null);
 
         var updateResponse = await client.PutAsJsonAsync("/api/profile", validRequest);
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -166,7 +190,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             DecelerationThresholdMps2 = -2.5,
             EffectiveMaxSpeedMps = 8.0,
             EffectiveMaxHeartRateBpm = 196
-        }, null);
+        }, null, null);
 
         var invalidResponse = await client.PutAsJsonAsync("/api/profile", invalidRequest);
         invalidResponse.StatusCode.Should().Be(HttpStatusCode.OK);

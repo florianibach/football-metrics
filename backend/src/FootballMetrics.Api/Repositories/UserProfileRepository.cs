@@ -21,7 +21,7 @@ public class UserProfileRepository : IUserProfileRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter
+            SELECT PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit
             FROM UserProfiles
             WHERE Id = $id;
         ";
@@ -38,7 +38,8 @@ public class UserProfileRepository : IUserProfileRepository
             PrimaryPosition = reader.GetString(0),
             SecondaryPosition = reader.IsDBNull(1) ? null : reader.GetString(1),
             MetricThresholds = DeserializeThresholds(reader.IsDBNull(2) ? null : reader.GetString(2)),
-            DefaultSmoothingFilter = DeserializeDefaultSmoothingFilter(reader.IsDBNull(3) ? null : reader.GetString(3))
+            DefaultSmoothingFilter = DeserializeDefaultSmoothingFilter(reader.IsDBNull(3) ? null : reader.GetString(3)),
+            PreferredSpeedUnit = DeserializePreferredSpeedUnit(reader.IsDBNull(4) ? null : reader.GetString(4))
         };
     }
 
@@ -49,19 +50,21 @@ public class UserProfileRepository : IUserProfileRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO UserProfiles (Id, PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter)
-            VALUES ($id, $primaryPosition, $secondaryPosition, $metricThresholdsJson, $defaultSmoothingFilter)
+            INSERT INTO UserProfiles (Id, PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit)
+            VALUES ($id, $primaryPosition, $secondaryPosition, $metricThresholdsJson, $defaultSmoothingFilter, $preferredSpeedUnit)
             ON CONFLICT(Id) DO UPDATE SET
                 PrimaryPosition = excluded.PrimaryPosition,
                 SecondaryPosition = excluded.SecondaryPosition,
                 MetricThresholdsJson = excluded.MetricThresholdsJson,
-                DefaultSmoothingFilter = excluded.DefaultSmoothingFilter;
+                DefaultSmoothingFilter = excluded.DefaultSmoothingFilter,
+                PreferredSpeedUnit = excluded.PreferredSpeedUnit;
         ";
         command.Parameters.AddWithValue("$id", SingletonProfileId);
         command.Parameters.AddWithValue("$primaryPosition", profile.PrimaryPosition);
         command.Parameters.AddWithValue("$secondaryPosition", (object?)profile.SecondaryPosition ?? DBNull.Value);
         command.Parameters.AddWithValue("$metricThresholdsJson", JsonSerializer.Serialize(profile.MetricThresholds));
         command.Parameters.AddWithValue("$defaultSmoothingFilter", profile.DefaultSmoothingFilter);
+        command.Parameters.AddWithValue("$preferredSpeedUnit", profile.PreferredSpeedUnit);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return profile;
@@ -93,5 +96,16 @@ public class UserProfileRepository : IUserProfileRepository
 
         return TcxSmoothingFilters.Supported.FirstOrDefault(filter => string.Equals(filter, value, StringComparison.OrdinalIgnoreCase))
             ?? TcxSmoothingFilters.AdaptiveMedian;
+    }
+
+    private static string DeserializePreferredSpeedUnit(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return SpeedUnits.KilometersPerHour;
+        }
+
+        return SpeedUnits.Supported.FirstOrDefault(unit => string.Equals(unit, value, StringComparison.OrdinalIgnoreCase))
+            ?? SpeedUnits.KilometersPerHour;
     }
 }

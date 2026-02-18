@@ -41,7 +41,9 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 OpponentLogoUrl TEXT NULL,
                 MetricThresholdSnapshotJson TEXT NULL,
                 AppliedProfileSnapshotJson TEXT NULL,
-                RecalculationHistoryJson TEXT NULL
+                RecalculationHistoryJson TEXT NULL,
+                SelectedSpeedUnit TEXT NOT NULL DEFAULT 'km/h',
+                SelectedSpeedUnitSource TEXT NOT NULL DEFAULT 'ProfileDefault'
             );
 
             CREATE INDEX IF NOT EXISTS IX_TcxUploads_UploadedAtUtc ON TcxUploads (UploadedAtUtc DESC);
@@ -51,7 +53,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 PrimaryPosition TEXT NOT NULL,
                 SecondaryPosition TEXT NULL,
                 MetricThresholdsJson TEXT NULL,
-                DefaultSmoothingFilter TEXT NOT NULL DEFAULT 'AdaptiveMedian'
+                DefaultSmoothingFilter TEXT NOT NULL DEFAULT 'AdaptiveMedian',
+                PreferredSpeedUnit TEXT NOT NULL DEFAULT 'km/h'
             );
         ";
 
@@ -72,8 +75,11 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "MetricThresholdSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "AppliedProfileSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "RecalculationHistoryJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "SelectedSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "SelectedSpeedUnitSource", "TEXT NOT NULL DEFAULT 'ProfileDefault'", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "MetricThresholdsJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "DefaultSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
+        await EnsureUserProfileColumnExistsAsync(connection, "PreferredSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
     }
 
     private static async Task EnsureColumnExistsAsync(SqliteConnection connection, string columnName, string columnDefinition, CancellationToken cancellationToken)

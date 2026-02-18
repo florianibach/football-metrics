@@ -23,7 +23,7 @@ public class ProfileController : ControllerBase
     {
         var profile = await _repository.GetAsync(cancellationToken);
         var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
-        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, effectiveThresholds, profile.DefaultSmoothingFilter));
+        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, effectiveThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit));
     }
 
     [HttpPut]
@@ -63,6 +63,12 @@ public class ProfileController : ControllerBase
         if (normalizedDefaultSmoothingFilter is null)
         {
             return BadRequest($"Unsupported default smoothing filter. Supported values: {string.Join(", ", TcxSmoothingFilters.Supported)}.");
+        }
+
+        var normalizedPreferredSpeedUnit = NormalizePreferredSpeedUnit(request.PreferredSpeedUnit, existingProfile.PreferredSpeedUnit);
+        if (normalizedPreferredSpeedUnit is null)
+        {
+            return BadRequest($"Unsupported preferred speed unit. Supported values: {string.Join(", ", SpeedUnits.Supported)}.");
         }
 
         var submittedThresholds = request.MetricThresholds ?? existingProfile.MetricThresholds;
@@ -112,12 +118,13 @@ public class ProfileController : ControllerBase
                 PrimaryPosition = primaryPosition,
                 SecondaryPosition = secondaryPosition,
                 MetricThresholds = normalizedThresholds,
-                DefaultSmoothingFilter = normalizedDefaultSmoothingFilter
+                DefaultSmoothingFilter = normalizedDefaultSmoothingFilter,
+                PreferredSpeedUnit = normalizedPreferredSpeedUnit
             },
             cancellationToken);
 
         var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
-        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, effectiveThresholds, profile.DefaultSmoothingFilter));
+        return Ok(new UserProfileResponse(profile.PrimaryPosition, profile.SecondaryPosition, effectiveThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit));
     }
 
     private static string? NormalizeDefaultSmoothingFilter(string? requestedFilter, string fallbackFilter)
@@ -129,6 +136,18 @@ public class ProfileController : ControllerBase
 
         return TcxSmoothingFilters.Supported.FirstOrDefault(filter =>
             string.Equals(filter, requestedFilter.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+
+    private static string? NormalizePreferredSpeedUnit(string? requestedUnit, string fallbackUnit)
+    {
+        if (string.IsNullOrWhiteSpace(requestedUnit))
+        {
+            return fallbackUnit;
+        }
+
+        return SpeedUnits.Supported.FirstOrDefault(unit =>
+            string.Equals(unit, requestedUnit.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 
     private static string? NormalizeSupportedPosition(string value)
