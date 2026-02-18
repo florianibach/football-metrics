@@ -203,6 +203,23 @@ button:disabled {
   margin: 0.35rem 0;
 }
 
+.core-metrics-filter {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+
+.tab-button {
+  background: #e4e7ec;
+  color: #1d2939;
+}
+
+.tab-button--active {
+  background: #175cd3;
+  color: #ffffff;
+}
+
 
 
 .metric-help {
