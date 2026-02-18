@@ -18,6 +18,11 @@ jobs:
         run: |
           dotnet restore backend/tests/FootballMetrics.Api.Tests/FootballMetrics.Api.Tests.csproj
           dotnet test backend/tests/FootballMetrics.Api.Tests/FootballMetrics.Api.Tests.csproj --no-restore --configuration Release
+      - name: Security dependency scan (dotnet)
+        run: dotnet list backend/src/FootballMetrics.Api/FootballMetrics.Api.csproj package --vulnerable --include-transitive
+      - name: Security dependency audit (npm)
+        working-directory: frontend
+        run: npm audit --audit-level=high
 
   frontend-tests:
     runs-on: ubuntu-latest
