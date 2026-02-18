@@ -11,10 +11,10 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** ich Trainingsfortschritte und Belastungsunterschiede erkennen kann.
 
 ### Acceptance Criteria
-- [ ] Nutzer kann mindestens 2 Sessions auswählen und nebeneinander vergleichen.
-- [ ] Vergleich enthält Kernmetriken aus R1 inkl. Qualitätsstatus je Session.
-- [ ] Unterschiede werden visuell hervorgehoben (z. B. +/− Prozent oder absolute Delta-Werte).
-- [ ] Bei unterschiedlicher Datenqualität wird ein Warnhinweis angezeigt, um Fehlinterpretation zu vermeiden.
+- [x] Nutzer kann mindestens 2 Sessions auswählen und nebeneinander vergleichen.
+- [x] Vergleich enthält Kernmetriken aus R1 inkl. Qualitätsstatus je Session.
+- [x] Unterschiede werden visuell hervorgehoben (z. B. +/− Prozent oder absolute Delta-Werte).
+- [x] Bei unterschiedlicher Datenqualität wird ein Warnhinweis angezeigt, um Fehlinterpretation zu vermeiden.
 
 ---
 

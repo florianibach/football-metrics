@@ -99,6 +99,44 @@ button:disabled {
 }
 
 
+
+.session-compare {
+  margin-top: 1.5rem;
+}
+
+.comparison-table td div {
+  margin-bottom: 0.2rem;
+}
+
+
+.baseline-selector {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.6rem;
+}
+
+.baseline-selector select {
+  width: fit-content;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  background: #fff;
+}
+
+.baseline-selector p {
+  margin: 0;
+  color: #475467;
+  font-size: 0.9rem;
+}
+
+.quality-warning {
+  border-left: 4px solid #f79009;
+  background: #fffaeb;
+  color: #7a2e0e;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+}
+
 .session-details {
   margin-top: 1.5rem;
 }

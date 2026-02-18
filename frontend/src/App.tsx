@@ -63,6 +63,20 @@ type UploadRecord = {
   summary: ActivitySummary;
 };
 
+
+type CompareMetricDefinition = {
+  key: string;
+  label: string;
+  getter: (record: UploadRecord) => number | null;
+  formatter: (value: number | null, locale: Locale, notAvailable: string) => string;
+};
+
+type SessionComparisonCell = {
+  formattedValue: string;
+  deltaText: string;
+  deltaPercentText: string;
+};
+
 type Locale = 'en' | 'de';
 type SortDirection = 'desc' | 'asc';
 type CompareMode = 'raw' | 'smoothed';
@@ -143,6 +157,20 @@ type TranslationKey =
   | 'historySortNewest'
   | 'historySortOldest'
   | 'historyOpenDetails'
+  | 'historySelectForComparison'
+  | 'sessionCompareTitle'
+  | 'sessionCompareHint'
+  | 'sessionCompareQualityWarning'
+  | 'sessionCompareDelta'
+  | 'sessionCompareDeltaPercent'
+  | 'sessionCompareMetricDistance'
+  | 'sessionCompareMetricDuration'
+  | 'sessionCompareMetricSprintDistance'
+  | 'sessionCompareMetricSprintCount'
+  | 'sessionCompareMetricHighIntensityTime'
+  | 'sessionCompareMetricTrainingLoad'
+  | 'sessionCompareBaselineLabel'
+  | 'sessionCompareBaselineHint'
   | 'detailMissingHeartRateHint'
   | 'detailMissingDistanceHint'
   | 'detailMissingGpsHint'
@@ -246,6 +274,20 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historySortNewest: 'Newest first',
     historySortOldest: 'Oldest first',
     historyOpenDetails: 'Open details',
+    historySelectForComparison: 'Select for comparison',
+    sessionCompareTitle: 'Session comparison',
+    sessionCompareHint: 'Select at least 2 sessions to compare metrics and quality.',
+    sessionCompareQualityWarning: 'Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.',
+    sessionCompareDelta: 'Delta vs baseline',
+    sessionCompareDeltaPercent: 'Delta (%) vs baseline',
+    sessionCompareMetricDistance: 'Distance',
+    sessionCompareMetricDuration: 'Duration',
+    sessionCompareMetricSprintDistance: 'Sprint distance',
+    sessionCompareMetricSprintCount: 'Sprint count',
+    sessionCompareMetricHighIntensityTime: 'High-intensity time',
+    sessionCompareMetricTrainingLoad: 'TRIMP (Edwards)',
+    sessionCompareBaselineLabel: 'Baseline session',
+    sessionCompareBaselineHint: 'Choose the baseline that all deltas should reference.',
     detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
     detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
     detailMissingGpsHint: 'No GPS coordinates were detected in this file.',
@@ -344,6 +386,20 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historySortNewest: 'Neueste zuerst',
     historySortOldest: 'Älteste zuerst',
     historyOpenDetails: 'Details öffnen',
+    historySelectForComparison: 'Für Vergleich auswählen',
+    sessionCompareTitle: 'Session-Vergleich',
+    sessionCompareHint: 'Wähle mindestens 2 Sessions aus, um Metriken und Qualität zu vergleichen.',
+    sessionCompareQualityWarning: 'Qualitätswarnung: Die ausgewählten Sessions haben unterschiedliche Datenqualität. Vergleiche die Ergebnisse mit Vorsicht, um Fehlinterpretationen zu vermeiden.',
+    sessionCompareDelta: 'Delta zur Basis',
+    sessionCompareDeltaPercent: 'Delta (%) zur Basis',
+    sessionCompareMetricDistance: 'Distanz',
+    sessionCompareMetricDuration: 'Dauer',
+    sessionCompareMetricSprintDistance: 'Sprintdistanz',
+    sessionCompareMetricSprintCount: 'Sprintanzahl',
+    sessionCompareMetricHighIntensityTime: 'Hochintensive Zeit',
+    sessionCompareMetricTrainingLoad: 'TRIMP (Edwards)',
+    sessionCompareBaselineLabel: 'Basis-Session',
+    sessionCompareBaselineHint: 'Wähle die Basis, auf die sich alle Deltas beziehen sollen.',
     detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
     detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
     detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.',
@@ -526,6 +582,11 @@ function formatNumber(value: number | null, locale: Locale, notAvailable: string
   return value.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
+function formatSignedNumber(value: number, locale: Locale, digits = 1): string {
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+}
+
 function formatThresholds(thresholds: Record<string, string>): string {
   return Object.entries(thresholds)
     .map(([key, value]) => `${key}=${value}`)
@@ -594,6 +655,8 @@ export function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
   const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
+  const [compareSelectedSessionIds, setCompareSelectedSessionIds] = useState<string[]>([]);
+  const [compareBaselineSessionId, setCompareBaselineSessionId] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -634,6 +697,9 @@ export function App() {
           if (payload.length > 0) {
             setSelectedSession(payload[0]);
             setSelectedFilter(payload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
+            const initialCompareSelection = payload.slice(0, 2).map((item) => item.id);
+            setCompareSelectedSessionIds(initialCompareSelection);
+            setCompareBaselineSessionId(initialCompareSelection[0] ?? null);
           }
         }
       } catch {
@@ -745,6 +811,8 @@ export function App() {
       setCompareMode('smoothed');
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
+      setCompareSelectedSessionIds((current) => [payload.id, ...current.filter((item) => item !== payload.id)].slice(0, 4));
+      setCompareBaselineSessionId(payload.id);
       setSelectedFile(null);
     } catch {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
@@ -804,6 +872,100 @@ export function App() {
 
   const selectedFilterDescription = t[getFilterDescriptionKey(selectedFilter)];
 
+  const compareCandidates = sortedHistory.filter((record) => compareSelectedSessionIds.includes(record.id));
+  const compareSessions = compareCandidates.slice(0, 4);
+  const compareBaseline = compareSessions.find((session) => session.id === compareBaselineSessionId) ?? compareSessions[0] ?? null;
+  const showCompareQualityWarning = compareSessions.length >= 2
+    ? new Set(compareSessions.map((record) => record.summary.qualityStatus)).size > 1
+    : false;
+
+  useEffect(() => {
+    if (compareSessions.length === 0) {
+      if (compareBaselineSessionId !== null) {
+        setCompareBaselineSessionId(null);
+      }
+      return;
+    }
+
+    const isCurrentBaselineAvailable = compareBaselineSessionId !== null
+      && compareSessions.some((session) => session.id === compareBaselineSessionId);
+
+    if (!isCurrentBaselineAvailable) {
+      setCompareBaselineSessionId(compareSessions[0].id);
+    }
+  }, [compareSessions, compareBaselineSessionId]);
+
+  const compareMetrics: CompareMetricDefinition[] = [
+    {
+      key: 'distance',
+      label: t.sessionCompareMetricDistance,
+      getter: (record) => record.summary.coreMetrics.distanceMeters,
+      formatter: (value, currentLocale, notAvailable) => formatDistanceComparison(value, currentLocale, notAvailable)
+    },
+    {
+      key: 'duration',
+      label: t.sessionCompareMetricDuration,
+      getter: (record) => record.summary.durationSeconds,
+      formatter: (value, currentLocale, notAvailable) => formatDuration(value, currentLocale, notAvailable)
+    },
+    {
+      key: 'sprintDistance',
+      label: t.sessionCompareMetricSprintDistance,
+      getter: (record) => record.summary.coreMetrics.sprintDistanceMeters,
+      formatter: (value, currentLocale, notAvailable) => formatDistanceComparison(value, currentLocale, notAvailable)
+    },
+    {
+      key: 'sprintCount',
+      label: t.sessionCompareMetricSprintCount,
+      getter: (record) => record.summary.coreMetrics.sprintCount,
+      formatter: (value, currentLocale, notAvailable) => formatNumber(value, currentLocale, notAvailable, 0)
+    },
+    {
+      key: 'highIntensityTime',
+      label: t.sessionCompareMetricHighIntensityTime,
+      getter: (record) => record.summary.coreMetrics.highIntensityTimeSeconds,
+      formatter: (value, currentLocale, notAvailable) => formatDuration(value, currentLocale, notAvailable)
+    },
+    {
+      key: 'trainingLoad',
+      label: t.sessionCompareMetricTrainingLoad,
+      getter: (record) => record.summary.coreMetrics.trainingImpulseEdwards,
+      formatter: (value, currentLocale, notAvailable) => formatNumber(value, currentLocale, notAvailable, 1)
+    }
+  ];
+
+  const comparisonRows = compareMetrics.map((metric) => {
+    const baselineValue = compareBaseline ? metric.getter(compareBaseline) : null;
+
+    const cells: SessionComparisonCell[] = compareSessions.map((record) => {
+      const value = metric.getter(record);
+      let deltaText = t.notAvailable;
+      let deltaPercentText = t.notAvailable;
+
+      if (baselineValue !== null && value !== null) {
+        const delta = value - baselineValue;
+        deltaText = formatSignedNumber(delta, locale, 1);
+
+        if (baselineValue !== 0) {
+          const deltaPercent = (delta / baselineValue) * 100;
+          deltaPercentText = `${formatSignedNumber(deltaPercent, locale, 1)}%`;
+        }
+      }
+
+      return {
+        formattedValue: metric.formatter(value, locale, t.notAvailable),
+        deltaText,
+        deltaPercentText
+      };
+    });
+
+    return {
+      key: metric.key,
+      label: metric.label,
+      cells
+    };
+  });
+
   return (
     <main className="container">
       <div className="language-switcher">
@@ -855,6 +1017,7 @@ export function App() {
                 <th>{t.historyColumnUploadTime}</th>
                 <th>{t.historyColumnActivityTime}</th>
                 <th>{t.historyColumnQuality}</th>
+                <th>{t.historySelectForComparison}</th>
                 <th>{t.historyOpenDetails}</th>
               </tr>
             </thead>
@@ -865,6 +1028,22 @@ export function App() {
                   <td>{formatLocalDateTime(record.uploadedAtUtc)}</td>
                   <td>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
                   <td>{qualityStatusText(record.summary.qualityStatus, t)}</td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`${t.historySelectForComparison}: ${record.fileName}`}
+                      checked={compareSelectedSessionIds.includes(record.id)}
+                      onChange={(event) => {
+                        setCompareSelectedSessionIds((current) => {
+                          if (event.target.checked) {
+                            return [...current, record.id].slice(-4);
+                          }
+
+                          return current.filter((item) => item !== record.id);
+                        });
+                      }}
+                    />
+                  </td>
                   <td>
                     <button
                       type="button"
@@ -878,6 +1057,61 @@ export function App() {
                       {t.historyOpenDetails}
                     </button>
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="session-compare" aria-live="polite">
+        <h2>{t.sessionCompareTitle}</h2>
+        <p>{t.sessionCompareHint}</p>
+        {compareSessions.length >= 2 && (
+          <div className="baseline-selector">
+            <label htmlFor="comparison-baseline-selector">{t.sessionCompareBaselineLabel}</label>
+            <select
+              id="comparison-baseline-selector"
+              value={compareBaseline?.id ?? ''}
+              onChange={(event) => setCompareBaselineSessionId(event.target.value)}
+            >
+              {compareSessions.map((session) => (
+                <option key={session.id} value={session.id}>{session.fileName}</option>
+              ))}
+            </select>
+            <p>{t.sessionCompareBaselineHint}</p>
+          </div>
+        )}
+        {showCompareQualityWarning && <p className="quality-warning">{t.sessionCompareQualityWarning}</p>}
+        {compareSessions.length < 2 ? (
+          <p>{t.sessionCompareHint}</p>
+        ) : (
+          <table className="history-table comparison-table">
+            <thead>
+              <tr>
+                <th>{t.compareTitle}</th>
+                {compareSessions.map((session) => (
+                  <th key={session.id}>{session.fileName}{compareBaseline?.id === session.id ? ' (baseline)' : ''}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{t.metricQualityStatus}</td>
+                {compareSessions.map((session) => (
+                  <td key={`${session.id}-quality`}>{qualityStatusText(session.summary.qualityStatus, t)}</td>
+                ))}
+              </tr>
+              {comparisonRows.map((row) => (
+                <tr key={row.key}>
+                  <td>{row.label}</td>
+                  {row.cells.map((cell, index) => (
+                    <td key={`${row.key}-${compareSessions[index].id}`}>
+                      <div>{cell.formattedValue}</div>
+                      <div>{t.sessionCompareDelta}: {cell.deltaText}</div>
+                      <div>{t.sessionCompareDeltaPercent}: {cell.deltaPercentText}</div>
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
