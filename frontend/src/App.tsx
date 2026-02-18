@@ -92,11 +92,14 @@ type MetricThresholdProfile = {
   updatedAtUtc: string;
 };
 
+type SpeedUnit = 'km/h' | 'm/s' | 'min/km';
+
 type UserProfile = {
   primaryPosition: PlayerPosition;
   secondaryPosition: PlayerPosition | null;
   metricThresholds: MetricThresholdProfile;
   defaultSmoothingFilter: SmoothingFilter;
+  preferredSpeedUnit: SpeedUnit;
 };
 
 type AppliedProfileSnapshot = {
@@ -119,6 +122,8 @@ type UploadRecord = {
   summary: ActivitySummary;
   sessionContext: SessionContext;
   selectedSmoothingFilterSource: 'ProfileDefault' | 'ManualOverride' | 'ProfileRecalculation';
+  selectedSpeedUnitSource: 'ProfileDefault' | 'ManualOverride' | 'ProfileRecalculation';
+  selectedSpeedUnit: SpeedUnit;
   appliedProfileSnapshot: AppliedProfileSnapshot;
   recalculationHistory: SessionRecalculationEntry[];
 };
@@ -499,6 +504,13 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdUpdatedAt: 'Last updated (UTC)',
     profileDefaultSmoothingFilter: 'Default smoothing filter',
     profileDefaultSmoothingFilterHelp: 'Used as preselected filter for new session analyses. You can still override per session.',
+    profilePreferredSpeedUnit: 'Preferred speed unit',
+    profilePreferredSpeedUnitHelp: 'Used as default unit for new session analyses. You can still override per session without changing your profile.',
+    sessionSpeedUnitLabel: 'Speed unit',
+    sessionSpeedUnitSourceLabel: 'Speed unit source',
+    speedUnitSourceProfileDefault: 'Profile default',
+    speedUnitSourceManualOverride: 'Manual override',
+    speedUnitSourceProfileRecalculation: 'Profile recalculation',
     filterSourceLabel: 'Filter source',
     filterSourceProfileDefault: 'Profile default',
     filterSourceManualOverride: 'Manual override',
@@ -684,6 +696,13 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdUpdatedAt: 'Zuletzt aktualisiert (UTC)',
     profileDefaultSmoothingFilter: 'Standard-Glättungsfilter',
     profileDefaultSmoothingFilterHelp: 'Wird bei neuen Session-Analysen vorausgewählt. Pro Session kannst du weiterhin manuell überschreiben.',
+    profilePreferredSpeedUnit: 'Bevorzugte Geschwindigkeitseinheit',
+    profilePreferredSpeedUnitHelp: 'Wird als Standard für neue Session-Analysen verwendet. Pro Session kannst du temporär überschreiben, ohne das Profil zu ändern.',
+    sessionSpeedUnitLabel: 'Geschwindigkeitseinheit',
+    sessionSpeedUnitSourceLabel: 'Quelle Geschwindigkeitseinheit',
+    speedUnitSourceProfileDefault: 'Profil-Standard',
+    speedUnitSourceManualOverride: 'Manuelle Überschreibung',
+    speedUnitSourceProfileRecalculation: 'Profil-Rekalibrierung',
     filterSourceLabel: 'Filter-Herkunft',
     filterSourceProfileDefault: 'Profil-Standard',
     filterSourceManualOverride: 'Manuelle Änderung',
@@ -870,12 +889,25 @@ function hasCompleteHeartRate(summary: ActivitySummary): boolean {
   return summary.heartRateMinBpm !== null && summary.heartRateAverageBpm !== null && summary.heartRateMaxBpm !== null;
 }
 
-function formatSpeedMetersPerSecond(value: number | null, notAvailableText: string): string {
-  if (value === null) {
+function formatSpeed(valueMetersPerSecond: number | null, unit: SpeedUnit, notAvailableText: string): string {
+  if (valueMetersPerSecond === null) {
     return notAvailableText;
   }
 
-  return `${value.toFixed(2)} m/s`;
+  if (unit === 'km/h') {
+    return `${(valueMetersPerSecond * 3.6).toFixed(1)} km/h`;
+  }
+
+  if (unit === 'min/km') {
+    if (valueMetersPerSecond <= 0) {
+      return notAvailableText;
+    }
+
+    const minutesPerKilometer = 1000 / (valueMetersPerSecond * 60);
+    return `${minutesPerKilometer.toFixed(2)} min/km`;
+  }
+
+  return `${valueMetersPerSecond.toFixed(2)} m/s`;
 }
 
 
@@ -1025,7 +1057,8 @@ export function App() {
       version: 1,
       updatedAtUtc: new Date().toISOString()
     },
-    defaultSmoothingFilter: 'AdaptiveMedian'
+    defaultSmoothingFilter: 'AdaptiveMedian',
+    preferredSpeedUnit: 'km/h'
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
 
@@ -1080,7 +1113,8 @@ export function App() {
               primaryPosition: profilePayload.primaryPosition as PlayerPosition,
               secondaryPosition: (profilePayload.secondaryPosition as PlayerPosition | null) ?? null,
               metricThresholds: profilePayload.metricThresholds as MetricThresholdProfile,
-              defaultSmoothingFilter: (profilePayload.defaultSmoothingFilter as SmoothingFilter) ?? 'AdaptiveMedian'
+              defaultSmoothingFilter: (profilePayload.defaultSmoothingFilter as SmoothingFilter) ?? 'AdaptiveMedian',
+              preferredSpeedUnit: (profilePayload.preferredSpeedUnit as SpeedUnit) ?? 'km/h'
             });
           }
           setUploadHistory(payload);
@@ -1171,6 +1205,28 @@ export function App() {
       setSessionContextForm(payload.sessionContext);
   }
 
+
+  async function onSpeedUnitChange(event: ChangeEvent<HTMLSelectElement>) {
+    const speedUnit = event.target.value as SpeedUnit;
+
+    if (!selectedSession) {
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}/speed-unit`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ speedUnit })
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
+    const payload = (await response.json()) as UploadRecord;
+    setSelectedSession(payload);
+    setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
+  }
 
   async function onRecalculateWithCurrentProfile() {
     if (!selectedSession) {
@@ -1513,6 +1569,18 @@ export function App() {
           </select>
           <p>{t.profileDefaultSmoothingFilterHelp}</p>
 
+          <label htmlFor="profile-preferred-speed-unit">{t.profilePreferredSpeedUnit}</label>
+          <select
+            id="profile-preferred-speed-unit"
+            value={profileForm.preferredSpeedUnit}
+            onChange={(event) => setProfileForm((current) => ({ ...current, preferredSpeedUnit: event.target.value as SpeedUnit }))}
+          >
+            <option value="km/h">km/h</option>
+            <option value="m/s">m/s</option>
+            <option value="min/km">min/km</option>
+          </select>
+          <p>{t.profilePreferredSpeedUnitHelp}</p>
+
           <h3>{t.profileThresholdsTitle}</h3>
           <label htmlFor="profile-threshold-max-speed">Max speed (m/s)</label>
           <input
@@ -1850,6 +1918,13 @@ export function App() {
             <MetricListItem label={t.metricQualityReasons} value={selectedSession.summary.qualityReasons.join(' | ')} helpText={metricHelp.qualityReasons} />
             <MetricListItem label={t.metricDataChange} value={dataChangeMetric} helpText={metricHelp.dataChange} />
             <MetricListItem label={t.filterSourceLabel} value={selectedSession.selectedSmoothingFilterSource === 'ManualOverride' ? t.filterSourceManualOverride : selectedSession.selectedSmoothingFilterSource === 'ProfileRecalculation' ? t.filterSourceProfileRecalculation : t.filterSourceProfileDefault} />
+            <label htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
+            <select id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
+              <option value="km/h">km/h</option>
+              <option value="m/s">m/s</option>
+              <option value="min/km">min/km</option>
+            </select>
+            <MetricListItem label={t.sessionSpeedUnitSourceLabel} value={selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault} />
             <MetricListItem label={t.metricSmoothingStrategy} value={selectedSession.summary.smoothing.selectedStrategy} helpText={metricHelp.smoothingStrategy} />
             <MetricListItem label={t.metricSmoothingOutlier} value={`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`} helpText={metricHelp.smoothingOutlier} />
           </ul>
@@ -1878,7 +1953,7 @@ export function App() {
                   <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.distance} />
                   <MetricListItem label={t.metricSprintDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.sprintDistance} />
                   <MetricListItem label={t.metricSprintCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.sprintCount} />
-                  <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable), 'maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.maxSpeed} />
+                  <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.maxSpeed} />
                   <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highIntensityTime} />
                   <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
                   <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
@@ -1939,7 +2014,7 @@ export function App() {
                           <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
                           <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
                           <li><strong>{t.metricSprintCount}:</strong> {aggregate.coreMetrics.sprintCount ?? t.notAvailable}</li>
-                          <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeedMetersPerSecond(aggregate.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}</li>
+                          <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(aggregate.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
                           <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(aggregate.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
                           <li><strong>{t.metricHighIntensityRunCount}:</strong> {aggregate.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
                           <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>

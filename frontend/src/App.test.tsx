@@ -164,6 +164,7 @@ describe('App', () => {
         updatedAtUtc: '2026-02-16T22:00:00.000Z'
       },
       defaultSmoothingFilter: 'AdaptiveMedian',
+      preferredSpeedUnit: 'km/h',
       ...overrides
     };
   }
@@ -182,6 +183,8 @@ describe('App', () => {
         opponentLogoUrl: null
       },
       selectedSmoothingFilterSource: 'ProfileDefault',
+      selectedSpeedUnitSource: 'ProfileDefault',
+      selectedSpeedUnit: 'km/h',
       appliedProfileSnapshot: {
         thresholdVersion: 1,
         thresholdUpdatedAtUtc: '2026-02-16T22:00:00.000Z',
@@ -1458,10 +1461,69 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText(/Filter source/)).toBeInTheDocument());
-    expect(screen.getByText('Profile default')).toBeInTheDocument();
+    expect(screen.getAllByText('Profile default').length).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[1]);
     await waitFor(() => expect(screen.getByText('Manual override')).toBeInTheDocument());
+  });
+
+  it('R1_5_12_Ac01_Ac02_profile_speed_unit_is_selectable_and_applied_to_new_sessions', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredSpeedUnit: 'min/km' }) } as Response);
+      }
+
+      if (url.endsWith('/profile') && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        return Promise.resolve({ ok: true, json: async () => createProfile(body) } as Response);
+      }
+
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord({ selectedSpeedUnit: 'min/km' })] } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Profile settings')).toBeInTheDocument());
+    expect((screen.getByLabelText('Preferred speed unit') as HTMLSelectElement).value).toBe('min/km');
+
+    fireEvent.change(screen.getByLabelText('Preferred speed unit'), { target: { value: 'km/h' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+  });
+
+  it('R1_5_12_Ac03_Ac04_session_speed_unit_can_be_temporarily_overridden_with_consistent_rounding', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord({ selectedSpeedUnit: 'km/h', summary: createSummary({ coreMetrics: { ...baseCoreMetrics(), maxSpeedMetersPerSecond: 7.42 } }) })] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredSpeedUnit: 'km/h' }) } as Response);
+      }
+
+      if (url.includes('/speed-unit') && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        return Promise.resolve({ ok: true, json: async () => createUploadRecord({ selectedSpeedUnit: body.speedUnit, selectedSpeedUnitSource: 'ManualOverride', summary: createSummary({ coreMetrics: { ...baseCoreMetrics(), maxSpeedMetersPerSecond: 7.42 } }) }) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getAllByText(/26\.7 km\/h/).length).toBeGreaterThan(0));
+    fireEvent.change(screen.getByLabelText('Speed unit'), { target: { value: 'm/s' } });
+
+    await waitFor(() => expect(screen.getAllByText(/7\.42 m\/s/).length).toBeGreaterThan(0));
+    expect(screen.getByText('Manual override')).toBeInTheDocument();
   });
 
 

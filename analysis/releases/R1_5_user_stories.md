@@ -155,10 +155,10 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** alle Auswertungen in einer für mich intuitiven Darstellung erscheinen.
 
 ### Acceptance Criteria
-- [ ] Das Profil bietet die Auswahl zwischen km/h, m/s und min/km als Standard-Einheit.
-- [ ] Neue Session-Analysen übernehmen die Profil-Standard-Einheit automatisch.
-- [ ] In Session-Ansichten kann die Einheit bei Bedarf temporär überschrieben werden, ohne den Profil-Default zu verlieren.
-- [ ] Konvertierungen werden konsistent und mit eindeutigem Rundungsverhalten dargestellt.
+- [x] Das Profil bietet die Auswahl zwischen km/h, m/s und min/km als Standard-Einheit.
+- [x] Neue Session-Analysen übernehmen die Profil-Standard-Einheit automatisch.
+- [x] In Session-Ansichten kann die Einheit bei Bedarf temporär überschrieben werden, ohne den Profil-Default zu verlieren.
+- [x] Konvertierungen werden konsistent und mit eindeutigem Rundungsverhalten dargestellt.
 
 ---
 

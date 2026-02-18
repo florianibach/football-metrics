@@ -426,7 +426,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task R1_01_Ac04_UploadingTcx_ShouldReturnSmoothingTraceWithSelectedParameters()
     {
         var client = _factory.CreateClient();
-        var profileResetResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.AdaptiveMedian));
+        var profileResetResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.AdaptiveMedian, null));
         profileResetResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using var form = CreateUploadForm(
@@ -471,7 +471,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var client = _factory.CreateClient();
 
-        var profileUpdate = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth));
+        var profileUpdate = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth, null));
         profileUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using var form = CreateUploadForm(
@@ -485,6 +485,8 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         created.Should().NotBeNull();
         created!.Summary.Smoothing.SelectedStrategy.Should().Be(TcxSmoothingFilters.Butterworth);
         created.SelectedSmoothingFilterSource.Should().Be(TcxSmoothingFilterSources.ProfileDefault);
+        SpeedUnits.Supported.Should().Contain(created.SelectedSpeedUnit);
+        created.SelectedSpeedUnitSource.Should().Be(TcxSpeedUnitSources.ProfileDefault);
     }
 
     [Fact]
@@ -506,8 +508,34 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         updated.Should().NotBeNull();
         updated!.Summary.Smoothing.SelectedStrategy.Should().Be(TcxSmoothingFilters.Raw);
         updated.SelectedSmoothingFilterSource.Should().Be(TcxSmoothingFilterSources.ManualOverride);
+        updated.SelectedSpeedUnitSource.Should().Be(TcxSpeedUnitSources.ProfileDefault);
     }
 
+
+    [Fact]
+    public async Task R1_5_12_Ac03_Ac04_ManualSessionSpeedUnitChange_ShouldMarkManualOverrideAndKeepProfileDefaultIntact()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "speed-unit-override.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+
+        var putResponse = await client.PutAsJsonAsync($"/api/tcx/{created!.Id}/speed-unit", new { speedUnit = "m/s" });
+        putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var updated = await putResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        updated.Should().NotBeNull();
+        updated!.SelectedSpeedUnit.Should().Be(SpeedUnits.MetersPerSecond);
+        updated.SelectedSpeedUnitSource.Should().Be(TcxSpeedUnitSources.ManualOverride);
+
+        var profileResponse = await client.GetFromJsonAsync<UserProfileResponse>("/api/profile");
+        profileResponse.Should().NotBeNull();
+        profileResponse!.PreferredSpeedUnit.Should().NotBeNullOrWhiteSpace();
+    }
 
     [Fact]
     public async Task R1_5_03_Ac01_Ac02_Ac03_Ac04_UpdateSessionContext_ShouldPersistAndReturnUpdatedContext()
@@ -562,7 +590,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             DecelerationThresholdMps2 = -2.6,
             Version = 1,
             UpdatedAtUtc = DateTime.UtcNow
-        }, TcxSmoothingFilters.Butterworth));
+        }, TcxSmoothingFilters.Butterworth, null));
         profileUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var recalcResponse = await client.PostAsync($"/api/tcx/{created!.Id}/recalculate", content: null);
@@ -572,6 +600,8 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         recalculated.Should().NotBeNull();
         recalculated!.Summary.Smoothing.SelectedStrategy.Should().Be(TcxSmoothingFilters.Butterworth);
         recalculated.SelectedSmoothingFilterSource.Should().Be(TcxSmoothingFilterSources.ProfileRecalculation);
+        recalculated.SelectedSpeedUnit.Should().BeOneOf(SpeedUnits.KilometersPerHour, SpeedUnits.MinutesPerKilometer, SpeedUnits.MetersPerSecond);
+        recalculated.SelectedSpeedUnitSource.Should().Be(TcxSpeedUnitSources.ProfileRecalculation);
         recalculated.AppliedProfileSnapshot.ThresholdVersion.Should().BeGreaterThanOrEqualTo(2);
         recalculated.RecalculationHistory.Should().HaveCount(1);
     }
@@ -634,6 +664,16 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         public Task<bool> UpdateSelectedSmoothingFilterSourceAsync(Guid id, string selectedSmoothingFilterSource, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
+        public Task<bool> UpdateSelectedSpeedUnitAsync(Guid id, string selectedSpeedUnit, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(true);
+        }
+
+        public Task<bool> UpdateSelectedSpeedUnitSourceAsync(Guid id, string selectedSpeedUnitSource, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(true);
+        }
+
         public Task<bool> UpdateProfileSnapshotsAsync(Guid id, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
     }
@@ -675,15 +715,21 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         public Task<bool> UpdateSelectedSmoothingFilterSourceAsync(Guid id, string selectedSmoothingFilterSource, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
+        public Task<bool> UpdateSelectedSpeedUnitAsync(Guid id, string selectedSpeedUnit, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<bool> UpdateSelectedSpeedUnitSourceAsync(Guid id, string selectedSpeedUnitSource, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
         public Task<bool> UpdateProfileSnapshotsAsync(Guid id, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
     }
 
     public record TcxUploadResponseDto(Guid Id, string FileName, DateTime UploadedAtUtc);
 
-    public record TcxUploadResponseWithSummaryDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, string SelectedSmoothingFilterSource, AppliedProfileSnapshotDto AppliedProfileSnapshot, IReadOnlyList<SessionRecalculationEntryDto> RecalculationHistory);
+    public record TcxUploadResponseWithSummaryDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, string SelectedSmoothingFilterSource, string SelectedSpeedUnitSource, string SelectedSpeedUnit, AppliedProfileSnapshotDto AppliedProfileSnapshot, IReadOnlyList<SessionRecalculationEntryDto> RecalculationHistory);
 
-    public record TcxUploadResponseWithSummaryAndContextDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, SessionContextDto SessionContext, string SelectedSmoothingFilterSource, AppliedProfileSnapshotDto AppliedProfileSnapshot, IReadOnlyList<SessionRecalculationEntryDto> RecalculationHistory);
+    public record TcxUploadResponseWithSummaryAndContextDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, SessionContextDto SessionContext, string SelectedSmoothingFilterSource, string SelectedSpeedUnitSource, string SelectedSpeedUnit, AppliedProfileSnapshotDto AppliedProfileSnapshot, IReadOnlyList<SessionRecalculationEntryDto> RecalculationHistory);
 
     public record SessionContextDto(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);
 

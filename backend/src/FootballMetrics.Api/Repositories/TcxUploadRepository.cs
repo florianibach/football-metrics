@@ -19,8 +19,8 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson)
-            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter, $selectedSmoothingFilterSource, $sessionType, $matchResult, $competition, $opponentName, $opponentLogoUrl, $metricThresholdSnapshotJson, $appliedProfileSnapshotJson, $recalculationHistoryJson);
+            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson, SelectedSpeedUnit, SelectedSpeedUnitSource)
+            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter, $selectedSmoothingFilterSource, $sessionType, $matchResult, $competition, $opponentName, $opponentLogoUrl, $metricThresholdSnapshotJson, $appliedProfileSnapshotJson, $recalculationHistoryJson, $selectedSpeedUnit, $selectedSpeedUnitSource);
         ";
         command.Parameters.AddWithValue("$id", upload.Id.ToString());
         command.Parameters.AddWithValue("$fileName", upload.FileName);
@@ -40,6 +40,8 @@ public class TcxUploadRepository : ITcxUploadRepository
         command.Parameters.AddWithValue("$metricThresholdSnapshotJson", (object?)upload.MetricThresholdSnapshotJson ?? DBNull.Value);
         command.Parameters.AddWithValue("$appliedProfileSnapshotJson", (object?)upload.AppliedProfileSnapshotJson ?? DBNull.Value);
         command.Parameters.AddWithValue("$recalculationHistoryJson", (object?)upload.RecalculationHistoryJson ?? DBNull.Value);
+        command.Parameters.AddWithValue("$selectedSpeedUnit", upload.SelectedSpeedUnit);
+        command.Parameters.AddWithValue("$selectedSpeedUnitSource", upload.SelectedSpeedUnitSource);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return upload;
@@ -52,7 +54,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson, SelectedSpeedUnit, SelectedSpeedUnitSource
             FROM TcxUploads
             ORDER BY UploadedAtUtc DESC;
         ";
@@ -75,7 +77,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson, SelectedSpeedUnit, SelectedSpeedUnitSource
             FROM TcxUploads
             WHERE Id = $id;
         ";
@@ -110,9 +112,10 @@ public class TcxUploadRepository : ITcxUploadRepository
             OpponentLogoUrl = reader.IsDBNull(14) ? null : reader.GetString(14),
             MetricThresholdSnapshotJson = reader.IsDBNull(15) ? null : reader.GetString(15),
             AppliedProfileSnapshotJson = reader.IsDBNull(16) ? null : reader.GetString(16),
-            RecalculationHistoryJson = reader.IsDBNull(17) ? null : reader.GetString(17)
+            RecalculationHistoryJson = reader.IsDBNull(17) ? null : reader.GetString(17),
+            SelectedSpeedUnit = reader.IsDBNull(18) ? SpeedUnits.KilometersPerHour : reader.GetString(18),
+            SelectedSpeedUnitSource = reader.IsDBNull(19) ? TcxSpeedUnitSources.ProfileDefault : reader.GetString(19)
         };
-
 
     public async Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
     {
@@ -198,4 +201,39 @@ public class TcxUploadRepository : ITcxUploadRepository
         return affectedRows > 0;
     }
 
+    public async Task<bool> UpdateSelectedSpeedUnitAsync(Guid id, string selectedSpeedUnit, CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE TcxUploads
+            SET SelectedSpeedUnit = $selectedSpeedUnit
+            WHERE Id = $id;
+        ";
+        command.Parameters.AddWithValue("$id", id.ToString());
+        command.Parameters.AddWithValue("$selectedSpeedUnit", selectedSpeedUnit);
+
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        return affectedRows > 0;
+    }
+
+    public async Task<bool> UpdateSelectedSpeedUnitSourceAsync(Guid id, string selectedSpeedUnitSource, CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE TcxUploads
+            SET SelectedSpeedUnitSource = $selectedSpeedUnitSource
+            WHERE Id = $id;
+        ";
+        command.Parameters.AddWithValue("$id", id.ToString());
+        command.Parameters.AddWithValue("$selectedSpeedUnitSource", selectedSpeedUnitSource);
+
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        return affectedRows > 0;
+    }
 }

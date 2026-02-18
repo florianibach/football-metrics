@@ -6,6 +6,21 @@ public class UserProfile
     public string? SecondaryPosition { get; set; }
     public MetricThresholdProfile MetricThresholds { get; set; } = MetricThresholdProfile.CreateDefault();
     public string DefaultSmoothingFilter { get; set; } = TcxSmoothingFilters.AdaptiveMedian;
+    public string PreferredSpeedUnit { get; set; } = SpeedUnits.KilometersPerHour;
+}
+
+public static class SpeedUnits
+{
+    public const string KilometersPerHour = "km/h";
+    public const string MetersPerSecond = "m/s";
+    public const string MinutesPerKilometer = "min/km";
+
+    public static readonly IReadOnlyList<string> Supported =
+    [
+        KilometersPerHour,
+        MetersPerSecond,
+        MinutesPerKilometer
+    ];
 }
 
 public static class PlayerPositions
@@ -117,5 +132,5 @@ public static class MetricThresholdModes
     public static readonly IReadOnlyList<string> Supported = [Fixed, Adaptive];
 }
 
-public record UpdateUserProfileRequest(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile? MetricThresholds, string? DefaultSmoothingFilter);
-public record UserProfileResponse(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile MetricThresholds, string DefaultSmoothingFilter);
+public record UpdateUserProfileRequest(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile? MetricThresholds, string? DefaultSmoothingFilter, string? PreferredSpeedUnit);
+public record UserProfileResponse(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile MetricThresholds, string DefaultSmoothingFilter, string PreferredSpeedUnit);

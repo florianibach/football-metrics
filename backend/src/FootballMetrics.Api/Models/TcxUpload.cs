@@ -20,6 +20,8 @@ public class TcxUpload
     public string? MetricThresholdSnapshotJson { get; set; }
     public string? AppliedProfileSnapshotJson { get; set; }
     public string? RecalculationHistoryJson { get; set; }
+    public string SelectedSpeedUnit { get; set; } = SpeedUnits.KilometersPerHour;
+    public string SelectedSpeedUnitSource { get; set; } = TcxSpeedUnitSources.ProfileDefault;
 }
 
 public sealed record AppliedProfileSnapshot(
@@ -32,6 +34,13 @@ public sealed record SessionRecalculationEntry(
     DateTime RecalculatedAtUtc,
     AppliedProfileSnapshot PreviousProfile,
     AppliedProfileSnapshot NewProfile);
+
+public static class TcxSpeedUnitSources
+{
+    public const string ProfileDefault = "ProfileDefault";
+    public const string ManualOverride = "ManualOverride";
+    public const string ProfileRecalculation = "ProfileRecalculation";
+}
 
 public static class TcxSmoothingFilterSources
 {

@@ -188,6 +188,14 @@ Empfohlener Sammelcheck:
 - Die Session-Filterauswahl bleibt pro Session manuell überschreibbar (`PUT /api/tcx/{id}/smoothing-filter`).
 - Die API liefert transparent die Herkunft des aktiven Filters über `selectedSmoothingFilterSource` mit `ProfileDefault` oder `ManualOverride`; die UI zeigt diese Herkunft in der Session-Detailansicht an.
 
+
+## Bevorzugte Geschwindigkeitseinheit im Profil (R1.5-12)
+
+- Im Profil kann eine bevorzugte Geschwindigkeitseinheit als Standard gesetzt werden: `km/h`, `m/s` oder `min/km`.
+- Neue Session-Analysen übernehmen diese Einheit automatisch als `selectedSpeedUnit` mit Quelle `selectedSpeedUnitSource=ProfileDefault`.
+- In der Session-Detailansicht kann die Einheit temporär pro Session überschrieben werden (`PUT /api/tcx/{id}/speed-unit`), ohne den Profil-Default (`preferredSpeedUnit`) zu verändern.
+- Rundung/Konvertierung ist konsistent: `km/h` mit 1 Nachkommastelle, `m/s` mit 2 Nachkommastellen, `min/km` mit 2 Nachkommastellen.
+
 ## Adaptive vs. fixe Schwellen im Profil (R1.5-10)
 
 - In den Profileinstellungen kann pro Schwelle ein Modus gewählt werden: `Fixed` oder `Adaptive`.

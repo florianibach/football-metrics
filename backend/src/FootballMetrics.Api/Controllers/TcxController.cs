@@ -81,6 +81,7 @@ public class TcxController : ControllerBase
         var metricThresholdSnapshot = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
         var defaultSmoothingFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
         var appliedProfileSnapshot = CreateAppliedProfileSnapshot(metricThresholdSnapshot, defaultSmoothingFilter);
+        var defaultSpeedUnit = NormalizeSpeedUnit(profile.PreferredSpeedUnit);
 
         var uploadId = Guid.NewGuid();
 
@@ -95,6 +96,8 @@ public class TcxController : ControllerBase
             UploadedAtUtc = DateTime.UtcNow,
             SelectedSmoothingFilter = defaultSmoothingFilter,
             SelectedSmoothingFilterSource = TcxSmoothingFilterSources.ProfileDefault,
+            SelectedSpeedUnit = defaultSpeedUnit,
+            SelectedSpeedUnitSource = TcxSpeedUnitSources.ProfileDefault,
             SessionType = TcxSessionTypes.Training,
             MetricThresholdSnapshotJson = JsonSerializer.Serialize(metricThresholdSnapshot),
             AppliedProfileSnapshotJson = JsonSerializer.Serialize(appliedProfileSnapshot),
@@ -119,6 +122,8 @@ public class TcxController : ControllerBase
                 UploadStatus = TcxUploadStatuses.Failed,
                 FailureReason = "StorageError",
                 UploadedAtUtc = entity.UploadedAtUtc,
+                SelectedSpeedUnit = defaultSpeedUnit,
+                SelectedSpeedUnitSource = TcxSpeedUnitSources.ProfileDefault,
                 SessionType = TcxSessionTypes.Training,
                 MetricThresholdSnapshotJson = JsonSerializer.Serialize(metricThresholdSnapshot),
                 AppliedProfileSnapshotJson = JsonSerializer.Serialize(appliedProfileSnapshot),
@@ -144,7 +149,7 @@ public class TcxController : ControllerBase
         }
 
         var responseSummary = CreateSummaryFromRawContent(entity.RawFileContent, entity.SelectedSmoothingFilter, entity.MetricThresholdSnapshotJson);
-        var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc, responseSummary, entity.SessionContext(), entity.SelectedSmoothingFilterSource, ResolveAppliedProfileSnapshot(entity), ResolveRecalculationHistory(entity));
+        var response = new TcxUploadResponse(entity.Id, entity.FileName, entity.UploadedAtUtc, responseSummary, entity.SessionContext(), entity.SelectedSmoothingFilterSource, entity.SelectedSpeedUnitSource, entity.SelectedSpeedUnit, ResolveAppliedProfileSnapshot(entity), ResolveRecalculationHistory(entity));
         return CreatedAtAction(nameof(GetUploadById), new { id = entity.Id }, response);
     }
 
@@ -153,7 +158,7 @@ public class TcxController : ControllerBase
     {
         var uploads = await _repository.ListAsync(cancellationToken);
         var responses = uploads
-            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload)))
+            .Select(upload => new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, upload.SelectedSpeedUnitSource, upload.SelectedSpeedUnit, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload)))
             .ToList();
 
         return Ok(responses);
@@ -168,7 +173,7 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, upload.SelectedSpeedUnitSource, upload.SelectedSpeedUnit, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
         return Ok(response);
     }
 
@@ -211,7 +216,7 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, upload.SelectedSpeedUnitSource, upload.SelectedSpeedUnit, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
         return Ok(response);
     }
 
@@ -238,7 +243,34 @@ public class TcxController : ControllerBase
             return NotFound();
         }
 
-        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, upload.SelectedSpeedUnitSource, upload.SelectedSpeedUnit, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
+        return Ok(response);
+    }
+
+    [HttpPut("{id:guid}/speed-unit")]
+    public async Task<ActionResult<TcxUploadResponse>> UpdateSessionSpeedUnit(Guid id, [FromBody] UpdateSpeedUnitRequest request, CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.SpeedUnit) || !SpeedUnits.Supported.Contains(request.SpeedUnit, StringComparer.OrdinalIgnoreCase))
+        {
+            return BadRequest($"Unsupported speed unit. Supported values: {string.Join(", ", SpeedUnits.Supported)}.");
+        }
+
+        var normalizedSpeedUnit = NormalizeSpeedUnit(request.SpeedUnit);
+        var wasUpdated = await _repository.UpdateSelectedSpeedUnitAsync(id, normalizedSpeedUnit, cancellationToken);
+        if (!wasUpdated)
+        {
+            return NotFound();
+        }
+
+        await _repository.UpdateSelectedSpeedUnitSourceAsync(id, TcxSpeedUnitSources.ManualOverride, cancellationToken);
+
+        var upload = await _repository.GetByIdAsync(id, cancellationToken);
+        if (upload is null)
+        {
+            return NotFound();
+        }
+
+        var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, upload.SelectedSpeedUnitSource, upload.SelectedSpeedUnit, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
         return Ok(response);
     }
 
@@ -253,6 +285,7 @@ public class TcxController : ControllerBase
 
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
         var normalizedFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
+        var normalizedSpeedUnit = NormalizeSpeedUnit(profile.PreferredSpeedUnit);
         var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
         var newSnapshot = CreateAppliedProfileSnapshot(effectiveThresholds, normalizedFilter);
         var previousSnapshot = ResolveAppliedProfileSnapshot(upload);
@@ -268,6 +301,8 @@ public class TcxController : ControllerBase
         }
 
         await _repository.UpdateSelectedSmoothingFilterSourceAsync(id, TcxSmoothingFilterSources.ProfileRecalculation, cancellationToken);
+        await _repository.UpdateSelectedSpeedUnitAsync(id, normalizedSpeedUnit, cancellationToken);
+        await _repository.UpdateSelectedSpeedUnitSourceAsync(id, TcxSpeedUnitSources.ProfileRecalculation, cancellationToken);
         await _repository.UpdateProfileSnapshotsAsync(
             id,
             JsonSerializer.Serialize(effectiveThresholds),
@@ -288,6 +323,8 @@ public class TcxController : ControllerBase
             CreateSummaryFromRawContent(refreshed.RawFileContent, refreshed.SelectedSmoothingFilter, refreshed.MetricThresholdSnapshotJson),
             refreshed.SessionContext(),
             refreshed.SelectedSmoothingFilterSource,
+            refreshed.SelectedSpeedUnitSource,
+            refreshed.SelectedSpeedUnit,
             ResolveAppliedProfileSnapshot(refreshed),
             ResolveRecalculationHistory(refreshed));
         return Ok(response);
@@ -361,6 +398,17 @@ public class TcxController : ControllerBase
             ?? new List<SessionRecalculationEntry>();
     }
 
+    private static string NormalizeSpeedUnit(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return SpeedUnits.KilometersPerHour;
+        }
+
+        return SpeedUnits.Supported.FirstOrDefault(unit => string.Equals(unit, value, StringComparison.OrdinalIgnoreCase))
+            ?? SpeedUnits.KilometersPerHour;
+    }
+
     private static string NormalizeSmoothingFilter(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -426,9 +474,10 @@ public class TcxController : ControllerBase
     }
 }
 
-public record TcxUploadResponse(Guid Id, string FileName, DateTime UploadedAtUtc, TcxActivitySummary Summary, SessionContextResponse SessionContext, string SelectedSmoothingFilterSource, AppliedProfileSnapshot AppliedProfileSnapshot, IReadOnlyList<SessionRecalculationEntry> RecalculationHistory);
+public record TcxUploadResponse(Guid Id, string FileName, DateTime UploadedAtUtc, TcxActivitySummary Summary, SessionContextResponse SessionContext, string SelectedSmoothingFilterSource, string SelectedSpeedUnitSource, string SelectedSpeedUnit, AppliedProfileSnapshot AppliedProfileSnapshot, IReadOnlyList<SessionRecalculationEntry> RecalculationHistory);
 public record SessionContextResponse(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);
 public record UpdateSmoothingFilterRequest(string Filter);
+public record UpdateSpeedUnitRequest(string SpeedUnit);
 public record UpdateSessionContextRequest(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);
 
 internal static class TcxUploadSessionContextExtensions
