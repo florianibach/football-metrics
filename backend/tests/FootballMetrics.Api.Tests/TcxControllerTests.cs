@@ -426,6 +426,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task R1_01_Ac04_UploadingTcx_ShouldReturnSmoothingTraceWithSelectedParameters()
     {
         var client = _factory.CreateClient();
+        var profileResetResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.AdaptiveMedian));
+        profileResetResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
         using var form = CreateUploadForm(
             "r1-01-smoothing.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:00:01Z</Time><Position><LatitudeDegrees>50.02</LatitudeDegrees><LongitudeDegrees>7.02</LongitudeDegrees></Position><HeartRateBpm><Value>132</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position><HeartRateBpm><Value>133</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");

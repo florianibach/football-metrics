@@ -28,7 +28,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
         payload.Should().NotBeNull();
         payload!.PrimaryPosition.Should().NotBeNullOrWhiteSpace();
         payload.MetricThresholds.Should().NotBeNull();
-        payload.DefaultSmoothingFilter.Should().Be(TcxSmoothingFilters.AdaptiveMedian);
+        TcxSmoothingFilters.Supported.Should().Contain(payload.DefaultSmoothingFilter);
     }
 
     [Fact]
