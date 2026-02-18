@@ -1352,7 +1352,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText('Metric thresholds')).toBeInTheDocument());
-    expect((screen.getByLabelText('Max speed (m/s)') as HTMLInputElement).value).toBe('7.8');
+    expect((screen.getByLabelText('Max speed (km/h)') as HTMLInputElement).value).toBe('28.1');
     expect(screen.getByText('Threshold version: 3')).toBeInTheDocument();
   });
 
@@ -1365,7 +1365,7 @@ describe('App', () => {
 
       if (url.endsWith('/profile') && init?.method === 'PUT') {
         const body = JSON.parse(String(init.body));
-        if (body.metricThresholds?.maxSpeedMps === 3) {
+        if (body.metricThresholds?.maxSpeedMps < 4) {
           return Promise.resolve({ ok: false, text: async () => 'MaxSpeedMps must be between 4.0 and 12.0.' } as Response);
         }
 
@@ -1379,11 +1379,11 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Profile settings')).toBeInTheDocument());
 
-    fireEvent.change(screen.getByLabelText('Max speed (m/s)'), { target: { value: '3.0' } });
+    fireEvent.change(screen.getByLabelText('Max speed (km/h)'), { target: { value: '3.0' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
     await waitFor(() => expect(screen.getByText(/Upload failed:/)).toBeInTheDocument());
 
-    fireEvent.change(screen.getByLabelText('Max speed (m/s)'), { target: { value: '8.1' } });
+    fireEvent.change(screen.getByLabelText('Max speed (km/h)'), { target: { value: '30.0' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
@@ -1465,6 +1465,30 @@ describe('App', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[1]);
     await waitFor(() => expect(screen.getByText('Manual override')).toBeInTheDocument());
+  });
+
+  it('R1_5_12_Ac01_profile_thresholds_use_preferred_speed_unit_in_profile_view', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/profile')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => createProfile({
+            preferredSpeedUnit: 'min/km',
+            metricThresholds: { ...createProfile().metricThresholds, maxSpeedMps: 6.0, maxSpeedMode: 'Fixed', sprintSpeedPercentOfMaxSpeed: 90, highIntensitySpeedPercentOfMaxSpeed: 70 }
+          })
+        } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText('Max speed (min/km)')).toBeInTheDocument());
+    expect((screen.getByLabelText('Max speed (min/km)') as HTMLInputElement).value).toBe('2.78');
+    expect(screen.getByText('Calculated sprint threshold: 3.09 min/km')).toBeInTheDocument();
+    expect(screen.getByText('Calculated high-intensity threshold: 3.97 min/km')).toBeInTheDocument();
   });
 
   it('R1_5_12_Ac01_Ac02_profile_speed_unit_is_selectable_and_applied_to_new_sessions', async () => {

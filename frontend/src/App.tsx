@@ -889,6 +889,38 @@ function hasCompleteHeartRate(summary: ActivitySummary): boolean {
   return summary.heartRateMinBpm !== null && summary.heartRateAverageBpm !== null && summary.heartRateMaxBpm !== null;
 }
 
+function convertSpeedFromMetersPerSecond(valueMetersPerSecond: number, unit: SpeedUnit): number {
+  if (unit === 'km/h') {
+    return valueMetersPerSecond * 3.6;
+  }
+
+  if (unit === 'min/km') {
+    if (valueMetersPerSecond <= 0) {
+      return 0;
+    }
+
+    return 1000 / (valueMetersPerSecond * 60);
+  }
+
+  return valueMetersPerSecond;
+}
+
+function convertSpeedToMetersPerSecond(value: number, unit: SpeedUnit): number {
+  if (unit === 'km/h') {
+    return value / 3.6;
+  }
+
+  if (unit === 'min/km') {
+    if (value <= 0) {
+      return 0;
+    }
+
+    return 1000 / (value * 60);
+  }
+
+  return value;
+}
+
 function formatSpeed(valueMetersPerSecond: number | null, unit: SpeedUnit, notAvailableText: string): string {
   if (valueMetersPerSecond === null) {
     return notAvailableText;
@@ -1408,6 +1440,7 @@ export function App() {
 
   const sprintThresholdMpsPreview = displayedMaxSpeedMps * (profileForm.metricThresholds.sprintSpeedPercentOfMaxSpeed / 100);
   const highIntensityThresholdMpsPreview = displayedMaxSpeedMps * (profileForm.metricThresholds.highIntensitySpeedPercentOfMaxSpeed / 100);
+  const displayedMaxSpeedByPreferredUnit = convertSpeedFromMetersPerSecond(displayedMaxSpeedMps, profileForm.preferredSpeedUnit);
 
   const compareCandidates = sortedHistory.filter((record) => compareSelectedSessionIds.includes(record.id));
   const compareSessions = compareCandidates.slice(0, 4);
@@ -1582,16 +1615,16 @@ export function App() {
           <p>{t.profilePreferredSpeedUnitHelp}</p>
 
           <h3>{t.profileThresholdsTitle}</h3>
-          <label htmlFor="profile-threshold-max-speed">Max speed (m/s)</label>
+          <label htmlFor="profile-threshold-max-speed">Max speed ({profileForm.preferredSpeedUnit})</label>
           <input
             id="profile-threshold-max-speed"
             type="number"
-            step="0.1"
-            value={displayedMaxSpeedMps}
+            step={profileForm.preferredSpeedUnit === "min/km" ? "0.01" : "0.1"}
+            value={displayedMaxSpeedByPreferredUnit.toFixed(profileForm.preferredSpeedUnit === "min/km" ? 2 : 1)}
             readOnly={profileForm.metricThresholds.maxSpeedMode === 'Adaptive'}
             onChange={(event) => setProfileForm((current) => ({
               ...current,
-              metricThresholds: { ...current.metricThresholds, maxSpeedMps: Number(event.target.value) }
+              metricThresholds: { ...current.metricThresholds, maxSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit) }
             }))}
           />
           <label htmlFor="profile-threshold-sprint-mode">{t.profileThresholdSprintMode}</label>
@@ -1643,7 +1676,7 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, sprintSpeedPercentOfMaxSpeed: Number(event.target.value) }
             }))}
           />
-          <p>Calculated sprint threshold: {sprintThresholdMpsPreview.toFixed(2)} m/s</p>
+          <p>Calculated sprint threshold: {formatSpeed(sprintThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
           <label htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
           <input
             id="profile-threshold-high-intensity"
@@ -1655,7 +1688,7 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, highIntensitySpeedPercentOfMaxSpeed: Number(event.target.value) }
             }))}
           />
-          <p>Calculated high-intensity threshold: {highIntensityThresholdMpsPreview.toFixed(2)} m/s</p>
+          <p>Calculated high-intensity threshold: {formatSpeed(highIntensityThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
           <label htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
           <input
             id="profile-threshold-acceleration"
