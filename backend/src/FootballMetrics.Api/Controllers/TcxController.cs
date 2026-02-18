@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Xml.Linq;
+using FootballMetrics.Api.Api;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
 using FootballMetrics.Api.Services;
@@ -39,7 +40,7 @@ public class TcxController : ControllerBase
     {
         if (file is null || file.Length == 0)
         {
-            return BadRequest("No file uploaded. Please select a .tcx file and try again.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid upload request", "No file uploaded. Please select a .tcx file and try again.", ApiErrorCodes.ValidationError);
         }
 
         var adapter = _uploadFormatAdapterResolver.ResolveByFileName(file.FileName);
@@ -54,12 +55,12 @@ public class TcxController : ControllerBase
                 normalizedExtension,
                 file.FileName);
 
-            return BadRequest($"File type '{normalizedExtension}' is currently not supported. Supported formats: {supportedExtensions}. The format has been logged for potential future support.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported file type", $"File type '{normalizedExtension}' is currently not supported. Supported formats: {supportedExtensions}. The format has been logged for potential future support.", ApiErrorCodes.UnsupportedFileType);
         }
 
         if (file.Length > MaxFileSizeInBytes)
         {
-            return BadRequest($"File is too large. Maximum supported size is {MaxFileSizeInBytes / (1024 * 1024)} MB.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid upload request", $"File is too large. Maximum supported size is {MaxFileSizeInBytes / (1024 * 1024)} MB.", ApiErrorCodes.ValidationError);
         }
 
         byte[] rawFileBytes;
@@ -73,7 +74,7 @@ public class TcxController : ControllerBase
         var parseResult = await adapter.ParseAsync(rawFileBytes, cancellationToken);
         if (!parseResult.IsSuccess)
         {
-            return BadRequest(parseResult.ErrorMessage);
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unable to parse upload", parseResult.ErrorMessage ?? "The uploaded file could not be parsed.", ApiErrorCodes.UploadParseFailed);
         }
 
         var summary = parseResult.Summary!;
@@ -132,8 +133,7 @@ public class TcxController : ControllerBase
 
             await EnsureFailedUploadMarkerAsync(failedEntity, cancellationToken);
 
-            return StatusCode(StatusCodes.Status500InternalServerError,
-                "Upload failed while saving your file. Please retry in a moment or contact support if the problem persists.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status500InternalServerError, "Failed to persist upload", "Upload failed while saving your file. Please retry in a moment or contact support if the problem persists.", ApiErrorCodes.UploadStorageFailed);
         }
 
         _logger.LogInformation("Uploaded {FormatKey} file {FileName} with id {UploadId}", adapter.FormatKey, entity.FileName, entity.Id);
@@ -170,7 +170,7 @@ public class TcxController : ControllerBase
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
         {
-            return NotFound();
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
         var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, upload.SelectedSpeedUnitSource, upload.SelectedSpeedUnit, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
@@ -182,7 +182,7 @@ public class TcxController : ControllerBase
     {
         if (request is null || string.IsNullOrWhiteSpace(request.SessionType) || !TcxSessionTypes.Supported.Contains(request.SessionType))
         {
-            return BadRequest($"Unsupported session type. Supported values: {string.Join(", ", TcxSessionTypes.Supported)}.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid session context", $"Unsupported session type. Supported values: {string.Join(", ", TcxSessionTypes.Supported)}.", ApiErrorCodes.ValidationError);
         }
 
         var normalizedSessionType = NormalizeSessionType(request.SessionType);
@@ -193,7 +193,7 @@ public class TcxController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(opponentLogoUrl) && !Uri.TryCreate(opponentLogoUrl, UriKind.Absolute, out _))
         {
-            return BadRequest("OpponentLogoUrl must be an absolute URL.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid session context", "OpponentLogoUrl must be an absolute URL.", ApiErrorCodes.ValidationError);
         }
 
         if (!string.Equals(normalizedSessionType, TcxSessionTypes.Match, StringComparison.Ordinal))
@@ -207,13 +207,13 @@ public class TcxController : ControllerBase
         var updated = await _repository.UpdateSessionContextAsync(id, normalizedSessionType, matchResult, competition, opponentName, opponentLogoUrl, cancellationToken);
         if (!updated)
         {
-            return NotFound();
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
         {
-            return NotFound();
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
         var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, upload.SelectedSpeedUnitSource, upload.SelectedSpeedUnit, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
@@ -225,14 +225,14 @@ public class TcxController : ControllerBase
     {
         if (request is null || string.IsNullOrWhiteSpace(request.Filter) || !TcxSmoothingFilters.Supported.Contains(request.Filter))
         {
-            return BadRequest($"Unsupported filter. Supported values: {string.Join(", ", TcxSmoothingFilters.Supported)}.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported smoothing filter", $"Unsupported filter. Supported values: {string.Join(", ", TcxSmoothingFilters.Supported)}.", ApiErrorCodes.ValidationError);
         }
 
         var normalizedFilter = TcxSmoothingFilters.Supported.First(filter => string.Equals(filter, request.Filter, StringComparison.OrdinalIgnoreCase));
         var wasUpdated = await _repository.UpdateSelectedSmoothingFilterAsync(id, normalizedFilter, cancellationToken);
         if (!wasUpdated)
         {
-            return NotFound();
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
         await _repository.UpdateSelectedSmoothingFilterSourceAsync(id, TcxSmoothingFilterSources.ManualOverride, cancellationToken);
@@ -240,7 +240,7 @@ public class TcxController : ControllerBase
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
         {
-            return NotFound();
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
         var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, upload.SelectedSpeedUnitSource, upload.SelectedSpeedUnit, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
@@ -252,14 +252,14 @@ public class TcxController : ControllerBase
     {
         if (request is null || string.IsNullOrWhiteSpace(request.SpeedUnit) || !SpeedUnits.Supported.Contains(request.SpeedUnit, StringComparer.OrdinalIgnoreCase))
         {
-            return BadRequest($"Unsupported speed unit. Supported values: {string.Join(", ", SpeedUnits.Supported)}.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported speed unit", $"Unsupported speed unit. Supported values: {string.Join(", ", SpeedUnits.Supported)}.", ApiErrorCodes.ValidationError);
         }
 
         var normalizedSpeedUnit = NormalizeSpeedUnit(request.SpeedUnit);
         var wasUpdated = await _repository.UpdateSelectedSpeedUnitAsync(id, normalizedSpeedUnit, cancellationToken);
         if (!wasUpdated)
         {
-            return NotFound();
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
         await _repository.UpdateSelectedSpeedUnitSourceAsync(id, TcxSpeedUnitSources.ManualOverride, cancellationToken);
@@ -267,7 +267,7 @@ public class TcxController : ControllerBase
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
         {
-            return NotFound();
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
         var response = new TcxUploadResponse(upload.Id, upload.FileName, upload.UploadedAtUtc, CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson), upload.SessionContext(), upload.SelectedSmoothingFilterSource, upload.SelectedSpeedUnitSource, upload.SelectedSpeedUnit, ResolveAppliedProfileSnapshot(upload), ResolveRecalculationHistory(upload));
@@ -280,7 +280,7 @@ public class TcxController : ControllerBase
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
         {
-            return NotFound();
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
@@ -294,26 +294,25 @@ public class TcxController : ControllerBase
             .Concat(new[] { new SessionRecalculationEntry(DateTime.UtcNow, previousSnapshot, newSnapshot) })
             .ToArray();
 
-        var updated = await _repository.UpdateSelectedSmoothingFilterAsync(id, normalizedFilter, cancellationToken);
-        if (!updated)
-        {
-            return NotFound();
-        }
-
-        await _repository.UpdateSelectedSmoothingFilterSourceAsync(id, TcxSmoothingFilterSources.ProfileRecalculation, cancellationToken);
-        await _repository.UpdateSelectedSpeedUnitAsync(id, normalizedSpeedUnit, cancellationToken);
-        await _repository.UpdateSelectedSpeedUnitSourceAsync(id, TcxSpeedUnitSources.ProfileRecalculation, cancellationToken);
-        await _repository.UpdateProfileSnapshotsAsync(
+        var updated = await _repository.RecalculateSessionWithProfileAsync(
             id,
+            normalizedFilter,
+            TcxSmoothingFilterSources.ProfileRecalculation,
+            normalizedSpeedUnit,
+            TcxSpeedUnitSources.ProfileRecalculation,
             JsonSerializer.Serialize(effectiveThresholds),
             JsonSerializer.Serialize(newSnapshot),
             JsonSerializer.Serialize(nextHistory),
             cancellationToken);
+        if (!updated)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
+        }
 
         var refreshed = await _repository.GetByIdAsync(id, cancellationToken);
         if (refreshed is null)
         {
-            return NotFound();
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
         var response = new TcxUploadResponse(

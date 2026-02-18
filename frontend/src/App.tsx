@@ -1409,7 +1409,8 @@ export function App() {
       primaryPosition: payload.primaryPosition,
       secondaryPosition: payload.secondaryPosition,
       metricThresholds: payload.metricThresholds,
-      defaultSmoothingFilter: payload.defaultSmoothingFilter
+      defaultSmoothingFilter: payload.defaultSmoothingFilter,
+      preferredSpeedUnit: payload.preferredSpeedUnit
     });
     setProfileValidationMessage(t.profileSaveSuccess);
   }

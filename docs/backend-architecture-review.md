@@ -215,6 +215,13 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 3. **BAR-002 (Teil 1)** atomare Update-Methode für Recalculate-Flow.
 4. **BAR-006 (Start)** `SchemaVersions`-Tabelle + erster Migration-Slot.
 
+### Umsetzungsstatus Phase 0 (Story R2-07)
+
+- [x] **BAR-003** — Done
+- [x] **BAR-008** — Done
+- [x] **BAR-002 (Teil 1)** — Done
+- [x] **BAR-006 (Start)** — Done
+
 **Ergebnis:** Sofort weniger Betriebsrisiko und klarere API-Leitplanken.
 
 ## Phase 1: Stabilisierung (1–2 Wochen)
