@@ -2,13 +2,15 @@
 
 ## 1) Executive Summary
 
+> Hinweis: Authentifizierung/Autorisierung ist in diesem Review absichtlich **nicht** priorisiert und wird laut Vorgabe in einem Folge-Feature behandelt.
+
 - **Stop-the-bleeding #1:** `TcxController` ist ein „God Controller“ (Upload, Parsing-Orchestrierung, Profil-Snapshotting, Recalculation, Session-Metadaten, Response-Mapping) und bremst jede Erweiterung, weil fast jede Änderung denselben großen Hotspot betrifft.
 - **Stop-the-bleeding #2:** Mehrere fachlich zusammengehörige DB-Updates laufen ohne Transaktion über separate Repository-Calls; bei Teilfehlern droht inkonsistenter Zustand (z. B. Filter gesetzt, Source/Profil-Snapshot nicht gesetzt).
 - **Stop-the-bleeding #3:** API-Fehlerkontrakte sind uneinheitlich (meist Plain-String, teils StatusCode-only), was Frontend-Neubau, API-Governance und Observability erschwert.
 - Die **Domänenlogik ist stark zentralisiert in `TcxMetricsExtractor` (1072 LOC)**: gut für Kapselung, aber schlecht für Wartbarkeit/Testfokus, weil viele Regeln/Algorithmen in einem statischen Modul zusammenlaufen.
 - Adaptive Schwellenwerte sind funktional sauber gedacht, aber aktuell mit **teurer Berechnung über alle Uploads inkl. XML-Parsing** pro Aufruf; das skaliert mit wachsender Datenmenge schlecht.
 - Die Persistenz ist pragmatisch und robust genug für MVP (SQLite + Repositories + `DatabaseInitializer`), aber **Migrationen sind nur additive `ALTER TABLE`-Checks** und nicht versionsgeführt/auditierbar.
-- Security-Basics fehlen weitgehend für R1+ (kein AuthN/Z, CORS statisch lokal, keine harte Transport-/Input-/Rate-Limits-Strategie).
+- Security-Basics fehlen weitgehend für R1+ (CORS statisch lokal, keine harte Transport-/Input-/Rate-Limits-Strategie, kaum Security-Header-/Payload-Grenzen).
 - Positiv: gute Testbasis mit Integrationsfokus (`WebApplicationFactory`) und klaren AC-orientierten Tests, was inkrementelle Härtung ermöglicht.
 - Operability ist minimal: Logging vorhanden, aber keine strukturierten Domänen-Events, keine Metrics/Tracing/Health-Readiness; Betrieb bei Incidents wird unnötig teuer.
 - Mit 8–10 gezielten Maßnahmen (ohne Rewrite) lässt sich das Backend in 2–6 Wochen deutlich erweiterbarer und betriebssicherer machen.
@@ -80,9 +82,9 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
    - Fundstelle: `DatabaseInitializer` mit `CREATE TABLE IF NOT EXISTS` + `EnsureColumnExists*`
    - Symptom: Änderungen schwer nachvollziehbar/rollbackbar, bei komplexeren DB-Änderungen riskant.
 
-7. **Security-Lücken für R1+**
-   - Fundstellen: `Program.cs` (`UseAuthorization` ohne AuthN-Konfiguration), statische lokale CORS-Origins, kein dediziertes Security-Middleware-Set.
-   - Symptom: fehlende AuthN/Z-Strategie, schwache API-Härtung.
+7. **Security-Lücken für R1+ (ohne Auth-Fokus)**
+   - Fundstellen: `Program.cs` (statische lokale CORS-Origins), fehlende Security-Header-/Rate-Limit-/Hardening-Konfiguration auf API-Ebene.
+   - Symptom: erhöhte Angriffsfläche bei Input-/Traffic-Missbrauch und inkonsistente Runtime-Härtung.
 
 8. **Operability-Minimum**
    - Fundstellen: `Program.cs`, fehlende Health-/Readiness-Endpunkte; keine Metrics/Tracing-Instrumentierung.
@@ -162,15 +164,15 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 - **Abhängigkeiten/Reihenfolge:** Vor größeren Schema-Änderungen (z. B. BAR-005) erledigen.
 - **Quick Win:** **Ja**
 
-### BAR-007 — Security-Baseline für R1+: AuthN/Z + Härtungspaket
+### BAR-007 — Security-Härtung für R1+ (Auth explizit ausgenommen)
 - **Kategorie:** Security
-- **Problem:** Kein AuthN, keine feingranulare AuthZ, minimale API-Härtung.
-- **Vorschlag:** Schrittweise: (1) AuthN-Stub/Provider integrieren, (2) Endpoint-Policies, (3) Security Headers, (4) Request-/Rate-Limits für Upload, (5) CORS per Environment-Konfiguration.
-- **Nutzen:** Geringeres Missbrauchs-/Datenschutzrisiko, produktionsfähiger Betrieb.
-- **Aufwand:** **M-L** (4–8 PT)
-- **Risiko/Trade-offs:** Einfluss auf lokale Dev-Flows, braucht klaren Rollout.
+- **Problem:** API-Härtung ist minimal (CORS statisch, keine klaren Security-Header, keine Rate-Limits für Upload/Traffic-Spitzen).
+- **Vorschlag:** Schrittweise: (1) CORS per Environment-Konfiguration, (2) Security Headers, (3) Request-/Rate-Limits für Upload, (4) restriktivere Payload-/Timeout-Limits, (5) Dependency-Vulnerability-Checks in CI.
+- **Nutzen:** Geringeres Missbrauchsrisiko, stabilerer Betrieb unter Last/Fehltraffic.
+- **Aufwand:** **M** (3–5 PT)
+- **Risiko/Trade-offs:** Einfluss auf lokale Dev-Flows, braucht klaren Rollout mit sinnvollen Defaults.
 - **Abhängigkeiten/Reihenfolge:** Früh in Stabilisierung.
-- **Quick Win:** **Teilweise** (CORS/RateLimit/SecurityHeaders ja)
+- **Quick Win:** **Ja** (CORS/RateLimit/SecurityHeaders)
 
 ### BAR-008 — Observability-Baseline (Health, Metrics, Tracing)
 - **Kategorie:** Observability
@@ -219,7 +221,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 
 1. **BAR-001** Einführung Use-Case-Schicht für Upload/Recalculate/Profile.
 2. **BAR-002 (vollständig)** alle Mehrfach-Updates transaktional.
-3. **BAR-007 (Baseline)** CORS env-gesteuert, Security-Headers, Upload-Ratelimit.
+3. **BAR-007 (Baseline)** CORS env-gesteuert, Security-Headers, Upload-Ratelimit, CI-Vulnerability-Check.
 4. **BAR-009 (Start)** API v1-Namespace + DTO-Entkopplung für Kernendpunkte.
 
 **Ergebnis:** Stabiler Kern für kommende Features, reduzierte Kopplung.
@@ -239,7 +241,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 
 ### Konkrete Regeln
 
-1. **Keine Businesslogik in Controllern** – nur HTTP-Parsing, Auth, Statuscodes, Delegation.
+1. **Keine Businesslogik in Controllern** – nur HTTP-Parsing, Statuscodes, Delegation.
 2. **Domain/Application kennt keine Infrastrukturdetails** – Repository/Adapter nur hinter Interfaces.
 3. **Validierung am Rand + fachliche Invarianten im Use-Case/Domain-Service**.
 4. **Mehrschrittige Persistenz immer atomar (Transaktion)**.
@@ -272,7 +274,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 3. BAR-008 (Health + Correlation Logging)
 4. BAR-006 (Migration-Framework light)
 5. BAR-001 (Use-Case-Schicht für Upload/Recalculate)
-6. BAR-007 (Security-Baseline)
+6. BAR-007 (Security-Härtung ohne Auth)
 7. BAR-009 (API v1 + DTO-Entkopplung)
 8. BAR-004 (Extractor modularisieren)
 9. BAR-010 (Golden-Master-Teststrategie)
