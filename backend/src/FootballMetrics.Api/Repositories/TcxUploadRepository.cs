@@ -1,5 +1,6 @@
 using FootballMetrics.Api.Data;
 using FootballMetrics.Api.Models;
+using Microsoft.Data.Sqlite;
 
 namespace FootballMetrics.Api.Repositories;
 
@@ -219,6 +220,55 @@ public class TcxUploadRepository : ITcxUploadRepository
         return affectedRows > 0;
     }
 
+
+    public async Task<bool> RecalculateSessionWithProfileAsync(
+        Guid id,
+        string selectedSmoothingFilter,
+        string selectedSmoothingFilterSource,
+        string selectedSpeedUnit,
+        string selectedSpeedUnitSource,
+        string metricThresholdSnapshotJson,
+        string appliedProfileSnapshotJson,
+        string recalculationHistoryJson,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+        var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = @"
+            UPDATE TcxUploads
+            SET SelectedSmoothingFilter = $selectedSmoothingFilter,
+                SelectedSmoothingFilterSource = $selectedSmoothingFilterSource,
+                SelectedSpeedUnit = $selectedSpeedUnit,
+                SelectedSpeedUnitSource = $selectedSpeedUnitSource,
+                MetricThresholdSnapshotJson = $metricThresholdSnapshotJson,
+                AppliedProfileSnapshotJson = $appliedProfileSnapshotJson,
+                RecalculationHistoryJson = $recalculationHistoryJson
+            WHERE Id = $id;
+        ";
+        command.Parameters.AddWithValue("$id", id.ToString());
+        command.Parameters.AddWithValue("$selectedSmoothingFilter", selectedSmoothingFilter);
+        command.Parameters.AddWithValue("$selectedSmoothingFilterSource", selectedSmoothingFilterSource);
+        command.Parameters.AddWithValue("$selectedSpeedUnit", selectedSpeedUnit);
+        command.Parameters.AddWithValue("$selectedSpeedUnitSource", selectedSpeedUnitSource);
+        command.Parameters.AddWithValue("$metricThresholdSnapshotJson", metricThresholdSnapshotJson);
+        command.Parameters.AddWithValue("$appliedProfileSnapshotJson", appliedProfileSnapshotJson);
+        command.Parameters.AddWithValue("$recalculationHistoryJson", recalculationHistoryJson);
+
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        if (affectedRows <= 0)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return false;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
     public async Task<bool> UpdateSelectedSpeedUnitSourceAsync(Guid id, string selectedSpeedUnitSource, CancellationToken cancellationToken = default)
     {
         await using var connection = _connectionFactory.CreateConnection();

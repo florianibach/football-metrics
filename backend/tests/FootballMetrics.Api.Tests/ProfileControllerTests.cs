@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using FootballMetrics.Api.Models;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
@@ -221,8 +222,10 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
         var response = await client.PutAsJsonAsync("/api/profile", invalidRequest);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var error = await response.Content.ReadAsStringAsync();
-        error.Should().Contain("HighIntensitySpeedPercentOfMaxSpeed must be lower than SprintSpeedPercentOfMaxSpeed");
+        var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        error.Should().NotBeNull();
+        error!.Detail.Should().Contain("HighIntensitySpeedPercentOfMaxSpeed must be lower than SprintSpeedPercentOfMaxSpeed");
+        error.Extensions["errorCode"].ToString().Should().Be("validation_error");
     }
 
 }

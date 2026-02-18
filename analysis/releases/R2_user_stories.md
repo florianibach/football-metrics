@@ -84,6 +84,8 @@ R2 bringt die Lösung von einer starken Analyse-App zu einer fachlich deutlich p
 ---
 
 ## Story R2-07: Operative Stabilität & Monitoring
+**Status:** Done ✅
+
 **Als** Produktteam  
 **möchte ich** die Plattform stabil betreiben und Probleme früh erkennen  
 **damit** Nutzer zuverlässig analysieren können.

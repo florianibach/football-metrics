@@ -1,3 +1,4 @@
+using FootballMetrics.Api.Api;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
 using FootballMetrics.Api.Services;
@@ -31,44 +32,44 @@ public class ProfileController : ControllerBase
     {
         if (request is null)
         {
-            return BadRequest("Profile payload is required.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid profile payload", "Profile payload is required.", ApiErrorCodes.ValidationError);
         }
 
         var normalizedPrimary = NormalizeRequired(request.PrimaryPosition);
         if (normalizedPrimary is null)
         {
-            return BadRequest($"Unsupported primary position. Supported values: {string.Join(", ", PlayerPositions.Supported)}.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported position", $"Unsupported primary position. Supported values: {string.Join(", ", PlayerPositions.Supported)}.", ApiErrorCodes.ValidationError);
         }
 
         var primaryPosition = NormalizeSupportedPosition(normalizedPrimary);
         if (primaryPosition is null)
         {
-            return BadRequest($"Unsupported primary position. Supported values: {string.Join(", ", PlayerPositions.Supported)}.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported position", $"Unsupported primary position. Supported values: {string.Join(", ", PlayerPositions.Supported)}.", ApiErrorCodes.ValidationError);
         }
 
         var normalizedSecondary = NormalizeOptional(request.SecondaryPosition);
         var secondaryPosition = normalizedSecondary is null ? null : NormalizeSupportedPosition(normalizedSecondary);
         if (normalizedSecondary is not null && secondaryPosition is null)
         {
-            return BadRequest($"Unsupported secondary position. Supported values: {string.Join(", ", PlayerPositions.Supported)}.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported position", $"Unsupported secondary position. Supported values: {string.Join(", ", PlayerPositions.Supported)}.", ApiErrorCodes.ValidationError);
         }
 
         if (string.Equals(primaryPosition, secondaryPosition, StringComparison.Ordinal))
         {
-            return BadRequest("Secondary position must differ from primary position.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid profile payload", "Secondary position must differ from primary position.", ApiErrorCodes.ValidationError);
         }
 
         var existingProfile = await _repository.GetAsync(cancellationToken);
         var normalizedDefaultSmoothingFilter = NormalizeDefaultSmoothingFilter(request.DefaultSmoothingFilter, existingProfile.DefaultSmoothingFilter);
         if (normalizedDefaultSmoothingFilter is null)
         {
-            return BadRequest($"Unsupported default smoothing filter. Supported values: {string.Join(", ", TcxSmoothingFilters.Supported)}.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported smoothing filter", $"Unsupported default smoothing filter. Supported values: {string.Join(", ", TcxSmoothingFilters.Supported)}.", ApiErrorCodes.ValidationError);
         }
 
         var normalizedPreferredSpeedUnit = NormalizePreferredSpeedUnit(request.PreferredSpeedUnit, existingProfile.PreferredSpeedUnit);
         if (normalizedPreferredSpeedUnit is null)
         {
-            return BadRequest($"Unsupported preferred speed unit. Supported values: {string.Join(", ", SpeedUnits.Supported)}.");
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported speed unit", $"Unsupported preferred speed unit. Supported values: {string.Join(", ", SpeedUnits.Supported)}.", ApiErrorCodes.ValidationError);
         }
 
         var submittedThresholds = request.MetricThresholds ?? existingProfile.MetricThresholds;
@@ -83,7 +84,7 @@ public class ProfileController : ControllerBase
         var validationError = MetricThresholdProfile.Validate(submittedThresholds);
         if (validationError is not null)
         {
-            return BadRequest(validationError);
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid threshold configuration", validationError, ApiErrorCodes.ValidationError);
         }
 
         var thresholdsChanged =

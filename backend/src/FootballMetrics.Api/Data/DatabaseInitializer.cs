@@ -56,6 +56,12 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 DefaultSmoothingFilter TEXT NOT NULL DEFAULT 'AdaptiveMedian',
                 PreferredSpeedUnit TEXT NOT NULL DEFAULT 'km/h'
             );
+
+            CREATE TABLE IF NOT EXISTS SchemaVersions (
+                Version INTEGER PRIMARY KEY,
+                Description TEXT NOT NULL,
+                AppliedAtUtc TEXT NOT NULL
+            );
         ";
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -80,6 +86,28 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureUserProfileColumnExistsAsync(connection, "MetricThresholdsJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "DefaultSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
+
+        await ApplyMigrationSlot001Async(connection, cancellationToken);
+    }
+
+
+    private static async Task ApplyMigrationSlot001Async(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var existsCommand = connection.CreateCommand();
+        existsCommand.CommandText = "SELECT COUNT(1) FROM SchemaVersions WHERE Version = 1;";
+        var alreadyApplied = Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+        if (alreadyApplied)
+        {
+            return;
+        }
+
+        var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = @"
+            INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
+            VALUES (1, 'phase0_migration_slot_initialized', $appliedAtUtc);
+        ";
+        insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task EnsureColumnExistsAsync(SqliteConnection connection, string columnName, string columnDefinition, CancellationToken cancellationToken)

@@ -9,6 +9,7 @@ using FootballMetrics.Api.Repositories;
 using FootballMetrics.Api.Services;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,47 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public TcxControllerTests(WebApplicationFactory<Program> factory)
     {
         _factory = factory.WithWebHostBuilder(_ => { });
+    }
+
+
+    [Fact]
+    public async Task R2_07_Ac01_HealthEndpoints_ShouldBeAvailable()
+    {
+        var client = _factory.CreateClient();
+
+        var liveResponse = await client.GetAsync("/health/live");
+        liveResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var readyResponse = await client.GetAsync("/health/ready");
+        readyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task R2_07_Ac01_UploadValidationError_ShouldReturnProblemDetailsWithErrorCode()
+    {
+        var client = _factory.CreateClient();
+
+        using var form = CreateUploadForm("empty.tcx", string.Empty);
+        var response = await client.PostAsync("/api/tcx/upload", form);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problem.Should().NotBeNull();
+        problem!.Extensions["errorCode"].ToString().Should().Be("validation_error");
+    }
+
+
+    [Fact]
+    public async Task R2_07_Ac01_Responses_ShouldContainCorrelationHeader()
+    {
+        var client = _factory.CreateClient();
+        var request = new HttpRequestMessage(HttpMethod.Get, "/health/live");
+        request.Headers.Add("X-Correlation-ID", "test-correlation");
+
+        var response = await client.SendAsync(request);
+
+        response.Headers.Contains("X-Correlation-ID").Should().BeTrue();
+        response.Headers.GetValues("X-Correlation-ID").Single().Should().Be("test-correlation");
     }
 
     [Fact]
@@ -210,9 +252,11 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await client.PostAsync("/api/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var error = await response.Content.ReadAsStringAsync();
-        error.Should().Contain("currently not supported");
-        error.Should().Contain("Supported formats: .tcx");
+        var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        error.Should().NotBeNull();
+        error!.Detail.Should().Contain("currently not supported");
+        error.Detail.Should().Contain("Supported formats: .tcx");
+        error.Extensions["errorCode"].ToString().Should().Be("unsupported_file_type");
     }
 
 
@@ -225,10 +269,12 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await client.PostAsync("/api/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        var error = await response.Content.ReadAsStringAsync();
-        error.Should().Contain("'.fit'");
-        error.Should().Contain("currently not supported");
-        error.Should().Contain("logged for potential future support");
+        var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        error.Should().NotBeNull();
+        error!.Detail.Should().Contain("'.fit'");
+        error.Detail.Should().Contain("currently not supported");
+        error.Detail.Should().Contain("logged for potential future support");
+        error.Extensions["errorCode"].ToString().Should().Be("unsupported_file_type");
     }
 
     [Fact]
@@ -254,10 +300,11 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         response.StatusCode.Should().BeOneOf(HttpStatusCode.RequestEntityTooLarge, HttpStatusCode.BadRequest);
 
-        var error = await response.Content.ReadAsStringAsync();
+        var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         if (response.StatusCode == HttpStatusCode.BadRequest)
         {
-            error.Should().Contain("File is too large");
+            error.Should().NotBeNull();
+            error!.Detail.Should().Contain("File is too large");
         }
     }
 
@@ -676,6 +723,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         public Task<bool> UpdateProfileSnapshotsAsync(Guid id, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+
+        public Task<bool> RecalculateSessionWithProfileAsync(Guid id, string selectedSmoothingFilter, string selectedSmoothingFilterSource, string selectedSpeedUnit, string selectedSpeedUnitSource, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 
     private sealed class ThrowingThenRejectingSameIdRepository : ITcxUploadRepository
@@ -722,6 +772,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             => Task.FromResult(false);
 
         public Task<bool> UpdateProfileSnapshotsAsync(Guid id, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<bool> RecalculateSessionWithProfileAsync(Guid id, string selectedSmoothingFilter, string selectedSmoothingFilterSource, string selectedSpeedUnit, string selectedSpeedUnitSource, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
     }
 
