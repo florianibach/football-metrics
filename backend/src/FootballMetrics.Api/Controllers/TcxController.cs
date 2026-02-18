@@ -354,7 +354,7 @@ public class TcxController : ControllerBase
         }
 
         return JsonSerializer.Deserialize<List<SessionRecalculationEntry>>(upload.RecalculationHistoryJson)
-            ?? Array.Empty<SessionRecalculationEntry>();
+            ?? new List<SessionRecalculationEntry>();
     }
 
     private static string NormalizeSmoothingFilter(string? value)
