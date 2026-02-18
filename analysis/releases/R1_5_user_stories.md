@@ -76,10 +76,10 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** ich Belastungssignale besser einordnen kann.
 
 ### Acceptance Criteria
-- [ ] Die UI unterscheidet klar zwischen „internen“ Metriken (z. B. HF-basiert) und „externen“ Metriken (z. B. Distanz/Geschwindigkeit).
-- [ ] Jede Metrik ist genau einer Kategorie zugeordnet.
-- [ ] In beiden Kategorien wird erklärt, was die Kategorie bedeutet.
-- [ ] Filter oder Tabs erlauben die fokussierte Ansicht je Kategorie.
+- [x] Die UI unterscheidet klar zwischen „internen“ Metriken (z. B. HF-basiert) und „externen“ Metriken (z. B. Distanz/Geschwindigkeit).
+- [x] Jede Metrik ist genau einer Kategorie zugeordnet.
+- [x] In beiden Kategorien wird erklärt, was die Kategorie bedeutet.
+- [x] Filter oder Tabs erlauben die fokussierte Ansicht je Kategorie.
 
 ---
 

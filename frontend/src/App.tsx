@@ -118,6 +118,7 @@ type Locale = 'en' | 'de';
 type SortDirection = 'desc' | 'asc';
 type CompareMode = 'raw' | 'smoothed';
 type SmoothingFilter = 'Raw' | 'AdaptiveMedian' | 'Savitzky-Golay' | 'Butterworth';
+type CoreMetricsCategoryFilter = 'all' | 'external' | 'internal';
 
 type TranslationKey =
   | 'title'
@@ -274,7 +275,16 @@ type TranslationKey =
   | 'profileThresholdAcceleration'
   | 'profileThresholdDeceleration'
   | 'profileThresholdVersion'
-  | 'profileThresholdUpdatedAt';
+  | 'profileThresholdUpdatedAt'
+  | 'coreMetricsCategoryTitle'
+  | 'coreMetricsCategoryDescription'
+  | 'coreMetricsCategoryTabAll'
+  | 'coreMetricsCategoryTabExternal'
+  | 'coreMetricsCategoryTabInternal'
+  | 'coreMetricsCategoryExternalTitle'
+  | 'coreMetricsCategoryExternalHelp'
+  | 'coreMetricsCategoryInternalTitle'
+  | 'coreMetricsCategoryInternalHelp';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -436,7 +446,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdAcceleration: 'Acceleration threshold (m/s²)',
     profileThresholdDeceleration: 'Deceleration threshold (m/s²)',
     profileThresholdVersion: 'Threshold version',
-    profileThresholdUpdatedAt: 'Last updated (UTC)' 
+    profileThresholdUpdatedAt: 'Last updated (UTC)',
+    coreMetricsCategoryTitle: 'Metric categories',
+    coreMetricsCategoryDescription: 'Separate external and internal load metrics to focus your interpretation. External metrics show what you did physically on the pitch, while internal metrics show how hard your body had to work to produce that output.',
+    coreMetricsCategoryTabAll: 'All metrics',
+    coreMetricsCategoryTabExternal: 'External metrics',
+    coreMetricsCategoryTabInternal: 'Internal metrics',
+    coreMetricsCategoryExternalTitle: 'External metrics (movement-based)',
+    coreMetricsCategoryExternalHelp: 'External metrics describe your visible physical output and answer: What did I do on the pitch? They are built from movement and speed data, for example distance covered, top speed, and acceleration/deceleration events. In simple terms, these values show your running volume and intensity independent of how your body felt internally. A high external load usually means many intense actions, but it does not automatically mean your body coped well with them.',
+    coreMetricsCategoryInternalTitle: 'Internal metrics (heart-rate-based)',
+    coreMetricsCategoryInternalHelp: 'Internal metrics describe your physiological response and answer: How hard did this session feel for my body? They are derived from heart-rate intensity and recovery behavior, for example time in heart-rate zones, TRIMP load, and heart-rate recovery. In simple terms, these values show your cardiovascular strain and recovery quality, even when movement output is similar. If internal load is unusually high compared with external load, this can indicate fatigue, stress, heat effects, or incomplete recovery.'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -593,7 +612,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdAcceleration: 'Beschleunigungs-Schwelle (m/s²)',
     profileThresholdDeceleration: 'Verzögerungs-Schwelle (m/s²)',
     profileThresholdVersion: 'Schwellen-Version',
-    profileThresholdUpdatedAt: 'Zuletzt aktualisiert (UTC)'
+    profileThresholdUpdatedAt: 'Zuletzt aktualisiert (UTC)',
+    coreMetricsCategoryTitle: 'Metrik-Kategorien',
+    coreMetricsCategoryDescription: 'Trenne externe und interne Belastungsmetriken für eine fokussierte Einordnung. Externe Metriken zeigen, was du auf dem Platz körperlich gemacht hast, interne Metriken zeigen, wie stark dein Körper dafür belastet wurde.',
+    coreMetricsCategoryTabAll: 'Alle Metriken',
+    coreMetricsCategoryTabExternal: 'Externe Metriken',
+    coreMetricsCategoryTabInternal: 'Interne Metriken',
+    coreMetricsCategoryExternalTitle: 'Externe Metriken (bewegungsbasiert)',
+    coreMetricsCategoryExternalHelp: 'Externe Metriken beschreiben deine sichtbare körperliche Leistung und beantworten: Was habe ich auf dem Platz gemacht? Sie basieren auf Bewegungs- und Geschwindigkeitsdaten, zum Beispiel Distanz, Maximaltempo sowie Beschleunigungs- und Abbremsaktionen. Vereinfacht zeigen diese Werte Laufumfang und Bewegungsintensität – unabhängig davon, wie sich dein Körper dabei intern belastet hat. Eine hohe externe Last bedeutet meist viele intensive Aktionen, sagt aber allein noch nicht, wie gut dein Körper diese Last verkraftet hat.',
+    coreMetricsCategoryInternalTitle: 'Interne Metriken (herzfrequenzbasiert)',
+    coreMetricsCategoryInternalHelp: 'Interne Metriken beschreiben deine physiologische Reaktion und beantworten: Wie anstrengend war die Einheit für meinen Körper? Sie werden aus Herzfrequenzintensität und Erholungsverhalten abgeleitet, zum Beispiel Zeit in HF-Zonen, TRIMP-Belastung und Herzfrequenz-Erholung. Vereinfacht zeigen diese Werte die innere Herz-Kreislauf-Belastung und die Erholungsqualität – auch dann, wenn die äußere Laufleistung ähnlich war. Ist die interne Last im Verhältnis zur externen Last ungewöhnlich hoch, kann das auf Müdigkeit, Stress, Hitzeeinfluss oder unvollständige Regeneration hindeuten.'
   }
 };
 
@@ -800,6 +828,11 @@ function formatMetricStatus(metricKey: string, coreMetrics: FootballCoreMetrics,
   return status.reason ? `${label}: ${status.reason}` : label;
 }
 
+function withMetricStatus(value: string, metricKey: string, coreMetrics: FootballCoreMetrics, t: Record<TranslationKey, string>): string {
+  const status = formatMetricStatus(metricKey, coreMetrics, t);
+  return status ? `${value} — ${status}` : value;
+}
+
 
 function sessionTypeText(sessionType: SessionType, t: Record<TranslationKey, string>): string {
   switch (sessionType) {
@@ -871,6 +904,7 @@ export function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
+  const [coreMetricsCategoryFilter, setCoreMetricsCategoryFilter] = useState<CoreMetricsCategoryFilter>('all');
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(1);
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
@@ -1621,22 +1655,50 @@ export function App() {
             {!selectedSession.summary.coreMetrics.isAvailable && (
               <p>{t.coreMetricsUnavailable.replace('{reason}', selectedSession.summary.coreMetrics.unavailableReason ?? t.notAvailable)}</p>
             )}
+            <div className="core-metrics-filter" role="tablist" aria-label={t.coreMetricsCategoryTitle}>
+              <button type="button" role="tab" aria-selected={coreMetricsCategoryFilter === 'all'} className={coreMetricsCategoryFilter === 'all' ? 'tab-button tab-button--active' : 'tab-button'} onClick={() => setCoreMetricsCategoryFilter('all')}>
+                {t.coreMetricsCategoryTabAll}
+              </button>
+              <button type="button" role="tab" aria-selected={coreMetricsCategoryFilter === 'external'} className={coreMetricsCategoryFilter === 'external' ? 'tab-button tab-button--active' : 'tab-button'} onClick={() => setCoreMetricsCategoryFilter('external')}>
+                {t.coreMetricsCategoryTabExternal}
+              </button>
+              <button type="button" role="tab" aria-selected={coreMetricsCategoryFilter === 'internal'} className={coreMetricsCategoryFilter === 'internal' ? 'tab-button tab-button--active' : 'tab-button'} onClick={() => setCoreMetricsCategoryFilter('internal')}>
+                {t.coreMetricsCategoryTabInternal}
+              </button>
+            </div>
+            <p>{t.coreMetricsCategoryDescription}</p>
+            {(coreMetricsCategoryFilter === 'all' || coreMetricsCategoryFilter === 'external') && (
+              <div>
+                <h4>{t.coreMetricsCategoryExternalTitle}</h4>
+                <p>{t.coreMetricsCategoryExternalHelp}</p>
+                <ul className="metrics-list">
+                  <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.distance} />
+                  <MetricListItem label={t.metricSprintDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.sprintDistance} />
+                  <MetricListItem label={t.metricSprintCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.sprintCount} />
+                  <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable), 'maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.maxSpeed} />
+                  <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highIntensityTime} />
+                  <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
+                  <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
+                  <MetricListItem label={t.metricRunningDensity} value={withMetricStatus(formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.runningDensity} />
+                  <MetricListItem label={t.metricAccelerationCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.accelerationCount} />
+                  <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.decelerationCount} />
+                </ul>
+              </div>
+            )}
+            {(coreMetricsCategoryFilter === 'all' || coreMetricsCategoryFilter === 'internal') && (
+              <div>
+                <h4>{t.coreMetricsCategoryInternalTitle}</h4>
+                <p>{t.coreMetricsCategoryInternalHelp}</p>
+                <ul className="metrics-list">
+                  <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneLow} />
+                  <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
+                  <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
+                  <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.trimpEdwards} />
+                  <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrRecovery60} />
+                </ul>
+              </div>
+            )}
             <ul className="metrics-list">
-              <MetricListItem label={t.metricDistance} value={`${formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('distanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.distance} />
-              <MetricListItem label={t.metricSprintDistance} value={`${formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('sprintDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.sprintDistance} />
-              <MetricListItem label={t.metricSprintCount} value={`${selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('sprintCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.sprintCount} />
-              <MetricListItem label={t.metricMaxSpeed} value={`${formatSpeedMetersPerSecond(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}${(() => { const status = formatMetricStatus('maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.maxSpeed} />
-              <MetricListItem label={t.metricHighIntensityTime} value={`${formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('highIntensityTimeSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.highIntensityTime} />
-              <MetricListItem label={t.metricHighIntensityRunCount} value={`${selectedSession.summary.coreMetrics.highIntensityRunCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('highIntensityRunCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.highIntensityRunCount} />
-              <MetricListItem label={t.metricHighSpeedDistance} value={`${formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('highSpeedDistanceMeters', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.highSpeedDistance} />
-              <MetricListItem label={t.metricRunningDensity} value={`${formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}${(() => { const status = formatMetricStatus('runningDensityMetersPerMinute', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.runningDensity} />
-              <MetricListItem label={t.metricAccelerationCount} value={`${selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('accelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.accelerationCount} />
-              <MetricListItem label={t.metricDecelerationCount} value={`${selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable}${(() => { const status = formatMetricStatus('decelerationCount', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.decelerationCount} />
-              <MetricListItem label={t.metricHrZoneLow} value={`${formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('heartRateZoneLowSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrZoneLow} />
-              <MetricListItem label={t.metricHrZoneMedium} value={`${formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrZoneMedium} />
-              <MetricListItem label={t.metricHrZoneHigh} value={`${formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}${(() => { const status = formatMetricStatus('heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrZoneHigh} />
-              <MetricListItem label={t.metricTrimpEdwards} value={`${formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}${(() => { const status = formatMetricStatus('trainingImpulseEdwards', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.trimpEdwards} />
-              <MetricListItem label={t.metricHrRecovery60} value={`${selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}${(() => { const status = formatMetricStatus('heartRateRecoveryAfter60Seconds', selectedSession.summary.coreMetrics, t); return status ? ` — ${status}` : ''; })()}`} helpText={metricHelp.hrRecovery60} />
               <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(selectedSession.summary.coreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
             </ul>
           </div>
@@ -1728,5 +1790,3 @@ export function App() {
     timeZone: 'UTC'
   }).format(date);
 }
-
-

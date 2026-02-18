@@ -1295,5 +1295,43 @@ describe('App', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
     expect(screen.getByText('Threshold version: 2')).toBeInTheDocument();
   });
+  it('R1_5_06_Ac01_Ac02_Ac03_separates_external_and_internal_metrics_with_explanations', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [createUploadRecord()]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+
+    expect(screen.getByText('External metrics (movement-based)')).toBeInTheDocument();
+    expect(screen.getByText('Internal metrics (heart-rate-based)')).toBeInTheDocument();
+    expect(screen.getByText(/External metrics describe your visible physical output/)).toBeInTheDocument();
+    expect(screen.getByText(/Internal metrics describe your physiological response/)).toBeInTheDocument();
+  });
+
+  it('R1_5_06_Ac04_filters_metric_view_by_category_tabs', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [createUploadRecord()]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByRole('tab', { name: 'External metrics' })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'External metrics' }));
+    expect(screen.getByText('External metrics (movement-based)')).toBeInTheDocument();
+    expect(screen.queryByText('Internal metrics (heart-rate-based)')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Internal metrics' }));
+    expect(screen.getByText('Internal metrics (heart-rate-based)')).toBeInTheDocument();
+    expect(screen.queryByText('External metrics (movement-based)')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'All metrics' }));
+    expect(screen.getByText('External metrics (movement-based)')).toBeInTheDocument();
+    expect(screen.getByText('Internal metrics (heart-rate-based)')).toBeInTheDocument();
+  });
 
 });
