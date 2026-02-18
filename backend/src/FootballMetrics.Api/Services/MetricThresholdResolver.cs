@@ -18,7 +18,7 @@ public class MetricThresholdResolver : IMetricThresholdResolver
     {
         var uploads = await _repository.ListAsync(cancellationToken);
         var stats = uploads
-            .Select(upload => TryGetSessionAdaptiveStats(upload.RawFileContent))
+            .Select(TryGetSessionAdaptiveStats)
             .Where(item => item is not null)
             .Select(item => item!)
             .ToList();
@@ -57,13 +57,46 @@ public class MetricThresholdResolver : IMetricThresholdResolver
 
     private sealed record SessionAdaptiveStats(double MaxSpeedMps, int MaxHeartRateBpm);
 
-    private static SessionAdaptiveStats? TryGetSessionAdaptiveStats(byte[] rawFileContent)
+    private static SessionAdaptiveStats? TryGetSessionAdaptiveStats(TcxUpload upload)
     {
-        if (rawFileContent.Length == 0)
+        if (upload.RawFileContent.Length == 0)
         {
             return null;
         }
 
+        try
+        {
+            using var stream = new MemoryStream(upload.RawFileContent, writable: false);
+            var document = XDocument.Load(stream);
+
+            // Smoothing filter affects max-speed; therefore use the session filter for adaptive stats.
+            var summary = TcxMetricsExtractor.Extract(document, upload.SelectedSmoothingFilter, null);
+            var smoothedMaxSpeed = summary.CoreMetrics.MaxSpeedMetersPerSecond;
+
+            var heartRates = document.Descendants()
+                .Where(node => string.Equals(node.Name.LocalName, "Value", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(node.Parent?.Name.LocalName, "HeartRateBpm", StringComparison.OrdinalIgnoreCase))
+                .Select(node => int.TryParse(node.Value, out var hr) ? (int?)hr : null)
+                .Where(value => value.HasValue)
+                .Select(value => value!.Value)
+                .ToList();
+
+            var maxHeartRate = heartRates.Count > 0 ? heartRates.Max() : 0;
+            if (!smoothedMaxSpeed.HasValue && maxHeartRate <= 0)
+            {
+                return null;
+            }
+
+            return new SessionAdaptiveStats(smoothedMaxSpeed ?? 4.0, maxHeartRate <= 0 ? 120 : maxHeartRate);
+        }
+        catch
+        {
+            return TryGetRawFallback(upload.RawFileContent);
+        }
+    }
+
+    private static SessionAdaptiveStats? TryGetRawFallback(byte[] rawFileContent)
+    {
         try
         {
             using var stream = new MemoryStream(rawFileContent, writable: false);

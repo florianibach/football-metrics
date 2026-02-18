@@ -1342,6 +1342,17 @@ export function App() {
 
   const selectedFilterDescription = t[getFilterDescriptionKey(selectedFilter)];
 
+  const displayedMaxSpeedMps = profileForm.metricThresholds.maxSpeedMode === 'Adaptive'
+    ? profileForm.metricThresholds.effectiveMaxSpeedMps
+    : profileForm.metricThresholds.maxSpeedMps;
+
+  const displayedMaxHeartRateBpm = profileForm.metricThresholds.maxHeartRateMode === 'Adaptive'
+    ? profileForm.metricThresholds.effectiveMaxHeartRateBpm
+    : profileForm.metricThresholds.maxHeartRateBpm;
+
+  const sprintThresholdMpsPreview = displayedMaxSpeedMps * (profileForm.metricThresholds.sprintSpeedPercentOfMaxSpeed / 100);
+  const highIntensityThresholdMpsPreview = displayedMaxSpeedMps * (profileForm.metricThresholds.highIntensitySpeedPercentOfMaxSpeed / 100);
+
   const compareCandidates = sortedHistory.filter((record) => compareSelectedSessionIds.includes(record.id));
   const compareSessions = compareCandidates.slice(0, 4);
   const compareBaseline = compareSessions.find((session) => session.id === compareBaselineSessionId) ?? compareSessions[0] ?? null;
@@ -1508,7 +1519,8 @@ export function App() {
             id="profile-threshold-max-speed"
             type="number"
             step="0.1"
-            value={profileForm.metricThresholds.maxSpeedMps}
+            value={displayedMaxSpeedMps}
+            readOnly={profileForm.metricThresholds.maxSpeedMode === 'Adaptive'}
             onChange={(event) => setProfileForm((current) => ({
               ...current,
               metricThresholds: { ...current.metricThresholds, maxSpeedMps: Number(event.target.value) }
@@ -1541,7 +1553,8 @@ export function App() {
             id="profile-threshold-max-heartrate"
             type="number"
             step="1"
-            value={profileForm.metricThresholds.maxHeartRateBpm}
+            value={displayedMaxHeartRateBpm}
+            readOnly={profileForm.metricThresholds.maxHeartRateMode === 'Adaptive'}
             onChange={(event) => setProfileForm((current) => ({
               ...current,
               metricThresholds: { ...current.metricThresholds, maxHeartRateBpm: Number(event.target.value) }
@@ -1580,6 +1593,7 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, sprintSpeedPercentOfMaxSpeed: Number(event.target.value) }
             }))}
           />
+          <p>Calculated sprint threshold: {sprintThresholdMpsPreview.toFixed(2)} m/s</p>
           <label htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
           <input
             id="profile-threshold-high-intensity"
@@ -1591,6 +1605,7 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, highIntensitySpeedPercentOfMaxSpeed: Number(event.target.value) }
             }))}
           />
+          <p>Calculated high-intensity threshold: {highIntensityThresholdMpsPreview.toFixed(2)} m/s</p>
           <label htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
           <input
             id="profile-threshold-acceleration"
