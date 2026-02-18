@@ -286,3 +286,31 @@ button:disabled {
 .interval-table th {
   vertical-align: top;
 }
+
+.profile-settings {
+  margin: 1rem 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.profile-settings h2 {
+  margin-bottom: 0.25rem;
+}
+
+.profile-settings form {
+  margin-bottom: 0.25rem;
+}
+
+.profile-settings select {
+  width: min(100%, 420px);
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  background: #fff;
+}
+
+.profile-settings p {
+  margin: 0;
+  color: #475467;
+  font-size: 0.9rem;
+}

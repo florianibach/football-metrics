@@ -50,10 +50,10 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** spätere positionsspezifische Auswertungen auf einer sauberen Basis starten.
 
 ### Acceptance Criteria
-- [ ] Profil erlaubt die Angabe einer Primärposition.
-- [ ] Optional kann eine Sekundärposition gepflegt werden.
-- [ ] Ungültige oder unvollständige Positionsangaben werden sauber validiert.
-- [ ] Die aktuell hinterlegte Position ist in den Profileinstellungen klar sichtbar.
+- [x] Profil erlaubt die Angabe einer Primärposition.
+- [x] Optional kann eine Sekundärposition gepflegt werden.
+- [x] Ungültige oder unvollständige Positionsangaben werden sauber validiert.
+- [x] Die aktuell hinterlegte Position ist in den Profileinstellungen klar sichtbar.
 
 ---
 

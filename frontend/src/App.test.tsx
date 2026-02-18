@@ -130,6 +130,15 @@ describe('App', () => {
     };
   }
 
+
+  function createProfile(overrides?: Partial<Record<string, unknown>>) {
+    return {
+      primaryPosition: 'CentralMidfielder',
+      secondaryPosition: null,
+      ...overrides
+    };
+  }
+
   function createUploadRecord(overrides?: Partial<Record<string, unknown>>) {
     return {
       id: 'upload-1',
@@ -1170,4 +1179,59 @@ describe('App', () => {
     });
   });
 
+
+
+  it('R1_5_04_Ac01_Ac04_shows_current_profile_positions_in_settings', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/profile')) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ primaryPosition: 'FullBack', secondaryPosition: 'Winger' }) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Profile settings')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Current profile: Full-back / Winger')).toBeInTheDocument();
+    expect((screen.getByLabelText('Primary position') as HTMLSelectElement).value).toBe('FullBack');
+    expect((screen.getByLabelText('Secondary position (Optional)') as HTMLSelectElement).value).toBe('Winger');
+  });
+
+  it('R1_5_04_Ac02_Ac03_validates_and_saves_profile_positions', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      if (url.endsWith('/profile') && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        return Promise.resolve({ ok: true, json: async () => body } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Profile settings')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('Secondary position (Optional)'), { target: { value: 'CentralMidfielder' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+    expect(screen.getByText('Primary and secondary position must differ.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Secondary position (Optional)'), { target: { value: 'Winger' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+  });
 });
