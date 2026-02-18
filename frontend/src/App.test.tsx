@@ -169,7 +169,7 @@ describe('App', () => {
     expect(screen.getByText('Activity time')).toBeInTheDocument();
     expect(screen.getByText('Quality status')).toBeInTheDocument();
     expect(screen.getAllByText('session.tcx').length).toBeGreaterThan(0);
-    expect(screen.getByText('session-2.tcx')).toBeInTheDocument();
+    expect(screen.getAllByText('session-2.tcx').length).toBeGreaterThan(0);
     expect(screen.getAllByText('high').length).toBeGreaterThan(0);
     expect(screen.getAllByText('medium').length).toBeGreaterThan(0);
   });
@@ -186,7 +186,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('new.tcx')).toBeInTheDocument();
+      expect(screen.getAllByText('new.tcx').length).toBeGreaterThan(0);
     });
 
     const rowsNewestFirst = screen.getAllByRole('row');
@@ -915,6 +915,11 @@ describe('App', () => {
     expect(screen.getByText(/\(baseline\)$/)).toBeInTheDocument();
     expect(screen.getAllByText(/Delta vs baseline:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Delta \(%\) vs baseline:/).length).toBeGreaterThan(0);
+
+    const baselineSelector = screen.getByLabelText('Baseline session');
+    expect(within(baselineSelector).getByRole('option', { name: 'base-session.tcx' })).toBeInTheDocument();
+    fireEvent.change(baselineSelector, { target: { value: 'compare' } });
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'compare-session.tcx (baseline)' })).toBeInTheDocument());
 
     const comparisonTable = screen.getAllByRole('table')[1];
     expect(within(comparisonTable).getByText('Distance')).toBeInTheDocument();

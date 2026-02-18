@@ -169,6 +169,8 @@ type TranslationKey =
   | 'sessionCompareMetricSprintCount'
   | 'sessionCompareMetricHighIntensityTime'
   | 'sessionCompareMetricTrainingLoad'
+  | 'sessionCompareBaselineLabel'
+  | 'sessionCompareBaselineHint'
   | 'detailMissingHeartRateHint'
   | 'detailMissingDistanceHint'
   | 'detailMissingGpsHint'
@@ -284,6 +286,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionCompareMetricSprintCount: 'Sprint count',
     sessionCompareMetricHighIntensityTime: 'High-intensity time',
     sessionCompareMetricTrainingLoad: 'TRIMP (Edwards)',
+    sessionCompareBaselineLabel: 'Baseline session',
+    sessionCompareBaselineHint: 'Choose the baseline that all deltas should reference.',
     detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
     detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
     detailMissingGpsHint: 'No GPS coordinates were detected in this file.',
@@ -394,6 +398,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionCompareMetricSprintCount: 'Sprintanzahl',
     sessionCompareMetricHighIntensityTime: 'Hochintensive Zeit',
     sessionCompareMetricTrainingLoad: 'TRIMP (Edwards)',
+    sessionCompareBaselineLabel: 'Basis-Session',
+    sessionCompareBaselineHint: 'Wähle die Basis, auf die sich alle Deltas beziehen sollen.',
     detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
     detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
     detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.',
@@ -650,6 +656,7 @@ export function App() {
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
   const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
   const [compareSelectedSessionIds, setCompareSelectedSessionIds] = useState<string[]>([]);
+  const [compareBaselineSessionId, setCompareBaselineSessionId] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -690,7 +697,9 @@ export function App() {
           if (payload.length > 0) {
             setSelectedSession(payload[0]);
             setSelectedFilter(payload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
-            setCompareSelectedSessionIds(payload.slice(0, 2).map((item) => item.id));
+            const initialCompareSelection = payload.slice(0, 2).map((item) => item.id);
+            setCompareSelectedSessionIds(initialCompareSelection);
+            setCompareBaselineSessionId(initialCompareSelection[0] ?? null);
           }
         }
       } catch {
@@ -803,6 +812,7 @@ export function App() {
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setCompareSelectedSessionIds((current) => [payload.id, ...current.filter((item) => item !== payload.id)].slice(0, 4));
+      setCompareBaselineSessionId(payload.id);
       setSelectedFile(null);
     } catch {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
@@ -864,10 +874,26 @@ export function App() {
 
   const compareCandidates = sortedHistory.filter((record) => compareSelectedSessionIds.includes(record.id));
   const compareSessions = compareCandidates.slice(0, 4);
-  const compareBaseline = compareSessions[0] ?? null;
+  const compareBaseline = compareSessions.find((session) => session.id === compareBaselineSessionId) ?? compareSessions[0] ?? null;
   const showCompareQualityWarning = compareSessions.length >= 2
     ? new Set(compareSessions.map((record) => record.summary.qualityStatus)).size > 1
     : false;
+
+  useEffect(() => {
+    if (compareSessions.length === 0) {
+      if (compareBaselineSessionId !== null) {
+        setCompareBaselineSessionId(null);
+      }
+      return;
+    }
+
+    const isCurrentBaselineAvailable = compareBaselineSessionId !== null
+      && compareSessions.some((session) => session.id === compareBaselineSessionId);
+
+    if (!isCurrentBaselineAvailable) {
+      setCompareBaselineSessionId(compareSessions[0].id);
+    }
+  }, [compareSessions, compareBaselineSessionId]);
 
   const compareMetrics: CompareMetricDefinition[] = [
     {
@@ -1041,6 +1067,21 @@ export function App() {
       <section className="session-compare" aria-live="polite">
         <h2>{t.sessionCompareTitle}</h2>
         <p>{t.sessionCompareHint}</p>
+        {compareSessions.length >= 2 && (
+          <div className="baseline-selector">
+            <label htmlFor="comparison-baseline-selector">{t.sessionCompareBaselineLabel}</label>
+            <select
+              id="comparison-baseline-selector"
+              value={compareBaseline?.id ?? ''}
+              onChange={(event) => setCompareBaselineSessionId(event.target.value)}
+            >
+              {compareSessions.map((session) => (
+                <option key={session.id} value={session.id}>{session.fileName}</option>
+              ))}
+            </select>
+            <p>{t.sessionCompareBaselineHint}</p>
+          </div>
+        )}
         {showCompareQualityWarning && <p className="quality-warning">{t.sessionCompareQualityWarning}</p>}
         {compareSessions.length < 2 ? (
           <p>{t.sessionCompareHint}</p>
@@ -1049,8 +1090,8 @@ export function App() {
             <thead>
               <tr>
                 <th>{t.compareTitle}</th>
-                {compareSessions.map((session, index) => (
-                  <th key={session.id}>{session.fileName}{index === 0 ? ' (baseline)' : ''}</th>
+                {compareSessions.map((session) => (
+                  <th key={session.id}>{session.fileName}{compareBaseline?.id === session.id ? ' (baseline)' : ''}</th>
                 ))}
               </tr>
             </thead>
