@@ -214,7 +214,8 @@ type TranslationKey =
   | 'intervalAggregationDuration'
   | 'intervalAggregationNoData'
   | 'intervalAggregationCoreMetrics'
-  | 'intervalAggregationWindowCount';
+  | 'intervalAggregationWindowCount'
+  | 'intervalAggregationExplanation';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -344,7 +345,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationDuration: 'Duration',
     intervalAggregationNoData: 'No interval data available for this session.',
     intervalAggregationCoreMetrics: 'Core metrics',
-    intervalAggregationWindowCount: 'Windows: {count}' 
+    intervalAggregationWindowCount: 'Windows: {count}',
+    intervalAggregationExplanation: 'Interval views help you understand how effort changes during a session instead of only seeing one total value. 1-minute windows highlight short, intense phases such as pressing, repeated sprints, or quick transitions. 2-minute windows smooth out noise a bit and make it easier to compare short game phases. 5-minute windows show the broader load trend, for example whether intensity drops after a high-pressure period or rises again near the end. Together, these views help coaches and players identify pacing, fatigue patterns, and where targeted training can improve match performance.' 
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -460,7 +462,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationDuration: 'Dauer',
     intervalAggregationNoData: 'Für diese Session sind keine Intervall-Daten verfügbar.',
     intervalAggregationCoreMetrics: 'Kernmetriken',
-    intervalAggregationWindowCount: 'Fenster: {count}'
+    intervalAggregationWindowCount: 'Fenster: {count}',
+    intervalAggregationExplanation: 'Die Intervallansicht hilft dir zu erkennen, wie sich die Belastung innerhalb einer Einheit verändert – statt nur einen Gesamtwert zu sehen. 1-Minuten-Fenster machen kurze, sehr intensive Phasen sichtbar, zum Beispiel Pressing, wiederholte Sprints oder schnelle Umschaltmomente. 2-Minuten-Fenster glätten das Bild etwas und eignen sich gut, um kurze Spielphasen miteinander zu vergleichen. 5-Minuten-Fenster zeigen den größeren Belastungstrend, etwa ob die Intensität nach einer Druckphase abfällt oder zum Ende wieder ansteigt. Zusammen helfen diese Sichten dabei, Tempoverteilung, Ermüdungsmuster und konkrete Trainingsansätze besser zu verstehen.'
   }
 };
 
@@ -1245,6 +1248,7 @@ export function App() {
           </div>
           <div className="interval-aggregation">
             <h3>{t.intervalAggregationTitle}</h3>
+            <p>{t.intervalAggregationExplanation}</p>
             <label htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
             <select
               id="interval-window-selector"

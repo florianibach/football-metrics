@@ -1128,6 +1128,7 @@ describe('App', () => {
       expect(screen.getByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
     });
 
+    expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
     expect(screen.getByText('Windows: 2')).toBeInTheDocument();
     expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
 
