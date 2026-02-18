@@ -1294,15 +1294,18 @@ export function App() {
               <option value="Other">{t.sessionTypeOther}</option>
             </select>
 
-            <label htmlFor="session-match-result">{t.sessionContextMatchResult}</label>
-            <input id="session-match-result" value={sessionContextForm.matchResult ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, matchResult: event.target.value }))} disabled={sessionContextForm.sessionType !== 'Match'} />
-            <label htmlFor="session-competition">{t.sessionContextCompetition}</label>
-            <input id="session-competition" value={sessionContextForm.competition ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, competition: event.target.value }))} disabled={sessionContextForm.sessionType !== 'Match'} />
-            <label htmlFor="session-opponent">{t.sessionContextOpponentName}</label>
-            <input id="session-opponent" value={sessionContextForm.opponentName ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentName: event.target.value }))} disabled={sessionContextForm.sessionType !== 'Match'} />
-            <label htmlFor="session-opponent-logo">{t.sessionContextOpponentLogoUrl}</label>
-            <input id="session-opponent-logo" value={sessionContextForm.opponentLogoUrl ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentLogoUrl: event.target.value }))} disabled={sessionContextForm.sessionType !== 'Match'} />
-            {sessionContextForm.sessionType !== 'Match' && <p>{t.sessionContextOnlyForMatches}</p>}
+            {sessionContextForm.sessionType === 'Match' && (
+              <>
+                <label htmlFor="session-match-result">{t.sessionContextMatchResult}</label>
+                <input id="session-match-result" value={sessionContextForm.matchResult ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, matchResult: event.target.value }))} />
+                <label htmlFor="session-competition">{t.sessionContextCompetition}</label>
+                <input id="session-competition" value={sessionContextForm.competition ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, competition: event.target.value }))} />
+                <label htmlFor="session-opponent">{t.sessionContextOpponentName}</label>
+                <input id="session-opponent" value={sessionContextForm.opponentName ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentName: event.target.value }))} />
+                <label htmlFor="session-opponent-logo">{t.sessionContextOpponentLogoUrl}</label>
+                <input id="session-opponent-logo" value={sessionContextForm.opponentLogoUrl ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentLogoUrl: event.target.value }))} />
+              </>
+            )}
             <button type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
           </div>
           <div className="comparison-controls">

@@ -1126,6 +1126,29 @@ describe('App', () => {
   });
 
 
+
+  it('R1_5_03_hides_match_context_fields_when_session_type_is_not_match', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => [createUploadRecord()] } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Type')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText('Result')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Competition')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Opponent')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Opponent logo URL (optional)')).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'Match' } });
+
+    expect(screen.getByLabelText('Result')).toBeInTheDocument();
+    expect(screen.getByLabelText('Competition')).toBeInTheDocument();
+    expect(screen.getByLabelText('Opponent')).toBeInTheDocument();
+    expect(screen.getByLabelText('Opponent logo URL (optional)')).toBeInTheDocument();
+  });
+
   it('R1_5_02_Ac01_Ac02_Ac04_shows_aggregated_intervals_with_window_switch_and_missing_data_marker', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => [createUploadRecord()] } as Response);
 
