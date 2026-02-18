@@ -18,6 +18,14 @@ Story: **R2-07 – Operative Stabilität & Monitoring**
 4. **Dokumentierter Incident- und Recovery-Prozess**
    - Leichtgewichtiges Migrationsfundament mit `SchemaVersions` und initialem Migration-Slot (`Version=1`) ergänzt; schafft nachvollziehbare Recovery-Basis für DB-Schema-Änderungen.
 
+
+## Technische Story-Status (Phase 0 aus Architecture Review)
+
+- **BAR-003:** Done
+- **BAR-008:** Done
+- **BAR-002 (Teil 1):** Done
+- **BAR-006 (Start):** Done
+
 ## DoD Review (Story-relevant)
 
 - Funktionalität: **erfüllt** (Phase-0 Quick Wins aus Architecture Review umgesetzt: BAR-003, BAR-008, BAR-002 Teil 1, BAR-006 Start).
