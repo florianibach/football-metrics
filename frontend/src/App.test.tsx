@@ -1338,6 +1338,7 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+    expect((screen.getByLabelText('Preferred speed unit') as HTMLSelectElement).value).toBe('km/h');
   });
 
 
@@ -1419,6 +1420,7 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+    expect((screen.getByLabelText('Preferred speed unit') as HTMLSelectElement).value).toBe('km/h');
   });
 
   it('R1_5_10_Ac01_Ac03_shows_and_saves_threshold_modes_with_adaptive_source_visibility', async () => {
@@ -1568,6 +1570,7 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+    expect((screen.getByLabelText('Preferred speed unit') as HTMLSelectElement).value).toBe('km/h');
   });
 
   it('R1_5_12_Ac03_Ac04_session_speed_unit_can_be_temporarily_overridden_with_consistent_rounding', async () => {
