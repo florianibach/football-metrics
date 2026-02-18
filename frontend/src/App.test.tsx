@@ -6,6 +6,51 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
+  function baseCoreMetrics() {
+    return {
+      isAvailable: true,
+      unavailableReason: null,
+      distanceMeters: 5100,
+      sprintDistanceMeters: 950,
+      sprintCount: 4,
+      maxSpeedMetersPerSecond: 7.42,
+      highIntensityTimeSeconds: 380,
+      highIntensityRunCount: 7,
+      highSpeedDistanceMeters: 1600,
+      runningDensityMetersPerMinute: 170,
+      accelerationCount: 14,
+      decelerationCount: 13,
+      heartRateZoneLowSeconds: 180,
+      heartRateZoneMediumSeconds: 900,
+      heartRateZoneHighSeconds: 720,
+      trainingImpulseEdwards: 83.5,
+      heartRateRecoveryAfter60Seconds: 22,
+      metricAvailability: {
+        distanceMeters: { state: 'Available', reason: null },
+        sprintDistanceMeters: { state: 'Available', reason: null },
+        sprintCount: { state: 'Available', reason: null },
+        maxSpeedMetersPerSecond: { state: 'Available', reason: null },
+        highIntensityTimeSeconds: { state: 'Available', reason: null },
+        highIntensityRunCount: { state: 'Available', reason: null },
+        highSpeedDistanceMeters: { state: 'Available', reason: null },
+        runningDensityMetersPerMinute: { state: 'Available', reason: null },
+        accelerationCount: { state: 'Available', reason: null },
+        decelerationCount: { state: 'Available', reason: null },
+        heartRateZoneLowSeconds: { state: 'Available', reason: null },
+        heartRateZoneMediumSeconds: { state: 'Available', reason: null },
+        heartRateZoneHighSeconds: { state: 'Available', reason: null },
+        trainingImpulseEdwards: { state: 'Available', reason: null },
+        heartRateRecoveryAfter60Seconds: { state: 'Available', reason: null }
+      },
+      thresholds: {
+        SprintSpeedThresholdMps: '7.0',
+        HighIntensitySpeedThresholdMps: '5.5',
+        AccelerationThresholdMps2: '2.0',
+        DecelerationThresholdMps2: '-2.0'
+      }
+    };
+  }
+
   function createSummary(overrides?: Partial<Record<string, unknown>>) {
     return {
       activityStartTimeUtc: '2026-02-16T21:00:00.000Z',
@@ -20,48 +65,53 @@ describe('App', () => {
       distanceSource: 'CalculatedFromGps',
       qualityStatus: 'High',
       qualityReasons: ['Trackpoints are complete with GPS and heart rate data. No implausible jumps detected.'],
-      coreMetrics: {
-        isAvailable: true,
-        unavailableReason: null,
-        distanceMeters: 5100,
-        sprintDistanceMeters: 950,
-        sprintCount: 4,
-        maxSpeedMetersPerSecond: 7.42,
-        highIntensityTimeSeconds: 380,
-        highIntensityRunCount: 7,
-        highSpeedDistanceMeters: 1600,
-        runningDensityMetersPerMinute: 170,
-        accelerationCount: 14,
-        decelerationCount: 13,
-        heartRateZoneLowSeconds: 180,
-        heartRateZoneMediumSeconds: 900,
-        heartRateZoneHighSeconds: 720,
-        trainingImpulseEdwards: 83.5,
-        heartRateRecoveryAfter60Seconds: 22,
-        metricAvailability: {
-          distanceMeters: { state: 'Available', reason: null },
-          sprintDistanceMeters: { state: 'Available', reason: null },
-          sprintCount: { state: 'Available', reason: null },
-          maxSpeedMetersPerSecond: { state: 'Available', reason: null },
-          highIntensityTimeSeconds: { state: 'Available', reason: null },
-          highIntensityRunCount: { state: 'Available', reason: null },
-          highSpeedDistanceMeters: { state: 'Available', reason: null },
-          runningDensityMetersPerMinute: { state: 'Available', reason: null },
-          accelerationCount: { state: 'Available', reason: null },
-          decelerationCount: { state: 'Available', reason: null },
-          heartRateZoneLowSeconds: { state: 'Available', reason: null },
-          heartRateZoneMediumSeconds: { state: 'Available', reason: null },
-          heartRateZoneHighSeconds: { state: 'Available', reason: null },
-          trainingImpulseEdwards: { state: 'Available', reason: null },
-          heartRateRecoveryAfter60Seconds: { state: 'Available', reason: null }
+      coreMetrics: baseCoreMetrics(),
+      intervalAggregates: [
+        {
+          windowMinutes: 1,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 60,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 180,
+            trainingImpulseEdwards: 1.8
+          }
         },
-        thresholds: {
-          SprintSpeedThresholdMps: '7.0',
-          HighIntensitySpeedThresholdMps: '5.5',
-          AccelerationThresholdMps2: '2.0',
-          DecelerationThresholdMps2: '-2.0'
+        {
+          windowMinutes: 1,
+          windowIndex: 1,
+          windowStartUtc: '2026-02-16T21:01:00.000Z',
+          windowDurationSeconds: 45,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 150,
+            trainingImpulseEdwards: 2.3
+          }
+        },
+        {
+          windowMinutes: 2,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 105,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 330,
+            trainingImpulseEdwards: 4.1
+          }
+        },
+        {
+          windowMinutes: 5,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 60,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 510,
+            trainingImpulseEdwards: 7.6
+          }
         }
-      },
+      ],
       smoothing: {
         selectedStrategy: 'AdaptiveMedian',
         selectedParameters: {
@@ -319,6 +369,52 @@ describe('App', () => {
           DecelerationThresholdMps2: '-2.0'
         }
       },
+      intervalAggregates: [
+        {
+          windowMinutes: 1,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 60,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 180,
+            trainingImpulseEdwards: 1.8
+          }
+        },
+        {
+          windowMinutes: 1,
+          windowIndex: 1,
+          windowStartUtc: '2026-02-16T21:01:00.000Z',
+          windowDurationSeconds: 45,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 150,
+            trainingImpulseEdwards: 2.3
+          }
+        },
+        {
+          windowMinutes: 2,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 105,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 330,
+            trainingImpulseEdwards: 4.1
+          }
+        },
+        {
+          windowMinutes: 5,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 60,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 510,
+            trainingImpulseEdwards: 7.6
+          }
+        }
+      ],
       smoothing: {
               selectedStrategy: 'AdaptiveMedian',
               selectedParameters: {
@@ -389,6 +485,52 @@ describe('App', () => {
           DecelerationThresholdMps2: '-2.0'
         }
       },
+      intervalAggregates: [
+        {
+          windowMinutes: 1,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 60,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 180,
+            trainingImpulseEdwards: 1.8
+          }
+        },
+        {
+          windowMinutes: 1,
+          windowIndex: 1,
+          windowStartUtc: '2026-02-16T21:01:00.000Z',
+          windowDurationSeconds: 45,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 150,
+            trainingImpulseEdwards: 2.3
+          }
+        },
+        {
+          windowMinutes: 2,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 105,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 330,
+            trainingImpulseEdwards: 4.1
+          }
+        },
+        {
+          windowMinutes: 5,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 60,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 510,
+            trainingImpulseEdwards: 7.6
+          }
+        }
+      ],
       smoothing: {
               selectedStrategy: 'AdaptiveMedian',
               selectedParameters: {
@@ -452,6 +594,52 @@ describe('App', () => {
           DecelerationThresholdMps2: '-2.0'
         }
       },
+      intervalAggregates: [
+        {
+          windowMinutes: 1,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 60,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 180,
+            trainingImpulseEdwards: 1.8
+          }
+        },
+        {
+          windowMinutes: 1,
+          windowIndex: 1,
+          windowStartUtc: '2026-02-16T21:01:00.000Z',
+          windowDurationSeconds: 45,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 150,
+            trainingImpulseEdwards: 2.3
+          }
+        },
+        {
+          windowMinutes: 2,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 105,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 330,
+            trainingImpulseEdwards: 4.1
+          }
+        },
+        {
+          windowMinutes: 5,
+          windowIndex: 0,
+          windowStartUtc: '2026-02-16T21:00:00.000Z',
+          windowDurationSeconds: 60,
+          coreMetrics: {
+            ...baseCoreMetrics(),
+            distanceMeters: 510,
+            trainingImpulseEdwards: 7.6
+          }
+        }
+      ],
       smoothing: {
               selectedStrategy: 'AdaptiveMedian',
               selectedParameters: {
@@ -525,16 +713,16 @@ describe('App', () => {
       expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Sprint distance:/)).toBeInTheDocument();
-    expect(screen.getByText(/Sprint count:/)).toBeInTheDocument();
-    expect(screen.getByText(/Maximum speed:/)).toBeInTheDocument();
-    expect(screen.getByText(/High-intensity time:/)).toBeInTheDocument();
-    expect(screen.getByText(/High-intensity runs:/)).toBeInTheDocument();
-    expect(screen.getByText(/High-speed distance:/)).toBeInTheDocument();
-    expect(screen.getByText(/Running density \(m\/min\):/)).toBeInTheDocument();
-    expect(screen.getByText(/Accelerations:/)).toBeInTheDocument();
-    expect(screen.getByText(/Decelerations:/)).toBeInTheDocument();
-    expect(screen.getByText(/TRIMP \(Edwards\):/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Sprint distance:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Sprint count:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Maximum speed:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/High-intensity time:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/High-intensity runs:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/High-speed distance:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Running density \(m\/min\):/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Accelerations:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Decelerations:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/TRIMP \(Edwards\):/).length).toBeGreaterThan(0);
 
     vi.restoreAllMocks();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -592,11 +780,11 @@ describe('App', () => {
             distanceMeters: null,
             distanceSource: 'NotAvailable',
             coreMetrics: {
-              ...createSummary().coreMetrics,
+              ...baseCoreMetrics(),
               distanceMeters: null,
               sprintCount: null,
               metricAvailability: {
-                ...createSummary().coreMetrics.metricAvailability,
+                ...baseCoreMetrics().metricAvailability,
                 distanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
                 sprintCount: { state: 'NotUsable', reason: 'GPS measurements are present but do not contain usable time segments.' }
               }
@@ -624,12 +812,12 @@ describe('App', () => {
           fileName: 'r1-04-no-zero.tcx',
           summary: createSummary({
             coreMetrics: {
-              ...createSummary().coreMetrics,
+              ...baseCoreMetrics(),
               distanceMeters: null,
               sprintDistanceMeters: null,
               sprintCount: null,
               metricAvailability: {
-                ...createSummary().coreMetrics.metricAvailability,
+                ...baseCoreMetrics().metricAvailability,
                 distanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
                 sprintDistanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
                 sprintCount: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' }
@@ -884,7 +1072,7 @@ describe('App', () => {
             qualityStatus: 'Low',
             durationSeconds: 2100,
             coreMetrics: {
-              ...createSummary().coreMetrics,
+              ...baseCoreMetrics(),
               distanceMeters: 6200,
               sprintDistanceMeters: 1200,
               sprintCount: 6,
@@ -928,6 +1116,28 @@ describe('App', () => {
 
     fireEvent.click(compareCheckboxes[1]);
     await waitFor(() => expect(screen.queryByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).not.toBeInTheDocument());
+  });
+
+
+  it('R1_5_02_Ac01_Ac02_Ac04_shows_aggregated_intervals_with_window_switch_and_missing_data_marker', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => [createUploadRecord()] } as Response);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
+    expect(screen.getByText('Windows: 2')).toBeInTheDocument();
+    expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Windows: 1')).toBeInTheDocument();
+      expect(screen.getByText(/1 min 0 s/)).toBeInTheDocument();
+    });
   });
 
 });

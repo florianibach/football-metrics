@@ -24,10 +24,10 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** ich erkenne, wie sich Intensität und Belastung über den Spielverlauf verändern.
 
 ### Acceptance Criteria
-- [ ] Die Session-Analyse bietet umschaltbare Aggregation für 1, 2 und 5 Minuten.
-- [ ] Für jedes Fenster werden mindestens interne und externe Kernmetriken zeitlich aggregiert dargestellt.
-- [ ] Die Aggregation arbeitet auf Zeitbasis robust auch bei leicht unregelmäßigen Trackpunkt-Abständen.
-- [ ] Fehlende Datenbereiche werden sichtbar markiert und nicht still interpoliert.
+- [x] Die Session-Analyse bietet umschaltbare Aggregation für 1, 2 und 5 Minuten.
+- [x] Für jedes Fenster werden mindestens interne und externe Kernmetriken zeitlich aggregiert dargestellt.
+- [x] Die Aggregation arbeitet auf Zeitbasis robust auch bei leicht unregelmäßigen Trackpunkt-Abständen.
+- [x] Fehlende Datenbereiche werden sichtbar markiert und nicht still interpoliert.
 
 ---
 

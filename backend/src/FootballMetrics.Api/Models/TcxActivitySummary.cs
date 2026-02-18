@@ -14,4 +14,5 @@ public sealed record TcxActivitySummary(
     string QualityStatus,
     IReadOnlyList<string> QualityReasons,
     TcxSmoothingTrace Smoothing,
-    TcxFootballCoreMetrics CoreMetrics);
+    TcxFootballCoreMetrics CoreMetrics,
+    IReadOnlyList<TcxIntervalAggregate> IntervalAggregates);

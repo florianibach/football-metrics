@@ -237,3 +237,26 @@ button:disabled {
     width: auto;
   }
 }
+
+.interval-aggregation {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.interval-aggregation h3 {
+  margin: 0;
+}
+
+.interval-aggregation select {
+  width: fit-content;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+  background: #fff;
+}
+
+.interval-table td,
+.interval-table th {
+  vertical-align: top;
+}

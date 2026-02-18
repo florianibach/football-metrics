@@ -82,6 +82,7 @@ public static class TcxMetricsExtractor
         var qualityAssessment = AssessQuality(smoothedTrackpoints, outlierSpeedThresholdMps);
         var smoothingTrace = BuildSmoothingTrace(normalizedFilter, trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
         var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance);
+        var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints);
 
         return new TcxActivitySummary(
             startTime,
@@ -97,7 +98,8 @@ public static class TcxMetricsExtractor
             qualityAssessment.Status,
             qualityAssessment.Reasons,
             smoothingTrace,
-            coreMetrics);
+            coreMetrics,
+            intervalAggregates);
     }
 
     private static List<TrackpointSnapshot> ApplySmoothingFilter(
@@ -436,6 +438,103 @@ public static class TcxMetricsExtractor
         return Math.Clamp(robustUpperBound, 6.0, MaxPlausibleSpeedMetersPerSecond);
     }
 
+
+    private static IReadOnlyList<TcxIntervalAggregate> BuildIntervalAggregates(IReadOnlyList<TrackpointSnapshot> smoothedTrackpoints)
+    {
+        var pointsWithTime = smoothedTrackpoints
+            .Where(tp => tp.TimeUtc.HasValue)
+            .OrderBy(tp => tp.TimeUtc)
+            .ToList();
+
+        if (pointsWithTime.Count < 2)
+        {
+            return Array.Empty<TcxIntervalAggregate>();
+        }
+
+        var aggregates = new List<TcxIntervalAggregate>();
+        foreach (var windowMinutes in new[] { 1, 2, 5 })
+        {
+            aggregates.AddRange(BuildWindowAggregates(pointsWithTime, windowMinutes));
+        }
+
+        return aggregates;
+    }
+
+    private static IEnumerable<TcxIntervalAggregate> BuildWindowAggregates(IReadOnlyList<TrackpointSnapshot> orderedPoints, int windowMinutes)
+    {
+        var windowDurationSeconds = windowMinutes * 60d;
+        var startTime = orderedPoints[0].TimeUtc!.Value;
+        var endTime = orderedPoints[^1].TimeUtc!.Value;
+        var totalWindows = Math.Max(1, (int)Math.Ceiling((endTime - startTime).TotalSeconds / windowDurationSeconds));
+
+        for (var windowIndex = 0; windowIndex < totalWindows; windowIndex++)
+        {
+            var windowStart = startTime.AddSeconds(windowDurationSeconds * windowIndex);
+            var windowEnd = windowStart.AddSeconds(windowDurationSeconds);
+
+            var distanceMeters = 0d;
+            var coveredSeconds = 0d;
+
+            for (var pointIndex = 1; pointIndex < orderedPoints.Count; pointIndex++)
+            {
+                var previous = orderedPoints[pointIndex - 1];
+                var current = orderedPoints[pointIndex];
+                if (!previous.TimeUtc.HasValue || !current.TimeUtc.HasValue)
+                {
+                    continue;
+                }
+
+                var segmentStart = previous.TimeUtc.Value;
+                var segmentEnd = current.TimeUtc.Value;
+                if (segmentEnd <= segmentStart)
+                {
+                    continue;
+                }
+
+                var overlapStart = segmentStart > windowStart ? segmentStart : windowStart;
+                var overlapEnd = segmentEnd < windowEnd ? segmentEnd : windowEnd;
+                if (overlapEnd <= overlapStart)
+                {
+                    continue;
+                }
+
+                var overlapSeconds = (overlapEnd - overlapStart).TotalSeconds;
+                var segmentSeconds = (segmentEnd - segmentStart).TotalSeconds;
+                if (segmentSeconds <= 0)
+                {
+                    continue;
+                }
+
+                coveredSeconds += overlapSeconds;
+
+                if (HasGps(previous) && HasGps(current))
+                {
+                    var segmentDistance = HaversineMeters((previous.Latitude!.Value, previous.Longitude!.Value), (current.Latitude!.Value, current.Longitude!.Value));
+                    distanceMeters += segmentDistance * (overlapSeconds / segmentSeconds);
+                }
+
+            }
+
+            var remainingWindowSeconds = Math.Max(0d, (endTime - windowStart).TotalSeconds);
+            var windowDurationForDisplaySeconds = Math.Min(windowDurationSeconds, remainingWindowSeconds);
+
+            var windowTrackpoints = orderedPoints
+                .Where(point => point.TimeUtc.HasValue && point.TimeUtc.Value >= windowStart && point.TimeUtc.Value <= windowEnd)
+                .ToList();
+
+            var intervalCoreMetrics = BuildFootballCoreMetrics(
+                windowTrackpoints,
+                "High",
+                coveredSeconds > 0 ? distanceMeters : null);
+
+            yield return new TcxIntervalAggregate(
+                windowMinutes,
+                windowIndex,
+                windowStart,
+                windowDurationForDisplaySeconds,
+                intervalCoreMetrics);
+        }
+    }
     private static QualityAssessment AssessQuality(IReadOnlyList<TrackpointSnapshot> trackpoints, double outlierSpeedThresholdMps)
     {
         if (trackpoints.Count == 0)

@@ -39,6 +39,14 @@ type FootballCoreMetrics = {
   thresholds: Record<string, string>;
 };
 
+type IntervalAggregate = {
+  windowMinutes: number;
+  windowIndex: number;
+  windowStartUtc: string;
+  windowDurationSeconds: number;
+  coreMetrics: FootballCoreMetrics;
+};
+
 type ActivitySummary = {
   activityStartTimeUtc: string | null;
   durationSeconds: number | null;
@@ -54,6 +62,7 @@ type ActivitySummary = {
   qualityReasons: string[];
   smoothing: SmoothingTrace;
   coreMetrics: FootballCoreMetrics;
+  intervalAggregates: IntervalAggregate[];
 };
 
 type UploadRecord = {
@@ -192,7 +201,21 @@ type TranslationKey =
   | 'metricHrZoneMedium'
   | 'metricHrZoneHigh'
   | 'metricTrimpEdwards'
-  | 'metricHrRecovery60';
+  | 'metricHrRecovery60'
+  | 'intervalAggregationTitle'
+  | 'intervalAggregationWindowLabel'
+  | 'intervalAggregationWindow1'
+  | 'intervalAggregationWindow2'
+  | 'intervalAggregationWindow5'
+  | 'intervalAggregationStart'
+  | 'intervalAggregationExternalDistance'
+  | 'intervalAggregationInternalAvgHeartRate'
+  | 'intervalAggregationInternalLoad'
+  | 'intervalAggregationDuration'
+  | 'intervalAggregationNoData'
+  | 'intervalAggregationCoreMetrics'
+  | 'intervalAggregationWindowCount'
+  | 'intervalAggregationExplanation';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -309,7 +332,21 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHrZoneMedium: 'HR zone 70-85%',
     metricHrZoneHigh: 'HR zone >85%',
     metricTrimpEdwards: 'TRIMP (Edwards)',
-    metricHrRecovery60: 'HR recovery after 60s' 
+    metricHrRecovery60: 'HR recovery after 60s',
+    intervalAggregationTitle: 'Interval aggregation (1 / 2 / 5 minutes)',
+    intervalAggregationWindowLabel: 'Aggregation window',
+    intervalAggregationWindow1: '1 minute',
+    intervalAggregationWindow2: '2 minutes',
+    intervalAggregationWindow5: '5 minutes',
+    intervalAggregationStart: 'Window start',
+    intervalAggregationExternalDistance: 'External: distance',
+    intervalAggregationInternalAvgHeartRate: 'Internal: average heart rate',
+    intervalAggregationInternalLoad: 'Internal: load (TRIMP)',
+    intervalAggregationDuration: 'Duration',
+    intervalAggregationNoData: 'No interval data available for this session.',
+    intervalAggregationCoreMetrics: 'Core metrics',
+    intervalAggregationWindowCount: 'Windows: {count}',
+    intervalAggregationExplanation: 'Interval views help you understand how effort changes during a session instead of only seeing one total value. 1-minute windows highlight short, intense phases such as pressing, repeated sprints, or quick transitions. 2-minute windows smooth out noise a bit and make it easier to compare short game phases. 5-minute windows show the broader load trend, for example whether intensity drops after a high-pressure period or rises again near the end. Together, these views help coaches and players identify pacing, fatigue patterns, and where targeted training can improve match performance.' 
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -421,7 +458,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHrZoneMedium: 'HF-Zone 70-85%',
     metricHrZoneHigh: 'HF-Zone >85%',
     metricTrimpEdwards: 'TRIMP (Edwards)',
-    metricHrRecovery60: 'HF-Erholung nach 60s'
+    metricHrRecovery60: 'HF-Erholung nach 60s',
+    intervalAggregationDuration: 'Dauer',
+    intervalAggregationNoData: 'Für diese Session sind keine Intervall-Daten verfügbar.',
+    intervalAggregationCoreMetrics: 'Kernmetriken',
+    intervalAggregationWindowCount: 'Fenster: {count}',
+    intervalAggregationExplanation: 'Die Intervallansicht hilft dir zu erkennen, wie sich die Belastung innerhalb einer Einheit verändert – statt nur einen Gesamtwert zu sehen. 1-Minuten-Fenster machen kurze, sehr intensive Phasen sichtbar, zum Beispiel Pressing, wiederholte Sprints oder schnelle Umschaltmomente. 2-Minuten-Fenster glätten das Bild etwas und eignen sich gut, um kurze Spielphasen miteinander zu vergleichen. 5-Minuten-Fenster zeigen den größeren Belastungstrend, etwa ob die Intensität nach einer Druckphase abfällt oder zum Ende wieder ansteigt. Zusammen helfen diese Sichten dabei, Tempoverteilung, Ermüdungsmuster und konkrete Trainingsansätze besser zu verstehen.'
   }
 };
 
@@ -663,6 +705,7 @@ export function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
+  const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(1);
 
   const t = translations[locale];
   const metricHelp = metricExplanations[locale];
@@ -965,6 +1008,16 @@ export function App() {
       cells
     };
   });
+  const selectedSessionAggregates = useMemo(() => {
+    if (!selectedSession) {
+      return [];
+    }
+
+    return selectedSession.summary.intervalAggregates
+      .filter((aggregate) => aggregate.windowMinutes === aggregationWindowMinutes)
+      .sort((a, b) => a.windowIndex - b.windowIndex);
+  }, [selectedSession, aggregationWindowMinutes]);
+
 
   return (
     <main className="container">
@@ -1193,6 +1246,62 @@ export function App() {
               <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(selectedSession.summary.coreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
             </ul>
           </div>
+          <div className="interval-aggregation">
+            <h3>{t.intervalAggregationTitle}</h3>
+            <p>{t.intervalAggregationExplanation}</p>
+            <label htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
+            <select
+              id="interval-window-selector"
+              value={aggregationWindowMinutes}
+              onChange={(event) => setAggregationWindowMinutes(Number(event.target.value) as 1 | 2 | 5)}
+            >
+              <option value={1}>{t.intervalAggregationWindow1}</option>
+              <option value={2}>{t.intervalAggregationWindow2}</option>
+              <option value={5}>{t.intervalAggregationWindow5}</option>
+            </select>
+            <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedSessionAggregates.length.toString() })}</p>
+            {selectedSessionAggregates.length === 0 ? (
+              <p>{t.intervalAggregationNoData}</p>
+            ) : (
+              <table className="history-table interval-table">
+                <thead>
+                  <tr>
+                    <th>{t.intervalAggregationStart}</th>
+                    <th>{t.intervalAggregationCoreMetrics}</th>
+                    <th>{t.intervalAggregationDuration}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedSessionAggregates.map((aggregate) => (
+                    <tr key={`${aggregate.windowMinutes}-${aggregate.windowIndex}`}>
+                      <td>{formatLocalDateTime(aggregate.windowStartUtc)}</td>
+                      <td>
+                        <ul className="metrics-list interval-core-metrics-list">
+                          <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricSprintCount}:</strong> {aggregate.coreMetrics.sprintCount ?? t.notAvailable}</li>
+                          <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeedMetersPerSecond(aggregate.coreMetrics.maxSpeedMetersPerSecond, t.notAvailable)}</li>
+                          <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(aggregate.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricHighIntensityRunCount}:</strong> {aggregate.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
+                          <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricRunningDensity}:</strong> {formatNumber(aggregate.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
+                          <li><strong>{t.metricAccelerationCount}:</strong> {aggregate.coreMetrics.accelerationCount ?? t.notAvailable}</li>
+                          <li><strong>{t.metricDecelerationCount}:</strong> {aggregate.coreMetrics.decelerationCount ?? t.notAvailable}</li>
+                          <li><strong>{t.metricHrZoneLow}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
+                          <li><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(aggregate.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
+                          <li><strong>{t.metricHrRecovery60}:</strong> {aggregate.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
+                        </ul>
+                      </td>
+                      <td>{formatDuration(aggregate.windowDurationSeconds, locale, t.notAvailable)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
           {(showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
             <div className="detail-hints" role="status">
               {showMissingHeartRateHint && <p>{t.detailMissingHeartRateHint}</p>}
