@@ -246,6 +246,8 @@ type TranslationKey =
   | 'sessionCompareDeltaPercent'
   | 'sessionCompareMetricDistance'
   | 'sessionCompareMetricDuration'
+  | 'sessionCompareMetricHeartRateAverage'
+  | 'sessionCompareMetricDirectionChanges'
   | 'sessionCompareMetricSprintDistance'
   | 'sessionCompareMetricSprintCount'
   | 'sessionCompareMetricHighIntensityTime'
@@ -436,6 +438,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionCompareDeltaPercent: 'Delta (%) vs baseline',
     sessionCompareMetricDistance: 'Distance',
     sessionCompareMetricDuration: 'Duration',
+    sessionCompareMetricHeartRateAverage: 'Heart rate avg',
+    sessionCompareMetricDirectionChanges: 'Direction changes',
     sessionCompareMetricSprintDistance: 'Sprint distance',
     sessionCompareMetricSprintCount: 'Sprint count',
     sessionCompareMetricHighIntensityTime: 'High-intensity time',
@@ -628,6 +632,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionCompareDeltaPercent: 'Delta (%) zur Basis',
     sessionCompareMetricDistance: 'Distanz',
     sessionCompareMetricDuration: 'Dauer',
+    sessionCompareMetricHeartRateAverage: 'Herzfrequenz Ø',
+    sessionCompareMetricDirectionChanges: 'Richtungswechsel',
     sessionCompareMetricSprintDistance: 'Sprintdistanz',
     sessionCompareMetricSprintCount: 'Sprintanzahl',
     sessionCompareMetricHighIntensityTime: 'Hochintensive Zeit',
@@ -875,6 +881,14 @@ function formatDistanceDeltaMeters(distanceDeltaMeters: number | null, locale: L
   }
 
   return `${distanceDeltaMeters.toLocaleString(locale, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} m`;
+}
+
+function formatHeartRateAverage(value: number | null, locale: Locale, notAvailable: string): string {
+  if (value === null) {
+    return notAvailable;
+  }
+
+  return `${value.toLocaleString(locale, { maximumFractionDigits: 0 })} bpm`;
 }
 
 function formatHeartRate(summary: ActivitySummary, notAvailable: string): string {
@@ -1479,6 +1493,18 @@ export function App() {
       formatter: (value, currentLocale, notAvailable) => formatDuration(value, currentLocale, notAvailable)
     },
     {
+      key: 'heartRateAverage',
+      label: t.sessionCompareMetricHeartRateAverage,
+      getter: (record) => record.summary.heartRateAverageBpm,
+      formatter: (value, currentLocale, notAvailable) => formatHeartRateAverage(value, currentLocale, notAvailable)
+    },
+    {
+      key: 'directionChanges',
+      label: t.sessionCompareMetricDirectionChanges,
+      getter: (record) => record.summary.smoothing.smoothedDirectionChanges,
+      formatter: (value, currentLocale, notAvailable) => formatNumber(value, currentLocale, notAvailable, 0)
+    },
+    {
       key: 'sprintDistance',
       label: t.sessionCompareMetricSprintDistance,
       getter: (record) => record.summary.coreMetrics.sprintDistanceMeters,
@@ -1941,11 +1967,8 @@ export function App() {
           </div>
           <ul className="metrics-list">
             <MetricListItem label={t.metricStartTime} value={selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable} helpText={`${metricHelp.startTime} ${t.metricHelpStartTime}`} />
-            <MetricListItem label={t.metricDuration} value={formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
-            <MetricListItem label={t.metricHeartRate} value={formatHeartRate(selectedSession.summary, t.notAvailable)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
             <MetricListItem label={t.metricTrackpoints} value={selectedSession.summary.trackpointCount} helpText={`${metricHelp.trackpoints} ${t.metricHelpTrackpoints}`} />
             <MetricListItem label={t.metricDistance} value={`${formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — ${distanceSourceText(selectedSession.summary.distanceSource)}`} helpText={`${metricHelp.distance} ${t.metricHelpDistance}`} />
-            <MetricListItem label={t.metricDirectionChanges} value={activeDirectionChanges ?? 0} helpText={metricHelp.directionChanges} />
             <MetricListItem label={t.metricGps} value={selectedSession.summary.hasGpsData ? t.yes : t.no} helpText={`${metricHelp.gps} ${t.metricHelpGps}`} />
             <MetricListItem label={t.metricQualityStatus} value={qualityStatusText(selectedSession.summary.qualityStatus, t)} helpText={metricHelp.qualityStatus} />
             <MetricListItem label={t.metricQualityReasons} value={selectedSession.summary.qualityReasons.join(' | ')} helpText={metricHelp.qualityReasons} />
@@ -1984,6 +2007,8 @@ export function App() {
                 <p>{t.coreMetricsCategoryExternalHelp}</p>
                 <ul className="metrics-list">
                   <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.distance} />
+                  <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', selectedSession.summary.coreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
+                  <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.directionChanges} />
                   <MetricListItem label={t.metricSprintDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.sprintDistance} />
                   <MetricListItem label={t.metricSprintCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.sprintCount} />
                   <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.maxSpeed} />
@@ -2001,6 +2026,7 @@ export function App() {
                 <h4>{t.coreMetricsCategoryInternalTitle}</h4>
                 <p>{t.coreMetricsCategoryInternalHelp}</p>
                 <ul className="metrics-list">
+                  <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', selectedSession.summary.coreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
                   <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneLow} />
                   <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
                   <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneHigh} />

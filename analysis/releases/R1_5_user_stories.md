@@ -168,11 +168,11 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** ich die Session-Belastung vollständiger bewerten kann.
 
 ### Acceptance Criteria
-- [ ] Die bereits in der UI vorhandenen Metriken Duration, Heart Rate (min/avg/max) und Direction Changes werden in den Bereich „Football Core Metrics“ überführt (keine Doppelanzeige in alten Bereichen).
-- [ ] Die Metriken sind fachlich kategorisiert: Heart Rate (min/avg/max) als interne Metriken; Duration und Direction Changes als externe Metriken.
-- [ ] Jede überführte Metrik enthält einen detaillierten Erklärungstext (Definition, Berechnungslogik, Interpretationshilfe).
-- [ ] Bei fehlenden Eingangsdaten wird die Metrik transparent als nicht verfügbar gekennzeichnet.
-- [ ] Die überführten Metriken sind in Vergleichsansichten konsistent mit vorhandenen Core Metrics nutzbar.
+- [x] Die bereits in der UI vorhandenen Metriken Duration, Heart Rate (min/avg/max) und Direction Changes werden in den Bereich „Football Core Metrics“ überführt (keine Doppelanzeige in alten Bereichen).
+- [x] Die Metriken sind fachlich kategorisiert: Heart Rate (min/avg/max) als interne Metriken; Duration und Direction Changes als externe Metriken.
+- [x] Jede überführte Metrik enthält einen detaillierten Erklärungstext (Definition, Berechnungslogik, Interpretationshilfe).
+- [x] Bei fehlenden Eingangsdaten wird die Metrik transparent als nicht verfügbar gekennzeichnet.
+- [x] Die überführten Metriken sind in Vergleichsansichten konsistent mit vorhandenen Core Metrics nutzbar.
 
 
 ---

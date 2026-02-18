@@ -1231,6 +1231,8 @@ describe('App', () => {
     const comparisonTable = screen.getAllByRole('table')[1];
     expect(within(comparisonTable).getByText('Distance')).toBeInTheDocument();
     expect(within(comparisonTable).getByText('Duration')).toBeInTheDocument();
+    expect(within(comparisonTable).getByText('Heart rate avg')).toBeInTheDocument();
+    expect(within(comparisonTable).getByText('Direction changes')).toBeInTheDocument();
     expect(within(comparisonTable).getByText('TRIMP (Edwards)')).toBeInTheDocument();
 
     fireEvent.click(compareCheckboxes[1]);
@@ -1559,6 +1561,7 @@ describe('App', () => {
 
     render(<App />);
 
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
     await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
 
     expect(screen.getByText('External metrics (movement-based)')).toBeInTheDocument();
@@ -1588,6 +1591,79 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'All metrics' }));
     expect(screen.getByText('External metrics (movement-based)')).toBeInTheDocument();
     expect(screen.getByText('Internal metrics (heart-rate-based)')).toBeInTheDocument();
+  });
+
+
+  it('R1_5_13_Ac01_Ac02_Ac03_moves_duration_hr_direction_changes_into_core_metric_categories_without_duplicates', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/profile')) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
+    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'External metrics' }));
+    const externalSection = screen.getByText('External metrics (movement-based)').closest('div');
+    expect(within(externalSection as HTMLElement).getByText('Duration:')).toBeInTheDocument();
+    expect(within(externalSection as HTMLElement).getByText('Direction changes:')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Internal metrics' }));
+    const internalSection = screen.getByText('Internal metrics (heart-rate-based)').closest('div');
+    expect(within(internalSection as HTMLElement).getByText('Heart rate (min/avg/max):')).toBeInTheDocument();
+
+  });
+
+  it('R1_5_13_Ac04_shows_missing_data_transparently_for_moved_metrics', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/profile')) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      const first = createUploadRecord({
+        id: 'upload-a',
+        fileName: 'a.tcx',
+        summary: createSummary({
+          heartRateMinBpm: null,
+          heartRateAverageBpm: null,
+          heartRateMaxBpm: null,
+          smoothing: { ...createSummary().smoothing, smoothedDirectionChanges: null }
+        })
+      });
+
+      const second = createUploadRecord({ id: 'upload-b', fileName: 'b.tcx' });
+
+      first.summary.coreMetrics.metricAvailability = {
+        ...first.summary.coreMetrics.metricAvailability,
+        durationSeconds: { state: 'NotMeasured', reason: 'No moving timestamps available.' },
+        directionChanges: { state: 'NotUsable', reason: 'Insufficient heading stability.' },
+        heartRateMinAvgMaxBpm: { state: 'NotMeasured', reason: 'No heart-rate stream in file.' }
+      };
+
+      return Promise.resolve({ ok: true, json: async () => [first, second] } as Response);
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
+    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'External metrics' }));
+    const externalSection = screen.getByText('External metrics (movement-based)').closest('div');
+    expect(externalSection).toHaveTextContent('Duration: 30 min 0 s — Not measured: No moving timestamps available.');
+    expect(externalSection).toHaveTextContent('Direction changes: Not available — Measurement unusable: Insufficient heading stability.');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Internal metrics' }));
+    const internalSection = screen.getByText('Internal metrics (heart-rate-based)').closest('div');
+    expect(internalSection).toHaveTextContent('Heart rate (min/avg/max): Not available — Not measured: No heart-rate stream in file.');
+
   });
 
 });
