@@ -286,4 +286,48 @@ public class TcxUploadRepository : ITcxUploadRepository
         var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
         return affectedRows > 0;
     }
+
+    public async Task UpsertAdaptiveStatsAsync(Guid uploadId, double? maxSpeedMps, int? maxHeartRateBpm, DateTime calculatedAtUtc, CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            INSERT INTO TcxAdaptiveStats (UploadId, MaxSpeedMps, MaxHeartRateBpm, CalculatedAtUtc)
+            VALUES ($uploadId, $maxSpeedMps, $maxHeartRateBpm, $calculatedAtUtc)
+            ON CONFLICT(UploadId) DO UPDATE SET
+                MaxSpeedMps = excluded.MaxSpeedMps,
+                MaxHeartRateBpm = excluded.MaxHeartRateBpm,
+                CalculatedAtUtc = excluded.CalculatedAtUtc;
+        ";
+        command.Parameters.AddWithValue("$uploadId", uploadId.ToString());
+        command.Parameters.AddWithValue("$maxSpeedMps", (object?)maxSpeedMps ?? DBNull.Value);
+        command.Parameters.AddWithValue("$maxHeartRateBpm", (object?)maxHeartRateBpm ?? DBNull.Value);
+        command.Parameters.AddWithValue("$calculatedAtUtc", calculatedAtUtc.ToString("O"));
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<(double? MaxSpeedMps, int? MaxHeartRateBpm)> GetAdaptiveStatsExtremesAsync(CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT MAX(MaxSpeedMps), MAX(MaxHeartRateBpm)
+            FROM TcxAdaptiveStats;
+        ";
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return (null, null);
+        }
+
+        var maxSpeed = reader.IsDBNull(0) ? (double?)null : reader.GetDouble(0);
+        var maxHeartRate = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1);
+        return (maxSpeed, maxHeartRate);
+    }
+
 }

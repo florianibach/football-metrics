@@ -134,7 +134,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 - **Abhängigkeiten/Reihenfolge:** Früh in Phase 0/1.
 - **Quick Win:** **Ja**
 
-### BAR-004 — `TcxMetricsExtractor` modularisieren (ohne Rewrite)
+### BAR-004 — ✅ Done — `TcxMetricsExtractor` modularisieren (ohne Rewrite)
 - **Kategorie:** Code-Struktur
 - **Problem:** 1072 LOC statischer Multi-Responsibility-Kern.
 - **Vorschlag:** In klar abgegrenzte Services zerlegen (z. B. `TrackpointParser`, `SmoothingService`, `QualityAssessmentService`, `CoreMetricsService`, `IntervalAggregationService`), orchestriert durch dünnen Facade-Service.
@@ -144,7 +144,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 - **Abhängigkeiten/Reihenfolge:** Nach BAR-001/003 starten.
 - **Quick Win:** **Nein**
 
-### BAR-005 — Adaptive Thresholds: Vorberechnete Session-Stats statt Vollscan
+### BAR-005 — ✅ Done — Adaptive Thresholds: Vorberechnete Session-Stats statt Vollscan
 - **Kategorie:** Performance
 - **Problem:** `MetricThresholdResolver` parst bei jedem Resolve alle Upload-BLOBs.
 - **Vorschlag:** Bei Upload/Recalculate sessionweite Adaptive-Stats persistieren (z. B. `ObservedMaxSpeedMps`, `ObservedMaxHeartRateBpm`) und Resolver nur Aggregatabfrage fahren.
@@ -184,7 +184,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 - **Abhängigkeiten/Reihenfolge:** Parallel zu BAR-003 möglich.
 - **Quick Win:** **Ja**
 
-### BAR-009 — ✅ Done — API-Kontrakt absichern (Versionierung + DTO-Entkopplung)
+### BAR-009 — ✅ Done — API-Kontrakt absichern (Versionierung + DTO-Entkopplung + Contract-Tests)
 - **Kategorie:** API
 - **Problem:** Controller-Response nutzt stark interne Modellstrukturen; Versionierung fehlt.
 - **Vorschlag:** API-Versionierungsstrategie (`/api/v1`), explizite DTOs getrennt von Persistenz-/Domain-Modellen, Contract-Tests für kritische Endpunkte.
@@ -194,7 +194,7 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 - **Abhängigkeiten/Reihenfolge:** Nach BAR-001/003, vor größeren Features.
 - **Quick Win:** **Nein**
 
-### BAR-010 — Teststrategie schärfen: Golden-Master + deterministische Kernlogiktests
+### BAR-010 — ✅ Done — Teststrategie schärfen: Golden-Master + deterministische Kernlogiktests
 - **Kategorie:** Tests
 - **Problem:** Gute Integrationsabdeckung, aber zentrale Algorithmen sind schwer isoliert regressionssicher.
 - **Vorschlag:** Golden-Master-Testdatensätze für `TcxMetricsExtractor`-Outputs, gezielte Property-/Boundary-Tests für Smoothing/Quality/Threshold-Regeln, Transaktions-/Fehlerpfadtests für neue Use-Cases.
@@ -246,6 +246,13 @@ Lesen/Recalculate/Overrides laufen ebenfalls über Controller → Repository →
 2. **BAR-005** persistierte Adaptive-Stats + Resolver-Optimierung.
 3. **BAR-010** Golden-Master/Regressionssuite für Analysepfade.
 4. **BAR-009 (Abschluss)** Contract-Tests + saubere Versionierungsdokumentation.
+
+### Umsetzungsstatus Phase 2 (Story R2-09)
+
+- [x] **BAR-004** — Done
+- [x] **BAR-005** — Done
+- [x] **BAR-010** — Done
+- [x] **BAR-009 (Abschluss)** — Done
 
 **Ergebnis:** Gute Feature-Geschwindigkeit bei kontrolliertem Risiko.
 

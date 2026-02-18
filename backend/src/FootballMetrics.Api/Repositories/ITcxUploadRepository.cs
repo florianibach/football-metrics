@@ -23,4 +23,7 @@ public interface ITcxUploadRepository
         string? appliedProfileSnapshotJson,
         string? recalculationHistoryJson,
         CancellationToken cancellationToken = default);
+
+    Task UpsertAdaptiveStatsAsync(Guid uploadId, double? maxSpeedMps, int? maxHeartRateBpm, DateTime calculatedAtUtc, CancellationToken cancellationToken = default);
+    Task<(double? MaxSpeedMps, int? MaxHeartRateBpm)> GetAdaptiveStatsExtremesAsync(CancellationToken cancellationToken = default);
 }
