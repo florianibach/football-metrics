@@ -86,7 +86,7 @@ public static class TcxMetricsExtractor
         var smoothingTrace = BuildSmoothingTrace(normalizedFilter, trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
         var effectiveThresholds = thresholdProfile ?? MetricThresholdProfile.CreateDefault();
         var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
-        var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints);
+        var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints, effectiveThresholds);
 
         return new TcxActivitySummary(
             startTime,
@@ -443,7 +443,9 @@ public static class TcxMetricsExtractor
     }
 
 
-    private static IReadOnlyList<TcxIntervalAggregate> BuildIntervalAggregates(IReadOnlyList<TrackpointSnapshot> smoothedTrackpoints)
+    private static IReadOnlyList<TcxIntervalAggregate> BuildIntervalAggregates(
+        IReadOnlyList<TrackpointSnapshot> smoothedTrackpoints,
+        MetricThresholdProfile thresholdsProfile)
     {
         var pointsWithTime = smoothedTrackpoints
             .Where(tp => tp.TimeUtc.HasValue)
@@ -458,13 +460,16 @@ public static class TcxMetricsExtractor
         var aggregates = new List<TcxIntervalAggregate>();
         foreach (var windowMinutes in new[] { 1, 2, 5 })
         {
-            aggregates.AddRange(BuildWindowAggregates(pointsWithTime, windowMinutes));
+                aggregates.AddRange(BuildWindowAggregates(pointsWithTime, windowMinutes, thresholdsProfile));
         }
 
         return aggregates;
     }
 
-    private static IEnumerable<TcxIntervalAggregate> BuildWindowAggregates(IReadOnlyList<TrackpointSnapshot> orderedPoints, int windowMinutes)
+    private static IEnumerable<TcxIntervalAggregate> BuildWindowAggregates(
+        IReadOnlyList<TrackpointSnapshot> orderedPoints,
+        int windowMinutes,
+        MetricThresholdProfile thresholdsProfile)
     {
         var windowDurationSeconds = windowMinutes * 60d;
         var startTime = orderedPoints[0].TimeUtc!.Value;
@@ -529,7 +534,8 @@ public static class TcxMetricsExtractor
             var intervalCoreMetrics = BuildFootballCoreMetrics(
                 windowTrackpoints,
                 "High",
-                coveredSeconds > 0 ? distanceMeters : null);
+                coveredSeconds > 0 ? distanceMeters : null,
+                thresholdsProfile);
 
             yield return new TcxIntervalAggregate(
                 windowMinutes,
