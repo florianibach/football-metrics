@@ -75,6 +75,13 @@ type SessionContext = {
   opponentLogoUrl: string | null;
 };
 
+type PlayerPosition = 'Goalkeeper' | 'CentreBack' | 'FullBack' | 'DefensiveMidfielder' | 'CentralMidfielder' | 'AttackingMidfielder' | 'Winger' | 'Striker';
+
+type UserProfile = {
+  primaryPosition: PlayerPosition;
+  secondaryPosition: PlayerPosition | null;
+};
+
 type UploadRecord = {
   id: string;
   fileName: string;
@@ -241,7 +248,16 @@ type TranslationKey =
   | 'intervalAggregationNoData'
   | 'intervalAggregationCoreMetrics'
   | 'intervalAggregationWindowCount'
-  | 'intervalAggregationExplanation';
+  | 'intervalAggregationExplanation'
+  | 'profileSettingsTitle'
+  | 'profilePrimaryPosition'
+  | 'profileSecondaryPosition'
+  | 'profileSecondaryOptional'
+  | 'profileSave'
+  | 'profileSaveSuccess'
+  | 'profileValidationPrimaryRequired'
+  | 'profileValidationSecondaryDistinct'
+  | 'profileCurrentPosition';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -387,7 +403,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationNoData: 'No interval data available for this session.',
     intervalAggregationCoreMetrics: 'Core metrics',
     intervalAggregationWindowCount: 'Windows: {count}',
-    intervalAggregationExplanation: 'Interval views help you understand how effort changes during a session instead of only seeing one total value. 1-minute windows highlight short, intense phases such as pressing, repeated sprints, or quick transitions. 2-minute windows smooth out noise a bit and make it easier to compare short game phases. 5-minute windows show the broader load trend, for example whether intensity drops after a high-pressure period or rises again near the end. Together, these views help coaches and players identify pacing, fatigue patterns, and where targeted training can improve match performance.' 
+    intervalAggregationExplanation: 'Interval views help you understand how effort changes during a session instead of only seeing one total value. 1-minute windows highlight short, intense phases such as pressing, repeated sprints, or quick transitions. 2-minute windows smooth out noise a bit and make it easier to compare short game phases. 5-minute windows show the broader load trend, for example whether intensity drops after a high-pressure period or rises again near the end. Together, these views help coaches and players identify pacing, fatigue patterns, and where targeted training can improve match performance.',
+    profileSettingsTitle: 'Profile settings',
+    profilePrimaryPosition: 'Primary position',
+    profileSecondaryPosition: 'Secondary position',
+    profileSecondaryOptional: 'Optional',
+    profileSave: 'Save profile',
+    profileSaveSuccess: 'Profile updated successfully.',
+    profileValidationPrimaryRequired: 'Please select a primary position.',
+    profileValidationSecondaryDistinct: 'Primary and secondary position must differ.',
+    profileCurrentPosition: 'Current profile: {primary} / {secondary}' 
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -519,7 +544,41 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationNoData: 'Für diese Session sind keine Intervall-Daten verfügbar.',
     intervalAggregationCoreMetrics: 'Kernmetriken',
     intervalAggregationWindowCount: 'Fenster: {count}',
-    intervalAggregationExplanation: 'Die Intervallansicht hilft dir zu erkennen, wie sich die Belastung innerhalb einer Einheit verändert – statt nur einen Gesamtwert zu sehen. 1-Minuten-Fenster machen kurze, sehr intensive Phasen sichtbar, zum Beispiel Pressing, wiederholte Sprints oder schnelle Umschaltmomente. 2-Minuten-Fenster glätten das Bild etwas und eignen sich gut, um kurze Spielphasen miteinander zu vergleichen. 5-Minuten-Fenster zeigen den größeren Belastungstrend, etwa ob die Intensität nach einer Druckphase abfällt oder zum Ende wieder ansteigt. Zusammen helfen diese Sichten dabei, Tempoverteilung, Ermüdungsmuster und konkrete Trainingsansätze besser zu verstehen.'
+    intervalAggregationExplanation: 'Die Intervallansicht hilft dir zu erkennen, wie sich die Belastung innerhalb einer Einheit verändert – statt nur einen Gesamtwert zu sehen. 1-Minuten-Fenster machen kurze, sehr intensive Phasen sichtbar, zum Beispiel Pressing, wiederholte Sprints oder schnelle Umschaltmomente. 2-Minuten-Fenster glätten das Bild etwas und eignen sich gut, um kurze Spielphasen miteinander zu vergleichen. 5-Minuten-Fenster zeigen den größeren Belastungstrend, etwa ob die Intensität nach einer Druckphase abfällt oder zum Ende wieder ansteigt. Zusammen helfen diese Sichten dabei, Tempoverteilung, Ermüdungsmuster und konkrete Trainingsansätze besser zu verstehen.',
+    profileSettingsTitle: 'Profileinstellungen',
+    profilePrimaryPosition: 'Primärposition',
+    profileSecondaryPosition: 'Sekundärposition',
+    profileSecondaryOptional: 'Optional',
+    profileSave: 'Profil speichern',
+    profileSaveSuccess: 'Profil erfolgreich gespeichert.',
+    profileValidationPrimaryRequired: 'Bitte wähle eine Primärposition aus.',
+    profileValidationSecondaryDistinct: 'Primär- und Sekundärposition müssen unterschiedlich sein.',
+    profileCurrentPosition: 'Aktuelles Profil: {primary} / {secondary}'
+  }
+};
+
+const playerPositions: PlayerPosition[] = ['Goalkeeper', 'CentreBack', 'FullBack', 'DefensiveMidfielder', 'CentralMidfielder', 'AttackingMidfielder', 'Winger', 'Striker'];
+
+const playerPositionLabels: Record<Locale, Record<PlayerPosition, string>> = {
+  en: {
+    Goalkeeper: 'Goalkeeper',
+    CentreBack: 'Centre-back',
+    FullBack: 'Full-back',
+    DefensiveMidfielder: 'Defensive midfielder',
+    CentralMidfielder: 'Central midfielder',
+    AttackingMidfielder: 'Attacking midfielder',
+    Winger: 'Winger',
+    Striker: 'Striker'
+  },
+  de: {
+    Goalkeeper: 'Torwart',
+    CentreBack: 'Innenverteidiger',
+    FullBack: 'Außenverteidiger',
+    DefensiveMidfielder: 'Defensives Mittelfeld',
+    CentralMidfielder: 'Zentrales Mittelfeld',
+    AttackingMidfielder: 'Offensives Mittelfeld',
+    Winger: 'Flügel',
+    Striker: 'Stürmer'
   }
 };
 
@@ -780,6 +839,11 @@ export function App() {
     opponentName: null,
     opponentLogoUrl: null
   });
+  const [profileForm, setProfileForm] = useState<UserProfile>({
+    primaryPosition: 'CentralMidfielder',
+    secondaryPosition: null
+  });
+  const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
 
   const t = translations[locale];
   const metricHelp = metricExplanations[locale];
@@ -809,7 +873,21 @@ export function App() {
         }
 
         const payload = (await response.json()) as UploadRecord[];
+        let profilePayload: UserProfile | null = null;
+        try {
+          const profileResponse = await fetch(`${apiBaseUrl}/profile`);
+          profilePayload = profileResponse.ok ? (await profileResponse.json()) as UserProfile : null;
+        } catch {
+          profilePayload = null;
+        }
+
         if (!cancelled) {
+          if (profilePayload && typeof profilePayload.primaryPosition === 'string') {
+            setProfileForm({
+              primaryPosition: profilePayload.primaryPosition as PlayerPosition,
+              secondaryPosition: (profilePayload.secondaryPosition as PlayerPosition | null) ?? null
+            });
+          }
           setUploadHistory(payload);
           if (payload.length > 0) {
             setSelectedSession(payload[0]);
@@ -962,6 +1040,39 @@ export function App() {
     } finally {
       setIsUploading(false);
     }
+  }
+
+  async function onProfileSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setProfileValidationMessage(null);
+
+    if (!profileForm.primaryPosition) {
+      setProfileValidationMessage(t.profileValidationPrimaryRequired);
+      return;
+    }
+
+    if (profileForm.secondaryPosition && profileForm.secondaryPosition === profileForm.primaryPosition) {
+      setProfileValidationMessage(t.profileValidationSecondaryDistinct);
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profileForm)
+    });
+
+    if (!response.ok) {
+      setProfileValidationMessage(`${t.uploadFailedPrefix} ${await response.text()}`);
+      return;
+    }
+
+    const payload = (await response.json()) as UserProfile;
+    setProfileForm({
+      primaryPosition: payload.primaryPosition,
+      secondaryPosition: payload.secondaryPosition
+    });
+    setProfileValidationMessage(t.profileSaveSuccess);
   }
 
   const distanceSourceText = (source: ActivitySummary['distanceSource']) => {
@@ -1131,6 +1242,46 @@ export function App() {
       <h1>{t.title}</h1>
       <p className="subtitle">{t.subtitle}</p>
       <p className="subtitle">{t.maxFileSize}</p>
+
+      <section className="profile-settings">
+        <h2>{t.profileSettingsTitle}</h2>
+        <form onSubmit={onProfileSubmit}>
+          <label htmlFor="profile-primary-position">{t.profilePrimaryPosition}</label>
+          <select
+            id="profile-primary-position"
+            value={profileForm.primaryPosition}
+            onChange={(event) => setProfileForm((current) => ({ ...current, primaryPosition: event.target.value as PlayerPosition }))}
+          >
+            {playerPositions.map((position) => (
+              <option key={position} value={position}>{playerPositionLabels[locale][position]}</option>
+            ))}
+          </select>
+
+          <label htmlFor="profile-secondary-position">{t.profileSecondaryPosition} ({t.profileSecondaryOptional})</label>
+          <select
+            id="profile-secondary-position"
+            value={profileForm.secondaryPosition ?? ''}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              secondaryPosition: event.target.value ? event.target.value as PlayerPosition : null
+            }))}
+          >
+            <option value="">{t.notAvailable}</option>
+            {playerPositions.map((position) => (
+              <option key={position} value={position}>{playerPositionLabels[locale][position]}</option>
+            ))}
+          </select>
+
+          <button type="submit">{t.profileSave}</button>
+        </form>
+        <p>
+          {interpolate(t.profileCurrentPosition, {
+            primary: playerPositionLabels[locale][profileForm.primaryPosition],
+            secondary: profileForm.secondaryPosition ? playerPositionLabels[locale][profileForm.secondaryPosition] : t.notAvailable
+          })}
+        </p>
+        {profileValidationMessage ? <p>{profileValidationMessage}</p> : null}
+      </section>
       <form onSubmit={handleSubmit}>
         <label
           className={`dropzone ${isDragOver ? 'dropzone--active' : ''}`}

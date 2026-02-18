@@ -41,6 +41,12 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
             );
 
             CREATE INDEX IF NOT EXISTS IX_TcxUploads_UploadedAtUtc ON TcxUploads (UploadedAtUtc DESC);
+
+            CREATE TABLE IF NOT EXISTS UserProfiles (
+                Id INTEGER PRIMARY KEY,
+                PrimaryPosition TEXT NOT NULL,
+                SecondaryPosition TEXT NULL
+            );
         ";
 
         await command.ExecuteNonQueryAsync(cancellationToken);
