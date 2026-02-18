@@ -541,6 +541,41 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         updated.SessionContext.OpponentLogoUrl.Should().Be("https://example.com/logo.png");
     }
 
+
+    [Fact]
+    public async Task R1_5_09_Ac01_Ac04_Recalculate_ShouldUseCurrentProfileAndExposeHistory()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "r1-5-09-recalc.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+
+        var profileUpdate = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, new MetricThresholdProfile
+        {
+            SprintSpeedThresholdMps = 8.3,
+            HighIntensitySpeedThresholdMps = 6.1,
+            AccelerationThresholdMps2 = 2.4,
+            DecelerationThresholdMps2 = -2.6,
+            Version = 1,
+            UpdatedAtUtc = DateTime.UtcNow
+        }, TcxSmoothingFilters.Butterworth));
+        profileUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var recalcResponse = await client.PostAsync($"/api/tcx/{created!.Id}/recalculate", content: null);
+        recalcResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var recalculated = await recalcResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        recalculated.Should().NotBeNull();
+        recalculated!.Summary.Smoothing.SelectedStrategy.Should().Be(TcxSmoothingFilters.Butterworth);
+        recalculated.SelectedSmoothingFilterSource.Should().Be(TcxSmoothingFilterSources.ProfileRecalculation);
+        recalculated.AppliedProfileSnapshot.ThresholdVersion.Should().BeGreaterThanOrEqualTo(2);
+        recalculated.RecalculationHistory.Should().HaveCount(1);
+    }
+
     private static MultipartFormDataContent CreateUploadForm(string fileName, string contentText)
     {
         var form = new MultipartFormDataContent();
@@ -598,6 +633,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             => Task.FromResult(false);
         public Task<bool> UpdateSelectedSmoothingFilterSourceAsync(Guid id, string selectedSmoothingFilterSource, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+
+        public Task<bool> UpdateProfileSnapshotsAsync(Guid id, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 
     private sealed class ThrowingThenRejectingSameIdRepository : ITcxUploadRepository
@@ -636,15 +674,22 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             => Task.FromResult(false);
         public Task<bool> UpdateSelectedSmoothingFilterSourceAsync(Guid id, string selectedSmoothingFilterSource, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+
+        public Task<bool> UpdateProfileSnapshotsAsync(Guid id, string metricThresholdSnapshotJson, string appliedProfileSnapshotJson, string recalculationHistoryJson, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 
     public record TcxUploadResponseDto(Guid Id, string FileName, DateTime UploadedAtUtc);
 
-    public record TcxUploadResponseWithSummaryDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, string SelectedSmoothingFilterSource);
+    public record TcxUploadResponseWithSummaryDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, string SelectedSmoothingFilterSource, AppliedProfileSnapshotDto AppliedProfileSnapshot, IReadOnlyList<SessionRecalculationEntryDto> RecalculationHistory);
 
-    public record TcxUploadResponseWithSummaryAndContextDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, SessionContextDto SessionContext, string SelectedSmoothingFilterSource);
+    public record TcxUploadResponseWithSummaryAndContextDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, SessionContextDto SessionContext, string SelectedSmoothingFilterSource, AppliedProfileSnapshotDto AppliedProfileSnapshot, IReadOnlyList<SessionRecalculationEntryDto> RecalculationHistory);
 
     public record SessionContextDto(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);
+
+    public record AppliedProfileSnapshotDto(int ThresholdVersion, DateTime ThresholdUpdatedAtUtc, string SmoothingFilter, DateTime CapturedAtUtc);
+
+    public record SessionRecalculationEntryDto(DateTime RecalculatedAtUtc, AppliedProfileSnapshotDto PreviousProfile, AppliedProfileSnapshotDto NewProfile);
 
     public record TcxSummaryDto(
         DateTime? ActivityStartTimeUtc,

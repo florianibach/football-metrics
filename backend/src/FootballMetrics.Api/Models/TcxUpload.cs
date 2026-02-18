@@ -18,12 +18,26 @@ public class TcxUpload
     public string? OpponentName { get; set; }
     public string? OpponentLogoUrl { get; set; }
     public string? MetricThresholdSnapshotJson { get; set; }
+    public string? AppliedProfileSnapshotJson { get; set; }
+    public string? RecalculationHistoryJson { get; set; }
 }
+
+public sealed record AppliedProfileSnapshot(
+    int ThresholdVersion,
+    DateTime ThresholdUpdatedAtUtc,
+    string SmoothingFilter,
+    DateTime CapturedAtUtc);
+
+public sealed record SessionRecalculationEntry(
+    DateTime RecalculatedAtUtc,
+    AppliedProfileSnapshot PreviousProfile,
+    AppliedProfileSnapshot NewProfile);
 
 public static class TcxSmoothingFilterSources
 {
     public const string ProfileDefault = "ProfileDefault";
     public const string ManualOverride = "ManualOverride";
+    public const string ProfileRecalculation = "ProfileRecalculation";
 }
 
 public static class TcxUploadStatuses
