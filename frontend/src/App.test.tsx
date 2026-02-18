@@ -71,10 +71,7 @@ describe('App', () => {
           windowMinutes: 1,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:01:00.000Z',
-          coveredSeconds: 60,
-          missingSeconds: 0,
-          hasMissingData: false,
+          windowDurationSeconds: 60,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 180,
@@ -85,10 +82,7 @@ describe('App', () => {
           windowMinutes: 1,
           windowIndex: 1,
           windowStartUtc: '2026-02-16T21:01:00.000Z',
-          windowEndUtc: '2026-02-16T21:02:00.000Z',
-          coveredSeconds: 45,
-          missingSeconds: 15,
-          hasMissingData: true,
+          windowDurationSeconds: 45,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 150,
@@ -99,10 +93,7 @@ describe('App', () => {
           windowMinutes: 2,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:02:00.000Z',
-          coveredSeconds: 105,
-          missingSeconds: 15,
-          hasMissingData: true,
+          windowDurationSeconds: 105,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 330,
@@ -113,10 +104,7 @@ describe('App', () => {
           windowMinutes: 5,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:05:00.000Z',
-          coveredSeconds: 180,
-          missingSeconds: 120,
-          hasMissingData: true,
+          windowDurationSeconds: 60,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 510,
@@ -386,10 +374,7 @@ describe('App', () => {
           windowMinutes: 1,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:01:00.000Z',
-          coveredSeconds: 60,
-          missingSeconds: 0,
-          hasMissingData: false,
+          windowDurationSeconds: 60,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 180,
@@ -400,10 +385,7 @@ describe('App', () => {
           windowMinutes: 1,
           windowIndex: 1,
           windowStartUtc: '2026-02-16T21:01:00.000Z',
-          windowEndUtc: '2026-02-16T21:02:00.000Z',
-          coveredSeconds: 45,
-          missingSeconds: 15,
-          hasMissingData: true,
+          windowDurationSeconds: 45,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 150,
@@ -414,10 +396,7 @@ describe('App', () => {
           windowMinutes: 2,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:02:00.000Z',
-          coveredSeconds: 105,
-          missingSeconds: 15,
-          hasMissingData: true,
+          windowDurationSeconds: 105,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 330,
@@ -428,10 +407,7 @@ describe('App', () => {
           windowMinutes: 5,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:05:00.000Z',
-          coveredSeconds: 180,
-          missingSeconds: 120,
-          hasMissingData: true,
+          windowDurationSeconds: 60,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 510,
@@ -514,10 +490,7 @@ describe('App', () => {
           windowMinutes: 1,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:01:00.000Z',
-          coveredSeconds: 60,
-          missingSeconds: 0,
-          hasMissingData: false,
+          windowDurationSeconds: 60,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 180,
@@ -528,10 +501,7 @@ describe('App', () => {
           windowMinutes: 1,
           windowIndex: 1,
           windowStartUtc: '2026-02-16T21:01:00.000Z',
-          windowEndUtc: '2026-02-16T21:02:00.000Z',
-          coveredSeconds: 45,
-          missingSeconds: 15,
-          hasMissingData: true,
+          windowDurationSeconds: 45,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 150,
@@ -542,10 +512,7 @@ describe('App', () => {
           windowMinutes: 2,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:02:00.000Z',
-          coveredSeconds: 105,
-          missingSeconds: 15,
-          hasMissingData: true,
+          windowDurationSeconds: 105,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 330,
@@ -556,10 +523,7 @@ describe('App', () => {
           windowMinutes: 5,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:05:00.000Z',
-          coveredSeconds: 180,
-          missingSeconds: 120,
-          hasMissingData: true,
+          windowDurationSeconds: 60,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 510,
@@ -635,10 +599,7 @@ describe('App', () => {
           windowMinutes: 1,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:01:00.000Z',
-          coveredSeconds: 60,
-          missingSeconds: 0,
-          hasMissingData: false,
+          windowDurationSeconds: 60,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 180,
@@ -649,10 +610,7 @@ describe('App', () => {
           windowMinutes: 1,
           windowIndex: 1,
           windowStartUtc: '2026-02-16T21:01:00.000Z',
-          windowEndUtc: '2026-02-16T21:02:00.000Z',
-          coveredSeconds: 45,
-          missingSeconds: 15,
-          hasMissingData: true,
+          windowDurationSeconds: 45,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 150,
@@ -663,10 +621,7 @@ describe('App', () => {
           windowMinutes: 2,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:02:00.000Z',
-          coveredSeconds: 105,
-          missingSeconds: 15,
-          hasMissingData: true,
+          windowDurationSeconds: 105,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 330,
@@ -677,10 +632,7 @@ describe('App', () => {
           windowMinutes: 5,
           windowIndex: 0,
           windowStartUtc: '2026-02-16T21:00:00.000Z',
-          windowEndUtc: '2026-02-16T21:05:00.000Z',
-          coveredSeconds: 180,
-          missingSeconds: 120,
-          hasMissingData: true,
+          windowDurationSeconds: 60,
           coreMetrics: {
             ...baseCoreMetrics(),
             distanceMeters: 510,
@@ -1176,12 +1128,14 @@ describe('App', () => {
       expect(screen.getByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Data gap (15.0s)')).toBeInTheDocument();
+    expect(screen.getByText('Windows: 2')).toBeInTheDocument();
+    expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
 
     await waitFor(() => {
-      expect(screen.getByText('Data gap (120.0s)')).toBeInTheDocument();
+      expect(screen.getByText('Windows: 1')).toBeInTheDocument();
+      expect(screen.getByText(/1 min 0 s/)).toBeInTheDocument();
     });
   });
 

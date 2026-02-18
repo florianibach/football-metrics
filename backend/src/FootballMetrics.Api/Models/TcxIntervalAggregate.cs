@@ -4,8 +4,5 @@ public sealed record TcxIntervalAggregate(
     int WindowMinutes,
     int WindowIndex,
     DateTime WindowStartUtc,
-    DateTime WindowEndUtc,
-    double CoveredSeconds,
-    double MissingSeconds,
-    bool HasMissingData,
+    double WindowDurationSeconds,
     TcxFootballCoreMetrics CoreMetrics);

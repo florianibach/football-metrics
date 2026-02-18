@@ -515,9 +515,8 @@ public static class TcxMetricsExtractor
 
             }
 
-            var clippedCoveredSeconds = Math.Min(windowDurationSeconds, coveredSeconds);
-            var missingSeconds = Math.Max(0d, windowDurationSeconds - clippedCoveredSeconds);
-            var hasMissingData = missingSeconds > 0.001;
+            var remainingWindowSeconds = Math.Max(0d, (endTime - windowStart).TotalSeconds);
+            var windowDurationForDisplaySeconds = Math.Min(windowDurationSeconds, remainingWindowSeconds);
 
             var windowTrackpoints = orderedPoints
                 .Where(point => point.TimeUtc.HasValue && point.TimeUtc.Value >= windowStart && point.TimeUtc.Value <= windowEnd)
@@ -532,10 +531,7 @@ public static class TcxMetricsExtractor
                 windowMinutes,
                 windowIndex,
                 windowStart,
-                windowEnd,
-                clippedCoveredSeconds,
-                missingSeconds,
-                hasMissingData,
+                windowDurationForDisplaySeconds,
                 intervalCoreMetrics);
         }
     }

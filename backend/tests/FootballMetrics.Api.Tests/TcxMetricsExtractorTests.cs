@@ -289,7 +289,7 @@ public class TcxMetricsExtractorTests
     }
 
     [Fact]
-    public void R1_5_02_Ac03_Ac04_Extract_ShouldMarkMissingDataWithoutSilentInterpolation()
+    public void R1_5_02_Ac03_Ac04_Extract_ShouldExposeWindowDurationForIrregularFinalWindow()
     {
         var doc = XDocument.Parse(@"<TrainingCenterDatabase>
   <Activities>
@@ -310,11 +310,10 @@ public class TcxMetricsExtractorTests
 
         var oneMinuteWindows = summary.IntervalAggregates.Where(item => item.WindowMinutes == 1).ToList();
         oneMinuteWindows.Should().NotBeEmpty();
-        oneMinuteWindows.Should().Contain(item => item.HasMissingData);
 
-        var missingWindow = oneMinuteWindows.First(item => item.HasMissingData);
-        missingWindow.MissingSeconds.Should().BeGreaterThan(0);
-        missingWindow.CoveredSeconds.Should().BeLessThanOrEqualTo(60);
+        var lastWindow = oneMinuteWindows.OrderBy(item => item.WindowIndex).Last();
+        lastWindow.WindowDurationSeconds.Should().BeGreaterThan(0);
+        lastWindow.WindowDurationSeconds.Should().BeLessThan(60);
     }
 
     [Fact]

@@ -43,10 +43,7 @@ type IntervalAggregate = {
   windowMinutes: number;
   windowIndex: number;
   windowStartUtc: string;
-  windowEndUtc: string;
-  coveredSeconds: number;
-  missingSeconds: number;
-  hasMissingData: boolean;
+  windowDurationSeconds: number;
   coreMetrics: FootballCoreMetrics;
 };
 
@@ -214,10 +211,10 @@ type TranslationKey =
   | 'intervalAggregationExternalDistance'
   | 'intervalAggregationInternalAvgHeartRate'
   | 'intervalAggregationInternalLoad'
-  | 'intervalAggregationMissing'
-  | 'intervalAggregationMissingBadge'
+  | 'intervalAggregationDuration'
   | 'intervalAggregationNoData'
-  | 'intervalAggregationCoreMetrics';
+  | 'intervalAggregationCoreMetrics'
+  | 'intervalAggregationWindowCount';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').trim();
 const apiBaseUrl = configuredApiBaseUrl.endsWith('/api') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api`;
@@ -344,10 +341,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationExternalDistance: 'External: distance',
     intervalAggregationInternalAvgHeartRate: 'Internal: average heart rate',
     intervalAggregationInternalLoad: 'Internal: load (TRIMP)',
-    intervalAggregationMissing: 'Missing data',
-    intervalAggregationMissingBadge: 'Data gap',
+    intervalAggregationDuration: 'Duration',
     intervalAggregationNoData: 'No interval data available for this session.',
-    intervalAggregationCoreMetrics: 'Core metrics' 
+    intervalAggregationCoreMetrics: 'Core metrics',
+    intervalAggregationWindowCount: 'Windows: {count}' 
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -459,7 +456,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHrZoneMedium: 'HF-Zone 70-85%',
     metricHrZoneHigh: 'HF-Zone >85%',
     metricTrimpEdwards: 'TRIMP (Edwards)',
-    metricHrRecovery60: 'HF-Erholung nach 60s'
+    metricHrRecovery60: 'HF-Erholung nach 60s',
+    intervalAggregationDuration: 'Dauer',
+    intervalAggregationNoData: 'Für diese Session sind keine Intervall-Daten verfügbar.',
+    intervalAggregationCoreMetrics: 'Kernmetriken',
+    intervalAggregationWindowCount: 'Fenster: {count}'
   }
 };
 
@@ -1254,6 +1255,7 @@ export function App() {
               <option value={2}>{t.intervalAggregationWindow2}</option>
               <option value={5}>{t.intervalAggregationWindow5}</option>
             </select>
+            <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedSessionAggregates.length.toString() })}</p>
             {selectedSessionAggregates.length === 0 ? (
               <p>{t.intervalAggregationNoData}</p>
             ) : (
@@ -1262,7 +1264,7 @@ export function App() {
                   <tr>
                     <th>{t.intervalAggregationStart}</th>
                     <th>{t.intervalAggregationCoreMetrics}</th>
-                    <th>{t.intervalAggregationMissing}</th>
+                    <th>{t.intervalAggregationDuration}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1288,11 +1290,7 @@ export function App() {
                           <li><strong>{t.metricHrRecovery60}:</strong> {aggregate.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
                         </ul>
                       </td>
-                      <td>
-                        {aggregate.hasMissingData
-                          ? `${t.intervalAggregationMissingBadge} (${formatNumber(aggregate.missingSeconds, locale, t.notAvailable, 1)}s)`
-                          : '—'}
-                      </td>
+                      <td>{formatDuration(aggregate.windowDurationSeconds, locale, t.notAvailable)}</td>
                     </tr>
                   ))}
                 </tbody>
