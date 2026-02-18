@@ -183,7 +183,7 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** ich fixe und adaptive Konfigurationen fachlich korrekt nachvollziehen kann.
 
 ### Acceptance Criteria
-- [ ] Im Profil sind `Max Speed` und `Max Heartrate` als einzige adaptiv/fix konfigurierbare absolute Basiswerte verfügbar.
-- [ ] `Sprint` und `High-Intensity` werden ausschließlich als Prozentwerte der effektiven Max Speed konfiguriert.
-- [ ] Bei adaptiver Konfiguration werden die effektiven Basiswerte im Profil read-only angezeigt.
-- [ ] Session-Threshold-Transparenz zeigt Basiswert, Quelle und daraus abgeleitete Schwellen konsistent an.
+- [x] Im Profil sind `Max Speed` und `Max Heartrate` als einzige adaptiv/fix konfigurierbare absolute Basiswerte verfügbar.
+- [x] `Sprint` und `High-Intensity` werden ausschließlich als Prozentwerte der effektiven Max Speed konfiguriert.
+- [x] Bei adaptiver Konfiguration werden die effektiven Basiswerte im Profil read-only angezeigt.
+- [x] Session-Threshold-Transparenz zeigt Basiswert, Quelle und daraus abgeleitete Schwellen konsistent an.

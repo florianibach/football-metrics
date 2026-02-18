@@ -1469,6 +1469,52 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Manual override')).toBeInTheDocument());
   });
 
+
+
+  it('R1_5_14_Ac01_Ac04_shows_only_absolute_adaptive_modes_and_consistent_session_threshold_transparency', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/profile')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => createProfile({
+            metricThresholds: {
+              ...createProfile().metricThresholds,
+              maxSpeedMode: 'Adaptive',
+              maxHeartRateMode: 'Adaptive',
+              maxSpeedMps: 7.5,
+              effectiveMaxSpeedMps: 8.3,
+              maxHeartRateBpm: 188,
+              effectiveMaxHeartRateBpm: 197,
+              sprintSpeedPercentOfMaxSpeed: 91,
+              highIntensitySpeedPercentOfMaxSpeed: 71
+            }
+          })
+        } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText('Max speed mode')).toBeInTheDocument());
+    expect(screen.getByLabelText('Max speed mode')).toBeInTheDocument();
+    expect(screen.getByLabelText('Max heartrate mode')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Sprint mode')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('High-intensity mode')).not.toBeInTheDocument();
+
+    expect((screen.getByLabelText('Max speed (km/h)') as HTMLInputElement)).toHaveAttribute('readonly');
+    expect((screen.getByLabelText('Max heartrate (bpm)') as HTMLInputElement)).toHaveAttribute('readonly');
+
+    expect(screen.getByText(/Effective max speed: 29.9 km\/h \(Adaptive\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Effective max heartrate: 197 bpm \(Adaptive\)/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
+    await waitFor(() => expect(screen.getByText(/Session threshold transparency/)).toBeInTheDocument());
+    expect(screen.getByText(/MaxSpeedBase=8.0 m\/s \(Fixed\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Sprint=90.0% → 7.2 m\/s/)).toBeInTheDocument();
+  });
   it('R1_5_12_Ac01_profile_thresholds_use_preferred_speed_unit_in_profile_view', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       const url = String(input);
@@ -1489,8 +1535,8 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByLabelText('Max speed (min/km)')).toBeInTheDocument());
     expect((screen.getByLabelText('Max speed (min/km)') as HTMLInputElement).value).toBe('2.78');
-    expect(screen.getByText('Calculated sprint threshold: 3.09 min/km')).toBeInTheDocument();
-    expect(screen.getByText('Calculated high-intensity threshold: 3.97 min/km')).toBeInTheDocument();
+    expect(screen.getByText('Derived sprint threshold: 3.09 min/km')).toBeInTheDocument();
+    expect(screen.getByText('Derived high-intensity threshold: 3.97 min/km')).toBeInTheDocument();
   });
 
   it('R1_5_12_Ac01_Ac02_profile_speed_unit_is_selectable_and_applied_to_new_sessions', async () => {

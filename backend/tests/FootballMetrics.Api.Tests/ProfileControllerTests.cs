@@ -198,4 +198,31 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
         normalizedPayload.Should().NotBeNull();
         normalizedPayload!.MetricThresholds.MaxSpeedMode.Should().Be(MetricThresholdModes.Fixed);
     }
+
+    [Fact]
+    public async Task R1_5_14_Ac02_UpdateProfile_ShouldRejectRelativeThresholdsWhenHighIntensityIsNotLowerThanSprint()
+    {
+        var client = _factory.CreateClient();
+
+        var invalidRequest = new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, new MetricThresholdProfile
+        {
+            MaxSpeedMps = 8.0,
+            MaxSpeedMode = MetricThresholdModes.Fixed,
+            MaxHeartRateBpm = 196,
+            MaxHeartRateMode = MetricThresholdModes.Fixed,
+            SprintSpeedPercentOfMaxSpeed = 80,
+            HighIntensitySpeedPercentOfMaxSpeed = 80,
+            AccelerationThresholdMps2 = 2.5,
+            DecelerationThresholdMps2 = -2.5,
+            EffectiveMaxSpeedMps = 8.0,
+            EffectiveMaxHeartRateBpm = 196
+        }, null, null);
+
+        var response = await client.PutAsJsonAsync("/api/profile", invalidRequest);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await response.Content.ReadAsStringAsync();
+        error.Should().Contain("HighIntensitySpeedPercentOfMaxSpeed must be lower than SprintSpeedPercentOfMaxSpeed");
+    }
+
 }
