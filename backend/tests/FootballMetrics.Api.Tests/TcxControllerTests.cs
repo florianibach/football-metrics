@@ -462,6 +462,39 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         updated!.Summary.Smoothing.SelectedStrategy.Should().Be("Butterworth");
     }
 
+
+    [Fact]
+    public async Task R1_5_03_Ac01_Ac02_Ac03_Ac04_UpdateSessionContext_ShouldPersistAndReturnUpdatedContext()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "context.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        created.Should().NotBeNull();
+
+        var updateResponse = await client.PutAsJsonAsync($"/api/tcx/{created!.Id}/session-context", new
+        {
+            sessionType = "Match",
+            matchResult = "2:1",
+            competition = "Cup",
+            opponentName = "FC Example",
+            opponentLogoUrl = "https://example.com/logo.png"
+        });
+
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updated = await updateResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryAndContextDto>();
+        updated.Should().NotBeNull();
+        updated!.SessionContext.SessionType.Should().Be("Match");
+        updated.SessionContext.MatchResult.Should().Be("2:1");
+        updated.SessionContext.Competition.Should().Be("Cup");
+        updated.SessionContext.OpponentName.Should().Be("FC Example");
+        updated.SessionContext.OpponentLogoUrl.Should().Be("https://example.com/logo.png");
+    }
+
     private static MultipartFormDataContent CreateUploadForm(string fileName, string contentText)
     {
         var form = new MultipartFormDataContent();
@@ -512,6 +545,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         public Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<TcxUpload?>(null);
 
+        public Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
         public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
     }
@@ -545,6 +581,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         public Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<TcxUpload?>(null);
 
+        public Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
         public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
     }
@@ -552,6 +591,10 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public record TcxUploadResponseDto(Guid Id, string FileName, DateTime UploadedAtUtc);
 
     public record TcxUploadResponseWithSummaryDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary);
+
+    public record TcxUploadResponseWithSummaryAndContextDto(Guid Id, string FileName, DateTime UploadedAtUtc, TcxSummaryDto Summary, SessionContextDto SessionContext);
+
+    public record SessionContextDto(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);
 
     public record TcxSummaryDto(
         DateTime? ActivityStartTimeUtc,

@@ -19,8 +19,8 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter)
-            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter);
+            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl)
+            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter, $sessionType, $matchResult, $competition, $opponentName, $opponentLogoUrl);
         ";
         command.Parameters.AddWithValue("$id", upload.Id.ToString());
         command.Parameters.AddWithValue("$fileName", upload.FileName);
@@ -31,6 +31,11 @@ public class TcxUploadRepository : ITcxUploadRepository
         command.Parameters.AddWithValue("$failureReason", (object?)upload.FailureReason ?? DBNull.Value);
         command.Parameters.AddWithValue("$uploadedAtUtc", upload.UploadedAtUtc.ToString("O"));
         command.Parameters.AddWithValue("$selectedSmoothingFilter", upload.SelectedSmoothingFilter);
+        command.Parameters.AddWithValue("$sessionType", upload.SessionType);
+        command.Parameters.AddWithValue("$matchResult", (object?)upload.MatchResult ?? DBNull.Value);
+        command.Parameters.AddWithValue("$competition", (object?)upload.Competition ?? DBNull.Value);
+        command.Parameters.AddWithValue("$opponentName", (object?)upload.OpponentName ?? DBNull.Value);
+        command.Parameters.AddWithValue("$opponentLogoUrl", (object?)upload.OpponentLogoUrl ?? DBNull.Value);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return upload;
@@ -43,7 +48,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl
             FROM TcxUploads
             ORDER BY UploadedAtUtc DESC;
         ";
@@ -66,7 +71,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl
             FROM TcxUploads
             WHERE Id = $id;
         ";
@@ -92,8 +97,40 @@ public class TcxUploadRepository : ITcxUploadRepository
             UploadStatus = reader.GetString(5),
             FailureReason = reader.IsDBNull(6) ? null : reader.GetString(6),
             UploadedAtUtc = DateTime.Parse(reader.GetString(7), null, System.Globalization.DateTimeStyles.RoundtripKind),
-            SelectedSmoothingFilter = reader.IsDBNull(8) ? TcxSmoothingFilters.AdaptiveMedian : reader.GetString(8)
+            SelectedSmoothingFilter = reader.IsDBNull(8) ? TcxSmoothingFilters.AdaptiveMedian : reader.GetString(8),
+            SessionType = reader.IsDBNull(9) ? TcxSessionTypes.Training : reader.GetString(9),
+            MatchResult = reader.IsDBNull(10) ? null : reader.GetString(10),
+            Competition = reader.IsDBNull(11) ? null : reader.GetString(11),
+            OpponentName = reader.IsDBNull(12) ? null : reader.GetString(12),
+            OpponentLogoUrl = reader.IsDBNull(13) ? null : reader.GetString(13)
         };
+
+
+    public async Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE TcxUploads
+            SET SessionType = $sessionType,
+                MatchResult = $matchResult,
+                Competition = $competition,
+                OpponentName = $opponentName,
+                OpponentLogoUrl = $opponentLogoUrl
+            WHERE Id = $id;
+        ";
+        command.Parameters.AddWithValue("$id", id.ToString());
+        command.Parameters.AddWithValue("$sessionType", sessionType);
+        command.Parameters.AddWithValue("$matchResult", (object?)matchResult ?? DBNull.Value);
+        command.Parameters.AddWithValue("$competition", (object?)competition ?? DBNull.Value);
+        command.Parameters.AddWithValue("$opponentName", (object?)opponentName ?? DBNull.Value);
+        command.Parameters.AddWithValue("$opponentLogoUrl", (object?)opponentLogoUrl ?? DBNull.Value);
+
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        return affectedRows > 0;
+    }
 
     public async Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
     {

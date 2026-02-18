@@ -37,10 +37,10 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** die Analyse fachlich korrekt eingeordnet ist.
 
 ### Acceptance Criteria
-- [ ] Jede Session kann mindestens als „Training“, „Spiel“, „Reha“, „Athletik“ oder „Sonstiges“ klassifiziert werden.
-- [ ] Für Spiel-Sessions sind Kontextfelder wie Ergebnis, Wettbewerb, Gegnername und optional Gegner-Logo erfassbar.
-- [ ] Kontextdaten sind nachträglich editierbar.
-- [ ] Session-Listen und Detailseiten zeigen den Session-Typ klar sichtbar an.
+- [x] Jede Session kann mindestens als „Training“, „Spiel“, „Reha“, „Athletik“ oder „Sonstiges“ klassifiziert werden.
+- [x] Für Spiel-Sessions sind Kontextfelder wie Ergebnis, Wettbewerb, Gegnername und optional Gegner-Logo erfassbar.
+- [x] Kontextdaten sind nachträglich editierbar.
+- [x] Session-Listen und Detailseiten zeigen den Session-Typ klar sichtbar an.
 
 ---
 

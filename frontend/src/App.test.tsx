@@ -136,6 +136,13 @@ describe('App', () => {
       fileName: 'session.tcx',
       uploadedAtUtc: '2026-02-16T22:00:00.000Z',
       summary: createSummary(),
+      sessionContext: {
+        sessionType: 'Training',
+        matchResult: null,
+        competition: null,
+        opponentName: null,
+        opponentLogoUrl: null
+      },
       ...overrides
     };
   }
