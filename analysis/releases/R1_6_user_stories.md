@@ -5,6 +5,10 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
+## User Stories in Priorisierungs-Reihenfolge (Must → Should → Could)
+
+## Must-have
+
 ## Story R1.6-01: Data-Availability Layer (Dual/HF-only/GPS-only)
 **Als** Nutzer
 **möchte ich** transparent sehen, welche Datengrundlage in meiner Session verfügbar ist
@@ -57,16 +61,16 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
-## Story R1.6-05: Heatmaps gleichwertig für Session und Segmente
+## Story R1.6-05: Analyse-Parität zwischen Gesamtsession und Segmenten
 **Als** Nutzer
-**möchte ich** Heatmaps sowohl für die Gesamtsession als auch für jedes Segment sehen
-**damit** ich Bewegungsmuster über alle Ebenen konsistent vergleichen kann.
+**möchte ich** auf Segmenten exakt die gleichen Auswertungsarten wie auf der Gesamtsession nutzen
+**damit** ich Phasenanalysen ohne Funktionsverlust durchführen kann.
 
 ### Acceptance Criteria
-- [ ] Für GPS-geeignete Sessions gibt es eine Gesamtheatmap.
-- [ ] Für jedes Segment mit GPS-Daten gibt es automatisch eine Segment-Heatmap (gleichwertig, nicht optional).
-- [ ] Darstellung und Farblogik sind zwischen Gesamt- und Segment-Heatmaps konsistent.
-- [ ] Bei fehlendem GPS wird statt Heatmap ein klarer Hinweis im Segment/Session-Kontext angezeigt.
+- [ ] Jede auf Session-Ebene verfügbare Auswertung ist auch auf Segment-Ebene verfügbar (sofern Datengrundlage vorhanden).
+- [ ] Gleiches gilt umgekehrt: Segment-Auswertungen folgen denselben Definitionsregeln wie Session-Auswertungen.
+- [ ] Heatmaps, Metrik-Kacheln, Zeitreihen, Vergleiche und Quality-Hinweise nutzen identische Berechnungslogik zwischen Session und Segment.
+- [ ] Bei fehlender Datengrundlage auf Segmentebene wird konsistent derselbe „nicht verfügbar“-Mechanismus wie auf Session-Ebene verwendet.
 
 ---
 
@@ -83,19 +87,6 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
-## Story R1.6-07: Vergleichsansicht Training vs. Spiel inkl. Segmentebene
-**Als** Nutzer
-**möchte ich** Training und Spiel miteinander vergleichen
-**damit** ich erkenne, ob meine Trainingsbelastung spielnah ist.
-
-### Acceptance Criteria
-- [ ] Vergleich ist nach Session-Typ filterbar (mindestens Training vs. Spiel).
-- [ ] Vergleich funktioniert in Dual- und HF-only-Konstellationen.
-- [ ] Segmentvergleich ist verfügbar (z. B. Abschlussspiel vs. erste Halbzeit).
-- [ ] Ergebnis enthält einen klaren Gap-Hinweis (Unterforderung / passend / Überforderung).
-
----
-
 ## Story R1.6-08: Bestehende Profil-Granularität 1/2/5 Minuten beibehalten
 **Als** Bestandsnutzer
 **möchte ich** weiterhin mit 1-, 2- oder 5-Minuten-Granularität vergleichen
@@ -106,6 +97,21 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - [ ] Neue R1.6-Funktionen sind mit allen drei Granularitäten kompatibel.
 - [ ] Die gewählte Granularität bleibt pro Nutzerprofil persistent gespeichert.
 - [ ] Es gibt keine erzwungene Umstellung auf nur eine Standardauflösung.
+
+---
+
+## Should-have
+
+## Story R1.6-07: Vergleichsansicht Training vs. Spiel inkl. Segmentebene
+**Als** Nutzer
+**möchte ich** Training und Spiel miteinander vergleichen
+**damit** ich erkenne, ob meine Trainingsbelastung spielnah ist.
+
+### Acceptance Criteria
+- [ ] Vergleich ist nach Session-Typ filterbar (mindestens Training vs. Spiel).
+- [ ] Vergleich funktioniert in Dual- und HF-only-Konstellationen.
+- [ ] Segmentvergleich ist verfügbar (z. B. Abschlussspiel vs. erste Halbzeit).
+- [ ] Ergebnis enthält einen klaren Gap-Hinweis (Unterforderung / passend / Überforderung).
 
 ---
 
@@ -134,6 +140,8 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - [ ] Qualitätsstatus ist in Export/Share-Ansichten mit enthalten.
 
 ---
+
+## Could-have
 
 ## Story R1.6-11: Segment-Vorlagen (Template-basierte Segmentierung)
 **Als** Nutzer
@@ -168,7 +176,7 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - R1.6-02 HF-only Insight Pack
 - R1.6-03 Session-Segmentierung
 - R1.6-04 Nachträgliche Segmentierung mit Verlaufshilfe
-- R1.6-05 Gleichwertige Heatmaps für Session + Segmente
+- R1.6-05 Analyse-Parität Session ↔ Segmente
 - R1.6-06 Zeitfenster-/Segment-Intensitätsprofil
 - R1.6-08 Beibehaltung 1/2/5-Minuten-Granularität
 
