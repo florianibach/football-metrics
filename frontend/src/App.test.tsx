@@ -1786,6 +1786,30 @@ describe('App', () => {
     expect((await screen.findAllByText(/Dual \(GPS \+ heart rate\)/)).length).toBeGreaterThan(0);
   });
 
+
+
+  it('R1_6_01_regression_handles_existing_sessions_without_dataAvailability_field', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [createUploadRecord({ summary: createSummary({ dataAvailability: null }) })]
+        } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Language'), { target: { value: 'en' } });
+
+    expect(await screen.findByText('Data mode')).toBeInTheDocument();
+    expect(screen.getAllByText('Dual (GPS + heart rate)').length).toBeGreaterThan(0);
+  });
+
   it('R1_6_01_Ac03_Ac04_marks_unavailable_mode_with_clear_reasons', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);

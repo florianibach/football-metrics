@@ -68,7 +68,7 @@ type ActivitySummary = {
   distanceSource: 'CalculatedFromGps' | 'ProvidedByFile' | 'NotAvailable';
   qualityStatus: 'High' | 'Medium' | 'Low';
   qualityReasons: string[];
-  dataAvailability: DataAvailability;
+  dataAvailability?: DataAvailability | null;
   smoothing: SmoothingTrace;
   coreMetrics: FootballCoreMetrics;
   intervalAggregates: IntervalAggregate[];
@@ -1118,7 +1118,42 @@ function qualityStatusText(status: ActivitySummary['qualityStatus'], t: Record<T
 }
 
 
-function dataModeText(mode: ActivitySummary['dataAvailability']['mode'], t: Record<TranslationKey, string>): string {
+function resolveDataAvailability(summary: ActivitySummary): DataAvailability {
+  if (summary.dataAvailability) {
+    return summary.dataAvailability;
+  }
+
+  const hasHeartRateData = summary.heartRateAverageBpm !== null || summary.heartRateMinBpm !== null || summary.heartRateMaxBpm !== null;
+  const gpsStatus: DataAvailability['gpsStatus'] = summary.hasGpsData
+    ? (summary.qualityStatus === 'High' ? 'Available' : 'NotUsable')
+    : 'NotMeasured';
+
+  const mode: DataAvailability['mode'] = summary.hasGpsData
+    ? (hasHeartRateData ? 'Dual' : 'GpsOnly')
+    : (hasHeartRateData ? 'HeartRateOnly' : 'NotAvailable');
+
+  return {
+    mode,
+    gpsStatus,
+    gpsReason: gpsStatus === 'NotMeasured'
+      ? 'GPS not present in this session.'
+      : (gpsStatus === 'NotUsable' ? `GPS unusable because quality is ${summary.qualityStatus}. Required: High.` : null),
+    heartRateStatus: hasHeartRateData ? 'Available' : 'NotMeasured',
+    heartRateReason: hasHeartRateData ? null : 'Heart-rate data not present in this session.'
+  };
+}
+
+function normalizeUploadRecord(record: UploadRecord): UploadRecord {
+  return {
+    ...record,
+    summary: {
+      ...record.summary,
+      dataAvailability: resolveDataAvailability(record.summary)
+    }
+  };
+}
+
+function dataModeText(mode: DataAvailability['mode'], t: Record<TranslationKey, string>): string {
   switch (mode) {
     case 'Dual':
       return t.dataModeDual;
@@ -1143,9 +1178,10 @@ function availabilityText(status: DataAvailability['gpsStatus'], t: Record<Trans
 }
 
 function dataAvailabilitySummaryText(summary: ActivitySummary, t: Record<TranslationKey, string>): string {
-  const gps = `GPS data: ${availabilityText(summary.dataAvailability.gpsStatus, t)}${summary.dataAvailability.gpsReason ? ` (${summary.dataAvailability.gpsReason})` : ''}`;
-  const hr = `HR data: ${availabilityText(summary.dataAvailability.heartRateStatus, t)}${summary.dataAvailability.heartRateReason ? ` (${summary.dataAvailability.heartRateReason})` : ''}`;
-  return `${dataModeText(summary.dataAvailability.mode, t)} — ${gps} | ${hr}`;
+  const availability = resolveDataAvailability(summary);
+  const gps = `GPS data: ${availabilityText(availability.gpsStatus, t)}${availability.gpsReason ? ` (${availability.gpsReason})` : ''}`;
+  const hr = `HR data: ${availabilityText(availability.heartRateStatus, t)}${availability.heartRateReason ? ` (${availability.heartRateReason})` : ''}`;
+  return `${dataModeText(availability.mode, t)} — ${gps} | ${hr}`;
 }
 
 function interpolate(template: string, values: Record<string, string>): string {
@@ -1303,12 +1339,13 @@ export function App() {
             setAggregationWindowMinutes((profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5);
             setLatestProfileRecalculationJob(profilePayload.latestRecalculationJob ?? null);
           }
-          setUploadHistory(payload);
-          if (payload.length > 0) {
-            setSelectedSession(payload[0]);
-            setSelectedFilter(payload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
-            setSessionContextForm(payload[0].sessionContext);
-            const initialCompareSelection = payload.slice(0, 2).map((item) => item.id);
+          const normalizedPayload = payload.map(normalizeUploadRecord);
+          setUploadHistory(normalizedPayload);
+          if (normalizedPayload.length > 0) {
+            setSelectedSession(normalizedPayload[0]);
+            setSelectedFilter(normalizedPayload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
+            setSessionContextForm(normalizedPayload[0].sessionContext);
+            const initialCompareSelection = normalizedPayload.slice(0, 2).map((item) => item.id);
             setCompareSelectedSessionIds(initialCompareSelection);
             setCompareBaselineSessionId(initialCompareSelection[0] ?? null);
           }
@@ -1384,7 +1421,7 @@ export function App() {
       return;
     }
 
-    const payload = (await response.json()) as UploadRecord;
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     setSelectedSession(payload);
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
@@ -1409,7 +1446,7 @@ export function App() {
       return;
     }
 
-    const payload = (await response.json()) as UploadRecord;
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     setSelectedSession(payload);
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
   }
@@ -1424,7 +1461,7 @@ export function App() {
       return;
     }
 
-    const payload = (await response.json()) as UploadRecord;
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     setSelectedSession(payload);
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
@@ -1449,7 +1486,7 @@ export function App() {
       return;
     }
 
-    const payload = (await response.json()) as UploadRecord;
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     setSelectedSession(payload);
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
       setSessionContextForm(payload.sessionContext);
@@ -1481,7 +1518,7 @@ export function App() {
         return;
       }
 
-      const payload = (await response.json()) as UploadRecord;
+      const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
       const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
       setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
       setSelectedSession(payload);
@@ -2013,7 +2050,7 @@ export function App() {
                   <td>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
                   <td>{qualityStatusText(record.summary.qualityStatus, t)}</td>
                   <td>{sessionTypeText(record.sessionContext.sessionType, t)}</td>
-                  <td>{dataModeText(record.summary.dataAvailability.mode, t)}</td>
+                  <td>{dataModeText(resolveDataAvailability(record.summary).mode, t)}</td>
                   <td>
                     <input
                       type="checkbox"

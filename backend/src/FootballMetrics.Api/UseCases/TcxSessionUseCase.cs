@@ -280,6 +280,41 @@ public class TcxSessionUseCase : ITcxSessionUseCase
     }
 
 
+    private static TcxDataAvailability BuildDataAvailabilityFromSummary(TcxActivitySummary summary)
+    {
+        var hasGpsData = summary.HasGpsData;
+        var hasHeartRateData = summary.HeartRateAverageBpm.HasValue || summary.HeartRateMinBpm.HasValue || summary.HeartRateMaxBpm.HasValue;
+
+        var gpsStatus = hasGpsData
+            ? (string.Equals(summary.QualityStatus, "High", StringComparison.OrdinalIgnoreCase) ? "Available" : "NotUsable")
+            : "NotMeasured";
+        var gpsReason = gpsStatus switch
+        {
+            "NotMeasured" => "GPS not present in this session.",
+            "NotUsable" => $"GPS unusable because quality is {summary.QualityStatus}. Required: High.",
+            _ => null
+        };
+
+        var heartRateStatus = hasHeartRateData ? "Available" : "NotMeasured";
+        var heartRateReason = hasHeartRateData ? null : "Heart-rate data not present in this session.";
+
+        var mode = (hasGpsData, hasHeartRateData) switch
+        {
+            (true, true) => "Dual",
+            (true, false) => "GpsOnly",
+            (false, true) => "HeartRateOnly",
+            _ => "NotAvailable"
+        };
+
+        return new TcxDataAvailability(mode, gpsStatus, gpsReason, heartRateStatus, heartRateReason);
+    }
+
+    private static TcxActivitySummary EnsureDataAvailability(TcxActivitySummary summary)
+        => summary.DataAvailability is null
+            ? summary with { DataAvailability = BuildDataAvailabilityFromSummary(summary) }
+            : summary;
+
+
     public TcxActivitySummary ResolveSummary(TcxUpload upload)
     {
         if (!string.IsNullOrWhiteSpace(upload.SessionSummarySnapshotJson))
@@ -287,7 +322,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             var deserialized = JsonSerializer.Deserialize<TcxActivitySummary>(upload.SessionSummarySnapshotJson);
             if (deserialized is not null)
             {
-                return deserialized;
+                return EnsureDataAvailability(deserialized);
             }
         }
 
