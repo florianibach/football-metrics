@@ -11,6 +11,7 @@ public interface ITcxUploadRepository
     Task<TcxUpload?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default);
     Task<TcxUpload?> GetByContentHashAsync(string contentHashSha256, CancellationToken cancellationToken = default);
     Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default);
+    Task<bool> UpdateSegmentsAsync(Guid id, string segmentsSnapshotJson, string segmentChangeHistoryJson, CancellationToken cancellationToken = default);
     Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default);
     Task<bool> UpdateSelectedSmoothingFilterSourceAsync(Guid id, string selectedSmoothingFilterSource, CancellationToken cancellationToken = default);
     Task<bool> UpdateSelectedSpeedUnitAsync(Guid id, string selectedSpeedUnit, CancellationToken cancellationToken = default);

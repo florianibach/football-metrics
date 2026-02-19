@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using FootballMetrics.Api.Controllers;
+using FootballMetrics.Api.Api.V1;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
 using FootballMetrics.Api.Services;
@@ -192,6 +193,79 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         problem.Should().NotBeNull();
         problem!.Extensions["errorCode"].ToString().Should().Be("idempotency_conflict");
+    }
+
+
+    [Fact]
+    public async Task R1_6_03_Ac01_Ac04_CreateSegment_ShouldPersistSegmentWithVersionedHistory()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "segment-create.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var createUpload = await client.PostAsync("/api/v1/tcx/upload", form);
+        createUpload.StatusCode.Should().Be(HttpStatusCode.Created);
+        var upload = await createUpload.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+
+        var segmentResponse = await client.PostAsJsonAsync($"/api/v1/tcx/{upload!.Id}/segments", new CreateSegmentRequestDto("Warm-up", 0, 600, "initial split"));
+        segmentResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var updated = await segmentResponse.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+        updated.Should().NotBeNull();
+        updated!.Segments.Should().ContainSingle();
+        updated.Segments[0].Label.Should().Be("Warm-up");
+        updated.SegmentChangeHistory.Should().ContainSingle();
+        updated.SegmentChangeHistory[0].Version.Should().Be(1);
+        updated.SegmentChangeHistory[0].Action.Should().Be("Created");
+    }
+
+    [Fact]
+    public async Task R1_6_03_Ac02_EditAndMergeSegment_ShouldUpdateVersionedHistory()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "segment-edit-merge.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var createUpload = await client.PostAsync("/api/v1/tcx/upload", form);
+        var upload = await createUpload.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+
+        var first = await client.PostAsJsonAsync($"/api/v1/tcx/{upload!.Id}/segments", new CreateSegmentRequestDto("Warm-up", 0, 300, null));
+        var withFirst = await first.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+        var second = await client.PostAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments", new CreateSegmentRequestDto("Main", 300, 900, null));
+        var withSecond = await second.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+
+        var edit = await client.PutAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments/{withFirst!.Segments[0].Id}", new UpdateSegmentRequestDto("Activation", 0, 240, "rename+trim"));
+        edit.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var merge = await client.PostAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments/merge", new MergeSegmentsRequestDto(withFirst.Segments[0].Id, withSecond!.Segments[1].Id, "Game block", "combine"));
+        merge.StatusCode.Should().Be(HttpStatusCode.OK);
+        var merged = await merge.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+        merged!.Segments.Should().ContainSingle();
+        merged.Segments[0].Label.Should().Be("Game block");
+        merged.SegmentChangeHistory.Last().Action.Should().Be("Merged");
+    }
+
+    [Fact]
+    public async Task R1_6_03_Ac03_OverlappingSegments_ShouldReturnValidationError()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "segment-overlap.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var createUpload = await client.PostAsync("/api/v1/tcx/upload", form);
+        var upload = await createUpload.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+
+        var first = await client.PostAsJsonAsync($"/api/v1/tcx/{upload!.Id}/segments", new CreateSegmentRequestDto("Warm-up", 0, 300, null));
+        first.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var overlap = await client.PostAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments", new CreateSegmentRequestDto("Overlap", 250, 500, null));
+        overlap.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var problem = await overlap.Content.ReadFromJsonAsync<ProblemDetails>();
+        problem.Should().NotBeNull();
+        problem!.Extensions["errorCode"].ToString().Should().Be("validation_error");
     }
 
     [Fact]
@@ -848,6 +922,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         public Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
+        public Task<bool> UpdateSegmentsAsync(Guid id, string segmentsSnapshotJson, string segmentChangeHistoryJson, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
         public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
         public Task<bool> UpdateSelectedSmoothingFilterSourceAsync(Guid id, string selectedSmoothingFilterSource, CancellationToken cancellationToken = default)
@@ -928,6 +1005,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             => Task.FromResult<TcxUpload?>(null);
 
         public Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<bool> UpdateSegmentsAsync(Guid id, string segmentsSnapshotJson, string segmentChangeHistoryJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
         public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
