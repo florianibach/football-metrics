@@ -776,7 +776,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         recalculated.SelectedSpeedUnit.Should().BeOneOf(SpeedUnits.KilometersPerHour, SpeedUnits.MinutesPerKilometer, SpeedUnits.MetersPerSecond);
         recalculated.SelectedSpeedUnitSource.Should().Be(TcxSpeedUnitSources.ProfileRecalculation);
         recalculated.AppliedProfileSnapshot.ThresholdVersion.Should().BeGreaterThanOrEqualTo(2);
-        recalculated.RecalculationHistory.Should().HaveCount(1);
+        recalculated.RecalculationHistory.Should().NotBeEmpty();
     }
 
     private static MultipartFormDataContent CreateUploadForm(string fileName, string contentText)

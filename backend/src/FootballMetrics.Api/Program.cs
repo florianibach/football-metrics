@@ -46,11 +46,15 @@ builder.Services.AddSingleton<ISqliteConnectionFactory>(_ => new SqliteConnectio
 builder.Services.AddSingleton<IDatabaseInitializer, DatabaseInitializer>();
 builder.Services.AddScoped<ITcxUploadRepository, TcxUploadRepository>();
 builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
+builder.Services.AddScoped<IProfileRecalculationJobRepository, ProfileRecalculationJobRepository>();
 builder.Services.AddScoped<IMetricThresholdResolver, MetricThresholdResolver>();
 builder.Services.AddSingleton<IUploadFormatAdapter, TcxUploadFormatAdapter>();
 builder.Services.AddSingleton<IUploadFormatAdapterResolver, UploadFormatAdapterResolver>();
 builder.Services.AddScoped<ITcxSessionUseCase, TcxSessionUseCase>();
 builder.Services.AddScoped<IProfileUseCase, ProfileUseCase>();
+builder.Services.AddSingleton<ProfileRecalculationBackgroundService>();
+builder.Services.AddSingleton<IProfileRecalculationOrchestrator>(sp => sp.GetRequiredService<ProfileRecalculationBackgroundService>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ProfileRecalculationBackgroundService>());
 
 var app = builder.Build();
 

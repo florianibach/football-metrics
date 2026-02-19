@@ -209,9 +209,9 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** meine historischen Auswertungen konsistent bleiben und die Anwendung trotzdem schnell reagiert.
 
 ### Acceptance Criteria
-- [ ] Das Speichern des Profils bleibt synchron schnell und erfolgreich, ohne auf eine vollständige Rekalkulation aller Sessions zu warten.
-- [ ] Nach dem Speichern wird ein asynchroner Rekalkulationsprozess für betroffene Sessions gestartet.
-- [ ] Der Rekalkulationsstatus ist transparent sichtbar (mindestens: „läuft“, „abgeschlossen“, „fehlgeschlagen“ inkl. Fehlerhinweis).
-- [ ] Nutzer können eine explizite Aktion „Jetzt alles neu berechnen“ auslösen (Power-User-Flow), ohne Profilwerte erneut ändern zu müssen.
-- [ ] Während laufender Rekalkulation bleiben bestehende Ergebnisse nutzbar und werden nicht still/unvorhersehbar überschrieben.
-- [ ] Abgeschlossene Rekalkulationen sind nachvollziehbar dokumentiert (Zeitpunkt, Profilversion, Anzahl aktualisierter Sessions, Fehleranzahl).
+- [x] Das Speichern des Profils bleibt synchron schnell und erfolgreich, ohne auf eine vollständige Rekalkulation aller Sessions zu warten.
+- [x] Nach dem Speichern wird ein asynchroner Rekalkulationsprozess für betroffene Sessions gestartet.
+- [x] Der Rekalkulationsstatus ist transparent sichtbar (mindestens: „läuft“, „abgeschlossen“, „fehlgeschlagen“ inkl. Fehlerhinweis).
+- [x] Nutzer können eine explizite Aktion „Jetzt alles neu berechnen“ auslösen (Power-User-Flow), ohne Profilwerte erneut ändern zu müssen.
+- [x] Während laufender Rekalkulation bleiben bestehende Ergebnisse nutzbar und werden nicht still/unvorhersehbar überschrieben.
+- [x] Abgeschlossene Rekalkulationen sind nachvollziehbar dokumentiert (Zeitpunkt, Profilversion, Anzahl aktualisierter Sessions, Fehleranzahl).

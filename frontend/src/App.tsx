@@ -94,6 +94,20 @@ type MetricThresholdProfile = {
 
 type SpeedUnit = 'km/h' | 'm/s' | 'min/km';
 
+
+type ProfileRecalculationJob = {
+  id: string;
+  status: 'Running' | 'Completed' | 'Failed';
+  trigger: 'ProfileUpdated' | 'Manual';
+  requestedAtUtc: string;
+  completedAtUtc: string | null;
+  profileThresholdVersion: number;
+  totalSessions: number;
+  updatedSessions: number;
+  failedSessions: number;
+  errorMessage: string | null;
+};
+
 type UserProfile = {
   primaryPosition: PlayerPosition;
   secondaryPosition: PlayerPosition | null;
@@ -101,6 +115,7 @@ type UserProfile = {
   defaultSmoothingFilter: SmoothingFilter;
   preferredSpeedUnit: SpeedUnit;
   preferredAggregationWindowMinutes: 1 | 2 | 5;
+  latestRecalculationJob?: ProfileRecalculationJob | null;
 };
 
 type AppliedProfileSnapshot = {
@@ -345,7 +360,13 @@ type TranslationKey =
   | 'sessionRecalculateProfileInfo'
   | 'sessionRecalculateHistoryTitle'
   | 'sessionRecalculateHistoryEmpty'
-  | 'filterSourceProfileRecalculation';
+  | 'filterSourceProfileRecalculation'
+  | 'profileRecalculateAllButton'
+  | 'profileRecalculateAllTriggered'
+  | 'profileRecalculationStatusTitle'
+  | 'profileRecalculationStatusRunning'
+  | 'profileRecalculationStatusCompleted'
+  | 'profileRecalculationStatusFailed';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
 const normalizedApiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, '');
@@ -550,6 +571,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionRecalculateHistoryTitle: 'Recalculation history',
     sessionRecalculateHistoryEmpty: 'No recalculations yet.',
     filterSourceProfileRecalculation: 'Profile recalculation',
+    profileRecalculateAllButton: 'Recalculate all sessions now',
+    profileRecalculateAllTriggered: 'Background recalculation started.',
+    profileRecalculationStatusTitle: 'Latest background recalculation',
+    profileRecalculationStatusRunning: 'Running',
+    profileRecalculationStatusCompleted: 'Completed',
+    profileRecalculationStatusFailed: 'Failed',
     coreMetricsCategoryTitle: 'Metric categories',
     coreMetricsCategoryDescription: 'Separate external and internal load metrics to focus your interpretation. External metrics show what you did physically on the pitch, while internal metrics show how hard your body had to work to produce that output.',
     coreMetricsCategoryTabAll: 'All metrics',
@@ -753,6 +780,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionRecalculateHistoryTitle: 'Neuberechnungsverlauf',
     sessionRecalculateHistoryEmpty: 'Noch keine Neuberechnungen.',
     filterSourceProfileRecalculation: 'Profil-Neuberechnung',
+    profileRecalculateAllButton: 'Jetzt alle Sessions neu berechnen',
+    profileRecalculateAllTriggered: 'Hintergrund-Neuberechnung gestartet.',
+    profileRecalculationStatusTitle: 'Letzte Hintergrund-Neuberechnung',
+    profileRecalculationStatusRunning: 'Läuft',
+    profileRecalculationStatusCompleted: 'Abgeschlossen',
+    profileRecalculationStatusFailed: 'Fehlgeschlagen',
     coreMetricsCategoryTitle: 'Metrik-Kategorien',
     coreMetricsCategoryDescription: 'Trenne externe und interne Belastungsmetriken für eine fokussierte Einordnung. Externe Metriken zeigen, was du auf dem Platz körperlich gemacht hast, interne Metriken zeigen, wie stark dein Körper dafür belastet wurde.',
     coreMetricsCategoryTabAll: 'Alle Metriken',
@@ -1143,6 +1176,7 @@ export function App() {
     preferredAggregationWindowMinutes: 5
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
+  const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
 
   const t = useMemo(() => {
     const localizedTranslations = translations[locale];
@@ -1200,6 +1234,7 @@ export function App() {
               preferredAggregationWindowMinutes: (profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5
             });
             setAggregationWindowMinutes((profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5);
+            setLatestProfileRecalculationJob(profilePayload.latestRecalculationJob ?? null);
           }
           setUploadHistory(payload);
           if (payload.length > 0) {
@@ -1433,8 +1468,30 @@ export function App() {
       preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes
     });
     setAggregationWindowMinutes(payload.preferredAggregationWindowMinutes);
+    setLatestProfileRecalculationJob(payload.latestRecalculationJob ?? null);
     setProfileValidationMessage(t.profileSaveSuccess);
   }
+
+
+  async function onTriggerProfileRecalculation() {
+    const response = await fetch(`${apiBaseUrl}/profile/recalculations`, { method: 'POST' });
+    if (!response.ok) {
+      setProfileValidationMessage(`${t.uploadFailedPrefix} ${await response.text()}`);
+      return;
+    }
+
+    const payload = (await response.json()) as ProfileRecalculationJob;
+    setLatestProfileRecalculationJob(payload);
+    setProfileValidationMessage(t.profileRecalculateAllTriggered);
+  }
+
+  const profileRecalculationStatusText = latestProfileRecalculationJob
+    ? (latestProfileRecalculationJob.status === 'Running'
+      ? t.profileRecalculationStatusRunning
+      : latestProfileRecalculationJob.status === 'Completed'
+        ? t.profileRecalculationStatusCompleted
+        : t.profileRecalculationStatusFailed)
+    : null;
 
   const distanceSourceText = (source: ActivitySummary['distanceSource']) => {
     switch (source) {
@@ -1446,6 +1503,25 @@ export function App() {
         return t.distanceSourceNotAvailable;
     }
   };
+
+
+  useEffect(() => {
+    if (!latestProfileRecalculationJob || latestProfileRecalculationJob.status !== 'Running') {
+      return;
+    }
+
+    const interval = setInterval(async () => {
+      const response = await fetch(`${apiBaseUrl}/profile`);
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as UserProfile;
+      setLatestProfileRecalculationJob(payload.latestRecalculationJob ?? null);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [apiBaseUrl, latestProfileRecalculationJob]);
 
   const showMissingHeartRateHint = selectedSession ? !hasCompleteHeartRate(selectedSession.summary) : false;
   const showMissingDistanceHint = selectedSession ? selectedSession.summary.distanceMeters === null : false;
@@ -1800,6 +1876,7 @@ export function App() {
           <p>{t.profileThresholdUpdatedAt}: {formatUtcDateTime(profileForm.metricThresholds.updatedAtUtc, locale, t.notAvailable)}</p>
 
           <button type="submit">{t.profileSave}</button>
+          <button type="button" onClick={onTriggerProfileRecalculation}>{t.profileRecalculateAllButton}</button>
         </form>
         <p>
           {interpolate(t.profileCurrentPosition, {
@@ -1808,6 +1885,13 @@ export function App() {
           })}
         </p>
         {profileValidationMessage ? <p>{profileValidationMessage}</p> : null}
+        {latestProfileRecalculationJob && profileRecalculationStatusText ? (
+          <p>
+            {t.profileRecalculationStatusTitle}: {profileRecalculationStatusText} · {formatLocalDateTime(latestProfileRecalculationJob.requestedAtUtc)} · v{latestProfileRecalculationJob.profileThresholdVersion} · {latestProfileRecalculationJob.updatedSessions}/{latestProfileRecalculationJob.totalSessions}
+            {latestProfileRecalculationJob.failedSessions > 0 ? ` (${latestProfileRecalculationJob.failedSessions} failed)` : ''}
+            {latestProfileRecalculationJob.errorMessage ? ` - ${latestProfileRecalculationJob.errorMessage}` : ''}
+          </p>
+        ) : null}
       </section>
       <form onSubmit={handleSubmit}>
         <label

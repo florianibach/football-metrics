@@ -60,6 +60,22 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 PreferredAggregationWindowMinutes INTEGER NOT NULL DEFAULT 5
             );
 
+
+            CREATE TABLE IF NOT EXISTS ProfileRecalculationJobs (
+                Id TEXT PRIMARY KEY,
+                Status TEXT NOT NULL,
+                TriggerSource TEXT NOT NULL,
+                RequestedAtUtc TEXT NOT NULL,
+                CompletedAtUtc TEXT NULL,
+                ProfileThresholdVersion INTEGER NOT NULL,
+                TotalSessions INTEGER NOT NULL DEFAULT 0,
+                UpdatedSessions INTEGER NOT NULL DEFAULT 0,
+                FailedSessions INTEGER NOT NULL DEFAULT 0,
+                ErrorMessage TEXT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS IX_ProfileRecalculationJobs_RequestedAtUtc ON ProfileRecalculationJobs (RequestedAtUtc DESC);
+
             CREATE TABLE IF NOT EXISTS SchemaVersions (
                 Version INTEGER PRIMARY KEY,
                 Description TEXT NOT NULL,
@@ -107,6 +123,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await ApplyMigrationSlot002Async(connection, cancellationToken);
         await ApplyMigrationSlot003Async(connection, cancellationToken);
         await ApplyMigrationSlot004Async(connection, cancellationToken);
+        await ApplyMigrationSlot005Async(connection, cancellationToken);
     }
 
 
@@ -209,6 +226,45 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         insertCommand.CommandText = @"
             INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
             VALUES (4, 'phase3_upload_idempotency_key', $appliedAtUtc);
+        ";
+        insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+
+    private static async Task ApplyMigrationSlot005Async(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var existsCommand = connection.CreateCommand();
+        existsCommand.CommandText = "SELECT COUNT(1) FROM SchemaVersions WHERE Version = 5;";
+        var alreadyApplied = Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+        if (alreadyApplied)
+        {
+            return;
+        }
+
+        var tableCommand = connection.CreateCommand();
+        tableCommand.CommandText = @"
+            CREATE TABLE IF NOT EXISTS ProfileRecalculationJobs (
+                Id TEXT PRIMARY KEY,
+                Status TEXT NOT NULL,
+                TriggerSource TEXT NOT NULL,
+                RequestedAtUtc TEXT NOT NULL,
+                CompletedAtUtc TEXT NULL,
+                ProfileThresholdVersion INTEGER NOT NULL,
+                TotalSessions INTEGER NOT NULL DEFAULT 0,
+                UpdatedSessions INTEGER NOT NULL DEFAULT 0,
+                FailedSessions INTEGER NOT NULL DEFAULT 0,
+                ErrorMessage TEXT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS IX_ProfileRecalculationJobs_RequestedAtUtc ON ProfileRecalculationJobs (RequestedAtUtc DESC);
+        ";
+        await tableCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = @"
+            INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
+            VALUES (5, 'r1_5_16_profile_recalculation_jobs', $appliedAtUtc);
         ";
         insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
         await insertCommand.ExecuteNonQueryAsync(cancellationToken);
