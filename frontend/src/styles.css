@@ -374,3 +374,22 @@ button:disabled {
   padding: 0.6rem 0.8rem;
   border-radius: 6px;
 }
+.gps-heatmap-section {
+  margin-top: 1rem;
+}
+
+.gps-heatmap {
+  width: 100%;
+  max-width: 560px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+}
+
+.gps-heatmap__background {
+  fill: #f8fafc;
+}
+
+.gps-heatmap__point {
+  fill: #2563eb;
+  fill-opacity: 0.18;
+}

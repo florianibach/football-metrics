@@ -86,6 +86,11 @@ describe('App', () => {
         heartRateStatus: 'Available',
         heartRateReason: null
       },
+      gpsTrackpoints: [
+        { latitude: 50.9366, longitude: 6.9603, elapsedSeconds: 0 },
+        { latitude: 50.9368, longitude: 6.9605, elapsedSeconds: 5 },
+        { latitude: 50.9370, longitude: 6.9608, elapsedSeconds: 10 }
+      ],
       coreMetrics: baseCoreMetrics(),
       intervalAggregates: [
         {
@@ -2040,4 +2045,62 @@ describe('App', () => {
     const errorCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/segments'));
     expect(errorCalls.length).toBeGreaterThanOrEqual(2);
   });
+  it('R1_6_13_Ac01_Ac02_renders_gps_heatmap_for_dual_mode_sessions_with_imported_points', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'GPS point heatmap' })).toBeInTheDocument();
+  });
+
+  it('R1_6_13_Ac03_hides_heatmap_and_shows_gps_missing_hint_for_hf_only_sessions', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                hasGpsData: false,
+                gpsTrackpoints: [],
+                distanceMeters: null,
+                dataAvailability: {
+                  mode: 'HeartRateOnly',
+                  gpsStatus: 'NotMeasured',
+                  gpsReason: 'GPS not present in this session.',
+                  heartRateStatus: 'Available',
+                  heartRateReason: null
+                }
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('No GPS coordinates were detected in this file.');
+    expect(screen.queryByText('GPS point heatmap')).not.toBeInTheDocument();
+  });
+
 });

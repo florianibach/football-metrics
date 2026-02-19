@@ -89,6 +89,16 @@ public static partial class TcxMetricsExtractor
         var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
         var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints, effectiveThresholds);
 
+        var gpsTrackpoints = smoothedTrackpoints
+            .Where(snapshot => snapshot.Latitude.HasValue && snapshot.Longitude.HasValue)
+            .Select(snapshot => new TcxGpsTrackpoint(
+                snapshot.Latitude!.Value,
+                snapshot.Longitude!.Value,
+                snapshot.TimeUtc.HasValue && startTime.HasValue
+                    ? Math.Max(0, (snapshot.TimeUtc.Value - startTime.Value).TotalSeconds)
+                    : null))
+            .ToList();
+
         return new TcxActivitySummary(
             startTime,
             durationSeconds,
@@ -103,6 +113,7 @@ public static partial class TcxMetricsExtractor
             qualityAssessment.Status,
             qualityAssessment.Reasons,
             dataAvailability,
+            gpsTrackpoints,
             smoothingTrace,
             coreMetrics,
             intervalAggregates);
