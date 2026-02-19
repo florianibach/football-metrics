@@ -100,6 +100,7 @@ type UserProfile = {
   metricThresholds: MetricThresholdProfile;
   defaultSmoothingFilter: SmoothingFilter;
   preferredSpeedUnit: SpeedUnit;
+  preferredAggregationWindowMinutes: 1 | 2 | 5;
 };
 
 type AppliedProfileSnapshot = {
@@ -323,6 +324,10 @@ type TranslationKey =
   | 'profileThresholdUpdatedAt'
   | 'profileDefaultSmoothingFilter'
   | 'profileDefaultSmoothingFilterHelp'
+  | 'profilePreferredSpeedUnit'
+  | 'profilePreferredSpeedUnitHelp'
+  | 'profilePreferredAggregationWindow'
+  | 'profilePreferredAggregationWindowHelp'
   | 'filterSourceLabel'
   | 'filterSourceProfileDefault'
   | 'filterSourceManualOverride'
@@ -529,6 +534,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileDefaultSmoothingFilterHelp: 'Used as preselected filter for new session analyses. You can still override per session.',
     profilePreferredSpeedUnit: 'Preferred speed unit',
     profilePreferredSpeedUnitHelp: 'Used as default unit for new session analyses. You can still override per session without changing your profile.',
+    profilePreferredAggregationWindow: 'Preferred aggregation window',
+    profilePreferredAggregationWindowHelp: 'Used as default interval aggregation window for new session analyses. You can still override per session without changing your profile.',
     sessionSpeedUnitLabel: 'Speed unit',
     sessionSpeedUnitSourceLabel: 'Speed unit source',
     speedUnitSourceProfileDefault: 'Profile default',
@@ -730,6 +737,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileDefaultSmoothingFilterHelp: 'Wird bei neuen Session-Analysen vorausgewählt. Pro Session kannst du weiterhin manuell überschreiben.',
     profilePreferredSpeedUnit: 'Bevorzugte Geschwindigkeitseinheit',
     profilePreferredSpeedUnitHelp: 'Wird als Standard für neue Session-Analysen verwendet. Pro Session kannst du temporär überschreiben, ohne das Profil zu ändern.',
+    profilePreferredAggregationWindow: 'Bevorzugtes Aggregationsfenster',
+    profilePreferredAggregationWindowHelp: 'Wird als Standard-Aggregationsfenster für neue Session-Analysen verwendet. Pro Session kannst du weiterhin manuell wechseln, ohne das Profil zu ändern.',
     sessionSpeedUnitLabel: 'Geschwindigkeitseinheit',
     sessionSpeedUnitSourceLabel: 'Quelle Geschwindigkeitseinheit',
     speedUnitSourceProfileDefault: 'Profil-Standard',
@@ -1104,7 +1113,7 @@ export function App() {
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
   const [coreMetricsCategoryFilter, setCoreMetricsCategoryFilter] = useState<CoreMetricsCategoryFilter>('all');
-  const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(1);
+  const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
     matchResult: null,
@@ -1130,7 +1139,8 @@ export function App() {
       updatedAtUtc: new Date().toISOString()
     },
     defaultSmoothingFilter: 'AdaptiveMedian',
-    preferredSpeedUnit: 'km/h'
+    preferredSpeedUnit: 'km/h',
+    preferredAggregationWindowMinutes: 5
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
 
@@ -1186,8 +1196,10 @@ export function App() {
               secondaryPosition: (profilePayload.secondaryPosition as PlayerPosition | null) ?? null,
               metricThresholds: profilePayload.metricThresholds as MetricThresholdProfile,
               defaultSmoothingFilter: (profilePayload.defaultSmoothingFilter as SmoothingFilter) ?? 'AdaptiveMedian',
-              preferredSpeedUnit: (profilePayload.preferredSpeedUnit as SpeedUnit) ?? 'km/h'
+              preferredSpeedUnit: (profilePayload.preferredSpeedUnit as SpeedUnit) ?? 'km/h',
+              preferredAggregationWindowMinutes: (profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5
             });
+            setAggregationWindowMinutes((profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5);
           }
           setUploadHistory(payload);
           if (payload.length > 0) {
@@ -1315,6 +1327,7 @@ export function App() {
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
+    setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
     setMessage(t.sessionRecalculateSuccess);
   }
 
@@ -1373,6 +1386,7 @@ export function App() {
       setCompareMode('smoothed');
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setSessionContextForm(payload.sessionContext);
+      setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setCompareSelectedSessionIds((current) => [payload.id, ...current.filter((item) => item !== payload.id)].slice(0, 4));
       setCompareBaselineSessionId(payload.id);
@@ -1415,8 +1429,10 @@ export function App() {
       secondaryPosition: payload.secondaryPosition,
       metricThresholds: payload.metricThresholds,
       defaultSmoothingFilter: payload.defaultSmoothingFilter,
-      preferredSpeedUnit: payload.preferredSpeedUnit
+      preferredSpeedUnit: payload.preferredSpeedUnit,
+      preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes
     });
+    setAggregationWindowMinutes(payload.preferredAggregationWindowMinutes);
     setProfileValidationMessage(t.profileSaveSuccess);
   }
 
@@ -1666,6 +1682,18 @@ export function App() {
             <option value="min/km">min/km</option>
           </select>
           <p>{t.profilePreferredSpeedUnitHelp}</p>
+
+          <label htmlFor="profile-preferred-aggregation-window">{t.profilePreferredAggregationWindow}</label>
+          <select
+            id="profile-preferred-aggregation-window"
+            value={profileForm.preferredAggregationWindowMinutes}
+            onChange={(event) => setProfileForm((current) => ({ ...current, preferredAggregationWindowMinutes: Number(event.target.value) as 1 | 2 | 5 }))}
+          >
+            <option value={1}>{t.intervalAggregationWindow1}</option>
+            <option value={2}>{t.intervalAggregationWindow2}</option>
+            <option value={5}>{t.intervalAggregationWindow5}</option>
+          </select>
+          <p>{t.profilePreferredAggregationWindowHelp}</p>
 
           <h3>{t.profileThresholdsTitle}</h3>
           <label htmlFor="profile-threshold-max-speed">Max speed ({profileForm.preferredSpeedUnit})</label>

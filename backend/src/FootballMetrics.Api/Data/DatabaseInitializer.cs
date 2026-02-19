@@ -54,7 +54,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 SecondaryPosition TEXT NULL,
                 MetricThresholdsJson TEXT NULL,
                 DefaultSmoothingFilter TEXT NOT NULL DEFAULT 'AdaptiveMedian',
-                PreferredSpeedUnit TEXT NOT NULL DEFAULT 'km/h'
+                PreferredSpeedUnit TEXT NOT NULL DEFAULT 'km/h',
+                PreferredAggregationWindowMinutes INTEGER NOT NULL DEFAULT 5
             );
 
             CREATE TABLE IF NOT EXISTS SchemaVersions (
@@ -96,6 +97,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureUserProfileColumnExistsAsync(connection, "MetricThresholdsJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "DefaultSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
+        await EnsureUserProfileColumnExistsAsync(connection, "PreferredAggregationWindowMinutes", "INTEGER NOT NULL DEFAULT 5", cancellationToken);
 
         await ApplyMigrationSlot001Async(connection, cancellationToken);
         await ApplyMigrationSlot002Async(connection, cancellationToken);

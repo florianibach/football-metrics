@@ -7,6 +7,21 @@ public class UserProfile
     public MetricThresholdProfile MetricThresholds { get; set; } = MetricThresholdProfile.CreateDefault();
     public string DefaultSmoothingFilter { get; set; } = TcxSmoothingFilters.AdaptiveMedian;
     public string PreferredSpeedUnit { get; set; } = SpeedUnits.KilometersPerHour;
+    public int PreferredAggregationWindowMinutes { get; set; } = AggregationWindows.FiveMinutes;
+}
+
+public static class AggregationWindows
+{
+    public const int OneMinute = 1;
+    public const int TwoMinutes = 2;
+    public const int FiveMinutes = 5;
+
+    public static readonly IReadOnlyList<int> Supported =
+    [
+        OneMinute,
+        TwoMinutes,
+        FiveMinutes
+    ];
 }
 
 public static class SpeedUnits
@@ -132,5 +147,5 @@ public static class MetricThresholdModes
     public static readonly IReadOnlyList<string> Supported = [Fixed, Adaptive];
 }
 
-public record UpdateUserProfileRequest(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile? MetricThresholds, string? DefaultSmoothingFilter, string? PreferredSpeedUnit);
-public record UserProfileResponse(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile MetricThresholds, string DefaultSmoothingFilter, string PreferredSpeedUnit);
+public record UpdateUserProfileRequest(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile? MetricThresholds, string? DefaultSmoothingFilter, string? PreferredSpeedUnit, int? PreferredAggregationWindowMinutes);
+public record UserProfileResponse(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile MetricThresholds, string DefaultSmoothingFilter, string PreferredSpeedUnit, int PreferredAggregationWindowMinutes);
