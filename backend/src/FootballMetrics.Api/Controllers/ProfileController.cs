@@ -21,7 +21,8 @@ public class ProfileController : ControllerBase
     public async Task<ActionResult<UserProfileResponseDto>> GetProfile(CancellationToken cancellationToken)
     {
         var profile = await _profileUseCase.GetProfileAsync(cancellationToken);
-        return Ok(new UserProfileResponseDto(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes));
+        var latestRecalculationJob = await _profileUseCase.GetLatestRecalculationJobAsync(cancellationToken);
+        return Ok(ToResponse(profile, latestRecalculationJob));
     }
 
     [HttpPut]
@@ -83,6 +84,22 @@ public class ProfileController : ControllerBase
             new UpdateUserProfileRequest(request.PrimaryPosition, request.SecondaryPosition, request.MetricThresholds, request.DefaultSmoothingFilter, request.PreferredSpeedUnit, request.PreferredAggregationWindowMinutes),
             cancellationToken);
 
-        return Ok(new UserProfileResponseDto(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes));
+        var latestRecalculationJob = await _profileUseCase.GetLatestRecalculationJobAsync(cancellationToken);
+        return Ok(ToResponse(profile, latestRecalculationJob));
     }
+    [HttpPost("recalculations")]
+    public async Task<ActionResult<ProfileRecalculationJobDto>> RecalculateAllSessions(CancellationToken cancellationToken)
+    {
+        var job = await _profileUseCase.TriggerFullRecalculationAsync(ProfileRecalculationTriggers.Manual, cancellationToken);
+        return Accepted(ToDto(job));
+    }
+
+    private static UserProfileResponseDto ToResponse(UserProfile profile, ProfileRecalculationJob? latestRecalculationJob)
+        => new(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes, ToDto(latestRecalculationJob));
+
+    private static ProfileRecalculationJobDto? ToDto(ProfileRecalculationJob? job)
+        => job is null
+            ? null
+            : new ProfileRecalculationJobDto(job.Id, job.Status, job.Trigger, job.RequestedAtUtc, job.CompletedAtUtc, job.ProfileThresholdVersion, job.TotalSessions, job.UpdatedSessions, job.FailedSessions, job.ErrorMessage);
+
 }

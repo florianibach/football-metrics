@@ -8,11 +8,19 @@ public class ProfileUseCase : IProfileUseCase
 {
     private readonly IUserProfileRepository _repository;
     private readonly IMetricThresholdResolver _metricThresholdResolver;
+    private readonly IProfileRecalculationOrchestrator _recalculationOrchestrator;
+    private readonly IProfileRecalculationJobRepository _recalculationJobRepository;
 
-    public ProfileUseCase(IUserProfileRepository repository, IMetricThresholdResolver metricThresholdResolver)
+    public ProfileUseCase(
+        IUserProfileRepository repository,
+        IMetricThresholdResolver metricThresholdResolver,
+        IProfileRecalculationOrchestrator recalculationOrchestrator,
+        IProfileRecalculationJobRepository recalculationJobRepository)
     {
         _repository = repository;
         _metricThresholdResolver = metricThresholdResolver;
+        _recalculationOrchestrator = recalculationOrchestrator;
+        _recalculationJobRepository = recalculationJobRepository;
     }
 
     public async Task<UserProfile> GetProfileAsync(CancellationToken cancellationToken)
@@ -78,10 +86,30 @@ public class ProfileUseCase : IProfileUseCase
             },
             cancellationToken);
 
+        var profileAffectingSettingsChanged = thresholdsChanged
+            || !string.Equals(existingProfile.DefaultSmoothingFilter, normalizedDefaultSmoothingFilter, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(existingProfile.PreferredSpeedUnit, normalizedPreferredSpeedUnit, StringComparison.OrdinalIgnoreCase)
+            || existingProfile.PreferredAggregationWindowMinutes != normalizedPreferredAggregationWindowMinutes;
+
+        if (profileAffectingSettingsChanged)
+        {
+            await _recalculationOrchestrator.EnqueueAsync(ProfileRecalculationTriggers.ProfileUpdated, normalizedThresholds.Version, cancellationToken);
+        }
+
         var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
         profile.MetricThresholds = effectiveThresholds;
         return profile;
     }
+
+
+    public async Task<ProfileRecalculationJob> TriggerFullRecalculationAsync(string trigger, CancellationToken cancellationToken)
+    {
+        var profile = await _repository.GetAsync(cancellationToken);
+        return await _recalculationOrchestrator.EnqueueAsync(trigger, profile.MetricThresholds.Version, cancellationToken);
+    }
+
+    public Task<ProfileRecalculationJob?> GetLatestRecalculationJobAsync(CancellationToken cancellationToken)
+        => _recalculationJobRepository.GetLatestAsync(cancellationToken);
 
     public static string? NormalizeDefaultSmoothingFilter(string? requestedFilter, string fallbackFilter)
     {

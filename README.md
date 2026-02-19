@@ -267,3 +267,10 @@ Empfohlener Sammelcheck:
   - `rawDistanceMeters`, `smoothedDistanceMeters`
   - `rawDirectionChanges`, `baselineDirectionChanges`, `smoothedDirectionChanges`
   - `correctedOutlierCount`, `analyzedAtUtc`
+
+## Asynchrone Profil-Neuberechnung bestehender Sessions (R1.5-16)
+
+- Profiländerungen, die Session-Ergebnisse beeinflussen (Schwellen, Standardfilter, bevorzugte Geschwindigkeitseinheit, Aggregationsfenster), starten automatisch einen asynchronen Rekalkulationsjob.
+- Das Speichern des Profils bleibt synchron und schnell; die eigentliche Neuberechnung läuft im Hintergrund.
+- Der aktuelle Rekalkulationsstatus ist im Profil sichtbar (`latestRecalculationJob`) mit Status (`Running`, `Completed`, `Failed`), Zeitpunkten, Profilversion sowie `total/updated/failed`.
+- Power-User können jederzeit eine vollständige Neuberechnung über `POST /api/v1/profile/recalculations` auslösen, ohne Profilwerte erneut zu speichern.

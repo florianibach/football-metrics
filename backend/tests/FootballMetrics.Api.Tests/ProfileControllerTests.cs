@@ -268,4 +268,40 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
+
+
+    [Fact]
+    public async Task R1_5_16_Ac02_Ac03_UpdateProfile_ShouldStartBackgroundRecalculationAndExposeStatus()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth, null, null));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var profileResponse = await client.GetAsync("/api/v1/profile");
+        profileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var payload = await profileResponse.Content.ReadFromJsonAsync<ProfileResponseWithRecalculation>();
+        payload.Should().NotBeNull();
+        payload!.LatestRecalculationJob.Should().NotBeNull();
+        ProfileRecalculationStatuses.Supported.Should().Contain(payload.LatestRecalculationJob!.Status);
+    }
+
+    [Fact]
+    public async Task R1_5_16_Ac04_PostRecalculations_ShouldTriggerManualBackgroundJob()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsync("/api/v1/profile/recalculations", null);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+        var payload = await response.Content.ReadFromJsonAsync<ProfileRecalculationJobResponse>();
+        payload.Should().NotBeNull();
+        payload!.Trigger.Should().Be(ProfileRecalculationTriggers.Manual);
+        payload.Status.Should().Be(ProfileRecalculationStatuses.Running);
+    }
+
+    private sealed record ProfileResponseWithRecalculation(ProfileRecalculationJobResponse? LatestRecalculationJob);
+    private sealed record ProfileRecalculationJobResponse(string Status, string Trigger);
+
 }
