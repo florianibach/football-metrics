@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Xml.Linq;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
 
@@ -16,22 +14,14 @@ public class MetricThresholdResolver : IMetricThresholdResolver
 
     public async Task<MetricThresholdProfile> ResolveEffectiveAsync(MetricThresholdProfile baseProfile, CancellationToken cancellationToken = default)
     {
-        var uploads = await _repository.ListAsync(cancellationToken);
-        var stats = uploads
-            .Select(TryGetSessionAdaptiveStats)
-            .Where(item => item is not null)
-            .Select(item => item!)
-            .ToList();
+        var stats = await _repository.GetAdaptiveStatsExtremesAsync(cancellationToken);
 
-        var maxSpeedObserved = stats.Count > 0 ? stats.Max(item => item.MaxSpeedMps) : (double?)null;
-        var maxHeartRateObserved = stats.Count > 0 ? stats.Max(item => item.MaxHeartRateBpm) : (int?)null;
-
-        var effectiveMaxSpeed = string.Equals(baseProfile.MaxSpeedMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && maxSpeedObserved.HasValue
-            ? maxSpeedObserved.Value
+        var effectiveMaxSpeed = string.Equals(baseProfile.MaxSpeedMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && stats.MaxSpeedMps.HasValue
+            ? stats.MaxSpeedMps.Value
             : baseProfile.MaxSpeedMps;
 
-        var effectiveMaxHeartRate = string.Equals(baseProfile.MaxHeartRateMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && maxHeartRateObserved.HasValue
-            ? maxHeartRateObserved.Value
+        var effectiveMaxHeartRate = string.Equals(baseProfile.MaxHeartRateMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && stats.MaxHeartRateBpm.HasValue
+            ? stats.MaxHeartRateBpm.Value
             : baseProfile.MaxHeartRateBpm;
 
         return new MetricThresholdProfile
@@ -55,124 +45,4 @@ public class MetricThresholdResolver : IMetricThresholdResolver
         => MetricThresholdModes.Supported.FirstOrDefault(mode => string.Equals(mode, value, StringComparison.OrdinalIgnoreCase))
            ?? MetricThresholdModes.Fixed;
 
-    private sealed record SessionAdaptiveStats(double MaxSpeedMps, int MaxHeartRateBpm);
-
-    private static SessionAdaptiveStats? TryGetSessionAdaptiveStats(TcxUpload upload)
-    {
-        if (upload.RawFileContent.Length == 0)
-        {
-            return null;
-        }
-
-        try
-        {
-            using var stream = new MemoryStream(upload.RawFileContent, writable: false);
-            var document = XDocument.Load(stream);
-
-            // Smoothing filter affects max-speed; therefore use the session filter for adaptive stats.
-            var summary = TcxMetricsExtractor.Extract(document, upload.SelectedSmoothingFilter, null);
-            var smoothedMaxSpeed = summary.CoreMetrics.MaxSpeedMetersPerSecond;
-
-            var heartRates = document.Descendants()
-                .Where(node => string.Equals(node.Name.LocalName, "Value", StringComparison.OrdinalIgnoreCase)
-                    && string.Equals(node.Parent?.Name.LocalName, "HeartRateBpm", StringComparison.OrdinalIgnoreCase))
-                .Select(node => int.TryParse(node.Value, out var hr) ? (int?)hr : null)
-                .Where(value => value.HasValue)
-                .Select(value => value!.Value)
-                .ToList();
-
-            var maxHeartRate = heartRates.Count > 0 ? heartRates.Max() : 0;
-            if (!smoothedMaxSpeed.HasValue && maxHeartRate <= 0)
-            {
-                return null;
-            }
-
-            return new SessionAdaptiveStats(smoothedMaxSpeed ?? 4.0, maxHeartRate <= 0 ? 120 : maxHeartRate);
-        }
-        catch
-        {
-            return TryGetRawFallback(upload.RawFileContent);
-        }
-    }
-
-    private static SessionAdaptiveStats? TryGetRawFallback(byte[] rawFileContent)
-    {
-        try
-        {
-            using var stream = new MemoryStream(rawFileContent, writable: false);
-            var document = XDocument.Load(stream);
-            XNamespace tcxNs = "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2";
-
-            var points = document.Descendants(tcxNs + "Trackpoint")
-                .Select(tp => new
-                {
-                    TimeUtc = DateTime.TryParse(tp.Element(tcxNs + "Time")?.Value, null, DateTimeStyles.RoundtripKind, out var timestamp)
-                        ? (DateTime?)timestamp
-                        : null,
-                    Latitude = double.TryParse(tp.Element(tcxNs + "Position")?.Element(tcxNs + "LatitudeDegrees")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var lat)
-                        ? (double?)lat
-                        : null,
-                    Longitude = double.TryParse(tp.Element(tcxNs + "Position")?.Element(tcxNs + "LongitudeDegrees")?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var lon)
-                        ? (double?)lon
-                        : null,
-                    HeartRateBpm = int.TryParse(tp.Element(tcxNs + "HeartRateBpm")?.Element(tcxNs + "Value")?.Value, out var hr)
-                        ? (int?)hr
-                        : null
-                })
-                .Where(tp => tp.TimeUtc.HasValue)
-                .OrderBy(tp => tp.TimeUtc)
-                .ToList();
-
-            var gpsPoints = points.Where(tp => tp.Latitude.HasValue && tp.Longitude.HasValue).ToList();
-            if (gpsPoints.Count < 2)
-            {
-                return null;
-            }
-
-            var maxSpeed = 0d;
-            for (var index = 1; index < gpsPoints.Count; index++)
-            {
-                var previous = gpsPoints[index - 1];
-                var current = gpsPoints[index];
-                var elapsedSeconds = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
-                if (elapsedSeconds <= 0)
-                {
-                    continue;
-                }
-
-                var distanceMeters = HaversineMeters(previous.Latitude!.Value, previous.Longitude!.Value, current.Latitude!.Value, current.Longitude!.Value);
-                var speed = distanceMeters / elapsedSeconds;
-                if (speed > maxSpeed)
-                {
-                    maxSpeed = speed;
-                }
-            }
-
-            var maxHeartRate = points.Where(tp => tp.HeartRateBpm.HasValue).Select(tp => tp.HeartRateBpm!.Value).DefaultIfEmpty(0).Max();
-            if (maxSpeed <= 0 && maxHeartRate <= 0)
-            {
-                return null;
-            }
-
-            return new SessionAdaptiveStats(maxSpeed <= 0 ? 4.0 : maxSpeed, maxHeartRate <= 0 ? 120 : maxHeartRate);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static double HaversineMeters(double lat1, double lon1, double lat2, double lon2)
-    {
-        const double earthRadius = 6371000.0;
-        static double ToRadians(double degrees) => degrees * Math.PI / 180.0;
-
-        var dLat = ToRadians(lat2 - lat1);
-        var dLon = ToRadians(lon2 - lon1);
-        var a = Math.Pow(Math.Sin(dLat / 2), 2)
-                + Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) * Math.Pow(Math.Sin(dLon / 2), 2);
-
-        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-        return earthRadius * c;
-    }
 }

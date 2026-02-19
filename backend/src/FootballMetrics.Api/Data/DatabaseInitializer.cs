@@ -62,6 +62,16 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 Description TEXT NOT NULL,
                 AppliedAtUtc TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS TcxAdaptiveStats (
+                UploadId TEXT PRIMARY KEY,
+                MaxSpeedMps REAL NULL,
+                MaxHeartRateBpm INTEGER NULL,
+                CalculatedAtUtc TEXT NOT NULL,
+                FOREIGN KEY (UploadId) REFERENCES TcxUploads(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS IX_TcxAdaptiveStats_CalculatedAtUtc ON TcxAdaptiveStats (CalculatedAtUtc DESC);
         ";
 
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -88,6 +98,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
 
         await ApplyMigrationSlot001Async(connection, cancellationToken);
+        await ApplyMigrationSlot002Async(connection, cancellationToken);
     }
 
 
@@ -105,6 +116,40 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         insertCommand.CommandText = @"
             INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
             VALUES (1, 'phase0_migration_slot_initialized', $appliedAtUtc);
+        ";
+        insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+
+    private static async Task ApplyMigrationSlot002Async(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var existsCommand = connection.CreateCommand();
+        existsCommand.CommandText = "SELECT COUNT(1) FROM SchemaVersions WHERE Version = 2;";
+        var alreadyApplied = Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+        if (alreadyApplied)
+        {
+            return;
+        }
+
+        var createAdaptiveStatsTableCommand = connection.CreateCommand();
+        createAdaptiveStatsTableCommand.CommandText = @"
+            CREATE TABLE IF NOT EXISTS TcxAdaptiveStats (
+                UploadId TEXT PRIMARY KEY,
+                MaxSpeedMps REAL NULL,
+                MaxHeartRateBpm INTEGER NULL,
+                CalculatedAtUtc TEXT NOT NULL,
+                FOREIGN KEY (UploadId) REFERENCES TcxUploads(Id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS IX_TcxAdaptiveStats_CalculatedAtUtc ON TcxAdaptiveStats (CalculatedAtUtc DESC);
+        ";
+        await createAdaptiveStatsTableCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = @"
+            INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
+            VALUES (2, 'phase2_adaptive_stats_table', $appliedAtUtc);
         ";
         insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
         await insertCommand.ExecuteNonQueryAsync(cancellationToken);

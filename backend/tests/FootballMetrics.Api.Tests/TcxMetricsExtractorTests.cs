@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Xml.Linq;
 using FootballMetrics.Api.Services;
+using FootballMetrics.Api.Models;
 using FluentAssertions;
 using Xunit;
 
@@ -488,6 +489,45 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.MetricAvailability["distanceMeters"].State.Should().Be("NotMeasured");
         summary.CoreMetrics.MetricAvailability["distanceMeters"].Reason.Should().Contain("not recorded");
         summary.CoreMetrics.MetricAvailability["heartRateZoneLowSeconds"].State.Should().Be("Available");
+    }
+
+
+
+    [Fact]
+    public void R2_10_GoldenMaster_Extract_ShouldMatchKnownSnapshotForReferenceInput()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase>
+  <Activities>
+    <Activity>
+      <Id>2026-02-16T10:00:00Z</Id>
+      <Lap>
+        <DistanceMeters>520</DistanceMeters>
+        <Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0000</LatitudeDegrees><LongitudeDegrees>7.0000</LongitudeDegrees></Position><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:10Z</Time><Position><LatitudeDegrees>50.0003</LatitudeDegrees><LongitudeDegrees>7.0003</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:20Z</Time><Position><LatitudeDegrees>50.0006</LatitudeDegrees><LongitudeDegrees>7.0006</LongitudeDegrees></Position><HeartRateBpm><Value>140</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:30Z</Time><Position><LatitudeDegrees>50.0009</LatitudeDegrees><LongitudeDegrees>7.0009</LongitudeDegrees></Position><HeartRateBpm><Value>150</Value></HeartRateBpm></Trackpoint>
+        </Track>
+      </Lap>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.TrackpointCount.Should().Be(4);
+        summary.DurationSeconds.Should().Be(30);
+        summary.HeartRateMinBpm.Should().Be(120);
+        summary.HeartRateAverageBpm.Should().Be(135);
+        summary.HeartRateMaxBpm.Should().Be(150);
+        summary.DistanceSource.Should().Be("CalculatedFromGps");
+        summary.DistanceMeters.Should().NotBeNull();
+        summary.DistanceMeters!.Value.Should().BeInRange(118d, 126d);
+        summary.QualityStatus.Should().Be("High");
+        summary.CoreMetrics.IsAvailable.Should().BeTrue();
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
+        summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeInRange(3.8d, 4.5d);
+        summary.CoreMetrics.SprintCount.Should().Be(0);
     }
 
 }

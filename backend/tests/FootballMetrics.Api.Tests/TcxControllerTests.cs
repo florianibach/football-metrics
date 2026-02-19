@@ -68,6 +68,69 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         response.Headers.GetValues("X-Correlation-ID").Single().Should().Be("test-correlation");
     }
 
+
+    [Fact]
+    public async Task R2_09_ApiVersioningContract_V1AndLegacyRoutes_ShouldReturnEquivalentPayloadShape()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "contract-v1.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var created = await client.PostAsync("/api/v1/tcx/upload", form);
+        created.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var payload = await created.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+        payload.Should().NotBeNull();
+
+        var legacyResponse = await client.GetAsync($"/api/tcx/{payload!.Id}");
+        var v1Response = await client.GetAsync($"/api/v1/tcx/{payload.Id}");
+
+        legacyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        v1Response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var legacyPayload = await legacyResponse.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+        var v1Payload = await v1Response.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+
+        legacyPayload.Should().BeEquivalentTo(v1Payload);
+    }
+
+
+    [Fact]
+    public async Task R2_05_AdaptiveStats_ShouldPersistOnUpload()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"football-metrics-tests-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={databasePath}";
+        var client = CreateClientWithConnectionString(connectionString);
+
+        using var form = CreateUploadForm(
+            "adaptive-stats.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track>" +
+            "<Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint>" +
+            "<Trackpoint><Time>2026-02-16T10:00:10Z</Time><Position><LatitudeDegrees>50.0003</LatitudeDegrees><LongitudeDegrees>7.0003</LongitudeDegrees></Position><HeartRateBpm><Value>150</Value></HeartRateBpm></Trackpoint>" +
+            "</Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var response = await client.PostAsync("/api/tcx/upload", form);
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var upload = await response.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+        upload.Should().NotBeNull();
+
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT MaxSpeedMps, MaxHeartRateBpm FROM TcxAdaptiveStats WHERE UploadId = $uploadId";
+        command.Parameters.AddWithValue("$uploadId", upload!.Id.ToString());
+
+        await using var reader = await command.ExecuteReaderAsync();
+        (await reader.ReadAsync()).Should().BeTrue();
+        reader.IsDBNull(0).Should().BeFalse();
+        reader.GetDouble(0).Should().BeGreaterThan(0);
+        reader.IsDBNull(1).Should().BeFalse();
+        reader.GetInt32(1).Should().Be(150);
+    }
+
     [Fact]
     public async Task Mvp01_Ac01_Ac04_UploadingValidTcx_ShouldReturnCreatedAndListEntry()
     {
@@ -738,6 +801,12 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
+        public Task UpsertAdaptiveStatsAsync(Guid uploadId, double? maxSpeedMps, int? maxHeartRateBpm, DateTime calculatedAtUtc, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<(double? MaxSpeedMps, int? MaxHeartRateBpm)> GetAdaptiveStatsExtremesAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<(double?, int?)>((null, null));
+
     }
 
     private sealed class ThrowingThenRejectingSameIdRepository : ITcxUploadRepository
@@ -799,6 +868,12 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             string? recalculationHistoryJson,
             CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+
+        public Task UpsertAdaptiveStatsAsync(Guid uploadId, double? maxSpeedMps, int? maxHeartRateBpm, DateTime calculatedAtUtc, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<(double? MaxSpeedMps, int? MaxHeartRateBpm)> GetAdaptiveStatsExtremesAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<(double?, int?)>((null, null));
 
     }
 
