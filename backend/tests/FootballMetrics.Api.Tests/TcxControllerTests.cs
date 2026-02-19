@@ -7,6 +7,7 @@ using FootballMetrics.Api.Controllers;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
 using FootballMetrics.Api.Services;
+using FootballMetrics.Api.UseCases;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -260,7 +261,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Mvp02_Ac04_WhenStorageFails_ShouldReturnServerErrorAndMarkUploadAsFailed()
     {
         var repository = new ThrowingOnceRepository();
-        var controller = new TcxController(repository, CreateAdapterResolver(), new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxController>.Instance);
+        var controller = CreateController(repository);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
         var file = new FormFile(stream, 0, stream.Length, "file", "failure-case.tcx")
@@ -282,7 +283,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Mvp02_Ac04_WhenFailedMarkerWithOriginalIdCannotBeSaved_ShouldPersistFallbackFailedMarker()
     {
         var repository = new ThrowingThenRejectingSameIdRepository();
-        var controller = new TcxController(repository, CreateAdapterResolver(), new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxController>.Instance);
+        var controller = CreateController(repository);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
         var file = new FormFile(stream, 0, stream.Length, "file", "failure-fallback-case.tcx")
@@ -722,6 +723,13 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
 
+    private static TcxController CreateController(ITcxUploadRepository repository)
+    {
+        var resolver = CreateAdapterResolver();
+        var useCase = new TcxSessionUseCase(repository, resolver, new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxSessionUseCase>.Instance);
+        return new TcxController(useCase, resolver, NullLogger<TcxController>.Instance);
+    }
+
     private static IUploadFormatAdapterResolver CreateAdapterResolver() =>
         new UploadFormatAdapterResolver(new IUploadFormatAdapter[] { new TcxUploadFormatAdapter() });
 
@@ -756,6 +764,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             return Task.FromResult(upload);
         }
 
+        public Task<TcxUpload> AddWithAdaptiveStatsAsync(TcxUpload upload, double? maxSpeedMps, int? maxHeartRateBpm, DateTime calculatedAtUtc, CancellationToken cancellationToken = default)
+            => AddAsync(upload, cancellationToken);
+
         public Task<IReadOnlyList<TcxUpload>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<TcxUpload>>(new List<TcxUpload>());
 
@@ -794,6 +805,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             string? metricThresholdSnapshotJson,
             string? appliedProfileSnapshotJson,
             string? recalculationHistoryJson,
+            string? sessionSummarySnapshotJson,
             CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
@@ -828,6 +840,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             return Task.FromResult(upload);
         }
 
+        public Task<TcxUpload> AddWithAdaptiveStatsAsync(TcxUpload upload, double? maxSpeedMps, int? maxHeartRateBpm, DateTime calculatedAtUtc, CancellationToken cancellationToken = default)
+            => AddAsync(upload, cancellationToken);
+
         public Task<IReadOnlyList<TcxUpload>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<TcxUpload>>(new List<TcxUpload>());
 
@@ -862,6 +877,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             string? metricThresholdSnapshotJson,
             string? appliedProfileSnapshotJson,
             string? recalculationHistoryJson,
+            string? sessionSummarySnapshotJson,
             CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 

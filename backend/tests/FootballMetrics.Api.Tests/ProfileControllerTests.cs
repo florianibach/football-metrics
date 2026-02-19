@@ -230,9 +230,12 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
 
 
     [Fact]
-    public async Task R1_5_15_Ac01_Ac02_GetProfile_ShouldReturnDefaultPreferredAggregationWindowAsFiveMinutes()
+    public async Task R1_5_15_Ac01_Ac02_GetProfile_ShouldReturnPreferredAggregationWindowAsFiveMinutesWhenConfigured()
     {
         var client = _factory.CreateClient();
+
+        var resetResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, null, AggregationWindows.FiveMinutes));
+        resetResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var response = await client.GetAsync("/api/v1/profile");
 

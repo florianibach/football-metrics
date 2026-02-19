@@ -43,11 +43,17 @@ public class TcxSessionUseCase : ITcxSessionUseCase
 
         var adapter = _uploadFormatAdapterResolver.ResolveByFileName(file.FileName)!;
         var parseResult = await adapter.ParseAsync(rawFileBytes, cancellationToken);
+        if (!parseResult.IsSuccess)
+        {
+            throw new InvalidDataException(parseResult.ErrorMessage ?? "The uploaded file could not be parsed.");
+        }
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
         var metricThresholdSnapshot = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
         var defaultSmoothingFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
         var defaultSpeedUnit = NormalizeSpeedUnit(profile.PreferredSpeedUnit);
         var appliedProfileSnapshot = CreateAppliedProfileSnapshot(metricThresholdSnapshot, defaultSmoothingFilter);
+
+        var summarySnapshot = CreateSummaryFromRawContent(rawFileBytes, defaultSmoothingFilter, JsonSerializer.Serialize(metricThresholdSnapshot));
 
         var upload = new TcxUpload
         {
@@ -64,14 +70,14 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             MetricThresholdSnapshotJson = JsonSerializer.Serialize(metricThresholdSnapshot),
             AppliedProfileSnapshotJson = JsonSerializer.Serialize(appliedProfileSnapshot),
             RecalculationHistoryJson = JsonSerializer.Serialize(Array.Empty<SessionRecalculationEntry>()),
+            SessionSummarySnapshotJson = JsonSerializer.Serialize(summarySnapshot),
             SelectedSpeedUnit = defaultSpeedUnit,
             SelectedSpeedUnitSource = TcxSpeedUnitSources.ProfileDefault
         };
 
         try
         {
-            await _repository.AddAsync(upload, cancellationToken);
-            await RefreshAdaptiveStatsAsync(upload, cancellationToken);
+            await _repository.AddWithAdaptiveStatsAsync(upload, summarySnapshot.CoreMetrics.MaxSpeedMetersPerSecond, summarySnapshot.HeartRateMaxBpm, DateTime.UtcNow, cancellationToken);
             return upload;
         }
         catch (Exception ex)
@@ -130,6 +136,14 @@ public class TcxSessionUseCase : ITcxSessionUseCase
     {
         var normalizedFilter = NormalizeSmoothingFilter(smoothingFilter);
 
+        var current = await _repository.GetByIdAsync(id, cancellationToken);
+        if (current is null)
+        {
+            return null;
+        }
+
+        var summarySnapshot = CreateSummaryFromRawContent(current.RawFileContent, normalizedFilter, current.MetricThresholdSnapshotJson);
+
         var wasUpdated = await _repository.UpdateSessionPreferencesAndSnapshotsAsync(
             id,
             normalizedFilter,
@@ -139,6 +153,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             null,
             null,
             null,
+            JsonSerializer.Serialize(summarySnapshot),
             cancellationToken);
 
         if (!wasUpdated)
@@ -159,6 +174,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             null,
             normalizedSpeedUnit,
             TcxSpeedUnitSources.ManualOverride,
+            null,
             null,
             null,
             null,
@@ -191,6 +207,8 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             .Concat(new[] { new SessionRecalculationEntry(DateTime.UtcNow, previousSnapshot, newSnapshot) })
             .ToArray();
 
+        var summarySnapshot = CreateSummaryFromRawContent(upload.RawFileContent, normalizedFilter, JsonSerializer.Serialize(effectiveThresholds));
+
         var updated = await _repository.UpdateSessionPreferencesAndSnapshotsAsync(
             id,
             normalizedFilter,
@@ -200,6 +218,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             JsonSerializer.Serialize(effectiveThresholds),
             JsonSerializer.Serialize(newSnapshot),
             JsonSerializer.Serialize(nextHistory),
+            JsonSerializer.Serialize(summarySnapshot),
             cancellationToken);
 
         if (!updated)
@@ -241,6 +260,21 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         }
     }
 
+
+    public TcxActivitySummary ResolveSummary(TcxUpload upload)
+    {
+        if (!string.IsNullOrWhiteSpace(upload.SessionSummarySnapshotJson))
+        {
+            var deserialized = JsonSerializer.Deserialize<TcxActivitySummary>(upload.SessionSummarySnapshotJson);
+            if (deserialized is not null)
+            {
+                return deserialized;
+            }
+        }
+
+        return CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson);
+    }
+
     public AppliedProfileSnapshot ResolveAppliedProfileSnapshot(TcxUpload upload)
     {
         if (!string.IsNullOrWhiteSpace(upload.AppliedProfileSnapshotJson))
@@ -276,34 +310,8 @@ public class TcxSessionUseCase : ITcxSessionUseCase
 
     private async Task RefreshAdaptiveStatsAsync(TcxUpload upload, CancellationToken cancellationToken)
     {
-        var stats = TryBuildAdaptiveStats(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson);
-        await _repository.UpsertAdaptiveStatsAsync(upload.Id, stats.MaxSpeedMps, stats.MaxHeartRateBpm, DateTime.UtcNow, cancellationToken);
-    }
-
-    private static (double? MaxSpeedMps, int? MaxHeartRateBpm) TryBuildAdaptiveStats(byte[] rawFileContent, string selectedSmoothingFilter, string? metricThresholdSnapshotJson)
-    {
-        if (rawFileContent.Length == 0)
-        {
-            return (null, null);
-        }
-
-        try
-        {
-            using var stream = new MemoryStream(rawFileContent, writable: false);
-            var document = XDocument.Load(stream);
-            MetricThresholdProfile? thresholdProfile = null;
-            if (!string.IsNullOrWhiteSpace(metricThresholdSnapshotJson))
-            {
-                thresholdProfile = JsonSerializer.Deserialize<MetricThresholdProfile>(metricThresholdSnapshotJson);
-            }
-
-            var summary = TcxMetricsExtractor.Extract(document, selectedSmoothingFilter, thresholdProfile);
-            return (summary.CoreMetrics.MaxSpeedMetersPerSecond, summary.HeartRateMaxBpm);
-        }
-        catch
-        {
-            return (null, null);
-        }
+        var summary = ResolveSummary(upload);
+        await _repository.UpsertAdaptiveStatsAsync(upload.Id, summary.CoreMetrics.MaxSpeedMetersPerSecond, summary.HeartRateMaxBpm, DateTime.UtcNow, cancellationToken);
     }
 
     public bool IsUploadValid(IFormFile? file)

@@ -1,13 +1,10 @@
 using FootballMetrics.Api.Api;
 using FootballMetrics.Api.Api.V1;
 using FootballMetrics.Api.Models;
-using FootballMetrics.Api.Repositories;
 using FootballMetrics.Api.Services;
 using FootballMetrics.Api.UseCases;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FootballMetrics.Api.Controllers;
 
@@ -20,27 +17,12 @@ public class TcxController : ControllerBase
     private readonly IUploadFormatAdapterResolver _uploadFormatAdapterResolver;
     private readonly ILogger<TcxController> _logger;
 
-    [ActivatorUtilitiesConstructor]
     public TcxController(ITcxSessionUseCase tcxSessionUseCase, IUploadFormatAdapterResolver uploadFormatAdapterResolver, ILogger<TcxController> logger)
     {
         _tcxSessionUseCase = tcxSessionUseCase;
         _uploadFormatAdapterResolver = uploadFormatAdapterResolver;
         _logger = logger;
     }
-
-    public TcxController(
-        ITcxUploadRepository repository,
-        IUploadFormatAdapterResolver uploadFormatAdapterResolver,
-        IUserProfileRepository userProfileRepository,
-        IMetricThresholdResolver metricThresholdResolver,
-        ILogger<TcxController> logger)
-        : this(
-            new TcxSessionUseCase(repository, uploadFormatAdapterResolver, userProfileRepository, metricThresholdResolver, NullLogger<TcxSessionUseCase>.Instance),
-            uploadFormatAdapterResolver,
-            logger)
-    {
-    }
-
 
     [HttpPost("upload")]
     [EnableRateLimiting("upload")]
@@ -69,20 +51,19 @@ public class TcxController : ControllerBase
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid upload request", $"File is too large. Maximum supported size is {MaxFileSizeInBytes / (1024 * 1024)} MB.", ApiErrorCodes.ValidationError);
         }
 
-        var parseResult = await adapter.ParseAsync(await ReadAllAsync(file, cancellationToken), cancellationToken);
-        if (!parseResult.IsSuccess)
-        {
-            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unable to parse upload", parseResult.ErrorMessage ?? "The uploaded file could not be parsed.", ApiErrorCodes.UploadParseFailed);
-        }
-
         try
         {
             var created = await _tcxSessionUseCase.UploadTcxAsync(file, cancellationToken);
             return CreatedAtAction(nameof(GetUpload), new { id = created.Id }, ToResponse(created));
         }
+        catch (InvalidDataException ex)
+        {
+            _logger.LogInformation(ex, "Unable to parse upload {FileName}", file.FileName);
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unable to parse upload", ex.Message, ApiErrorCodes.UploadParseFailed);
+        }
         catch
         {
-            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status500InternalServerError, "Upload processing failed", "The upload could not be persisted.", ApiErrorCodes.UploadParseFailed);
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status500InternalServerError, "Upload processing failed", "The upload could not be persisted.", ApiErrorCodes.UploadStorageFailed);
         }
     }
 
@@ -187,7 +168,7 @@ public class TcxController : ControllerBase
             upload.Id,
             upload.FileName,
             upload.UploadedAtUtc,
-            _tcxSessionUseCase.CreateSummaryFromRawContent(upload.RawFileContent, upload.SelectedSmoothingFilter, upload.MetricThresholdSnapshotJson),
+            _tcxSessionUseCase.ResolveSummary(upload),
             new SessionContextResponseDto(upload.SessionType, upload.MatchResult, upload.Competition, upload.OpponentName, upload.OpponentLogoUrl),
             upload.SelectedSmoothingFilterSource,
             upload.SelectedSpeedUnitSource,
@@ -197,12 +178,4 @@ public class TcxController : ControllerBase
 
     private static string? NormalizeOptional(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static async Task<byte[]> ReadAllAsync(IFormFile file, CancellationToken cancellationToken)
-    {
-        await using var uploadStream = file.OpenReadStream();
-        using var memoryStream = new MemoryStream();
-        await uploadStream.CopyToAsync(memoryStream, cancellationToken);
-        return memoryStream.ToArray();
-    }
 }

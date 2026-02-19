@@ -20,8 +20,8 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson, SelectedSpeedUnit, SelectedSpeedUnitSource)
-            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter, $selectedSmoothingFilterSource, $sessionType, $matchResult, $competition, $opponentName, $opponentLogoUrl, $metricThresholdSnapshotJson, $appliedProfileSnapshotJson, $recalculationHistoryJson, $selectedSpeedUnit, $selectedSpeedUnitSource);
+            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson, SelectedSpeedUnit, SelectedSpeedUnitSource, SessionSummarySnapshotJson)
+            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter, $selectedSmoothingFilterSource, $sessionType, $matchResult, $competition, $opponentName, $opponentLogoUrl, $metricThresholdSnapshotJson, $appliedProfileSnapshotJson, $recalculationHistoryJson, $selectedSpeedUnit, $selectedSpeedUnitSource, $sessionSummarySnapshotJson);
         ";
         command.Parameters.AddWithValue("$id", upload.Id.ToString());
         command.Parameters.AddWithValue("$fileName", upload.FileName);
@@ -43,8 +43,66 @@ public class TcxUploadRepository : ITcxUploadRepository
         command.Parameters.AddWithValue("$recalculationHistoryJson", (object?)upload.RecalculationHistoryJson ?? DBNull.Value);
         command.Parameters.AddWithValue("$selectedSpeedUnit", upload.SelectedSpeedUnit);
         command.Parameters.AddWithValue("$selectedSpeedUnitSource", upload.SelectedSpeedUnitSource);
+        command.Parameters.AddWithValue("$sessionSummarySnapshotJson", (object?)upload.SessionSummarySnapshotJson ?? DBNull.Value);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
+        return upload;
+    }
+
+
+    public async Task<TcxUpload> AddWithAdaptiveStatsAsync(TcxUpload upload, double? maxSpeedMps, int? maxHeartRateBpm, DateTime calculatedAtUtc, CancellationToken cancellationToken = default)
+    {
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+
+        var insertUploadCommand = connection.CreateCommand();
+        insertUploadCommand.Transaction = transaction;
+        insertUploadCommand.CommandText = @"
+            INSERT INTO TcxUploads (Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson, SelectedSpeedUnit, SelectedSpeedUnitSource, SessionSummarySnapshotJson)
+            VALUES ($id, $fileName, $storedFilePath, $rawFileContent, $contentHashSha256, $uploadStatus, $failureReason, $uploadedAtUtc, $selectedSmoothingFilter, $selectedSmoothingFilterSource, $sessionType, $matchResult, $competition, $opponentName, $opponentLogoUrl, $metricThresholdSnapshotJson, $appliedProfileSnapshotJson, $recalculationHistoryJson, $selectedSpeedUnit, $selectedSpeedUnitSource, $sessionSummarySnapshotJson);
+        ";
+        insertUploadCommand.Parameters.AddWithValue("$id", upload.Id.ToString());
+        insertUploadCommand.Parameters.AddWithValue("$fileName", upload.FileName);
+        insertUploadCommand.Parameters.AddWithValue("$storedFilePath", upload.StoredFilePath);
+        insertUploadCommand.Parameters.AddWithValue("$rawFileContent", upload.RawFileContent);
+        insertUploadCommand.Parameters.AddWithValue("$contentHashSha256", upload.ContentHashSha256);
+        insertUploadCommand.Parameters.AddWithValue("$uploadStatus", upload.UploadStatus);
+        insertUploadCommand.Parameters.AddWithValue("$failureReason", (object?)upload.FailureReason ?? DBNull.Value);
+        insertUploadCommand.Parameters.AddWithValue("$uploadedAtUtc", upload.UploadedAtUtc.ToString("O"));
+        insertUploadCommand.Parameters.AddWithValue("$selectedSmoothingFilter", upload.SelectedSmoothingFilter);
+        insertUploadCommand.Parameters.AddWithValue("$selectedSmoothingFilterSource", upload.SelectedSmoothingFilterSource);
+        insertUploadCommand.Parameters.AddWithValue("$sessionType", upload.SessionType);
+        insertUploadCommand.Parameters.AddWithValue("$matchResult", (object?)upload.MatchResult ?? DBNull.Value);
+        insertUploadCommand.Parameters.AddWithValue("$competition", (object?)upload.Competition ?? DBNull.Value);
+        insertUploadCommand.Parameters.AddWithValue("$opponentName", (object?)upload.OpponentName ?? DBNull.Value);
+        insertUploadCommand.Parameters.AddWithValue("$opponentLogoUrl", (object?)upload.OpponentLogoUrl ?? DBNull.Value);
+        insertUploadCommand.Parameters.AddWithValue("$metricThresholdSnapshotJson", (object?)upload.MetricThresholdSnapshotJson ?? DBNull.Value);
+        insertUploadCommand.Parameters.AddWithValue("$appliedProfileSnapshotJson", (object?)upload.AppliedProfileSnapshotJson ?? DBNull.Value);
+        insertUploadCommand.Parameters.AddWithValue("$recalculationHistoryJson", (object?)upload.RecalculationHistoryJson ?? DBNull.Value);
+        insertUploadCommand.Parameters.AddWithValue("$selectedSpeedUnit", upload.SelectedSpeedUnit);
+        insertUploadCommand.Parameters.AddWithValue("$selectedSpeedUnitSource", upload.SelectedSpeedUnitSource);
+        insertUploadCommand.Parameters.AddWithValue("$sessionSummarySnapshotJson", (object?)upload.SessionSummarySnapshotJson ?? DBNull.Value);
+        await insertUploadCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        var upsertStatsCommand = connection.CreateCommand();
+        upsertStatsCommand.Transaction = transaction;
+        upsertStatsCommand.CommandText = @"
+            INSERT INTO TcxAdaptiveStats (UploadId, MaxSpeedMps, MaxHeartRateBpm, CalculatedAtUtc)
+            VALUES ($uploadId, $maxSpeedMps, $maxHeartRateBpm, $calculatedAtUtc)
+            ON CONFLICT(UploadId) DO UPDATE SET
+                MaxSpeedMps = excluded.MaxSpeedMps,
+                MaxHeartRateBpm = excluded.MaxHeartRateBpm,
+                CalculatedAtUtc = excluded.CalculatedAtUtc;
+        ";
+        upsertStatsCommand.Parameters.AddWithValue("$uploadId", upload.Id.ToString());
+        upsertStatsCommand.Parameters.AddWithValue("$maxSpeedMps", (object?)maxSpeedMps ?? DBNull.Value);
+        upsertStatsCommand.Parameters.AddWithValue("$maxHeartRateBpm", (object?)maxHeartRateBpm ?? DBNull.Value);
+        upsertStatsCommand.Parameters.AddWithValue("$calculatedAtUtc", calculatedAtUtc.ToString("O"));
+        await upsertStatsCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
         return upload;
     }
 
@@ -55,7 +113,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson, SelectedSpeedUnit, SelectedSpeedUnitSource
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson, SelectedSpeedUnit, SelectedSpeedUnitSource, SessionSummarySnapshotJson
             FROM TcxUploads
             ORDER BY UploadedAtUtc DESC;
         ";
@@ -78,7 +136,7 @@ public class TcxUploadRepository : ITcxUploadRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson, SelectedSpeedUnit, SelectedSpeedUnitSource
+            SELECT Id, FileName, StoredFilePath, RawFileContent, ContentHashSha256, UploadStatus, FailureReason, UploadedAtUtc, SelectedSmoothingFilter, SelectedSmoothingFilterSource, SessionType, MatchResult, Competition, OpponentName, OpponentLogoUrl, MetricThresholdSnapshotJson, AppliedProfileSnapshotJson, RecalculationHistoryJson, SelectedSpeedUnit, SelectedSpeedUnitSource, SessionSummarySnapshotJson
             FROM TcxUploads
             WHERE Id = $id;
         ";
@@ -115,7 +173,8 @@ public class TcxUploadRepository : ITcxUploadRepository
             AppliedProfileSnapshotJson = reader.IsDBNull(16) ? null : reader.GetString(16),
             RecalculationHistoryJson = reader.IsDBNull(17) ? null : reader.GetString(17),
             SelectedSpeedUnit = reader.IsDBNull(18) ? SpeedUnits.KilometersPerHour : reader.GetString(18),
-            SelectedSpeedUnitSource = reader.IsDBNull(19) ? TcxSpeedUnitSources.ProfileDefault : reader.GetString(19)
+            SelectedSpeedUnitSource = reader.IsDBNull(19) ? TcxSpeedUnitSources.ProfileDefault : reader.GetString(19),
+            SessionSummarySnapshotJson = reader.IsDBNull(20) ? null : reader.GetString(20)
         };
 
     public async Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
@@ -230,6 +289,7 @@ public class TcxUploadRepository : ITcxUploadRepository
         string? metricThresholdSnapshotJson,
         string? appliedProfileSnapshotJson,
         string? recalculationHistoryJson,
+        string? sessionSummarySnapshotJson,
         CancellationToken cancellationToken = default)
     {
         await using var connection = _connectionFactory.CreateConnection();
@@ -247,7 +307,8 @@ public class TcxUploadRepository : ITcxUploadRepository
                 SelectedSpeedUnitSource = COALESCE($selectedSpeedUnitSource, SelectedSpeedUnitSource),
                 MetricThresholdSnapshotJson = COALESCE($metricThresholdSnapshotJson, MetricThresholdSnapshotJson),
                 AppliedProfileSnapshotJson = COALESCE($appliedProfileSnapshotJson, AppliedProfileSnapshotJson),
-                RecalculationHistoryJson = COALESCE($recalculationHistoryJson, RecalculationHistoryJson)
+                RecalculationHistoryJson = COALESCE($recalculationHistoryJson, RecalculationHistoryJson),
+                SessionSummarySnapshotJson = COALESCE($sessionSummarySnapshotJson, SessionSummarySnapshotJson)
             WHERE Id = $id;
         ";
         command.Parameters.AddWithValue("$id", id.ToString());
@@ -258,6 +319,7 @@ public class TcxUploadRepository : ITcxUploadRepository
         command.Parameters.AddWithValue("$metricThresholdSnapshotJson", (object?)metricThresholdSnapshotJson ?? DBNull.Value);
         command.Parameters.AddWithValue("$appliedProfileSnapshotJson", (object?)appliedProfileSnapshotJson ?? DBNull.Value);
         command.Parameters.AddWithValue("$recalculationHistoryJson", (object?)recalculationHistoryJson ?? DBNull.Value);
+        command.Parameters.AddWithValue("$sessionSummarySnapshotJson", (object?)sessionSummarySnapshotJson ?? DBNull.Value);
 
         var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
         if (affectedRows <= 0)

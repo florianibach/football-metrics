@@ -12,6 +12,7 @@ public interface ITcxSessionUseCase
     Task<TcxUpload?> UpdateSessionSpeedUnitAsync(Guid id, string speedUnit, CancellationToken cancellationToken);
     Task<TcxUpload?> RecalculateWithCurrentProfileAsync(Guid id, CancellationToken cancellationToken);
     TcxActivitySummary CreateSummaryFromRawContent(byte[] rawFileContent, string selectedSmoothingFilter, string? metricThresholdSnapshotJson);
+    TcxActivitySummary ResolveSummary(TcxUpload upload);
     AppliedProfileSnapshot ResolveAppliedProfileSnapshot(TcxUpload upload);
     IReadOnlyList<SessionRecalculationEntry> ResolveRecalculationHistory(TcxUpload upload);
 }
