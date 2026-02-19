@@ -1,5 +1,15 @@
 # Football Metrics
 
+## ⚠️ Disclaimer
+
+This application is currently in an early stage of development.
+Functionality may be incomplete and is subject to change at any time.
+No guarantees are made regarding stability, security, or production readiness.
+
+![Status](https://img.shields.io/badge/status-in%20development-orange)
+
+
+
 Initiales Monorepo-Setup für eine lokal hostbare WebApp zur Analyse von Amateur-Fußballmetriken auf Basis von Laufuhrdaten (Start mit TCX-Upload).
 
 ## Architektur
