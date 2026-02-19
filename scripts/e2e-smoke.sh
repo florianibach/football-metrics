@@ -27,7 +27,7 @@ trap cleanup EXIT
 
 wait_for_api() {
   for i in {1..40}; do
-    if curl -fsS "$API_URL/api/tcx" >/dev/null 2>&1; then
+    if curl -fsS "$API_URL/api/v1/tcx" >/dev/null 2>&1; then
       return 0
     fi
     sleep 2
@@ -112,7 +112,7 @@ cat > /tmp/sample.tcx <<'TCX'
 </TrainingCenterDatabase>
 TCX
 
-upload_response="$(curl -fsS -X POST "$API_URL/api/tcx/upload" \
+upload_response="$(curl -fsS -X POST "$API_URL/api/v1/tcx/upload" \
   -F "file=@/tmp/sample.tcx;type=application/xml")"
 
 echo "$upload_response" | jq -e '.summary.qualityStatus == "Medium" and (.summary.qualityReasons | length) > 0' >/dev/null
@@ -152,6 +152,6 @@ echo "$upload_response" | jq -e '
   and ((.summary.coreMetrics.thresholds.AccelerationThresholdMps2 | tonumber) == 2)
   and ((.summary.coreMetrics.thresholds.DecelerationThresholdMps2 | tonumber) == -2)
 ' >/dev/null
-curl -fsS "$API_URL/api/tcx" | jq 'length >= 1' | grep true
+curl -fsS "$API_URL/api/v1/tcx" | jq 'length >= 1' | grep true
 
 echo "E2E smoke test passed"
