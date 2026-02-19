@@ -2062,7 +2062,12 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'GPS point heatmap' })).toBeInTheDocument();
+    const heatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
+    expect(heatmap).toBeInTheDocument();
+
+    const satelliteImage = heatmap.querySelector('image');
+    expect(satelliteImage).not.toBeNull();
+    expect(satelliteImage?.getAttribute('href')).toContain('World_Imagery/MapServer/export');
   });
 
   it('R1_6_13_Ac03_hides_heatmap_and_shows_gps_missing_hint_for_hf_only_sessions', async () => {

@@ -2815,10 +2815,21 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const latitudeRange = Math.max(maxLatitude - minLatitude, 0.000001);
   const longitudeRange = Math.max(maxLongitude - minLongitude, 0.000001);
+  const latitudePadding = Math.max(latitudeRange * 0.15, 0.00025);
+  const longitudePadding = Math.max(longitudeRange * 0.15, 0.00025);
+
+  const bboxMinLatitude = minLatitude - latitudePadding;
+  const bboxMaxLatitude = maxLatitude + latitudePadding;
+  const bboxMinLongitude = minLongitude - longitudePadding;
+  const bboxMaxLongitude = maxLongitude + longitudePadding;
+
+  const satelliteImageUrl = `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bboxMinLongitude},${bboxMinLatitude},${bboxMaxLongitude},${bboxMaxLatitude}&bboxSR=4326&imageSR=4326&size=${width},${height}&format=jpg&f=image`;
 
   return (
     <svg className="gps-heatmap" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap">
       <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__background" />
+      <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
+      <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
       {points.map((point, index) => {
         const x = ((point.longitude - minLongitude) / longitudeRange) * (width - 24) + 12;
         const y = height - ((((point.latitude - minLatitude) / latitudeRange) * (height - 24)) + 12);
