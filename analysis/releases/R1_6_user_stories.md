@@ -28,10 +28,10 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 **damit** die App auch ohne GPS-Hardware einen praktischen Mehrwert liefert.
 
 ### Acceptance Criteria
-- [ ] Für HF-only-Sessions werden mindestens angezeigt: ØHF, MaxHF, Zeit in HF-Zonen, Zeit >85% HFmax, TRIMP, TRIMP/min.
-- [ ] Die Session-Ansicht enthält eine kurze Interpretationshilfe für HF-only-Ergebnisse.
-- [ ] Nicht verfügbare GPS-Metriken erscheinen nicht als Nullwerte.
-- [ ] HF-only-Sessions sind in Vergleichen mit korrekter Kennzeichnung nutzbar.
+- [x] Für HF-only-Sessions werden mindestens angezeigt: ØHF, MaxHF, Zeit in HF-Zonen, Zeit >85% HFmax, TRIMP, TRIMP/min.
+- [x] Die Session-Ansicht enthält eine kurze Interpretationshilfe für HF-only-Ergebnisse.
+- [x] Nicht verfügbare GPS-Metriken erscheinen nicht als Nullwerte.
+- [x] HF-only-Sessions sind in Vergleichen mit korrekter Kennzeichnung nutzbar.
 
 ---
 
