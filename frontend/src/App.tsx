@@ -343,7 +343,12 @@ type TranslationKey =
   | 'filterSourceProfileRecalculation';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
-const apiBaseUrl = configuredApiBaseUrl.endsWith('/api/v1') ? configuredApiBaseUrl : `${configuredApiBaseUrl}/api/v1`;
+const normalizedApiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, '');
+const apiBaseUrl = normalizedApiBaseUrl.endsWith('/api/v1')
+  ? normalizedApiBaseUrl
+  : normalizedApiBaseUrl.endsWith('/api')
+    ? `${normalizedApiBaseUrl}/v1`
+    : `${normalizedApiBaseUrl}/api/v1`;
 const maxFileSizeInBytes = 20 * 1024 * 1024;
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {

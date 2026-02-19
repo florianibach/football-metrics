@@ -38,7 +38,7 @@ docker compose up --build
 ## API Endpoints (initial)
 
 
-Für Frontend-Config gilt: `VITE_API_BASE_URL` sollte auf den API-Pfad inkl. `/api` zeigen (z. B. `/api` oder `http://localhost:8080/api`).
+Für Frontend-Config gilt: `VITE_API_BASE_URL` kann auf `/api` **oder** direkt `/api/v1` zeigen (z. B. `/api`, `/api/v1`, `http://localhost:8080/api` oder `http://localhost:8080/api/v1`).
 Hinweis: Das Frontend-Nginx proxyt `/api/*` an das Backend und erlaubt Uploads bis 25 MB (`client_max_body_size`), damit der 20 MB TCX-API-Limit korrekt erreicht werden kann.
 
 - `POST /api/v1/tcx/upload` – nimmt eine `.tcx` Datei (max. 20 MB) entgegen, validiert Struktur (XML, Activity, Trackpoint), speichert die Rohdatei unverändert als BLOB inkl. SHA-256-Hash in SQLite und gibt konkrete Fehlerhinweise bei ungültigen Dateien bzw. Speicherfehlern zurück. Zusätzlich enthält die Antwort eine Basiszusammenfassung (Startzeit, Dauer, Trackpunkte, Herzfrequenz min/avg/max, Distanz, GPS-Status). Die Distanz wird bei GPS-Punkten über eine fußballspezifische adaptive Glättung auf GPS-Basis berechnet (Kurzrichtungswechsel werden bevorzugt erhalten, unplausible Ausreißer geglättet); Datei-Distanz bleibt als Referenz erhalten. Die verwendete Glättungsstrategie inkl. Parametern wird im Feld `summary.smoothing` zurückgegeben.
