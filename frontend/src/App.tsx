@@ -416,6 +416,9 @@ type TranslationKey =
   | 'segmentDeleteSuccess'
   | 'segmentMergeSuccess'
   | 'segmentErrorPrefix'
+  | 'segmentValidationRequired'
+  | 'segmentValidationRange'
+  | 'segmentValidationMergeSelection'
   | 'sessionRecalculateButton'
   | 'sessionRecalculateSuccess'
   | 'sessionRecalculateProfileInfo'
@@ -681,7 +684,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentUpdateSuccess: 'Segment updated.',
     segmentDeleteSuccess: 'Segment deleted.',
     segmentMergeSuccess: 'Segments merged.',
-    segmentErrorPrefix: 'Segment action failed:'
+    segmentErrorPrefix: 'Segment action failed:',
+    segmentValidationRequired: 'Please enter label, start and end for the segment.',
+    segmentValidationRange: 'End must be greater than start and both values must be non-negative.',
+    segmentValidationMergeSelection: 'Please select both source and target segments for merge.'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -925,7 +931,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentUpdateSuccess: 'Segment aktualisiert.',
     segmentDeleteSuccess: 'Segment gelöscht.',
     segmentMergeSuccess: 'Segmente zusammengeführt.',
-    segmentErrorPrefix: 'Segment-Aktion fehlgeschlagen:'
+    segmentErrorPrefix: 'Segment-Aktion fehlgeschlagen:',
+    segmentValidationRequired: 'Bitte Label, Start und Ende für das Segment eingeben.',
+    segmentValidationRange: 'Ende muss größer als Start sein und beide Werte müssen >= 0 sein.',
+    segmentValidationMergeSelection: 'Bitte Quell- und Zielsegment für den Merge auswählen.'
   }
 };
 
@@ -1366,6 +1375,7 @@ export function App() {
   const [segmentForm, setSegmentForm] = useState({ label: '', startSecond: '0', endSecond: '300', reason: '' });
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const [mergeForm, setMergeForm] = useState({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
+  const [segmentActionError, setSegmentActionError] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState<UserProfile>({
     primaryPosition: 'CentralMidfielder',
     secondaryPosition: null,
@@ -1523,6 +1533,22 @@ export function App() {
     setSegmentForm({ label: '', startSecond: '0', endSecond: '300', reason: '' });
     setEditingSegmentId(null);
     setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
+    setSegmentActionError(null);
+  }
+
+
+  async function extractApiError(response: Response): Promise<string>
+  {
+    try
+    {
+      const payload = await response.json() as { detail?: string; title?: string };
+      return payload.detail ?? payload.title ?? response.statusText;
+    }
+    catch
+    {
+      const text = await response.text();
+      return text || response.statusText;
+    }
   }
 
   async function onFilterChange(event: ChangeEvent<HTMLSelectElement>) {
@@ -1611,7 +1637,21 @@ export function App() {
 
 
   async function onSaveSegment() {
-    if (!selectedSession || !segmentForm.label.trim()) {
+    if (!selectedSession) {
+      return;
+    }
+
+    setSegmentActionError(null);
+
+    if (!segmentForm.label.trim() || segmentForm.startSecond.trim() === '' || segmentForm.endSecond.trim() === '') {
+      setSegmentActionError(t.segmentValidationRequired);
+      return;
+    }
+
+    const startSecond = Number(segmentForm.startSecond);
+    const endSecond = Number(segmentForm.endSecond);
+    if (Number.isNaN(startSecond) || Number.isNaN(endSecond) || startSecond < 0 || endSecond <= startSecond) {
+      setSegmentActionError(t.segmentValidationRange);
       return;
     }
 
@@ -1622,14 +1662,14 @@ export function App() {
     const body = editingSegmentId
       ? {
         label: segmentForm.label.trim(),
-        startSecond: Number(segmentForm.startSecond),
-        endSecond: Number(segmentForm.endSecond),
+        startSecond,
+        endSecond,
         reason: segmentForm.reason.trim() || null
       }
       : {
         label: segmentForm.label.trim(),
-        startSecond: Number(segmentForm.startSecond),
-        endSecond: Number(segmentForm.endSecond),
+        startSecond,
+        endSecond,
         reason: segmentForm.reason.trim() || null
       };
 
@@ -1640,13 +1680,16 @@ export function App() {
     });
 
     if (!response.ok) {
-      setMessage(`${t.segmentErrorPrefix} ${await response.text()}`);
+      const detail = await extractApiError(response);
+      setSegmentActionError(`${t.segmentErrorPrefix} ${detail}`);
+      setMessage(`${t.segmentErrorPrefix} ${detail}`);
       return;
     }
 
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
     resetSegmentForms();
+    setSegmentActionError(null);
     setMessage(editingSegmentId ? t.segmentUpdateSuccess : t.segmentCreateSuccess);
   }
 
@@ -1671,17 +1714,27 @@ export function App() {
     });
 
     if (!response.ok) {
-      setMessage(`${t.segmentErrorPrefix} ${await response.text()}`);
+      const detail = await extractApiError(response);
+      setSegmentActionError(`${t.segmentErrorPrefix} ${detail}`);
+      setMessage(`${t.segmentErrorPrefix} ${detail}`);
       return;
     }
 
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
+    setSegmentActionError(null);
     setMessage(t.segmentDeleteSuccess);
   }
 
   async function onMergeSegments() {
-    if (!selectedSession || !mergeForm.sourceSegmentId || !mergeForm.targetSegmentId) {
+    if (!selectedSession) {
+      return;
+    }
+
+    setSegmentActionError(null);
+
+    if (!mergeForm.sourceSegmentId || !mergeForm.targetSegmentId) {
+      setSegmentActionError(t.segmentValidationMergeSelection);
       return;
     }
 
@@ -1697,12 +1750,15 @@ export function App() {
     });
 
     if (!response.ok) {
-      setMessage(`${t.segmentErrorPrefix} ${await response.text()}`);
+      const detail = await extractApiError(response);
+      setSegmentActionError(`${t.segmentErrorPrefix} ${detail}`);
+      setMessage(`${t.segmentErrorPrefix} ${detail}`);
       return;
     }
 
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
+    setSegmentActionError(null);
     setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
     setMessage(t.segmentMergeSuccess);
   }
@@ -2403,6 +2459,7 @@ export function App() {
           </div>
           <div className="segment-management">
             <h3>{t.segmentsTitle}</h3>
+            {segmentActionError && <p className="segment-error" role="alert">{segmentActionError}</p>}
             {selectedSession.segments.length === 0 ? (
               <p>{t.segmentsEmpty}</p>
             ) : (

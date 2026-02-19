@@ -1989,4 +1989,55 @@ describe('App', () => {
     const segmentCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/segments'));
     expect(segmentCalls.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('R1_6_03_Ac03_ui_shows_backend_validation_errors_for_overlap_and_merge', async () => {
+    const initial = createUploadRecord({
+      id: 'upload-segment-errors',
+      segments: [{ id: 'seg-a', label: 'A', startSecond: 0, endSecond: 200 }, { id: 'seg-b', label: 'B', startSecond: 400, endSecond: 600 }],
+      segmentChangeHistory: []
+    });
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [initial] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      if (url.includes('/segments') && init?.method === 'POST' && !url.endsWith('/merge')) {
+        return Promise.resolve({ ok: false, json: async () => ({ detail: 'Segments must not overlap.' }) } as Response);
+      }
+
+      if (url.endsWith('/segments/merge') && init?.method === 'POST') {
+        return Promise.resolve({ ok: false, json: async () => ({ detail: 'Only adjacent segments can be merged.' }) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => initial } as Response);
+    });
+
+    render(<App />);
+    await screen.findByText('Upload history');
+    fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
+    await screen.findByText('Session segments');
+
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Overlap' } });
+    fireEvent.change(screen.getByLabelText('Start (s)'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('End (s)'), { target: { value: '250' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add segment' }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Segments must not overlap.'));
+
+    fireEvent.change(screen.getByLabelText('Source segment'), { target: { value: 'seg-a' } });
+    fireEvent.change(screen.getByLabelText('Target segment'), { target: { value: 'seg-b' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Only adjacent segments can be merged.'));
+
+    const errorCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/segments'));
+    expect(errorCalls.length).toBeGreaterThanOrEqual(2);
+  });
 });
