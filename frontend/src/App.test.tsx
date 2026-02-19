@@ -1764,6 +1764,81 @@ describe('App', () => {
 
   });
 
+
+  it('R1_6_02_Ac01_Ac02_Ac03_Ac04_supports_hf_only_insights_without_gps_zero_values_and_with_comparison_label', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              id: 'upload-hf-1',
+              fileName: 'hf-only-1.tcx',
+              summary: createSummary({
+                hasGpsData: false,
+                distanceMeters: null,
+                fileDistanceMeters: null,
+                distanceSource: 'NotAvailable',
+                dataAvailability: {
+                  mode: 'HeartRateOnly',
+                  gpsStatus: 'NotMeasured',
+                  gpsReason: 'GPS not present in this session.',
+                  heartRateStatus: 'Available',
+                  heartRateReason: null
+                },
+                coreMetrics: {
+                  ...baseCoreMetrics(),
+                  distanceMeters: null,
+                  sprintDistanceMeters: null,
+                  sprintCount: null,
+                  maxSpeedMetersPerSecond: null,
+                  highIntensityTimeSeconds: null,
+                  highIntensityRunCount: null,
+                  highSpeedDistanceMeters: null,
+                  runningDensityMetersPerMinute: null,
+                  accelerationCount: null,
+                  decelerationCount: null,
+                  trainingImpulseEdwards: 75,
+                  metricAvailability: {
+                    ...baseCoreMetrics().metricAvailability,
+                    distanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
+                    sprintDistanceMeters: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' },
+                    sprintCount: { state: 'NotMeasured', reason: 'GPS coordinates were not recorded for this session.' }
+                  }
+                }
+              })
+            }),
+            createUploadRecord({ id: 'upload-dual-2', fileName: 'dual-2.tcx' })
+          ]
+        } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Language'), { target: { value: 'en' } });
+
+    expect((await screen.findAllByText('Heart-rate only')).length).toBeGreaterThan(0);
+
+    fireEvent.click((await screen.findAllByRole('button', { name: /Details|Open details/ }))[0]);
+
+    expect(await screen.findByText(/HF-only interpretation aid/)).toBeInTheDocument();
+    expect(screen.getByText(/TRIMP\/min/)).toBeInTheDocument();
+    expect(screen.getAllByText(/GPS coordinates were not recorded for this session\./).length).toBeGreaterThan(0);
+
+    const compareCheckboxes = await screen.findAllByRole('checkbox');
+    fireEvent.click(compareCheckboxes[0]);
+    fireEvent.click(compareCheckboxes[1]);
+
+    expect(await screen.findByText('Data mode')).toBeInTheDocument();
+    expect(screen.getByText('Heart-rate only')).toBeInTheDocument();
+    expect(screen.getAllByText('Dual (GPS + heart rate)').length).toBeGreaterThan(0);
+  });
+
   it('R1_6_01_Ac02_shows_data_mode_in_session_history_and_detail', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);

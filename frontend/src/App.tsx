@@ -157,8 +157,8 @@ type UploadRecord = {
 type CompareMetricDefinition = {
   key: string;
   label: string;
-  getter: (record: UploadRecord) => number | null;
-  formatter: (value: number | null, locale: Locale, notAvailable: string) => string;
+  getter: (record: UploadRecord) => number | string | null;
+  formatter: (value: number | string | null, locale: Locale, notAvailable: string) => string;
 };
 
 type SessionComparisonCell = {
@@ -286,11 +286,14 @@ type TranslationKey =
   | 'sessionCompareMetricSprintCount'
   | 'sessionCompareMetricHighIntensityTime'
   | 'sessionCompareMetricTrainingLoad'
+  | 'sessionCompareMetricDataMode'
   | 'sessionCompareBaselineLabel'
   | 'sessionCompareBaselineHint'
   | 'detailMissingHeartRateHint'
   | 'detailMissingDistanceHint'
   | 'detailMissingGpsHint'
+  | 'hfOnlyInsightTitle'
+  | 'hfOnlyInsightInterpretation'
   | 'coreMetricsTitle'
   | 'coreMetricsUnavailable'
   | 'metricStateNotMeasured'
@@ -309,6 +312,7 @@ type TranslationKey =
   | 'metricHrZoneMedium'
   | 'metricHrZoneHigh'
   | 'metricTrimpEdwards'
+  | 'metricTrimpPerMinute'
   | 'metricHrRecovery60'
   | 'intervalAggregationTitle'
   | 'intervalAggregationWindowLabel'
@@ -509,11 +513,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionCompareMetricSprintCount: 'Sprint count',
     sessionCompareMetricHighIntensityTime: 'High-intensity time',
     sessionCompareMetricTrainingLoad: 'TRIMP (Edwards)',
+    sessionCompareMetricDataMode: 'Data mode',
     sessionCompareBaselineLabel: 'Baseline session',
     sessionCompareBaselineHint: 'Choose the baseline that all deltas should reference.',
     detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
     detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
     detailMissingGpsHint: 'No GPS coordinates were detected in this file.',
+    hfOnlyInsightTitle: 'HF-only interpretation aid',
+    hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics (v1)',
     coreMetricsUnavailable: 'Core metrics unavailable: {reason}',
     metricStateNotMeasured: 'Not measured',
@@ -532,6 +539,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHrZoneMedium: 'HR zone 70-85%',
     metricHrZoneHigh: 'HR zone >85%',
     metricTrimpEdwards: 'TRIMP (Edwards)',
+    metricTrimpPerMinute: 'TRIMP/min',
     metricHrRecovery60: 'HR recovery after 60s',
     intervalAggregationTitle: 'Interval aggregation (1 / 2 / 5 minutes)',
     intervalAggregationWindowLabel: 'Aggregation window',
@@ -727,11 +735,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionCompareMetricSprintCount: 'Sprintanzahl',
     sessionCompareMetricHighIntensityTime: 'Hochintensive Zeit',
     sessionCompareMetricTrainingLoad: 'TRIMP (Edwards)',
+    sessionCompareMetricDataMode: 'Datenmodus',
     sessionCompareBaselineLabel: 'Basis-Session',
     sessionCompareBaselineHint: 'Wähle die Basis, auf die sich alle Deltas beziehen sollen.',
     detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
     detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
     detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.',
+    hfOnlyInsightTitle: 'Interpretationshilfe für HF-only',
+    hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken (v1)',
     coreMetricsUnavailable: 'Kernmetriken nicht verfügbar: {reason}',
     metricStateNotMeasured: 'Nicht gemessen',
@@ -750,6 +761,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHrZoneMedium: 'HF-Zone 70-85%',
     metricHrZoneHigh: 'HF-Zone >85%',
     metricTrimpEdwards: 'TRIMP (Edwards)',
+    metricTrimpPerMinute: 'TRIMP/min',
     metricHrRecovery60: 'HF-Erholung nach 60s',
     intervalAggregationTitle: 'Intervall-Aggregation (1 / 2 / 5 Minuten)',
     intervalAggregationWindowLabel: 'Aggregationsfenster',
@@ -1175,6 +1187,15 @@ function availabilityText(status: DataAvailability['gpsStatus'], t: Record<Trans
     default:
       return t.availabilityNotUsable;
   }
+}
+
+function trimpPerMinute(summary: ActivitySummary): number | null {
+  const trimp = summary.coreMetrics.trainingImpulseEdwards;
+  if (trimp === null || summary.durationSeconds <= 0) {
+    return null;
+  }
+
+  return trimp / (summary.durationSeconds / 60);
 }
 
 function dataAvailabilitySummaryText(summary: ActivitySummary, t: Record<TranslationKey, string>): string {
@@ -1707,50 +1728,56 @@ export function App() {
       key: 'distance',
       label: t.sessionCompareMetricDistance,
       getter: (record) => record.summary.coreMetrics.distanceMeters,
-      formatter: (value, currentLocale, notAvailable) => formatDistanceComparison(value, currentLocale, notAvailable)
+      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatDistanceComparison(value, currentLocale, notAvailable) : notAvailable
     },
     {
       key: 'duration',
       label: t.sessionCompareMetricDuration,
       getter: (record) => record.summary.durationSeconds,
-      formatter: (value, currentLocale, notAvailable) => formatDuration(value, currentLocale, notAvailable)
+      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatDuration(value, currentLocale, notAvailable) : notAvailable
     },
     {
       key: 'heartRateAverage',
       label: t.sessionCompareMetricHeartRateAverage,
       getter: (record) => record.summary.heartRateAverageBpm,
-      formatter: (value, currentLocale, notAvailable) => formatHeartRateAverage(value, currentLocale, notAvailable)
+      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatHeartRateAverage(value, currentLocale, notAvailable) : notAvailable
     },
     {
       key: 'directionChanges',
       label: t.sessionCompareMetricDirectionChanges,
       getter: (record) => record.summary.smoothing.smoothedDirectionChanges,
-      formatter: (value, currentLocale, notAvailable) => formatNumber(value, currentLocale, notAvailable, 0)
+      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatNumber(value, currentLocale, notAvailable, 0) : notAvailable
     },
     {
       key: 'sprintDistance',
       label: t.sessionCompareMetricSprintDistance,
       getter: (record) => record.summary.coreMetrics.sprintDistanceMeters,
-      formatter: (value, currentLocale, notAvailable) => formatDistanceComparison(value, currentLocale, notAvailable)
+      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatDistanceComparison(value, currentLocale, notAvailable) : notAvailable
     },
     {
       key: 'sprintCount',
       label: t.sessionCompareMetricSprintCount,
       getter: (record) => record.summary.coreMetrics.sprintCount,
-      formatter: (value, currentLocale, notAvailable) => formatNumber(value, currentLocale, notAvailable, 0)
+      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatNumber(value, currentLocale, notAvailable, 0) : notAvailable
     },
     {
       key: 'highIntensityTime',
       label: t.sessionCompareMetricHighIntensityTime,
       getter: (record) => record.summary.coreMetrics.highIntensityTimeSeconds,
-      formatter: (value, currentLocale, notAvailable) => formatDuration(value, currentLocale, notAvailable)
+      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatDuration(value, currentLocale, notAvailable) : notAvailable
     },
     {
       key: 'trainingLoad',
       label: t.sessionCompareMetricTrainingLoad,
       getter: (record) => record.summary.coreMetrics.trainingImpulseEdwards,
-      formatter: (value, currentLocale, notAvailable) => formatNumber(value, currentLocale, notAvailable, 1)
-    }
+      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatNumber(value, currentLocale, notAvailable, 1) : notAvailable
+    },
+    {
+      key: 'dataMode',
+      label: t.sessionCompareMetricDataMode,
+      getter: (record) => resolveDataAvailability(record.summary).mode,
+      formatter: (value) => typeof value === 'string' ? dataModeText(value as DataAvailability['mode'], t) : t.notAvailable
+    },
   ];
 
   const comparisonRows = compareMetrics.map((metric) => {
@@ -1761,7 +1788,7 @@ export function App() {
       let deltaText = t.notAvailable;
       let deltaPercentText = t.notAvailable;
 
-      if (baselineValue !== null && value !== null) {
+      if (typeof baselineValue === 'number' && typeof value === 'number') {
         const delta = value - baselineValue;
         deltaText = formatSignedNumber(delta, locale, 1);
 
@@ -2279,6 +2306,7 @@ export function App() {
                   <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
                   <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
                   <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.trimpEdwards} />
+                  <MetricListItem label={t.metricTrimpPerMinute} value={formatNumber(trimpPerMinute(selectedSession.summary), locale, t.notAvailable, 2)} helpText={metricHelp.trimpEdwards} />
                   <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrRecovery60} />
                 </ul>
               </div>
@@ -2343,6 +2371,12 @@ export function App() {
               </table>
             )}
           </div>
+
+          {resolveDataAvailability(selectedSession.summary).mode === 'HeartRateOnly' && (
+            <div className="detail-hints" role="note" aria-label={t.hfOnlyInsightTitle}>
+              <p><strong>{t.hfOnlyInsightTitle}:</strong> {t.hfOnlyInsightInterpretation}</p>
+            </div>
+          )}
 
           {(showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
             <div className="detail-hints" role="status">
