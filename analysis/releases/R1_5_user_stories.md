@@ -196,7 +196,7 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 **damit** neue Session-Analysen direkt mit meiner bevorzugten Ansicht starten.
 
 ### Acceptance Criteria
-- [ ] Das Profil bietet die Auswahl des Standard-Zeitfensters zwischen 1, 2 und 5 Minuten.
-- [ ] Der voreingestellte Standardwert für neue Nutzerprofile ist 5 Minuten.
-- [ ] Neue Session-Analysen übernehmen das im Profil hinterlegte Zeitfenster automatisch.
-- [ ] Das Zeitfenster kann in der Session-Ansicht weiterhin manuell geändert werden, ohne den Profil-Default automatisch zu überschreiben.
+- [x] Das Profil bietet die Auswahl des Standard-Zeitfensters zwischen 1, 2 und 5 Minuten.
+- [x] Der voreingestellte Standardwert für neue Nutzerprofile ist 5 Minuten.
+- [x] Neue Session-Analysen übernehmen das im Profil hinterlegte Zeitfenster automatisch.
+- [x] Das Zeitfenster kann in der Session-Ansicht weiterhin manuell geändert werden, ohne den Profil-Default automatisch zu überschreiben.

@@ -21,7 +21,7 @@ public class ProfileController : ControllerBase
     public async Task<ActionResult<UserProfileResponseDto>> GetProfile(CancellationToken cancellationToken)
     {
         var profile = await _profileUseCase.GetProfileAsync(cancellationToken);
-        return Ok(new UserProfileResponseDto(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit));
+        return Ok(new UserProfileResponseDto(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes));
     }
 
     [HttpPut]
@@ -73,10 +73,16 @@ public class ProfileController : ControllerBase
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid threshold configuration", validationError, ApiErrorCodes.ValidationError);
         }
 
+        var normalizedPreferredAggregationWindowMinutes = ProfileUseCase.NormalizePreferredAggregationWindowMinutes(request.PreferredAggregationWindowMinutes, existingProfile.PreferredAggregationWindowMinutes);
+        if (normalizedPreferredAggregationWindowMinutes is null)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported aggregation window", $"Unsupported preferred aggregation window. Supported values: {string.Join(", ", AggregationWindows.Supported)}.", ApiErrorCodes.ValidationError);
+        }
+
         var profile = await _profileUseCase.UpdateProfileAsync(
-            new UpdateUserProfileRequest(request.PrimaryPosition, request.SecondaryPosition, request.MetricThresholds, request.DefaultSmoothingFilter, request.PreferredSpeedUnit),
+            new UpdateUserProfileRequest(request.PrimaryPosition, request.SecondaryPosition, request.MetricThresholds, request.DefaultSmoothingFilter, request.PreferredSpeedUnit, request.PreferredAggregationWindowMinutes),
             cancellationToken);
 
-        return Ok(new UserProfileResponseDto(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit));
+        return Ok(new UserProfileResponseDto(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes));
     }
 }

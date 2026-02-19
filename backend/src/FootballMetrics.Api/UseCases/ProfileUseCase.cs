@@ -34,6 +34,7 @@ public class ProfileUseCase : IProfileUseCase
         var existingProfile = await _repository.GetAsync(cancellationToken);
         var normalizedDefaultSmoothingFilter = NormalizeDefaultSmoothingFilter(request.DefaultSmoothingFilter, existingProfile.DefaultSmoothingFilter)!;
         var normalizedPreferredSpeedUnit = NormalizePreferredSpeedUnit(request.PreferredSpeedUnit, existingProfile.PreferredSpeedUnit)!;
+        var normalizedPreferredAggregationWindowMinutes = NormalizePreferredAggregationWindowMinutes(request.PreferredAggregationWindowMinutes, existingProfile.PreferredAggregationWindowMinutes) ?? existingProfile.PreferredAggregationWindowMinutes;
 
         var submittedThresholds = request.MetricThresholds ?? existingProfile.MetricThresholds;
         submittedThresholds.MaxSpeedMode = NormalizeThresholdMode(submittedThresholds.MaxSpeedMode);
@@ -72,7 +73,8 @@ public class ProfileUseCase : IProfileUseCase
                 SecondaryPosition = secondaryPosition,
                 MetricThresholds = normalizedThresholds,
                 DefaultSmoothingFilter = normalizedDefaultSmoothingFilter,
-                PreferredSpeedUnit = normalizedPreferredSpeedUnit
+                PreferredSpeedUnit = normalizedPreferredSpeedUnit,
+                PreferredAggregationWindowMinutes = normalizedPreferredAggregationWindowMinutes
             },
             cancellationToken);
 
@@ -111,6 +113,18 @@ public class ProfileUseCase : IProfileUseCase
 
     public static string? NormalizeOptional(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    public static int? NormalizePreferredAggregationWindowMinutes(int? requestedWindow, int fallbackWindow)
+    {
+        if (!requestedWindow.HasValue)
+        {
+            return fallbackWindow;
+        }
+
+        return AggregationWindows.Supported.Contains(requestedWindow.Value)
+            ? requestedWindow.Value
+            : null;
+    }
 
     public static string NormalizeThresholdMode(string? requestedMode)
     {

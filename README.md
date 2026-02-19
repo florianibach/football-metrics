@@ -196,6 +196,14 @@ Empfohlener Sammelcheck:
 - In der Session-Detailansicht kann die Einheit temporär pro Session überschrieben werden (`PUT /api/v1/tcx/{id}/speed-unit`), ohne den Profil-Default (`preferredSpeedUnit`) zu verändern.
 - Rundung/Konvertierung ist konsistent: `km/h` mit 1 Nachkommastelle, `m/s` mit 2 Nachkommastellen, `min/km` mit 2 Nachkommastellen.
 
+
+## Bevorzugtes Zeitfenster im Profil (R1.5-15)
+
+- Im Profil kann ein bevorzugtes Standard-Zeitfenster für die Intervallaggregation ausgewählt werden: `1`, `2` oder `5` Minuten.
+- Der Default für neue Profile ist `5` Minuten (`preferredAggregationWindowMinutes=5`).
+- Neue Session-Analysen (z. B. neuer Upload oder Rekalkulation mit aktuellem Profil) übernehmen das Profilfenster automatisch als initiale Ansicht.
+- In der Session-Ansicht bleibt das Fenster weiterhin manuell umschaltbar, ohne den Profil-Default zu überschreiben.
+
 ## Adaptive vs. fixe Schwellen im Profil (R1.5-10)
 
 - In den Profileinstellungen kann pro Schwelle ein Modus gewählt werden: `Fixed` oder `Adaptive`.

@@ -165,6 +165,7 @@ describe('App', () => {
       },
       defaultSmoothingFilter: 'AdaptiveMedian',
       preferredSpeedUnit: 'km/h',
+      preferredAggregationWindowMinutes: 5,
       ...overrides
     };
   }
@@ -197,6 +198,47 @@ describe('App', () => {
   }
 
 
+
+  it('R1_5_15_Ac01_Ac04_uses_profile_default_aggregation_window_for_new_session_analysis_and_allows_manual_override', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredAggregationWindowMinutes: 5 }) } as Response);
+      }
+
+      if (url.endsWith('/tcx/upload') && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: async () => createUploadRecord({ id: 'upload-2' }) } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Profile settings');
+
+    const aggregationWindowSelector = await screen.findByLabelText('Aggregation window') as HTMLSelectElement;
+    expect(aggregationWindowSelector.value).toBe('5');
+
+    fireEvent.change(aggregationWindowSelector, { target: { value: '1' } });
+    expect(aggregationWindowSelector.value).toBe('1');
+
+    const fileInput = screen.getByLabelText('Select TCX file') as HTMLInputElement;
+    const file = new File(['dummy'], 'new-session.tcx', { type: 'application/xml' });
+    fireEvent.change(fileInput, { target: { files: [file] } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => expect(aggregationWindowSelector.value).toBe('5'));
+
+    const profileSaveCalls = fetchMock.mock.calls.filter(([input, init]) => String(input).endsWith('/profile') && init?.method === 'PUT');
+    expect(profileSaveCalls).toHaveLength(0);
+  });
 
   it('R1_5_09_Ac01_Ac04_recalculates_session_with_current_profile_and_shows_profile_history', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
@@ -1273,7 +1315,7 @@ describe('App', () => {
     });
 
     expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
-    expect(screen.getByText('Windows: 2')).toBeInTheDocument();
+    expect(screen.getByText('Windows: 1')).toBeInTheDocument();
     expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });

@@ -532,7 +532,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task R1_01_Ac04_UploadingTcx_ShouldReturnSmoothingTraceWithSelectedParameters()
     {
         var client = _factory.CreateClient();
-        var profileResetResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.AdaptiveMedian, null));
+        var profileResetResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.AdaptiveMedian, null, null));
         profileResetResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using var form = CreateUploadForm(
@@ -577,7 +577,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var client = _factory.CreateClient();
 
-        var profileUpdate = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth, null));
+        var profileUpdate = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth, null, null));
         profileUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using var form = CreateUploadForm(
@@ -696,7 +696,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             DecelerationThresholdMps2 = -2.6,
             Version = 1,
             UpdatedAtUtc = DateTime.UtcNow
-        }, TcxSmoothingFilters.Butterworth, null));
+        }, TcxSmoothingFilters.Butterworth, null, null));
         profileUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var recalcResponse = await client.PostAsync($"/api/v1/tcx/{created!.Id}/recalculate", content: null);
