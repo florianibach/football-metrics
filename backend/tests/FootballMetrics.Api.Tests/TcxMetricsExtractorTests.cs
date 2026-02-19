@@ -9,6 +9,40 @@ namespace FootballMetrics.Api.Tests;
 
 public class TcxMetricsExtractorTests
 {
+
+    [Fact]
+    public void R1_6_01_Ac01_Extract_WithGpsAndHeartRate_ShouldResolveDualMode()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase><Activities><Activity><Lap><Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:10Z</Time><Position><LatitudeDegrees>50.0001</LatitudeDegrees><LongitudeDegrees>7.0001</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>
+        </Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.DataAvailability.Mode.Should().Be("Dual");
+        summary.DataAvailability.GpsStatus.Should().Be("Available");
+        summary.DataAvailability.HeartRateStatus.Should().Be("Available");
+    }
+
+    [Fact]
+    public void R1_6_01_Ac01_Ac04_Extract_WithGpsOnlyLowQuality_ShouldResolveGpsOnlyWithReason()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase><Activities><Activity><Lap><Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:10Z</Time><Position><LatitudeDegrees>50.0001</LatitudeDegrees><LongitudeDegrees>7.0001</LongitudeDegrees></Position></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:20Z</Time></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:30Z</Time></Trackpoint>
+        </Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.DataAvailability.Mode.Should().Be("GpsOnly");
+        summary.DataAvailability.HeartRateStatus.Should().Be("NotMeasured");
+        summary.DataAvailability.GpsStatus.Should().Be("NotUsable");
+        summary.DataAvailability.GpsReason.Should().NotBeNullOrWhiteSpace();
+    }
+
     [Fact]
     public void Mvp03_Ac01_Ac02_Ac03_Extract_ShouldReadBaseMetricsAndPreferCalculatedGpsDistance()
     {

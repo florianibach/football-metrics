@@ -47,6 +47,14 @@ type IntervalAggregate = {
   coreMetrics: FootballCoreMetrics;
 };
 
+type DataAvailability = {
+  mode: 'Dual' | 'HeartRateOnly' | 'GpsOnly' | 'NotAvailable';
+  gpsStatus: 'Available' | 'NotMeasured' | 'NotUsable';
+  gpsReason: string | null;
+  heartRateStatus: 'Available' | 'NotMeasured' | 'NotUsable';
+  heartRateReason: string | null;
+};
+
 type ActivitySummary = {
   activityStartTimeUtc: string | null;
   durationSeconds: number | null;
@@ -60,6 +68,7 @@ type ActivitySummary = {
   distanceSource: 'CalculatedFromGps' | 'ProvidedByFile' | 'NotAvailable';
   qualityStatus: 'High' | 'Medium' | 'Low';
   qualityReasons: string[];
+  dataAvailability?: DataAvailability | null;
   smoothing: SmoothingTrace;
   coreMetrics: FootballCoreMetrics;
   intervalAggregates: IntervalAggregate[];
@@ -202,6 +211,7 @@ type TranslationKey =
   | 'metricHelpGps'
   | 'metricQualityStatus'
   | 'metricQualityReasons'
+  | 'metricDataMode'
   | 'metricSmoothingStrategy'
   | 'metricSmoothingOutlier'
   | 'compareTitle'
@@ -229,6 +239,13 @@ type TranslationKey =
   | 'qualityStatusHigh'
   | 'qualityStatusMedium'
   | 'qualityStatusLow'
+  | 'dataModeDual'
+  | 'dataModeHeartRateOnly'
+  | 'dataModeGpsOnly'
+  | 'dataModeNotAvailable'
+  | 'availabilityAvailable'
+  | 'availabilityNotMeasured'
+  | 'availabilityNotUsable'
   | 'historyTitle'
   | 'historyEmpty'
   | 'historyColumnFileName'
@@ -236,6 +253,7 @@ type TranslationKey =
   | 'historyColumnActivityTime'
   | 'historyColumnQuality'
   | 'historyColumnSessionType'
+  | 'historyColumnDataMode'
   | 'sessionContextTitle'
   | 'sessionTypeLabel'
   | 'sessionTypeTraining'
@@ -416,6 +434,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHelpGps: 'Indicates if coordinate points exist.',
     metricQualityStatus: 'Data quality',
     metricQualityReasons: 'Quality reasons',
+    metricDataMode: 'Data mode',
     metricSmoothingStrategy: 'Smoothing strategy',
     metricSmoothingOutlier: 'Outlier detection',
     compareTitle: 'Raw vs. smoothed comparison',
@@ -443,6 +462,13 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     qualityStatusHigh: 'high',
     qualityStatusMedium: 'medium',
     qualityStatusLow: 'low',
+    dataModeDual: 'Dual (GPS + heart rate)',
+    dataModeHeartRateOnly: 'Heart-rate only',
+    dataModeGpsOnly: 'GPS only',
+    dataModeNotAvailable: 'Not available',
+    availabilityAvailable: 'available',
+    availabilityNotMeasured: 'not measured',
+    availabilityNotUsable: 'measurement unusable',
     historyTitle: 'Upload history',
     historyEmpty: 'No uploaded sessions yet.',
     historyColumnFileName: 'File name',
@@ -450,6 +476,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyColumnActivityTime: 'Activity time',
     historyColumnQuality: 'Quality status',
     historyColumnSessionType: 'Session type',
+    historyColumnDataMode: 'Data mode',
     sessionContextTitle: 'Session context',
     sessionTypeLabel: 'Type',
     sessionTypeTraining: 'Training',
@@ -625,6 +652,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHelpGps: 'Zeigt, ob Koordinatenpunkte vorhanden sind.',
     metricQualityStatus: 'Datenqualität',
     metricQualityReasons: 'Qualitätsgründe',
+    metricDataMode: 'Datenmodus',
     metricSmoothingStrategy: 'Glättungsstrategie',
     metricSmoothingOutlier: 'Ausreißer-Erkennung',
     compareTitle: 'Vergleich Rohdaten vs. geglättet',
@@ -652,6 +680,13 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     qualityStatusHigh: 'hoch',
     qualityStatusMedium: 'mittel',
     qualityStatusLow: 'niedrig',
+    dataModeDual: 'Dual (GPS + Herzfrequenz)',
+    dataModeHeartRateOnly: 'Nur Herzfrequenz',
+    dataModeGpsOnly: 'Nur GPS',
+    dataModeNotAvailable: 'Nicht verfügbar',
+    availabilityAvailable: 'verfügbar',
+    availabilityNotMeasured: 'nicht gemessen',
+    availabilityNotUsable: 'Messung unbrauchbar',
     historyTitle: 'Upload-Historie',
     historyEmpty: 'Noch keine hochgeladenen Sessions.',
     historyColumnFileName: 'Dateiname',
@@ -659,6 +694,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyColumnActivityTime: 'Aktivitätszeit',
     historyColumnQuality: 'Qualitätsstatus',
     historyColumnSessionType: 'Session-Typ',
+    historyColumnDataMode: 'Datenmodus',
     sessionContextTitle: 'Session-Kontext',
     sessionTypeLabel: 'Typ',
     sessionTypeTraining: 'Training',
@@ -1081,6 +1117,73 @@ function qualityStatusText(status: ActivitySummary['qualityStatus'], t: Record<T
   }
 }
 
+
+function resolveDataAvailability(summary: ActivitySummary): DataAvailability {
+  if (summary.dataAvailability) {
+    return summary.dataAvailability;
+  }
+
+  const hasHeartRateData = summary.heartRateAverageBpm !== null || summary.heartRateMinBpm !== null || summary.heartRateMaxBpm !== null;
+  const gpsStatus: DataAvailability['gpsStatus'] = summary.hasGpsData
+    ? (summary.qualityStatus === 'High' ? 'Available' : 'NotUsable')
+    : 'NotMeasured';
+
+  const mode: DataAvailability['mode'] = summary.hasGpsData
+    ? (hasHeartRateData ? 'Dual' : 'GpsOnly')
+    : (hasHeartRateData ? 'HeartRateOnly' : 'NotAvailable');
+
+  return {
+    mode,
+    gpsStatus,
+    gpsReason: gpsStatus === 'NotMeasured'
+      ? 'GPS not present in this session.'
+      : (gpsStatus === 'NotUsable' ? `GPS unusable because quality is ${summary.qualityStatus}. Required: High.` : null),
+    heartRateStatus: hasHeartRateData ? 'Available' : 'NotMeasured',
+    heartRateReason: hasHeartRateData ? null : 'Heart-rate data not present in this session.'
+  };
+}
+
+function normalizeUploadRecord(record: UploadRecord): UploadRecord {
+  return {
+    ...record,
+    summary: {
+      ...record.summary,
+      dataAvailability: resolveDataAvailability(record.summary)
+    }
+  };
+}
+
+function dataModeText(mode: DataAvailability['mode'], t: Record<TranslationKey, string>): string {
+  switch (mode) {
+    case 'Dual':
+      return t.dataModeDual;
+    case 'HeartRateOnly':
+      return t.dataModeHeartRateOnly;
+    case 'GpsOnly':
+      return t.dataModeGpsOnly;
+    default:
+      return t.dataModeNotAvailable;
+  }
+}
+
+function availabilityText(status: DataAvailability['gpsStatus'], t: Record<TranslationKey, string>): string {
+  switch (status) {
+    case 'Available':
+      return t.availabilityAvailable;
+    case 'NotMeasured':
+      return t.availabilityNotMeasured;
+    default:
+      return t.availabilityNotUsable;
+  }
+}
+
+function dataAvailabilitySummaryText(summary: ActivitySummary, t: Record<TranslationKey, string>): string {
+  const availability = resolveDataAvailability(summary);
+  const gps = `GPS data: ${availabilityText(availability.gpsStatus, t)}${availability.gpsReason ? ` (${availability.gpsReason})` : ''}`;
+  const hr = `HR data: ${availabilityText(availability.heartRateStatus, t)}${availability.heartRateReason ? ` (${availability.heartRateReason})` : ''}`;
+  return `${dataModeText(availability.mode, t)} — ${gps} | ${hr}`;
+}
+
 function interpolate(template: string, values: Record<string, string>): string {
   return Object.entries(values).reduce(
     (result, [key, value]) => result.replaceAll(`{${key}}`, value),
@@ -1236,12 +1339,13 @@ export function App() {
             setAggregationWindowMinutes((profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5);
             setLatestProfileRecalculationJob(profilePayload.latestRecalculationJob ?? null);
           }
-          setUploadHistory(payload);
-          if (payload.length > 0) {
-            setSelectedSession(payload[0]);
-            setSelectedFilter(payload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
-            setSessionContextForm(payload[0].sessionContext);
-            const initialCompareSelection = payload.slice(0, 2).map((item) => item.id);
+          const normalizedPayload = payload.map(normalizeUploadRecord);
+          setUploadHistory(normalizedPayload);
+          if (normalizedPayload.length > 0) {
+            setSelectedSession(normalizedPayload[0]);
+            setSelectedFilter(normalizedPayload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
+            setSessionContextForm(normalizedPayload[0].sessionContext);
+            const initialCompareSelection = normalizedPayload.slice(0, 2).map((item) => item.id);
             setCompareSelectedSessionIds(initialCompareSelection);
             setCompareBaselineSessionId(initialCompareSelection[0] ?? null);
           }
@@ -1317,7 +1421,7 @@ export function App() {
       return;
     }
 
-    const payload = (await response.json()) as UploadRecord;
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     setSelectedSession(payload);
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
@@ -1342,7 +1446,7 @@ export function App() {
       return;
     }
 
-    const payload = (await response.json()) as UploadRecord;
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     setSelectedSession(payload);
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
   }
@@ -1357,7 +1461,7 @@ export function App() {
       return;
     }
 
-    const payload = (await response.json()) as UploadRecord;
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     setSelectedSession(payload);
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
@@ -1382,7 +1486,7 @@ export function App() {
       return;
     }
 
-    const payload = (await response.json()) as UploadRecord;
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     setSelectedSession(payload);
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
       setSessionContextForm(payload.sessionContext);
@@ -1414,7 +1518,7 @@ export function App() {
         return;
       }
 
-      const payload = (await response.json()) as UploadRecord;
+      const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
       const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
       setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
       setSelectedSession(payload);
@@ -1933,6 +2037,7 @@ export function App() {
                 <th>{t.historyColumnActivityTime}</th>
                 <th>{t.historyColumnQuality}</th>
                 <th>{t.historyColumnSessionType}</th>
+                <th>{t.historyColumnDataMode}</th>
                 <th>{t.historySelectForComparison}</th>
                 <th>{t.historyOpenDetails}</th>
               </tr>
@@ -1945,6 +2050,7 @@ export function App() {
                   <td>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
                   <td>{qualityStatusText(record.summary.qualityStatus, t)}</td>
                   <td>{sessionTypeText(record.sessionContext.sessionType, t)}</td>
+                  <td>{dataModeText(resolveDataAvailability(record.summary).mode, t)}</td>
                   <td>
                     <input
                       type="checkbox"
@@ -2113,6 +2219,7 @@ export function App() {
             <MetricListItem label={t.metricGps} value={selectedSession.summary.hasGpsData ? t.yes : t.no} helpText={`${metricHelp.gps} ${t.metricHelpGps}`} />
             <MetricListItem label={t.metricQualityStatus} value={qualityStatusText(selectedSession.summary.qualityStatus, t)} helpText={metricHelp.qualityStatus} />
             <MetricListItem label={t.metricQualityReasons} value={selectedSession.summary.qualityReasons.join(' | ')} helpText={metricHelp.qualityReasons} />
+            <MetricListItem label={t.metricDataMode} value={dataAvailabilitySummaryText(selectedSession.summary, t)} helpText={t.metricDataMode} />
             <MetricListItem label={t.metricDataChange} value={dataChangeMetric} helpText={metricHelp.dataChange} />
             <MetricListItem label={t.filterSourceLabel} value={selectedSession.selectedSmoothingFilterSource === 'ManualOverride' ? t.filterSourceManualOverride : selectedSession.selectedSmoothingFilterSource === 'ProfileRecalculation' ? t.filterSourceProfileRecalculation : t.filterSourceProfileDefault} />
             <label htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>

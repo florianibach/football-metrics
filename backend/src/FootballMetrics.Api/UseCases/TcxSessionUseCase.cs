@@ -258,7 +258,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
     {
         if (rawFileContent.Length == 0)
         {
-            return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "No quality assessment available." }, new TcxSmoothingTrace("NotAvailable", new Dictionary<string, string>(), null, null, 0, 0, 0, 0, DateTime.UtcNow), new TcxFootballCoreMetrics(false, "Core metrics unavailable.", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, new Dictionary<string, TcxMetricAvailability>(), new Dictionary<string, string>()), Array.Empty<TcxIntervalAggregate>());
+            return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "No quality assessment available." }, new TcxDataAvailability("NotAvailable", "NotMeasured", "GPS not present in this session.", "NotMeasured", "Heart-rate data not present in this session."), new TcxSmoothingTrace("NotAvailable", new Dictionary<string, string>(), null, null, 0, 0, 0, 0, DateTime.UtcNow), new TcxFootballCoreMetrics(false, "Core metrics unavailable.", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, new Dictionary<string, TcxMetricAvailability>(), new Dictionary<string, string>()), Array.Empty<TcxIntervalAggregate>());
         }
 
         try
@@ -275,9 +275,44 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         }
         catch
         {
-            return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "TCX summary unavailable due to invalid stored content." }, new TcxSmoothingTrace("NotAvailable", new Dictionary<string, string>(), null, null, 0, 0, 0, 0, DateTime.UtcNow), new TcxFootballCoreMetrics(false, "Core metrics unavailable.", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, new Dictionary<string, TcxMetricAvailability>(), new Dictionary<string, string>()), Array.Empty<TcxIntervalAggregate>());
+            return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "TCX summary unavailable due to invalid stored content." }, new TcxDataAvailability("NotAvailable", "NotMeasured", "GPS not present in this session.", "NotMeasured", "Heart-rate data not present in this session."), new TcxSmoothingTrace("NotAvailable", new Dictionary<string, string>(), null, null, 0, 0, 0, 0, DateTime.UtcNow), new TcxFootballCoreMetrics(false, "Core metrics unavailable.", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, new Dictionary<string, TcxMetricAvailability>(), new Dictionary<string, string>()), Array.Empty<TcxIntervalAggregate>());
         }
     }
+
+
+    private static TcxDataAvailability BuildDataAvailabilityFromSummary(TcxActivitySummary summary)
+    {
+        var hasGpsData = summary.HasGpsData;
+        var hasHeartRateData = summary.HeartRateAverageBpm.HasValue || summary.HeartRateMinBpm.HasValue || summary.HeartRateMaxBpm.HasValue;
+
+        var gpsStatus = hasGpsData
+            ? (string.Equals(summary.QualityStatus, "High", StringComparison.OrdinalIgnoreCase) ? "Available" : "NotUsable")
+            : "NotMeasured";
+        var gpsReason = gpsStatus switch
+        {
+            "NotMeasured" => "GPS not present in this session.",
+            "NotUsable" => $"GPS unusable because quality is {summary.QualityStatus}. Required: High.",
+            _ => null
+        };
+
+        var heartRateStatus = hasHeartRateData ? "Available" : "NotMeasured";
+        var heartRateReason = hasHeartRateData ? null : "Heart-rate data not present in this session.";
+
+        var mode = (hasGpsData, hasHeartRateData) switch
+        {
+            (true, true) => "Dual",
+            (true, false) => "GpsOnly",
+            (false, true) => "HeartRateOnly",
+            _ => "NotAvailable"
+        };
+
+        return new TcxDataAvailability(mode, gpsStatus, gpsReason, heartRateStatus, heartRateReason);
+    }
+
+    private static TcxActivitySummary EnsureDataAvailability(TcxActivitySummary summary)
+        => summary.DataAvailability is null
+            ? summary with { DataAvailability = BuildDataAvailabilityFromSummary(summary) }
+            : summary;
 
 
     public TcxActivitySummary ResolveSummary(TcxUpload upload)
@@ -287,7 +322,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             var deserialized = JsonSerializer.Deserialize<TcxActivitySummary>(upload.SessionSummarySnapshotJson);
             if (deserialized is not null)
             {
-                return deserialized;
+                return EnsureDataAvailability(deserialized);
             }
         }
 

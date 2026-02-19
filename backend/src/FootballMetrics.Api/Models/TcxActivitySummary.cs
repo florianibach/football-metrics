@@ -13,6 +13,7 @@ public sealed record TcxActivitySummary(
     string DistanceSource,
     string QualityStatus,
     IReadOnlyList<string> QualityReasons,
+    TcxDataAvailability DataAvailability,
     TcxSmoothingTrace Smoothing,
     TcxFootballCoreMetrics CoreMetrics,
     IReadOnlyList<TcxIntervalAggregate> IntervalAggregates);

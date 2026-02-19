@@ -79,6 +79,13 @@ describe('App', () => {
       distanceSource: 'CalculatedFromGps',
       qualityStatus: 'High',
       qualityReasons: ['Trackpoints are complete with GPS and heart rate data. No implausible jumps detected.'],
+      dataAvailability: {
+        mode: 'Dual',
+        gpsStatus: 'Available',
+        gpsReason: null,
+        heartRateStatus: 'Available',
+        heartRateReason: null
+      },
       coreMetrics: baseCoreMetrics(),
       intervalAggregates: [
         {
@@ -1757,4 +1764,87 @@ describe('App', () => {
 
   });
 
+  it('R1_6_01_Ac02_shows_data_mode_in_session_history_and_detail', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Language'), { target: { value: 'en' } });
+
+    expect(await screen.findByText('Data mode')).toBeInTheDocument();
+    expect(screen.getAllByText('Dual (GPS + heart rate)').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Details|Open details/ })[0]);
+    expect((await screen.findAllByText(/Dual \(GPS \+ heart rate\)/)).length).toBeGreaterThan(0);
+  });
+
+
+
+  it('R1_6_01_regression_handles_existing_sessions_without_dataAvailability_field', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [createUploadRecord({ summary: createSummary({ dataAvailability: null }) })]
+        } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Language'), { target: { value: 'en' } });
+
+    expect(await screen.findByText('Data mode')).toBeInTheDocument();
+    expect(screen.getAllByText('Dual (GPS + heart rate)').length).toBeGreaterThan(0);
+  });
+
+  it('R1_6_01_Ac03_Ac04_marks_unavailable_mode_with_clear_reasons', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                hasGpsData: true,
+                qualityStatus: 'Low',
+                dataAvailability: {
+                  mode: 'GpsOnly',
+                  gpsStatus: 'NotUsable',
+                  gpsReason: 'GPS unusable because quality is Low. Required: High.',
+                  heartRateStatus: 'NotMeasured',
+                  heartRateReason: 'Heart-rate data not present in this session.'
+                }
+              })
+            })
+          ]
+        } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Language'), { target: { value: 'en' } });
+
+    fireEvent.click((await screen.findAllByRole('button', { name: /Details|Open details/ }))[0]);
+    expect(await screen.findByText(/GPS unusable because quality is Low\. Required: High\./)).toBeInTheDocument();
+    expect(screen.getByText(/measurement unusable \(GPS unusable because quality is Low/)).toBeInTheDocument();
+    expect(screen.getByText(/not measured \(Heart-rate data not present/)).toBeInTheDocument();
+  });
 });
