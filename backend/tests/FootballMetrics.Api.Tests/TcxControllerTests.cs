@@ -46,7 +46,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
 
         using var form = CreateUploadForm("empty.tcx", string.Empty);
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -70,7 +70,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
 
     [Fact]
-    public async Task R2_09_ApiVersioningContract_V1AndLegacyRoutes_ShouldReturnEquivalentPayloadShape()
+    public async Task R2_09_ApiVersioningContract_V1Route_ShouldReturnCreatedUploadById()
     {
         var client = _factory.CreateClient();
         using var form = CreateUploadForm(
@@ -83,16 +83,12 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var payload = await created.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
         payload.Should().NotBeNull();
 
-        var legacyResponse = await client.GetAsync($"/api/tcx/{payload!.Id}");
-        var v1Response = await client.GetAsync($"/api/v1/tcx/{payload.Id}");
+        var getResponse = await client.GetAsync($"/api/v1/tcx/{payload!.Id}");
+        getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        legacyResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        v1Response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var legacyPayload = await legacyResponse.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
-        var v1Payload = await v1Response.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
-
-        legacyPayload.Should().BeEquivalentTo(v1Payload);
+        var getPayload = await getResponse.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+        getPayload.Should().NotBeNull();
+        getPayload!.Id.Should().Be(payload.Id);
     }
 
 
@@ -110,7 +106,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "<Trackpoint><Time>2026-02-16T10:00:10Z</Time><Position><LatitudeDegrees>50.0003</LatitudeDegrees><LongitudeDegrees>7.0003</LongitudeDegrees></Position><HeartRateBpm><Value>150</Value></HeartRateBpm></Trackpoint>" +
             "</Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var upload = await response.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
@@ -139,7 +135,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "sample.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
@@ -148,7 +144,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         payload!.FileName.Should().Be("sample.tcx");
         payload.UploadedAtUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
 
-        var listResponse = await client.GetAsync("/api/tcx");
+        var listResponse = await client.GetAsync("/api/v1/tcx");
         listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var listPayload = await listResponse.Content.ReadFromJsonAsync<List<TcxUploadResponseDto>>();
         listPayload.Should().NotBeNull();
@@ -165,7 +161,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         const string tcxPayload = "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>";
         using var form = CreateUploadForm("raw-payload.tcx", tcxPayload);
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var uploadResponse = await response.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
@@ -215,7 +211,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         const string tcxPayload = "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>";
         using var form = CreateUploadForm("stored-path-required.tcx", tcxPayload);
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var uploadResponse = await response.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
@@ -242,7 +238,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         const string tcxPayload = "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>";
         using var form = CreateUploadForm("hash.tcx", tcxPayload);
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var uploadResponse = await response.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
@@ -312,7 +308,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
         using var form = CreateUploadForm("sample.txt", "hello");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -329,7 +325,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
         using var form = CreateUploadForm("future-format.fit", "binary");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
@@ -348,7 +344,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "UPPERCASE.TCX",
             "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
@@ -359,7 +355,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
         using var form = CreateUploadForm("large.tcx", new string('a', 21 * 1024 * 1024));
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().BeOneOf(HttpStatusCode.RequestEntityTooLarge, HttpStatusCode.BadRequest);
 
@@ -377,7 +373,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
         using var form = CreateUploadForm("broken.tcx", "<TrainingCenterDatabase>");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var error = await response.Content.ReadAsStringAsync();
@@ -391,7 +387,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
         using var form = CreateUploadForm("invalid-root.tcx", "<root><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></root>");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var error = await response.Content.ReadAsStringAsync();
@@ -405,7 +401,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var client = _factory.CreateClient();
         using var form = CreateUploadForm("incomplete.tcx", "<TrainingCenterDatabase><Activities /></TrainingCenterDatabase>");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var error = await response.Content.ReadAsStringAsync();
@@ -422,7 +418,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "mvp03.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><DistanceMeters>2000</DistanceMeters><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:01:30Z</Time><Position><LatitudeDegrees>50.0005</LatitudeDegrees><LongitudeDegrees>7.0005</LongitudeDegrees></Position><HeartRateBpm><Value>150</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var payload = await response.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
@@ -448,7 +444,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "mvp03-no-gps.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var payload = await response.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
@@ -470,7 +466,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "mvp04-jumps.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:00:01Z</Time><Position><LatitudeDegrees>50.01</LatitudeDegrees><LongitudeDegrees>7.01</LongitudeDegrees></Position><HeartRateBpm><Value>132</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:00:02Z</Time><Position><LatitudeDegrees>50.02</LatitudeDegrees><LongitudeDegrees>7.02</LongitudeDegrees></Position><HeartRateBpm><Value>133</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var payload = await response.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
@@ -488,10 +484,10 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "mvp05-list.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:01:00Z</Time><Position><LatitudeDegrees>50.0005</LatitudeDegrees><LongitudeDegrees>7.0005</LongitudeDegrees></Position><HeartRateBpm><Value>132</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        var uploadResponse = await client.PostAsync("/api/v1/tcx/upload", form);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var listResponse = await client.GetAsync("/api/tcx");
+        var listResponse = await client.GetAsync("/api/v1/tcx");
         listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var payload = await listResponse.Content.ReadFromJsonAsync<List<TcxUploadResponseWithSummaryDto>>();
@@ -515,13 +511,13 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "mvp05-detail.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        var uploadResponse = await client.PostAsync("/api/v1/tcx/upload", form);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
         created.Should().NotBeNull();
 
-        var detailResponse = await client.GetAsync($"/api/tcx/{created!.Id}");
+        var detailResponse = await client.GetAsync($"/api/v1/tcx/{created!.Id}");
         detailResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var detail = await detailResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
@@ -543,7 +539,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "r1-01-smoothing.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:00:01Z</Time><Position><LatitudeDegrees>50.02</LatitudeDegrees><LongitudeDegrees>7.02</LongitudeDegrees></Position><HeartRateBpm><Value>132</Value></HeartRateBpm></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position><HeartRateBpm><Value>133</Value></HeartRateBpm></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var response = await client.PostAsync("/api/tcx/upload", form);
+        var response = await client.PostAsync("/api/v1/tcx/upload", form);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var payload = await response.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
@@ -561,13 +557,13 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "r1-07-filter.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position></Trackpoint><Trackpoint><Time>2026-02-16T10:00:10Z</Time><Position><LatitudeDegrees>50.0004</LatitudeDegrees><LongitudeDegrees>7.0004</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        var uploadResponse = await client.PostAsync("/api/v1/tcx/upload", form);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
         created.Should().NotBeNull();
 
-        var putResponse = await client.PutAsJsonAsync($"/api/tcx/{created!.Id}/smoothing-filter", new { filter = "Butterworth" });
+        var putResponse = await client.PutAsJsonAsync($"/api/v1/tcx/{created!.Id}/smoothing-filter", new { filter = "Butterworth" });
         putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var updated = await putResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
@@ -588,7 +584,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "r1-5-08-profile-default.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        var uploadResponse = await client.PostAsync("/api/v1/tcx/upload", form);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
         var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
@@ -607,11 +603,11 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "r1-5-08-manual-override.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        var uploadResponse = await client.PostAsync("/api/v1/tcx/upload", form);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
 
-        var putResponse = await client.PutAsJsonAsync($"/api/tcx/{created!.Id}/smoothing-filter", new { filter = "Raw" });
+        var putResponse = await client.PutAsJsonAsync($"/api/v1/tcx/{created!.Id}/smoothing-filter", new { filter = "Raw" });
         putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var updated = await putResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
@@ -630,11 +626,11 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "speed-unit-override.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        var uploadResponse = await client.PostAsync("/api/v1/tcx/upload", form);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
 
-        var putResponse = await client.PutAsJsonAsync($"/api/tcx/{created!.Id}/speed-unit", new { speedUnit = "m/s" });
+        var putResponse = await client.PutAsJsonAsync($"/api/v1/tcx/{created!.Id}/speed-unit", new { speedUnit = "m/s" });
         putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var updated = await putResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
@@ -655,12 +651,12 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "context.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        var uploadResponse = await client.PostAsync("/api/v1/tcx/upload", form);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
         created.Should().NotBeNull();
 
-        var updateResponse = await client.PutAsJsonAsync($"/api/tcx/{created!.Id}/session-context", new
+        var updateResponse = await client.PutAsJsonAsync($"/api/v1/tcx/{created!.Id}/session-context", new
         {
             sessionType = "Match",
             matchResult = "2:1",
@@ -688,7 +684,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             "r1-5-09-recalc.tcx",
             "<TrainingCenterDatabase><Activities><Activity><Id>2026-02-16T10:00:00Z</Id><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint><Trackpoint><Time>2026-02-16T10:00:05Z</Time><Position><LatitudeDegrees>50.0002</LatitudeDegrees><LongitudeDegrees>7.0002</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
 
-        var uploadResponse = await client.PostAsync("/api/tcx/upload", form);
+        var uploadResponse = await client.PostAsync("/api/v1/tcx/upload", form);
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
 
@@ -703,7 +699,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         }, TcxSmoothingFilters.Butterworth, null));
         profileUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var recalcResponse = await client.PostAsync($"/api/tcx/{created!.Id}/recalculate", content: null);
+        var recalcResponse = await client.PostAsync($"/api/v1/tcx/{created!.Id}/recalculate", content: null);
         recalcResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var recalculated = await recalcResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();

@@ -13,7 +13,6 @@ namespace FootballMetrics.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]")]
-[Route("api/[controller]")]
 public class TcxController : ControllerBase
 {
     private const long MaxFileSizeInBytes = 20 * 1024 * 1024;

@@ -8,7 +8,6 @@ namespace FootballMetrics.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]")]
-[Route("api/[controller]")]
 public class ProfileController : ControllerBase
 {
     private readonly IProfileUseCase _profileUseCase;
