@@ -83,6 +83,7 @@ public static partial class TcxMetricsExtractor
         var source = smoothedDistanceMeters.HasValue ? "CalculatedFromGps" : (hasFileDistance ? "ProvidedByFile" : "NotAvailable");
 
         var qualityAssessment = AssessQuality(smoothedTrackpoints, outlierSpeedThresholdMps);
+        var dataAvailability = BuildDataAvailability(rawGpsPoints.Count > 0, heartRates.Count > 0, qualityAssessment.Status);
         var smoothingTrace = BuildSmoothingTrace(normalizedFilter, trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
         var effectiveThresholds = thresholdProfile ?? MetricThresholdProfile.CreateDefault();
         var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
@@ -101,9 +102,37 @@ public static partial class TcxMetricsExtractor
             source,
             qualityAssessment.Status,
             qualityAssessment.Reasons,
+            dataAvailability,
             smoothingTrace,
             coreMetrics,
             intervalAggregates);
+    }
+
+
+    private static TcxDataAvailability BuildDataAvailability(bool hasGpsData, bool hasHeartRateData, string qualityStatus)
+    {
+        var gpsStatus = hasGpsData
+            ? (string.Equals(qualityStatus, "High", StringComparison.OrdinalIgnoreCase) ? "Available" : "NotUsable")
+            : "NotMeasured";
+        var gpsReason = gpsStatus switch
+        {
+            "NotMeasured" => "GPS not present in this session.",
+            "NotUsable" => $"GPS unusable because quality is {qualityStatus}. Required: High.",
+            _ => null
+        };
+
+        var heartRateStatus = hasHeartRateData ? "Available" : "NotMeasured";
+        var heartRateReason = hasHeartRateData ? null : "Heart-rate data not present in this session.";
+
+        var mode = (hasGpsData, hasHeartRateData) switch
+        {
+            (true, true) => "Dual",
+            (true, false) => "GpsOnly",
+            (false, true) => "HeartRateOnly",
+            _ => "NotAvailable"
+        };
+
+        return new TcxDataAvailability(mode, gpsStatus, gpsReason, heartRateStatus, heartRateReason);
     }
 
     private static List<TrackpointSnapshot> ApplySmoothingFilter(

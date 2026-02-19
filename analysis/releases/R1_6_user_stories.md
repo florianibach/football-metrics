@@ -15,10 +15,10 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 **damit** ich die angezeigten Insights korrekt interpretieren kann.
 
 ### Acceptance Criteria
-- [ ] Pro Session wird automatisch ein Datenmodus erkannt: Dual, HF-only oder GPS-only.
-- [ ] Der aktive Datenmodus ist in Session-Liste und Session-Detail klar sichtbar.
-- [ ] Insights, die im aktiven Modus nicht valide sind, werden ausgeblendet oder als „nicht verfügbar“ markiert.
-- [ ] Die UI erklärt den Grund (z. B. „GPS nicht vorhanden“ vs. „GPS unbrauchbar“).
+- [x] Pro Session wird automatisch ein Datenmodus erkannt: Dual, HF-only oder GPS-only.
+- [x] Der aktive Datenmodus ist in Session-Liste und Session-Detail klar sichtbar.
+- [x] Insights, die im aktiven Modus nicht valide sind, werden ausgeblendet oder als „nicht verfügbar“ markiert.
+- [x] Die UI erklärt den Grund (z. B. „GPS nicht vorhanden“ vs. „GPS unbrauchbar“).
 
 ---
 
