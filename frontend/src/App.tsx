@@ -2831,14 +2831,14 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
       <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
       {points.map((point, index) => {
-        const x = ((point.longitude - minLongitude) / longitudeRange) * (width - 24) + 12;
-        const y = height - ((((point.latitude - minLatitude) / latitudeRange) * (height - 24)) + 12);
+        const x = ((point.longitude - bboxMinLongitude) / (bboxMaxLongitude - bboxMinLongitude)) * width;
+        const y = height - (((point.latitude - bboxMinLatitude) / (bboxMaxLatitude - bboxMinLatitude)) * height);
 
         return (
           <circle
             key={`${point.latitude}-${point.longitude}-${index}`}
-            cx={x}
-            cy={y}
+            cx={Math.min(width, Math.max(0, x))}
+            cy={Math.min(height, Math.max(0, y))}
             r={radius}
             className="gps-heatmap__point"
           />
