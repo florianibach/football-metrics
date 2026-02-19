@@ -44,7 +44,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 RecalculationHistoryJson TEXT NULL,
                 SelectedSpeedUnit TEXT NOT NULL DEFAULT 'km/h',
                 SelectedSpeedUnitSource TEXT NOT NULL DEFAULT 'ProfileDefault',
-                SessionSummarySnapshotJson TEXT NULL
+                SessionSummarySnapshotJson TEXT NULL,
+                IdempotencyKey TEXT NULL
             );
 
             CREATE INDEX IF NOT EXISTS IX_TcxUploads_UploadedAtUtc ON TcxUploads (UploadedAtUtc DESC);
@@ -96,6 +97,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "SelectedSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SelectedSpeedUnitSource", "TEXT NOT NULL DEFAULT 'ProfileDefault'", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SessionSummarySnapshotJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "IdempotencyKey", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "MetricThresholdsJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "DefaultSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
@@ -104,6 +106,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await ApplyMigrationSlot001Async(connection, cancellationToken);
         await ApplyMigrationSlot002Async(connection, cancellationToken);
         await ApplyMigrationSlot003Async(connection, cancellationToken);
+        await ApplyMigrationSlot004Async(connection, cancellationToken);
     }
 
 
@@ -173,11 +176,39 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         }
 
         await EnsureColumnExistsAsync(connection, "SessionSummarySnapshotJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "IdempotencyKey", "TEXT NULL", cancellationToken);
 
         var insertCommand = connection.CreateCommand();
         insertCommand.CommandText = @"
             INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
             VALUES (3, 'phase3_session_summary_snapshot', $appliedAtUtc);
+        ";
+        insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+
+
+    private static async Task ApplyMigrationSlot004Async(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var existsCommand = connection.CreateCommand();
+        existsCommand.CommandText = "SELECT COUNT(1) FROM SchemaVersions WHERE Version = 4;";
+        var alreadyApplied = Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+        if (alreadyApplied)
+        {
+            return;
+        }
+
+        await EnsureColumnExistsAsync(connection, "IdempotencyKey", "TEXT NULL", cancellationToken);
+
+        var indexCommand = connection.CreateCommand();
+        indexCommand.CommandText = "CREATE UNIQUE INDEX IF NOT EXISTS IX_TcxUploads_IdempotencyKey_Unique ON TcxUploads (IdempotencyKey) WHERE IdempotencyKey IS NOT NULL;";
+        await indexCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = @"
+            INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
+            VALUES (4, 'phase3_upload_idempotency_key', $appliedAtUtc);
         ";
         insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
         await insertCommand.ExecuteNonQueryAsync(cancellationToken);

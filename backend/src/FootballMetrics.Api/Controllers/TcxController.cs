@@ -53,13 +53,23 @@ public class TcxController : ControllerBase
 
         try
         {
-            var created = await _tcxSessionUseCase.UploadTcxAsync(file, cancellationToken);
-            return CreatedAtAction(nameof(GetUpload), new { id = created.Id }, ToResponse(created));
+            var idempotencyKey = HttpContext?.Request?.Headers["Idempotency-Key"].FirstOrDefault();
+            var outcome = await _tcxSessionUseCase.UploadTcxAsync(file, idempotencyKey, cancellationToken);
+            if (outcome.IsCreated)
+            {
+                return CreatedAtAction(nameof(GetUpload), new { id = outcome.Upload.Id }, ToResponse(outcome.Upload));
+            }
+
+            return Ok(ToResponse(outcome.Upload));
         }
         catch (InvalidDataException ex)
         {
             _logger.LogInformation(ex, "Unable to parse upload {FileName}", file.FileName);
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unable to parse upload", ex.Message, ApiErrorCodes.UploadParseFailed);
+        }
+        catch (IdempotencyConflictException ex)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status409Conflict, "Idempotency conflict", ex.Message, ApiErrorCodes.IdempotencyConflict);
         }
         catch
         {

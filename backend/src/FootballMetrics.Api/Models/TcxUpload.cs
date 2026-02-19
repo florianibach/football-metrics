@@ -21,6 +21,7 @@ public class TcxUpload
     public string? AppliedProfileSnapshotJson { get; set; }
     public string? RecalculationHistoryJson { get; set; }
     public string? SessionSummarySnapshotJson { get; set; }
+    public string? IdempotencyKey { get; set; }
     public string SelectedSpeedUnit { get; set; } = SpeedUnits.KilometersPerHour;
     public string SelectedSpeedUnitSource { get; set; } = TcxSpeedUnitSources.ProfileDefault;
 }

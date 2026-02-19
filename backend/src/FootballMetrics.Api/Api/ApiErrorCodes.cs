@@ -7,4 +7,5 @@ public static class ApiErrorCodes
     public const string UnsupportedFileType = "unsupported_file_type";
     public const string UploadStorageFailed = "upload_storage_failed";
     public const string UploadParseFailed = "upload_parse_failed";
+    public const string IdempotencyConflict = "idempotency_conflict";
 }

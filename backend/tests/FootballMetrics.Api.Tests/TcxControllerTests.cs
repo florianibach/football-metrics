@@ -128,6 +128,72 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         reader.GetInt32(1).Should().Be(150);
     }
 
+
+    [Fact]
+    public async Task R2_09_Upload_WithSameIdempotencyKeyAndPayload_ShouldReturnExistingSession()
+    {
+        var client = _factory.CreateClient();
+        using var firstRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcx/upload");
+        var idempotencyKey = $"idem-key-{Guid.NewGuid():N}";
+        firstRequest.Headers.Add("Idempotency-Key", idempotencyKey);
+        using var firstForm = CreateUploadForm(
+            "idem-one.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+        firstRequest.Content = firstForm;
+
+        var first = await client.SendAsync(firstRequest);
+        first.StatusCode.Should().Be(HttpStatusCode.Created);
+        var firstPayload = await first.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+
+        using var secondRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcx/upload");
+        secondRequest.Headers.Add("Idempotency-Key", idempotencyKey);
+        using var secondForm = CreateUploadForm(
+            "idem-one-retry.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+        secondRequest.Content = secondForm;
+
+        var second = await client.SendAsync(secondRequest);
+        second.StatusCode.Should().Be(HttpStatusCode.OK);
+        var secondPayload = await second.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+
+        secondPayload.Should().NotBeNull();
+        firstPayload.Should().NotBeNull();
+        secondPayload!.Id.Should().Be(firstPayload!.Id);
+    }
+
+    [Fact]
+    public async Task R2_09_Upload_WithSameIdempotencyKeyButDifferentPayload_ShouldReturnConflict()
+    {
+        var client = _factory.CreateClient();
+
+        var idempotencyKey = $"idem-key-conflict-{Guid.NewGuid():N}";
+
+        using (var firstRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcx/upload"))
+        {
+            firstRequest.Headers.Add("Idempotency-Key", idempotencyKey);
+            using var firstForm = CreateUploadForm(
+                "idem-conflict-a.tcx",
+                "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+            firstRequest.Content = firstForm;
+            var first = await client.SendAsync(firstRequest);
+            first.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        using var secondRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcx/upload");
+        secondRequest.Headers.Add("Idempotency-Key", idempotencyKey);
+        using var secondForm = CreateUploadForm(
+            "idem-conflict-b.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+        secondRequest.Content = secondForm;
+
+        var response = await client.SendAsync(secondRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problem.Should().NotBeNull();
+        problem!.Extensions["errorCode"].ToString().Should().Be("idempotency_conflict");
+    }
+
     [Fact]
     public async Task Mvp01_Ac01_Ac04_UploadingValidTcx_ShouldReturnCreatedAndListEntry()
     {
@@ -773,6 +839,12 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         public Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<TcxUpload?>(null);
 
+        public Task<TcxUpload?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+            => Task.FromResult<TcxUpload?>(null);
+
+        public Task<TcxUpload?> GetByContentHashAsync(string contentHashSha256, CancellationToken cancellationToken = default)
+            => Task.FromResult<TcxUpload?>(null);
+
         public Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
@@ -847,6 +919,12 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             => Task.FromResult<IReadOnlyList<TcxUpload>>(new List<TcxUpload>());
 
         public Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<TcxUpload?>(null);
+
+        public Task<TcxUpload?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+            => Task.FromResult<TcxUpload?>(null);
+
+        public Task<TcxUpload?> GetByContentHashAsync(string contentHashSha256, CancellationToken cancellationToken = default)
             => Task.FromResult<TcxUpload?>(null);
 
         public Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)

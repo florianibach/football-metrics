@@ -31,7 +31,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         _logger = logger;
     }
 
-    public async Task<TcxUpload> UploadTcxAsync(IFormFile file, CancellationToken cancellationToken)
+    public async Task<UploadTcxOutcome> UploadTcxAsync(IFormFile file, string? idempotencyKey, CancellationToken cancellationToken)
     {
         byte[] rawFileBytes;
         await using (var uploadStream = file.OpenReadStream())
@@ -47,6 +47,24 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         {
             throw new InvalidDataException(parseResult.ErrorMessage ?? "The uploaded file could not be parsed.");
         }
+
+        var contentHashSha256 = Convert.ToHexString(SHA256.HashData(rawFileBytes));
+        var normalizedIdempotencyKey = string.IsNullOrWhiteSpace(idempotencyKey) ? null : idempotencyKey.Trim();
+
+        if (normalizedIdempotencyKey is not null)
+        {
+            var existingByKey = await _repository.GetByIdempotencyKeyAsync(normalizedIdempotencyKey, cancellationToken);
+            if (existingByKey is not null)
+            {
+                if (!string.Equals(existingByKey.ContentHashSha256, contentHashSha256, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new IdempotencyConflictException("The provided Idempotency-Key was already used for a different upload payload.");
+                }
+
+                return new UploadTcxOutcome(existingByKey, false);
+            }
+        }
+
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
         var metricThresholdSnapshot = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
         var defaultSmoothingFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
@@ -61,7 +79,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             FileName = file.FileName,
             StoredFilePath = string.Empty,
             RawFileContent = rawFileBytes,
-            ContentHashSha256 = Convert.ToHexString(SHA256.HashData(rawFileBytes)),
+            ContentHashSha256 = contentHashSha256,
             UploadStatus = TcxUploadStatuses.Succeeded,
             UploadedAtUtc = DateTime.UtcNow,
             SelectedSmoothingFilter = defaultSmoothingFilter,
@@ -72,13 +90,14 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             RecalculationHistoryJson = JsonSerializer.Serialize(Array.Empty<SessionRecalculationEntry>()),
             SessionSummarySnapshotJson = JsonSerializer.Serialize(summarySnapshot),
             SelectedSpeedUnit = defaultSpeedUnit,
-            SelectedSpeedUnitSource = TcxSpeedUnitSources.ProfileDefault
+            SelectedSpeedUnitSource = TcxSpeedUnitSources.ProfileDefault,
+            IdempotencyKey = normalizedIdempotencyKey
         };
 
         try
         {
             await _repository.AddWithAdaptiveStatsAsync(upload, summarySnapshot.CoreMetrics.MaxSpeedMetersPerSecond, summarySnapshot.HeartRateMaxBpm, DateTime.UtcNow, cancellationToken);
-            return upload;
+            return new UploadTcxOutcome(upload, true);
         }
         catch (Exception ex)
         {
