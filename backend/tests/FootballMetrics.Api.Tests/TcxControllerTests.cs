@@ -7,6 +7,7 @@ using FootballMetrics.Api.Controllers;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
 using FootballMetrics.Api.Services;
+using FootballMetrics.Api.UseCases;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -125,6 +126,72 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         reader.GetDouble(0).Should().BeGreaterThan(0);
         reader.IsDBNull(1).Should().BeFalse();
         reader.GetInt32(1).Should().Be(150);
+    }
+
+
+    [Fact]
+    public async Task R2_09_Upload_WithSameIdempotencyKeyAndPayload_ShouldReturnExistingSession()
+    {
+        var client = _factory.CreateClient();
+        using var firstRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcx/upload");
+        var idempotencyKey = $"idem-key-{Guid.NewGuid():N}";
+        firstRequest.Headers.Add("Idempotency-Key", idempotencyKey);
+        using var firstForm = CreateUploadForm(
+            "idem-one.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+        firstRequest.Content = firstForm;
+
+        var first = await client.SendAsync(firstRequest);
+        first.StatusCode.Should().Be(HttpStatusCode.Created);
+        var firstPayload = await first.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+
+        using var secondRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcx/upload");
+        secondRequest.Headers.Add("Idempotency-Key", idempotencyKey);
+        using var secondForm = CreateUploadForm(
+            "idem-one-retry.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+        secondRequest.Content = secondForm;
+
+        var second = await client.SendAsync(secondRequest);
+        second.StatusCode.Should().Be(HttpStatusCode.OK);
+        var secondPayload = await second.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+
+        secondPayload.Should().NotBeNull();
+        firstPayload.Should().NotBeNull();
+        secondPayload!.Id.Should().Be(firstPayload!.Id);
+    }
+
+    [Fact]
+    public async Task R2_09_Upload_WithSameIdempotencyKeyButDifferentPayload_ShouldReturnConflict()
+    {
+        var client = _factory.CreateClient();
+
+        var idempotencyKey = $"idem-key-conflict-{Guid.NewGuid():N}";
+
+        using (var firstRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcx/upload"))
+        {
+            firstRequest.Headers.Add("Idempotency-Key", idempotencyKey);
+            using var firstForm = CreateUploadForm(
+                "idem-conflict-a.tcx",
+                "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+            firstRequest.Content = firstForm;
+            var first = await client.SendAsync(firstRequest);
+            first.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        using var secondRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcx/upload");
+        secondRequest.Headers.Add("Idempotency-Key", idempotencyKey);
+        using var secondForm = CreateUploadForm(
+            "idem-conflict-b.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position></Trackpoint></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+        secondRequest.Content = secondForm;
+
+        var response = await client.SendAsync(secondRequest);
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        var problem = await response.Content.ReadFromJsonAsync<ProblemDetails>();
+        problem.Should().NotBeNull();
+        problem!.Extensions["errorCode"].ToString().Should().Be("idempotency_conflict");
     }
 
     [Fact]
@@ -260,7 +327,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Mvp02_Ac04_WhenStorageFails_ShouldReturnServerErrorAndMarkUploadAsFailed()
     {
         var repository = new ThrowingOnceRepository();
-        var controller = new TcxController(repository, CreateAdapterResolver(), new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxController>.Instance);
+        var controller = CreateController(repository);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
         var file = new FormFile(stream, 0, stream.Length, "file", "failure-case.tcx")
@@ -282,7 +349,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task Mvp02_Ac04_WhenFailedMarkerWithOriginalIdCannotBeSaved_ShouldPersistFallbackFailedMarker()
     {
         var repository = new ThrowingThenRejectingSameIdRepository();
-        var controller = new TcxController(repository, CreateAdapterResolver(), new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxController>.Instance);
+        var controller = CreateController(repository);
 
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>"));
         var file = new FormFile(stream, 0, stream.Length, "file", "failure-fallback-case.tcx")
@@ -722,6 +789,13 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
 
+    private static TcxController CreateController(ITcxUploadRepository repository)
+    {
+        var resolver = CreateAdapterResolver();
+        var useCase = new TcxSessionUseCase(repository, resolver, new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxSessionUseCase>.Instance);
+        return new TcxController(useCase, resolver, NullLogger<TcxController>.Instance);
+    }
+
     private static IUploadFormatAdapterResolver CreateAdapterResolver() =>
         new UploadFormatAdapterResolver(new IUploadFormatAdapter[] { new TcxUploadFormatAdapter() });
 
@@ -756,10 +830,19 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             return Task.FromResult(upload);
         }
 
+        public Task<TcxUpload> AddWithAdaptiveStatsAsync(TcxUpload upload, double? maxSpeedMps, int? maxHeartRateBpm, DateTime calculatedAtUtc, CancellationToken cancellationToken = default)
+            => AddAsync(upload, cancellationToken);
+
         public Task<IReadOnlyList<TcxUpload>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<TcxUpload>>(new List<TcxUpload>());
 
         public Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<TcxUpload?>(null);
+
+        public Task<TcxUpload?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+            => Task.FromResult<TcxUpload?>(null);
+
+        public Task<TcxUpload?> GetByContentHashAsync(string contentHashSha256, CancellationToken cancellationToken = default)
             => Task.FromResult<TcxUpload?>(null);
 
         public Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
@@ -794,6 +877,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             string? metricThresholdSnapshotJson,
             string? appliedProfileSnapshotJson,
             string? recalculationHistoryJson,
+            string? sessionSummarySnapshotJson,
             CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
@@ -828,10 +912,19 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             return Task.FromResult(upload);
         }
 
+        public Task<TcxUpload> AddWithAdaptiveStatsAsync(TcxUpload upload, double? maxSpeedMps, int? maxHeartRateBpm, DateTime calculatedAtUtc, CancellationToken cancellationToken = default)
+            => AddAsync(upload, cancellationToken);
+
         public Task<IReadOnlyList<TcxUpload>> ListAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<TcxUpload>>(new List<TcxUpload>());
 
         public Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<TcxUpload?>(null);
+
+        public Task<TcxUpload?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+            => Task.FromResult<TcxUpload?>(null);
+
+        public Task<TcxUpload?> GetByContentHashAsync(string contentHashSha256, CancellationToken cancellationToken = default)
             => Task.FromResult<TcxUpload?>(null);
 
         public Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
@@ -862,6 +955,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             string? metricThresholdSnapshotJson,
             string? appliedProfileSnapshotJson,
             string? recalculationHistoryJson,
+            string? sessionSummarySnapshotJson,
             CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 

@@ -4,7 +4,7 @@ namespace FootballMetrics.Api.UseCases;
 
 public interface ITcxSessionUseCase
 {
-    Task<TcxUpload> UploadTcxAsync(IFormFile file, CancellationToken cancellationToken);
+    Task<UploadTcxOutcome> UploadTcxAsync(IFormFile file, string? idempotencyKey, CancellationToken cancellationToken);
     Task<IReadOnlyList<TcxUpload>> ListAsync(CancellationToken cancellationToken);
     Task<TcxUpload?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<TcxUpload?> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken);
@@ -12,6 +12,7 @@ public interface ITcxSessionUseCase
     Task<TcxUpload?> UpdateSessionSpeedUnitAsync(Guid id, string speedUnit, CancellationToken cancellationToken);
     Task<TcxUpload?> RecalculateWithCurrentProfileAsync(Guid id, CancellationToken cancellationToken);
     TcxActivitySummary CreateSummaryFromRawContent(byte[] rawFileContent, string selectedSmoothingFilter, string? metricThresholdSnapshotJson);
+    TcxActivitySummary ResolveSummary(TcxUpload upload);
     AppliedProfileSnapshot ResolveAppliedProfileSnapshot(TcxUpload upload);
     IReadOnlyList<SessionRecalculationEntry> ResolveRecalculationHistory(TcxUpload upload);
 }

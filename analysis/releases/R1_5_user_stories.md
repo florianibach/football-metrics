@@ -200,3 +200,18 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 - [x] Der voreingestellte Standardwert für neue Nutzerprofile ist 5 Minuten.
 - [x] Neue Session-Analysen übernehmen das im Profil hinterlegte Zeitfenster automatisch.
 - [x] Das Zeitfenster kann in der Session-Ansicht weiterhin manuell geändert werden, ohne den Profil-Default automatisch zu überschreiben.
+
+---
+
+## Story R1.5-16: Profiländerungen asynchron auf bestehende Sessions anwenden
+**Als** Nutzer
+**möchte ich** nach einer Profiländerung bestehende Sessions automatisch neu berechnen lassen, ohne dass das Speichern blockiert
+**damit** meine historischen Auswertungen konsistent bleiben und die Anwendung trotzdem schnell reagiert.
+
+### Acceptance Criteria
+- [ ] Das Speichern des Profils bleibt synchron schnell und erfolgreich, ohne auf eine vollständige Rekalkulation aller Sessions zu warten.
+- [ ] Nach dem Speichern wird ein asynchroner Rekalkulationsprozess für betroffene Sessions gestartet.
+- [ ] Der Rekalkulationsstatus ist transparent sichtbar (mindestens: „läuft“, „abgeschlossen“, „fehlgeschlagen“ inkl. Fehlerhinweis).
+- [ ] Nutzer können eine explizite Aktion „Jetzt alles neu berechnen“ auslösen (Power-User-Flow), ohne Profilwerte erneut ändern zu müssen.
+- [ ] Während laufender Rekalkulation bleiben bestehende Ergebnisse nutzbar und werden nicht still/unvorhersehbar überschrieben.
+- [ ] Abgeschlossene Rekalkulationen sind nachvollziehbar dokumentiert (Zeitpunkt, Profilversion, Anzahl aktualisierter Sessions, Fehleranzahl).
