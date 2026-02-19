@@ -87,6 +87,19 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
+## Story R1.6-13: GPS-Punkte-Heatmap in GPS- und Dual-Mode
+**Als** Nutzer
+**möchte ich** aus den vorhandenen GPS-Punkten eine Heatmap sehen
+**damit** ich Lauf- und Positionsschwerpunkte schnell visuell erkennen kann.
+
+### Acceptance Criteria
+- [ ] Die Heatmap wird angezeigt, wenn der Session-Datenmodus `GPS-only` oder `Dual Mode` ist.
+- [ ] Die Heatmap basiert auf den tatsächlich importierten GPS-Punkten der Session (keine synthetischen Ersatzdaten).
+- [ ] Im `HF-only`-Modus wird keine Heatmap gerendert; stattdessen erscheint ein klarer Hinweis, dass GPS-Daten fehlen.
+- [ ] Die Darstellung ist konsistent mit den bestehenden Heatmap-Ansichten für Gesamt-Session, Zeitfenster und Segmente.
+
+---
+
 ## Story R1.6-08: Bestehende Profil-Granularität 1/2/5 Minuten beibehalten
 **Als** Bestandsnutzer
 **möchte ich** weiterhin mit 1-, 2- oder 5-Minuten-Granularität vergleichen
@@ -179,6 +192,7 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - R1.6-05 Analyse-Parität Session ↔ Segmente
 - R1.6-06 Zeitfenster-/Segment-Intensitätsprofil
 - R1.6-08 Beibehaltung 1/2/5-Minuten-Granularität
+- R1.6-13 GPS-Punkte-Heatmap in GPS- und Dual-Mode
 
 ### Should-have
 - R1.6-07 Training-vs-Spiel inkl. Segmentvergleich
