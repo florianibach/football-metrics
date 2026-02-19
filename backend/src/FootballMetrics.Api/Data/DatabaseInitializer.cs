@@ -45,7 +45,9 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 SelectedSpeedUnit TEXT NOT NULL DEFAULT 'km/h',
                 SelectedSpeedUnitSource TEXT NOT NULL DEFAULT 'ProfileDefault',
                 SessionSummarySnapshotJson TEXT NULL,
-                IdempotencyKey TEXT NULL
+                IdempotencyKey TEXT NULL,
+                SegmentsSnapshotJson TEXT NULL,
+                SegmentChangeHistoryJson TEXT NULL
             );
 
             CREATE INDEX IF NOT EXISTS IX_TcxUploads_UploadedAtUtc ON TcxUploads (UploadedAtUtc DESC);
@@ -114,6 +116,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "SelectedSpeedUnitSource", "TEXT NOT NULL DEFAULT 'ProfileDefault'", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SessionSummarySnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "IdempotencyKey", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "SegmentsSnapshotJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "SegmentChangeHistoryJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "MetricThresholdsJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "DefaultSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
@@ -124,6 +128,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await ApplyMigrationSlot003Async(connection, cancellationToken);
         await ApplyMigrationSlot004Async(connection, cancellationToken);
         await ApplyMigrationSlot005Async(connection, cancellationToken);
+        await ApplyMigrationSlot006Async(connection, cancellationToken);
     }
 
 
@@ -194,6 +199,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
 
         await EnsureColumnExistsAsync(connection, "SessionSummarySnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "IdempotencyKey", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "SegmentsSnapshotJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "SegmentChangeHistoryJson", "TEXT NULL", cancellationToken);
 
         var insertCommand = connection.CreateCommand();
         insertCommand.CommandText = @"
@@ -265,6 +272,29 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         insertCommand.CommandText = @"
             INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
             VALUES (5, 'r1_5_16_profile_recalculation_jobs', $appliedAtUtc);
+        ";
+        insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+
+    private static async Task ApplyMigrationSlot006Async(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var existsCommand = connection.CreateCommand();
+        existsCommand.CommandText = "SELECT COUNT(1) FROM SchemaVersions WHERE Version = 6;";
+        var alreadyApplied = Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+        if (alreadyApplied)
+        {
+            return;
+        }
+
+        await EnsureColumnExistsAsync(connection, "SegmentsSnapshotJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "SegmentChangeHistoryJson", "TEXT NULL", cancellationToken);
+
+        var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = @"
+            INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
+            VALUES (6, 'r1_6_03_session_segments_versioning', $appliedAtUtc);
         ";
         insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
         await insertCommand.ExecuteNonQueryAsync(cancellationToken);

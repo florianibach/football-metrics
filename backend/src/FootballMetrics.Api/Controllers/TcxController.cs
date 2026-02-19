@@ -161,6 +161,90 @@ public class TcxController : ControllerBase
         return Ok(ToResponse(upload));
     }
 
+    [HttpPost("{id:guid}/segments")]
+    public async Task<ActionResult<TcxUploadResponseDto>> AddSegment(Guid id, [FromBody] CreateSegmentRequestDto request, CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Label))
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid segment", "Segment label is required.", ApiErrorCodes.ValidationError);
+        }
+
+        try
+        {
+            var upload = await _tcxSessionUseCase.AddSegmentAsync(id, request.Label, request.StartSecond, request.EndSecond, request.Reason, cancellationToken);
+            if (upload is null)
+            {
+                return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
+            }
+
+            return Ok(ToResponse(upload));
+        }
+        catch (InvalidDataException ex)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid segment", ex.Message, ApiErrorCodes.ValidationError);
+        }
+    }
+
+    [HttpPut("{id:guid}/segments/{segmentId:guid}")]
+    public async Task<ActionResult<TcxUploadResponseDto>> UpdateSegment(Guid id, Guid segmentId, [FromBody] UpdateSegmentRequestDto request, CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid segment", "Request body is required.", ApiErrorCodes.ValidationError);
+        }
+
+        try
+        {
+            var upload = await _tcxSessionUseCase.UpdateSegmentAsync(id, segmentId, request.Label, request.StartSecond, request.EndSecond, request.Reason, cancellationToken);
+            if (upload is null)
+            {
+                return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);
+            }
+
+            return Ok(ToResponse(upload));
+        }
+        catch (InvalidDataException ex)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid segment", ex.Message, ApiErrorCodes.ValidationError);
+        }
+    }
+
+    [HttpDelete("{id:guid}/segments/{segmentId:guid}")]
+    public async Task<ActionResult<TcxUploadResponseDto>> DeleteSegment(Guid id, Guid segmentId, [FromQuery] string? reason, CancellationToken cancellationToken)
+    {
+        var upload = await _tcxSessionUseCase.DeleteSegmentAsync(id, segmentId, reason, cancellationToken);
+        if (upload is null)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);
+        }
+
+        return Ok(ToResponse(upload));
+    }
+
+    [HttpPost("{id:guid}/segments/merge")]
+    public async Task<ActionResult<TcxUploadResponseDto>> MergeSegments(Guid id, [FromBody] MergeSegmentsRequestDto request, CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid segment merge", "Request body is required.", ApiErrorCodes.ValidationError);
+        }
+
+        try
+        {
+            var upload = await _tcxSessionUseCase.MergeSegmentsAsync(id, request.SourceSegmentId, request.TargetSegmentId, request.Label, request.Reason, cancellationToken);
+            if (upload is null)
+            {
+                return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);
+            }
+
+            return Ok(ToResponse(upload));
+        }
+        catch (InvalidDataException ex)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid segment merge", ex.Message, ApiErrorCodes.ValidationError);
+        }
+    }
+
     [HttpPost("{id:guid}/recalculate")]
     public async Task<ActionResult<TcxUploadResponseDto>> RecalculateWithCurrentProfile(Guid id, CancellationToken cancellationToken)
     {
@@ -184,7 +268,9 @@ public class TcxController : ControllerBase
             upload.SelectedSpeedUnitSource,
             upload.SelectedSpeedUnit,
             _tcxSessionUseCase.ResolveAppliedProfileSnapshot(upload),
-            _tcxSessionUseCase.ResolveRecalculationHistory(upload));
+            _tcxSessionUseCase.ResolveRecalculationHistory(upload),
+            _tcxSessionUseCase.ResolveSegments(upload),
+            _tcxSessionUseCase.ResolveSegmentChangeHistory(upload));
 
     private static string? NormalizeOptional(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

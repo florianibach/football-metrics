@@ -41,10 +41,10 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 **damit** ich die Analyse auf realistische Trainings-/Spielphasen anwenden kann.
 
 ### Acceptance Criteria
-- [ ] Nutzer kann Segmente mit Label, Start- und Endzeit anlegen.
-- [ ] Segmente sind editierbar (umbenennen, verschieben, löschen, zusammenführen).
-- [ ] Segmente dürfen sich nicht unzulässig überlappen.
-- [ ] Segmentgrenzen werden versioniert gespeichert, sodass Änderungen nachvollziehbar bleiben.
+- [x] Nutzer kann Segmente mit Label, Start- und Endzeit anlegen.
+- [x] Segmente sind editierbar (umbenennen, verschieben, löschen, zusammenführen).
+- [x] Segmente dürfen sich nicht unzulässig überlappen.
+- [x] Segmentgrenzen werden versioniert gespeichert, sodass Änderungen nachvollziehbar bleiben.
 
 ---
 

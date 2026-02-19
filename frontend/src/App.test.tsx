@@ -200,6 +200,8 @@ describe('App', () => {
         capturedAtUtc: '2026-02-16T22:00:00.000Z'
       },
       recalculationHistory: [],
+      segments: [],
+      segmentChangeHistory: [],
       ...overrides
     };
   }
@@ -1921,5 +1923,121 @@ describe('App', () => {
     expect(await screen.findByText(/GPS unusable because quality is Low\. Required: High\./)).toBeInTheDocument();
     expect(screen.getByText(/measurement unusable \(GPS unusable because quality is Low/)).toBeInTheDocument();
     expect(screen.getByText(/not measured \(Heart-rate data not present/)).toBeInTheDocument();
+  });
+
+  it('R1_6_03_Ac01_Ac02_ui_allows_segment_creation_and_editing', async () => {
+    const initial = createUploadRecord({
+      id: 'upload-segment',
+      segments: [],
+      segmentChangeHistory: []
+    });
+
+    const createdResponse = createUploadRecord({
+      id: 'upload-segment',
+      segments: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }],
+      segmentChangeHistory: [{ version: 1, changedAtUtc: '2026-02-16T22:10:00.000Z', action: 'Created', reason: 'Initial', segmentsSnapshot: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }] }]
+    });
+
+    const updatedResponse = createUploadRecord({
+      id: 'upload-segment',
+      segments: [{ id: 'seg-1', label: 'Activation', startSecond: 0, endSecond: 240 }],
+      segmentChangeHistory: [{ version: 1, changedAtUtc: '2026-02-16T22:10:00.000Z', action: 'Created', reason: 'Initial', segmentsSnapshot: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }] }, { version: 2, changedAtUtc: '2026-02-16T22:20:00.000Z', action: 'Updated', reason: 'Trimmed', segmentsSnapshot: [{ id: 'seg-1', label: 'Activation', startSecond: 0, endSecond: 240 }] }]
+    });
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [initial] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      if (url.includes('/segments') && init?.method === 'POST' && !url.endsWith('/merge')) {
+        return Promise.resolve({ ok: true, json: async () => createdResponse } as Response);
+      }
+
+      if (url.includes('/segments/seg-1') && init?.method === 'PUT') {
+        return Promise.resolve({ ok: true, json: async () => updatedResponse } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => initial } as Response);
+    });
+
+    render(<App />);
+    await screen.findByText('Upload history');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
+    await screen.findByText('Session segments');
+
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Warm-up' } });
+    fireEvent.change(screen.getByLabelText('Start (s)'), { target: { value: '0' } });
+    fireEvent.change(screen.getByLabelText('End (s)'), { target: { value: '300' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add segment' }));
+
+    await waitFor(() => expect(screen.getAllByText('Warm-up').length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Activation' } });
+    fireEvent.change(screen.getByLabelText('End (s)'), { target: { value: '240' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save segment changes' }));
+
+    await waitFor(() => expect(screen.getAllByText('Activation').length).toBeGreaterThan(0));
+
+    const segmentCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/segments'));
+    expect(segmentCalls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('R1_6_03_Ac03_ui_shows_backend_validation_errors_for_overlap_and_merge', async () => {
+    const initial = createUploadRecord({
+      id: 'upload-segment-errors',
+      segments: [{ id: 'seg-a', label: 'A', startSecond: 0, endSecond: 200 }, { id: 'seg-b', label: 'B', startSecond: 400, endSecond: 600 }],
+      segmentChangeHistory: []
+    });
+
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [initial] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      if (url.includes('/segments') && init?.method === 'POST' && !url.endsWith('/merge')) {
+        return Promise.resolve({ ok: false, json: async () => ({ detail: 'Segments must not overlap.' }) } as Response);
+      }
+
+      if (url.endsWith('/segments/merge') && init?.method === 'POST') {
+        return Promise.resolve({ ok: false, json: async () => ({ detail: 'Only adjacent segments can be merged.' }) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => initial } as Response);
+    });
+
+    render(<App />);
+    await screen.findByText('Upload history');
+    fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
+    await screen.findByText('Session segments');
+
+    fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Overlap' } });
+    fireEvent.change(screen.getByLabelText('Start (s)'), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText('End (s)'), { target: { value: '250' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add segment' }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Segments must not overlap.'));
+
+    fireEvent.change(screen.getByLabelText('Source segment'), { target: { value: 'seg-a' } });
+    fireEvent.change(screen.getByLabelText('Target segment'), { target: { value: 'seg-b' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Only adjacent segments can be merged.'));
+
+    const errorCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/segments'));
+    expect(errorCalls.length).toBeGreaterThanOrEqual(2);
   });
 });
