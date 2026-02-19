@@ -187,3 +187,16 @@ R1.5 stabilisiert und verbessert die Nutzung im Alltag: bessere Vergleichsansich
 - [x] `Sprint` und `High-Intensity` werden ausschließlich als Prozentwerte der effektiven Max Speed konfiguriert.
 - [x] Bei adaptiver Konfiguration werden die effektiven Basiswerte im Profil read-only angezeigt.
 - [x] Session-Threshold-Transparenz zeigt Basiswert, Quelle und daraus abgeleitete Schwellen konsistent an.
+
+---
+
+## Story R1.5-15: Bevorzugtes Zeitfenster im Profil konfigurieren
+**Als** Nutzer
+**möchte ich** im Profil mein bevorzugtes Zeitfenster für die Aggregation (1, 2 oder 5 Minuten) festlegen
+**damit** neue Session-Analysen direkt mit meiner bevorzugten Ansicht starten.
+
+### Acceptance Criteria
+- [ ] Das Profil bietet die Auswahl des Standard-Zeitfensters zwischen 1, 2 und 5 Minuten.
+- [ ] Der voreingestellte Standardwert für neue Nutzerprofile ist 5 Minuten.
+- [ ] Neue Session-Analysen übernehmen das im Profil hinterlegte Zeitfenster automatisch.
+- [ ] Das Zeitfenster kann in der Session-Ansicht weiterhin manuell geändert werden, ohne den Profil-Default automatisch zu überschreiben.
