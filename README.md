@@ -38,12 +38,12 @@ docker compose up --build
 ## API Endpoints (initial)
 
 
-Für Frontend-Config gilt: `VITE_API_BASE_URL` sollte auf den API-Pfad inkl. `/api` zeigen (z. B. `/api` oder `http://localhost:8080/api`).
+Für Frontend-Config gilt: `VITE_API_BASE_URL` kann auf `/api` **oder** direkt `/api/v1` zeigen (z. B. `/api`, `/api/v1`, `http://localhost:8080/api` oder `http://localhost:8080/api/v1`).
 Hinweis: Das Frontend-Nginx proxyt `/api/*` an das Backend und erlaubt Uploads bis 25 MB (`client_max_body_size`), damit der 20 MB TCX-API-Limit korrekt erreicht werden kann.
 
-- `POST /api/tcx/upload` – nimmt eine `.tcx` Datei (max. 20 MB) entgegen, validiert Struktur (XML, Activity, Trackpoint), speichert die Rohdatei unverändert als BLOB inkl. SHA-256-Hash in SQLite und gibt konkrete Fehlerhinweise bei ungültigen Dateien bzw. Speicherfehlern zurück. Zusätzlich enthält die Antwort eine Basiszusammenfassung (Startzeit, Dauer, Trackpunkte, Herzfrequenz min/avg/max, Distanz, GPS-Status). Die Distanz wird bei GPS-Punkten über eine fußballspezifische adaptive Glättung auf GPS-Basis berechnet (Kurzrichtungswechsel werden bevorzugt erhalten, unplausible Ausreißer geglättet); Datei-Distanz bleibt als Referenz erhalten. Die verwendete Glättungsstrategie inkl. Parametern wird im Feld `summary.smoothing` zurückgegeben.
-- `GET /api/tcx` – listet hochgeladene Dateien inkl. Basis-Summary (Aktivitätszeitpunkt, Qualitätsstatus) auf.
-- `GET /api/tcx/{id}` – liefert die Detaildaten einer einzelnen Session.
+- `POST /api/v1/tcx/upload` – nimmt eine `.tcx` Datei (max. 20 MB) entgegen, validiert Struktur (XML, Activity, Trackpoint), speichert die Rohdatei unverändert als BLOB inkl. SHA-256-Hash in SQLite und gibt konkrete Fehlerhinweise bei ungültigen Dateien bzw. Speicherfehlern zurück. Zusätzlich enthält die Antwort eine Basiszusammenfassung (Startzeit, Dauer, Trackpunkte, Herzfrequenz min/avg/max, Distanz, GPS-Status). Die Distanz wird bei GPS-Punkten über eine fußballspezifische adaptive Glättung auf GPS-Basis berechnet (Kurzrichtungswechsel werden bevorzugt erhalten, unplausible Ausreißer geglättet); Datei-Distanz bleibt als Referenz erhalten. Die verwendete Glättungsstrategie inkl. Parametern wird im Feld `summary.smoothing` zurückgegeben.
+- `GET /api/v1/tcx` – listet hochgeladene Dateien inkl. Basis-Summary (Aktivitätszeitpunkt, Qualitätsstatus) auf.
+- `GET /api/v1/tcx/{id}` – liefert die Detaildaten einer einzelnen Session.
 
 ## Entwicklung ohne Docker
 
@@ -169,7 +169,7 @@ Empfohlener Sammelcheck:
 ## Glättungsfilter pro Session auswählbar (R1-07)
 
 - In der Session-Detailansicht kann je Session ein Glättungsfilter gewählt werden: `Raw`, `AdaptiveMedian`, `Savitzky-Golay`, `Butterworth`.
-- Die Auswahl wird per API (`PUT /api/tcx/{id}/smoothing-filter`) pro Session persistiert und bei `GET /api/tcx` sowie `GET /api/tcx/{id}` wieder ausgeliefert.
+- Die Auswahl wird per API (`PUT /api/v1/tcx/{id}/smoothing-filter`) pro Session persistiert und bei `GET /api/v1/tcx` sowie `GET /api/v1/tcx/{id}` wieder ausgeliefert.
 - Die gewählte Filterstrategie wird im Analyseprotokoll unter `summary.smoothing.selectedStrategy` nachvollziehbar angezeigt.
 - Für Sessions ohne GPS ist die Filterauswahl deaktiviert; die UI zeigt eine verständliche Begründung.
 
@@ -185,7 +185,7 @@ Empfohlener Sammelcheck:
 
 - Im Profil kann ein bevorzugter Standard-Glättungsfilter gesetzt werden (`Raw`, `AdaptiveMedian`, `Savitzky-Golay`, `Butterworth`).
 - Neue Uploads übernehmen diesen Profil-Default automatisch als initial aktiven Session-Filter.
-- Die Session-Filterauswahl bleibt pro Session manuell überschreibbar (`PUT /api/tcx/{id}/smoothing-filter`).
+- Die Session-Filterauswahl bleibt pro Session manuell überschreibbar (`PUT /api/v1/tcx/{id}/smoothing-filter`).
 - Die API liefert transparent die Herkunft des aktiven Filters über `selectedSmoothingFilterSource` mit `ProfileDefault` oder `ManualOverride`; die UI zeigt diese Herkunft in der Session-Detailansicht an.
 
 
@@ -193,7 +193,7 @@ Empfohlener Sammelcheck:
 
 - Im Profil kann eine bevorzugte Geschwindigkeitseinheit als Standard gesetzt werden: `km/h`, `m/s` oder `min/km`.
 - Neue Session-Analysen übernehmen diese Einheit automatisch als `selectedSpeedUnit` mit Quelle `selectedSpeedUnitSource=ProfileDefault`.
-- In der Session-Detailansicht kann die Einheit temporär pro Session überschrieben werden (`PUT /api/tcx/{id}/speed-unit`), ohne den Profil-Default (`preferredSpeedUnit`) zu verändern.
+- In der Session-Detailansicht kann die Einheit temporär pro Session überschrieben werden (`PUT /api/v1/tcx/{id}/speed-unit`), ohne den Profil-Default (`preferredSpeedUnit`) zu verändern.
 - Rundung/Konvertierung ist konsistent: `km/h` mit 1 Nachkommastelle, `m/s` mit 2 Nachkommastellen, `min/km` mit 2 Nachkommastellen.
 
 ## Adaptive vs. fixe Schwellen im Profil (R1.5-10)
