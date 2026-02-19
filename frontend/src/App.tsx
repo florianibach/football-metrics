@@ -140,6 +140,21 @@ type SessionRecalculationEntry = {
   newProfile: AppliedProfileSnapshot;
 };
 
+type SessionSegment = {
+  id: string;
+  label: string;
+  startSecond: number;
+  endSecond: number;
+};
+
+type SegmentChangeEntry = {
+  version: number;
+  changedAtUtc: string;
+  action: string;
+  reason: string | null;
+  segmentsSnapshot: SessionSegment[];
+};
+
 type UploadRecord = {
   id: string;
   fileName: string;
@@ -151,6 +166,8 @@ type UploadRecord = {
   selectedSpeedUnit: SpeedUnit;
   appliedProfileSnapshot: AppliedProfileSnapshot;
   recalculationHistory: SessionRecalculationEntry[];
+  segments: SessionSegment[];
+  segmentChangeHistory: SegmentChangeEntry[];
 };
 
 
@@ -377,6 +394,28 @@ type TranslationKey =
   | 'coreMetricsCategoryExternalHelp'
   | 'coreMetricsCategoryInternalTitle'
   | 'coreMetricsCategoryInternalHelp'
+  | 'segmentsTitle'
+  | 'segmentsEmpty'
+  | 'segmentLabel'
+  | 'segmentStartSecond'
+  | 'segmentEndSecond'
+  | 'segmentReason'
+  | 'segmentAdd'
+  | 'segmentUpdate'
+  | 'segmentEdit'
+  | 'segmentDelete'
+  | 'segmentCancelEdit'
+  | 'segmentMergeTitle'
+  | 'segmentMergeSource'
+  | 'segmentMergeTarget'
+  | 'segmentMergeLabel'
+  | 'segmentMergeAction'
+  | 'segmentHistoryTitle'
+  | 'segmentCreateSuccess'
+  | 'segmentUpdateSuccess'
+  | 'segmentDeleteSuccess'
+  | 'segmentMergeSuccess'
+  | 'segmentErrorPrefix'
   | 'sessionRecalculateButton'
   | 'sessionRecalculateSuccess'
   | 'sessionRecalculateProfileInfo'
@@ -620,7 +659,29 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     coreMetricsCategoryExternalTitle: 'External metrics (movement-based)',
     coreMetricsCategoryExternalHelp: 'External metrics describe your visible physical output and answer: What did I do on the pitch? They are built from movement and speed data, for example distance covered, top speed, and acceleration/deceleration events. In simple terms, these values show your running volume and intensity independent of how your body felt internally. A high external load usually means many intense actions, but it does not automatically mean your body coped well with them.',
     coreMetricsCategoryInternalTitle: 'Internal metrics (heart-rate-based)',
-    coreMetricsCategoryInternalHelp: 'Internal metrics describe your physiological response and answer: How hard did this session feel for my body? They are derived from heart-rate intensity and recovery behavior, for example time in heart-rate zones, TRIMP load, and heart-rate recovery. In simple terms, these values show your cardiovascular strain and recovery quality, even when movement output is similar. If internal load is unusually high compared with external load, this can indicate fatigue, stress, heat effects, or incomplete recovery.'
+    coreMetricsCategoryInternalHelp: 'Internal metrics describe your physiological response and answer: How hard did this session feel for my body? They are derived from heart-rate intensity and recovery behavior, for example time in heart-rate zones, TRIMP load, and heart-rate recovery. In simple terms, these values show your cardiovascular strain and recovery quality, even when movement output is similar. If internal load is unusually high compared with external load, this can indicate fatigue, stress, heat effects, or incomplete recovery.',
+    segmentsTitle: 'Session segments',
+    segmentsEmpty: 'No segments yet. Add your first phase to structure this session.',
+    segmentLabel: 'Label',
+    segmentStartSecond: 'Start (s)',
+    segmentEndSecond: 'End (s)',
+    segmentReason: 'Reason (optional)',
+    segmentAdd: 'Add segment',
+    segmentUpdate: 'Save segment changes',
+    segmentEdit: 'Edit',
+    segmentDelete: 'Delete',
+    segmentCancelEdit: 'Cancel',
+    segmentMergeTitle: 'Merge segments',
+    segmentMergeSource: 'Source segment',
+    segmentMergeTarget: 'Target segment',
+    segmentMergeLabel: 'Merged label (optional)',
+    segmentMergeAction: 'Merge',
+    segmentHistoryTitle: 'Segment change history',
+    segmentCreateSuccess: 'Segment created.',
+    segmentUpdateSuccess: 'Segment updated.',
+    segmentDeleteSuccess: 'Segment deleted.',
+    segmentMergeSuccess: 'Segments merged.',
+    segmentErrorPrefix: 'Segment action failed:'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -842,7 +903,29 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     coreMetricsCategoryExternalTitle: 'Externe Metriken (bewegungsbasiert)',
     coreMetricsCategoryExternalHelp: 'Externe Metriken beschreiben deine sichtbare körperliche Leistung und beantworten: Was habe ich auf dem Platz gemacht? Sie basieren auf Bewegungs- und Geschwindigkeitsdaten, zum Beispiel Distanz, Maximaltempo sowie Beschleunigungs- und Abbremsaktionen. Vereinfacht zeigen diese Werte Laufumfang und Bewegungsintensität – unabhängig davon, wie sich dein Körper dabei intern belastet hat. Eine hohe externe Last bedeutet meist viele intensive Aktionen, sagt aber allein noch nicht, wie gut dein Körper diese Last verkraftet hat.',
     coreMetricsCategoryInternalTitle: 'Interne Metriken (herzfrequenzbasiert)',
-    coreMetricsCategoryInternalHelp: 'Interne Metriken beschreiben deine physiologische Reaktion und beantworten: Wie anstrengend war die Einheit für meinen Körper? Sie werden aus Herzfrequenzintensität und Erholungsverhalten abgeleitet, zum Beispiel Zeit in HF-Zonen, TRIMP-Belastung und Herzfrequenz-Erholung. Vereinfacht zeigen diese Werte die innere Herz-Kreislauf-Belastung und die Erholungsqualität – auch dann, wenn die äußere Laufleistung ähnlich war. Ist die interne Last im Verhältnis zur externen Last ungewöhnlich hoch, kann das auf Müdigkeit, Stress, Hitzeeinfluss oder unvollständige Regeneration hindeuten.'
+    coreMetricsCategoryInternalHelp: 'Interne Metriken beschreiben deine physiologische Reaktion und beantworten: Wie anstrengend war die Einheit für meinen Körper? Sie werden aus Herzfrequenzintensität und Erholungsverhalten abgeleitet, zum Beispiel Zeit in HF-Zonen, TRIMP-Belastung und Herzfrequenz-Erholung. Vereinfacht zeigen diese Werte die innere Herz-Kreislauf-Belastung und die Erholungsqualität – auch dann, wenn die äußere Laufleistung ähnlich war. Ist die interne Last im Verhältnis zur externen Last ungewöhnlich hoch, kann das auf Müdigkeit, Stress, Hitzeeinfluss oder unvollständige Regeneration hindeuten.',
+    segmentsTitle: 'Session-Segmente',
+    segmentsEmpty: 'Noch keine Segmente vorhanden. Füge die erste Phase hinzu, um die Session zu strukturieren.',
+    segmentLabel: 'Label',
+    segmentStartSecond: 'Start (s)',
+    segmentEndSecond: 'Ende (s)',
+    segmentReason: 'Grund (optional)',
+    segmentAdd: 'Segment hinzufügen',
+    segmentUpdate: 'Segment speichern',
+    segmentEdit: 'Bearbeiten',
+    segmentDelete: 'Löschen',
+    segmentCancelEdit: 'Abbrechen',
+    segmentMergeTitle: 'Segmente zusammenführen',
+    segmentMergeSource: 'Quellsegment',
+    segmentMergeTarget: 'Zielsegment',
+    segmentMergeLabel: 'Label nach Merge (optional)',
+    segmentMergeAction: 'Zusammenführen',
+    segmentHistoryTitle: 'Änderungsverlauf Segmente',
+    segmentCreateSuccess: 'Segment erstellt.',
+    segmentUpdateSuccess: 'Segment aktualisiert.',
+    segmentDeleteSuccess: 'Segment gelöscht.',
+    segmentMergeSuccess: 'Segmente zusammengeführt.',
+    segmentErrorPrefix: 'Segment-Aktion fehlgeschlagen:'
   }
 };
 
@@ -1158,6 +1241,8 @@ function resolveDataAvailability(summary: ActivitySummary): DataAvailability {
 function normalizeUploadRecord(record: UploadRecord): UploadRecord {
   return {
     ...record,
+    segments: record.segments ?? [],
+    segmentChangeHistory: record.segmentChangeHistory ?? [],
     summary: {
       ...record.summary,
       dataAvailability: resolveDataAvailability(record.summary)
@@ -1278,6 +1363,9 @@ export function App() {
     opponentName: null,
     opponentLogoUrl: null
   });
+  const [segmentForm, setSegmentForm] = useState({ label: '', startSecond: '0', endSecond: '300', reason: '' });
+  const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
+  const [mergeForm, setMergeForm] = useState({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
   const [profileForm, setProfileForm] = useState<UserProfile>({
     primaryPosition: 'CentralMidfielder',
     secondaryPosition: null,
@@ -1424,6 +1512,19 @@ export function App() {
   }
 
 
+  function applyUpdatedSession(payload: UploadRecord) {
+    setSelectedSession(payload);
+    setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
+    setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
+    setSessionContextForm(payload.sessionContext);
+  }
+
+  function resetSegmentForms() {
+    setSegmentForm({ label: '', startSecond: '0', endSecond: '300', reason: '' });
+    setEditingSegmentId(null);
+    setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
+  }
+
   async function onFilterChange(event: ChangeEvent<HTMLSelectElement>) {
     const filter = event.target.value as SmoothingFilter;
     setSelectedFilter(filter);
@@ -1443,10 +1544,7 @@ export function App() {
     }
 
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
-    setSelectedSession(payload);
-    setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
-    setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
-      setSessionContextForm(payload.sessionContext);
+    applyUpdatedSession(payload);
   }
 
 
@@ -1468,8 +1566,7 @@ export function App() {
     }
 
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
-    setSelectedSession(payload);
-    setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
+    applyUpdatedSession(payload);
   }
 
   async function onRecalculateWithCurrentProfile() {
@@ -1483,8 +1580,7 @@ export function App() {
     }
 
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
-    setSelectedSession(payload);
-    setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
+    applyUpdatedSession(payload);
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
     setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
@@ -1508,10 +1604,107 @@ export function App() {
     }
 
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
-    setSelectedSession(payload);
-    setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
+    applyUpdatedSession(payload);
       setSessionContextForm(payload.sessionContext);
     setMessage(t.sessionContextSaveSuccess);
+  }
+
+
+  async function onSaveSegment() {
+    if (!selectedSession || !segmentForm.label.trim()) {
+      return;
+    }
+
+    const endpoint = editingSegmentId
+      ? `${apiBaseUrl}/tcx/${selectedSession.id}/segments/${editingSegmentId}`
+      : `${apiBaseUrl}/tcx/${selectedSession.id}/segments`;
+
+    const body = editingSegmentId
+      ? {
+        label: segmentForm.label.trim(),
+        startSecond: Number(segmentForm.startSecond),
+        endSecond: Number(segmentForm.endSecond),
+        reason: segmentForm.reason.trim() || null
+      }
+      : {
+        label: segmentForm.label.trim(),
+        startSecond: Number(segmentForm.startSecond),
+        endSecond: Number(segmentForm.endSecond),
+        reason: segmentForm.reason.trim() || null
+      };
+
+    const response = await fetch(endpoint, {
+      method: editingSegmentId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      setMessage(`${t.segmentErrorPrefix} ${await response.text()}`);
+      return;
+    }
+
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
+    applyUpdatedSession(payload);
+    resetSegmentForms();
+    setMessage(editingSegmentId ? t.segmentUpdateSuccess : t.segmentCreateSuccess);
+  }
+
+  function onEditSegment(segment: SessionSegment) {
+    setEditingSegmentId(segment.id);
+    setSegmentForm({
+      label: segment.label,
+      startSecond: String(segment.startSecond),
+      endSecond: String(segment.endSecond),
+      reason: ''
+    });
+  }
+
+  async function onDeleteSegment(segmentId: string) {
+    if (!selectedSession) {
+      return;
+    }
+
+    const reasonQuery = segmentForm.reason.trim() ? `?reason=${encodeURIComponent(segmentForm.reason.trim())}` : '';
+    const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}/segments/${segmentId}${reasonQuery}`, {
+      method: 'DELETE'
+    });
+
+    if (!response.ok) {
+      setMessage(`${t.segmentErrorPrefix} ${await response.text()}`);
+      return;
+    }
+
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
+    applyUpdatedSession(payload);
+    setMessage(t.segmentDeleteSuccess);
+  }
+
+  async function onMergeSegments() {
+    if (!selectedSession || !mergeForm.sourceSegmentId || !mergeForm.targetSegmentId) {
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}/segments/merge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sourceSegmentId: mergeForm.sourceSegmentId,
+        targetSegmentId: mergeForm.targetSegmentId,
+        label: mergeForm.label.trim() || null,
+        reason: mergeForm.reason.trim() || null
+      })
+    });
+
+    if (!response.ok) {
+      setMessage(`${t.segmentErrorPrefix} ${await response.text()}`);
+      return;
+    }
+
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
+    applyUpdatedSession(payload);
+    setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
+    setMessage(t.segmentMergeSuccess);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1543,6 +1736,7 @@ export function App() {
       const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
       setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
       setSelectedSession(payload);
+      resetSegmentForms();
       setCompareMode('smoothed');
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setSessionContextForm(payload.sessionContext);
@@ -2207,6 +2401,82 @@ export function App() {
             )}
             <button type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
           </div>
+          <div className="segment-management">
+            <h3>{t.segmentsTitle}</h3>
+            {selectedSession.segments.length === 0 ? (
+              <p>{t.segmentsEmpty}</p>
+            ) : (
+              <table className="history-table segment-table">
+                <thead>
+                  <tr>
+                    <th>{t.segmentLabel}</th>
+                    <th>{t.segmentStartSecond}</th>
+                    <th>{t.segmentEndSecond}</th>
+                    <th>{t.historyOpenDetails}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedSession.segments.map((segment) => (
+                    <tr key={segment.id}>
+                      <td>{segment.label}</td>
+                      <td>{segment.startSecond}</td>
+                      <td>{segment.endSecond}</td>
+                      <td>
+                        <button type="button" className="secondary-button" onClick={() => onEditSegment(segment)}>{t.segmentEdit}</button>
+                        <button type="button" onClick={() => onDeleteSegment(segment.id)}>{t.segmentDelete}</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+
+            <div className="segment-form">
+              <label htmlFor="segment-label">{t.segmentLabel}</label>
+              <input id="segment-label" value={segmentForm.label} onChange={(event) => setSegmentForm((current) => ({ ...current, label: event.target.value }))} />
+              <label htmlFor="segment-start">{t.segmentStartSecond}</label>
+              <input id="segment-start" type="number" min={0} value={segmentForm.startSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, startSecond: event.target.value }))} />
+              <label htmlFor="segment-end">{t.segmentEndSecond}</label>
+              <input id="segment-end" type="number" min={0} value={segmentForm.endSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, endSecond: event.target.value }))} />
+              <label htmlFor="segment-reason">{t.segmentReason}</label>
+              <input id="segment-reason" value={segmentForm.reason} onChange={(event) => setSegmentForm((current) => ({ ...current, reason: event.target.value }))} />
+              <div className="segment-actions">
+                <button type="button" onClick={onSaveSegment}>{editingSegmentId ? t.segmentUpdate : t.segmentAdd}</button>
+                {editingSegmentId && <button type="button" className="secondary-button" onClick={resetSegmentForms}>{t.segmentCancelEdit}</button>}
+              </div>
+            </div>
+
+            <div className="segment-form">
+              <h4>{t.segmentMergeTitle}</h4>
+              <label htmlFor="merge-source">{t.segmentMergeSource}</label>
+              <select id="merge-source" value={mergeForm.sourceSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, sourceSegmentId: event.target.value }))}>
+                <option value="">--</option>
+                {selectedSession.segments.map((segment) => <option key={`source-${segment.id}`} value={segment.id}>{segment.label}</option>)}
+              </select>
+              <label htmlFor="merge-target">{t.segmentMergeTarget}</label>
+              <select id="merge-target" value={mergeForm.targetSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, targetSegmentId: event.target.value }))}>
+                <option value="">--</option>
+                {selectedSession.segments.map((segment) => <option key={`target-${segment.id}`} value={segment.id}>{segment.label}</option>)}
+              </select>
+              <label htmlFor="merge-label">{t.segmentMergeLabel}</label>
+              <input id="merge-label" value={mergeForm.label} onChange={(event) => setMergeForm((current) => ({ ...current, label: event.target.value }))} />
+              <label htmlFor="merge-reason">{t.segmentReason}</label>
+              <input id="merge-reason" value={mergeForm.reason} onChange={(event) => setMergeForm((current) => ({ ...current, reason: event.target.value }))} />
+              <button type="button" onClick={onMergeSegments}>{t.segmentMergeAction}</button>
+            </div>
+
+            <h4>{t.segmentHistoryTitle}</h4>
+            {selectedSession.segmentChangeHistory.length === 0 ? (
+              <p>{t.historyEmpty}</p>
+            ) : (
+              <ul className="metrics-list">
+                {selectedSession.segmentChangeHistory.map((entry) => (
+                  <li key={`${entry.version}-${entry.changedAtUtc}`}>v{entry.version} • {entry.action} • {formatLocalDateTime(entry.changedAtUtc)}{entry.reason ? ` • ${entry.reason}` : ''}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+
           <div className="comparison-controls">
             <h3>{t.compareTitle}</h3>
             <label htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
