@@ -261,3 +261,8 @@
 5. **BAR2-005 harte Layer-Regeln im Controller/Use-Case-Schnitt** *(senkt strukturelle Erosionsrate)*
 
 Diese fünf Maßnahmen liefern den größten strukturellen Hebel für kommende Features, ohne Rewrite.
+
+
+## 7) Validierungshinweis
+
+Für dieses Follow-up wurde die Backend-Testsuite erfolgreich über `scripts/test-backend.sh` ausgeführt (inkl. automatischem .NET-Bootstrap, falls lokal nicht vorhanden).
