@@ -256,7 +256,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Session recalculated with current profile settings.')).toBeInTheDocument());
     expect(screen.getByText('Profile recalculation')).toBeInTheDocument();
     expect(screen.getByText('Recalculation history')).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith('/api/tcx/upload-1/recalculate', expect.objectContaining({ method: 'POST' }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/tcx/upload-1/recalculate', expect.objectContaining({ method: 'POST' }));
   });
 
   it('Mvp01_Ac01_renders english UI by default as browser language fallback', async () => {
@@ -1337,7 +1337,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/profile', expect.objectContaining({ method: 'PUT' }));
     expect((screen.getByLabelText('Preferred speed unit') as HTMLSelectElement).value).toBe('km/h');
   });
 
@@ -1390,7 +1390,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/profile', expect.objectContaining({ method: 'PUT' }));
     expect(screen.getByText('Threshold version: 2')).toBeInTheDocument();
   });
   it('R1_5_08_Ac01_shows_profile_default_filter_setting_and_saves_it', async () => {
@@ -1419,7 +1419,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/profile', expect.objectContaining({ method: 'PUT' }));
     expect((screen.getByLabelText('Preferred speed unit') as HTMLSelectElement).value).toBe('km/h');
   });
 
@@ -1449,7 +1449,7 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(screen.getByText(/MaxSpeedSource=/)).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/profile', expect.objectContaining({ method: 'PUT' }));
   });
 
 
@@ -1569,7 +1569,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledWith('/api/profile', expect.objectContaining({ method: 'PUT' }));
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/profile', expect.objectContaining({ method: 'PUT' }));
     expect((screen.getByLabelText('Preferred speed unit') as HTMLSelectElement).value).toBe('km/h');
   });
 

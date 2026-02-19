@@ -536,7 +536,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task R1_01_Ac04_UploadingTcx_ShouldReturnSmoothingTraceWithSelectedParameters()
     {
         var client = _factory.CreateClient();
-        var profileResetResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.AdaptiveMedian, null));
+        var profileResetResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.AdaptiveMedian, null));
         profileResetResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using var form = CreateUploadForm(
@@ -581,7 +581,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var client = _factory.CreateClient();
 
-        var profileUpdate = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth, null));
+        var profileUpdate = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth, null));
         profileUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
 
         using var form = CreateUploadForm(
@@ -642,7 +642,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         updated!.SelectedSpeedUnit.Should().Be(SpeedUnits.MetersPerSecond);
         updated.SelectedSpeedUnitSource.Should().Be(TcxSpeedUnitSources.ManualOverride);
 
-        var profileResponse = await client.GetFromJsonAsync<UserProfileResponse>("/api/profile");
+        var profileResponse = await client.GetFromJsonAsync<UserProfileResponse>("/api/v1/profile");
         profileResponse.Should().NotBeNull();
         profileResponse!.PreferredSpeedUnit.Should().NotBeNullOrWhiteSpace();
     }
@@ -692,7 +692,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
 
-        var profileUpdate = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, new MetricThresholdProfile
+        var profileUpdate = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, new MetricThresholdProfile
         {
             MaxSpeedMps = 8.3,
             MaxHeartRateBpm = 191,

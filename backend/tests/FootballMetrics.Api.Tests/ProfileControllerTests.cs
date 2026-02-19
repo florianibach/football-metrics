@@ -22,7 +22,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var response = await client.GetAsync("/api/profile");
+        var response = await client.GetAsync("/api/v1/profile");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var payload = await response.Content.ReadFromJsonAsync<UserProfileResponse>();
@@ -38,7 +38,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
         var client = _factory.CreateClient();
         var request = new UpdateUserProfileRequest(PlayerPositions.FullBack, PlayerPositions.Winger, null, null, null);
 
-        var updateResponse = await client.PutAsJsonAsync("/api/profile", request);
+        var updateResponse = await client.PutAsJsonAsync("/api/v1/profile", request);
 
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var updatedPayload = await updateResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
@@ -55,13 +55,13 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var invalidPrimaryResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest("", PlayerPositions.Winger, null, null, null));
+        var invalidPrimaryResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest("", PlayerPositions.Winger, null, null, null));
         invalidPrimaryResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var invalidSecondaryResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, "UnknownPosition", null, null, null));
+        var invalidSecondaryResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, "UnknownPosition", null, null, null));
         invalidSecondaryResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var duplicateResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, PlayerPositions.Striker, null, null, null));
+        var duplicateResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.Striker, PlayerPositions.Striker, null, null, null));
         duplicateResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
@@ -78,7 +78,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             DecelerationThresholdMps2 = -2.0
         }, null, null);
 
-        var invalidResponse = await client.PutAsJsonAsync("/api/profile", invalidRequest);
+        var invalidResponse = await client.PutAsJsonAsync("/api/v1/profile", invalidRequest);
         invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
         var validRequest = new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, new MetricThresholdProfile
@@ -91,7 +91,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             DecelerationThresholdMps2 = -2.5
         }, null, null);
 
-        var updateResponse = await client.PutAsJsonAsync("/api/profile", validRequest);
+        var updateResponse = await client.PutAsJsonAsync("/api/v1/profile", validRequest);
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var updated = await updateResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
@@ -105,14 +105,14 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var updateResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth, null));
+        var updateResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Butterworth, null));
 
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var updatedPayload = await updateResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
         updatedPayload.Should().NotBeNull();
         updatedPayload!.DefaultSmoothingFilter.Should().Be(TcxSmoothingFilters.Butterworth);
 
-        var getResponse = await client.GetAsync("/api/profile");
+        var getResponse = await client.GetAsync("/api/v1/profile");
         getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var getPayload = await getResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
         getPayload.Should().NotBeNull();
@@ -124,7 +124,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var response = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, "InvalidFilter", null));
+        var response = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, "InvalidFilter", null));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -135,7 +135,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var updateResponse = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, SpeedUnits.MinutesPerKilometer));
+        var updateResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, SpeedUnits.MinutesPerKilometer));
 
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var updatedPayload = await updateResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
@@ -148,7 +148,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var response = await client.PutAsJsonAsync("/api/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, "mph"));
+        var response = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, "mph"));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -172,7 +172,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             EffectiveMaxHeartRateBpm = 196
         }, null, null);
 
-        var updateResponse = await client.PutAsJsonAsync("/api/profile", validRequest);
+        var updateResponse = await client.PutAsJsonAsync("/api/v1/profile", validRequest);
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var updatedPayload = await updateResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
         updatedPayload.Should().NotBeNull();
@@ -193,7 +193,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             EffectiveMaxHeartRateBpm = 196
         }, null, null);
 
-        var invalidResponse = await client.PutAsJsonAsync("/api/profile", invalidRequest);
+        var invalidResponse = await client.PutAsJsonAsync("/api/v1/profile", invalidRequest);
         invalidResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var normalizedPayload = await invalidResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
         normalizedPayload.Should().NotBeNull();
@@ -219,7 +219,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             EffectiveMaxHeartRateBpm = 196
         }, null, null);
 
-        var response = await client.PutAsJsonAsync("/api/profile", invalidRequest);
+        var response = await client.PutAsJsonAsync("/api/v1/profile", invalidRequest);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var error = await response.Content.ReadFromJsonAsync<ProblemDetails>();
