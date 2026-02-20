@@ -135,6 +135,7 @@ type UserProfile = {
   defaultSmoothingFilter: SmoothingFilter;
   preferredSpeedUnit: SpeedUnit;
   preferredAggregationWindowMinutes: 1 | 2 | 5;
+  preferredTheme: 'light' | 'dark';
   latestRecalculationJob?: ProfileRecalculationJob | null;
 };
 
@@ -1494,10 +1495,16 @@ export function App() {
     },
     defaultSmoothingFilter: 'AdaptiveMedian',
     preferredSpeedUnit: 'km/h',
-    preferredAggregationWindowMinutes: 5
+    preferredAggregationWindowMinutes: 5,
+    preferredTheme: 'dark'
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [activeSessionSubpage, setActiveSessionSubpage] = useState<'analysis' | 'segments' | 'compare'>('analysis');
+  const [activeMainPage, setActiveMainPage] = useState<'sessions' | 'upload' | 'profile' | 'session'>('sessions');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [isSessionMenuVisible, setIsSessionMenuVisible] = useState(false);
 
   const t = useMemo(() => {
     const localizedTranslations = translations[locale];
@@ -1552,8 +1559,10 @@ export function App() {
               metricThresholds: profilePayload.metricThresholds as MetricThresholdProfile,
               defaultSmoothingFilter: (profilePayload.defaultSmoothingFilter as SmoothingFilter) ?? 'AdaptiveMedian',
               preferredSpeedUnit: (profilePayload.preferredSpeedUnit as SpeedUnit) ?? 'km/h',
-              preferredAggregationWindowMinutes: (profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5
+              preferredAggregationWindowMinutes: (profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5,
+              preferredTheme: (profilePayload.preferredTheme as 'light' | 'dark') ?? 'dark'
             });
+            setTheme((profilePayload.preferredTheme as 'light' | 'dark') ?? 'dark');
             setAggregationWindowMinutes((profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5);
             setLatestProfileRecalculationJob(profilePayload.latestRecalculationJob ?? null);
           }
@@ -1563,6 +1572,7 @@ export function App() {
             setSelectedSession(normalizedPayload[0]);
             setSelectedFilter(normalizedPayload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
             setSessionContextForm(normalizedPayload[0].sessionContext);
+            setActiveMainPage('session');
             const initialCompareSelection = normalizedPayload.slice(0, 2).map((item) => item.id);
             setCompareSelectedSessionIds(initialCompareSelection);
             setCompareBaselineSessionId(initialCompareSelection[0] ?? null);
@@ -1626,6 +1636,8 @@ export function App() {
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
+    setActiveMainPage('session');
+    setIsSessionMenuVisible(true);
   }
 
   function resetSegmentForms() {
@@ -1708,6 +1720,7 @@ export function App() {
     applyUpdatedSession(payload);
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
+    setActiveMainPage('session');
     setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
     setMessage(t.sessionRecalculateSuccess);
   }
@@ -1731,6 +1744,8 @@ export function App() {
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
       setSessionContextForm(payload.sessionContext);
+      setActiveMainPage('session');
+      setIsSessionMenuVisible(true);
     setMessage(t.sessionContextSaveSuccess);
   }
 
@@ -1895,6 +1910,8 @@ export function App() {
       setCompareMode('smoothed');
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setSessionContextForm(payload.sessionContext);
+      setActiveMainPage('session');
+      setIsSessionMenuVisible(true);
       setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setCompareSelectedSessionIds((current) => [payload.id, ...current.filter((item) => item !== payload.id)].slice(0, 4));
@@ -1904,6 +1921,38 @@ export function App() {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
     } finally {
       setIsUploading(false);
+    }
+  }
+
+
+  async function onThemeSelect(nextTheme: 'light' | 'dark') {
+    setTheme(nextTheme);
+    setProfileForm((current) => ({ ...current, preferredTheme: nextTheme }));
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...profileForm, preferredTheme: nextTheme })
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as UserProfile;
+      setProfileForm({
+        primaryPosition: payload.primaryPosition,
+        secondaryPosition: payload.secondaryPosition,
+        metricThresholds: payload.metricThresholds,
+        defaultSmoothingFilter: payload.defaultSmoothingFilter,
+        preferredSpeedUnit: payload.preferredSpeedUnit,
+        preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes,
+        preferredTheme: payload.preferredTheme
+      });
+      setTheme(payload.preferredTheme);
+    } catch {
+      // keep local selection even if persistence fails
     }
   }
 
@@ -1924,7 +1973,7 @@ export function App() {
     const response = await fetch(`${apiBaseUrl}/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profileForm)
+      body: JSON.stringify({ ...profileForm, preferredTheme: theme })
     });
 
     if (!response.ok) {
@@ -1939,8 +1988,10 @@ export function App() {
       metricThresholds: payload.metricThresholds,
       defaultSmoothingFilter: payload.defaultSmoothingFilter,
       preferredSpeedUnit: payload.preferredSpeedUnit,
-      preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes
+      preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes,
+      preferredTheme: payload.preferredTheme
     });
+    setTheme(payload.preferredTheme);
     setAggregationWindowMinutes(payload.preferredAggregationWindowMinutes);
     setLatestProfileRecalculationJob(payload.latestRecalculationJob ?? null);
     setProfileValidationMessage(t.profileSaveSuccess);
@@ -2215,9 +2266,45 @@ export function App() {
       .sort((a, b) => a.windowIndex - b.windowIndex);
   }, [selectedSession, aggregationWindowMinutes]);
 
+  const jumpToSection = useCallback((sectionId: string, sessionSubpage?: 'analysis' | 'segments' | 'compare') => {
+    if (sessionSubpage) {
+      setActiveSessionSubpage(sessionSubpage);
+    }
+
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'auto', block: 'start' });
+    }
+
+    setIsMobileNavOpen(false);
+  }, []);
+
 
   return (
-    <main className="container">
+    <div className={`app-shell ${isMobileNavOpen ? 'app-shell--menu-open' : ''}`} data-theme={theme}>
+      <aside className={`side-nav ${isMobileNavOpen ? 'side-nav--open' : ''}`}>
+        <div className="side-nav__header">
+          <strong>Football Metrics</strong>
+          <button type="button" className="side-nav__close" onClick={() => setIsMobileNavOpen(false)} aria-label="Close navigation">×</button>
+        </div>
+        <nav className="side-nav__menu" aria-label="Primary navigation">
+          <button type="button" className={`side-nav__item ${activeMainPage === 'upload' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('upload'); jumpToSection('upload-flow'); }}>Upload area</button>
+          <button type="button" className={`side-nav__item ${activeMainPage === 'sessions' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('sessions'); jumpToSection('session-list'); }}>Sessions</button>
+          <button type="button" className={`side-nav__item ${activeMainPage === 'profile' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('profile'); jumpToSection('profile-settings'); }}>Profile</button>
+        </nav>
+        {selectedSession && activeMainPage === "session" && isSessionMenuVisible && (
+          <div className="side-nav__session-subpages">
+            <p>Session</p>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-analysis', 'analysis')}>Analyse</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segments' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segments', 'segments')}>Segmente</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'compare' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-compare', 'compare')}>Vergleich</button>
+          </div>
+        )}
+      </aside>
+      <main className="container">
+      <div className="mobile-topbar">
+        <button type="button" className="burger-menu" onClick={() => setIsMobileNavOpen((current) => !current)} aria-label="Open navigation menu">☰</button>
+      </div>
       <div className="language-switcher">
         <label htmlFor="language-selector">{t.languageLabel}</label>
         <select id="language-selector" value={locale} onChange={onLocaleChange}>
@@ -2229,8 +2316,15 @@ export function App() {
       <p className="subtitle">{t.subtitle}</p>
       <p className="subtitle">{t.maxFileSize}</p>
 
-      <section className="profile-settings">
+      <section className={`profile-settings ${activeMainPage === "profile" ? "" : "is-hidden"}`} id="profile-settings">
         <h2>{t.profileSettingsTitle}</h2>
+        <div className="profile-theme-switch" role="group" aria-label="Theme switch">
+          <span>Theme</span>
+          <div className="profile-theme-switch__controls">
+            <button type="button" className={theme === "light" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => void onThemeSelect("light")}>Light</button>
+            <button type="button" className={theme === "dark" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => void onThemeSelect("dark")}>Dark</button>
+          </div>
+        </div>
         <form onSubmit={onProfileSubmit}>
           <label htmlFor="profile-primary-position">{t.profilePrimaryPosition}</label>
           <select
@@ -2400,8 +2494,8 @@ export function App() {
           <p>{t.profileThresholdVersion}: {profileForm.metricThresholds.version}</p>
           <p>{t.profileThresholdUpdatedAt}: {formatUtcDateTime(profileForm.metricThresholds.updatedAtUtc, locale, t.notAvailable)}</p>
 
-          <button type="submit">{t.profileSave}</button>
-          <button type="button" onClick={onTriggerProfileRecalculation}>{t.profileRecalculateAllButton}</button>
+          <button type="submit" className="btn-primary">{t.profileSave}</button>
+          <button type="button" className="secondary-button" onClick={onTriggerProfileRecalculation}>{t.profileRecalculateAllButton}</button>
         </form>
         <p>
           {interpolate(t.profileCurrentPosition, {
@@ -2418,7 +2512,7 @@ export function App() {
           </p>
         ) : null}
       </section>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} id="upload-flow" className={activeMainPage === "upload" ? "" : "is-hidden"}>
         <label
           className={`dropzone ${isDragOver ? 'dropzone--active' : ''}`}
           onDragOver={(event) => {
@@ -2437,7 +2531,7 @@ export function App() {
       </form>
       <p>{validationMessage ?? message}</p>
 
-      <section>
+      <section id="session-list" className={activeMainPage === "sessions" ? "" : "is-hidden"}>
         <h2>{t.historyTitle}</h2>
         <div className="history-controls">
           <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
@@ -2497,6 +2591,9 @@ export function App() {
                         setCompareMode('smoothed');
                         setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
                         setSessionContextForm(record.sessionContext);
+                        setActiveSessionSubpage('analysis');
+                        setActiveMainPage('session');
+                        setIsSessionMenuVisible(true);
                       }}
                     >
                       {t.historyOpenDetails}
@@ -2509,7 +2606,7 @@ export function App() {
         )}
       </section>
 
-      <section className="session-compare" aria-live="polite">
+      <section className={`session-compare ${activeMainPage === "session" && activeSessionSubpage === "compare" ? "" : "is-hidden"}`} aria-live="polite" id="session-compare">
         <h2>{t.sessionCompareTitle}</h2>
         <p>{t.sessionCompareHint}</p>
         {compareSessions.length >= 2 && (
@@ -2565,12 +2662,12 @@ export function App() {
       </section>
 
       {selectedSession && (
-        <section className="session-details" aria-live="polite">
+        <section className={`session-details ${activeMainPage === "session" ? "" : "is-hidden"}`} aria-live="polite" id="session-analysis">
           <h2>{t.summaryTitle}</h2>
           <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
           <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
           <h3>{t.sessionRecalculateHistoryTitle}</h3>
-          {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className="metrics-list">{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
+          {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className={`metrics-list ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
           <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
           <div className="session-context">
             <h3>{t.sessionContextTitle}</h3>
@@ -2601,7 +2698,7 @@ export function App() {
             )}
             <button type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
           </div>
-          <div className="segment-management">
+          <div className={`segment-management ${activeSessionSubpage === "segments" ? "" : "is-hidden"}`} id="session-segments">
             <h3>{t.segmentsTitle}</h3>
             {segmentActionError && <p className="segment-error" role="alert">{segmentActionError}</p>}
             {selectedSession.segments.length === 0 ? (
@@ -2678,7 +2775,7 @@ export function App() {
             )}
           </div>
 
-          <div className="comparison-controls">
+          <div className={`comparison-controls ${activeSessionSubpage === "compare" ? "" : "is-hidden"}`}>
             <h3>{t.compareTitle}</h3>
             <label htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
             <select
@@ -2800,7 +2897,7 @@ export function App() {
               <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
             </ul>
           </div>
-          <div className="interval-aggregation">
+          <div className={`interval-aggregation ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
             <h3>{t.intervalAggregationTitle}</h3>
             <p>{t.intervalAggregationExplanation}</p>
             <label htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
@@ -2856,7 +2953,7 @@ export function App() {
             )}
           </div>
 
-          {shouldShowGpsHeatmap && (
+          {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && (
             <div className="gps-heatmap-section">
               <h3>{t.gpsHeatmapTitle}</h3>
               <p>{t.gpsHeatmapDescription}</p>
@@ -2880,7 +2977,7 @@ export function App() {
             </div>
           )}
 
-          {shouldShowGpsHeatmap && heatmapData && (
+          {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && heatmapData && (
             <div className="gps-heatmap-section">
               <h3>{t.gpsRunsMapTitle}</h3>
               <p>{t.gpsRunsMapDescription}</p>
@@ -2928,6 +3025,7 @@ export function App() {
         </section>
       )}
     </main>
+    </div>
   );
 }function formatUtcDateTime(value: string | null | undefined, locale: Locale, fallback: string): string {
   if (!value) {
@@ -3241,7 +3339,7 @@ const HeatmapLayer = memo(function HeatmapLayer({ width, height, densityCells, s
               key={`point-${index}`}
               cx={point.x}
               cy={point.y}
-              r="1.25"
+              r="0.85"
               className="gps-heatmap__point-marker gps-heatmap__point-marker--blue"
             />
           )) : null}
@@ -3514,7 +3612,7 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
         </InteractiveMap>
         <aside className="gps-runs-list" role="region" aria-label={listTitle}>
           <h4>{listTitle}</h4>
-          <button type="button" onClick={() => setSelectedRunId(null)}>{clearSelectionLabel}</button>
+          <button type="button" className={selectedRunId === null ? 'is-active' : ''} onClick={() => setSelectedRunId(null)}>{clearSelectionLabel}</button>
           {filteredRunSegments.length === 0 ? (
             <p>{listEmptyLabel}</p>
           ) : (

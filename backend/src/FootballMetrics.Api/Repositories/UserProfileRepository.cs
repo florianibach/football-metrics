@@ -21,7 +21,7 @@ public class UserProfileRepository : IUserProfileRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes
+            SELECT PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes, PreferredTheme
             FROM UserProfiles
             WHERE Id = $id;
         ";
@@ -40,7 +40,8 @@ public class UserProfileRepository : IUserProfileRepository
             MetricThresholds = DeserializeThresholds(reader.IsDBNull(2) ? null : reader.GetString(2)),
             DefaultSmoothingFilter = DeserializeDefaultSmoothingFilter(reader.IsDBNull(3) ? null : reader.GetString(3)),
             PreferredSpeedUnit = DeserializePreferredSpeedUnit(reader.IsDBNull(4) ? null : reader.GetString(4)),
-            PreferredAggregationWindowMinutes = DeserializePreferredAggregationWindowMinutes(reader.IsDBNull(5) ? null : reader.GetInt32(5))
+            PreferredAggregationWindowMinutes = DeserializePreferredAggregationWindowMinutes(reader.IsDBNull(5) ? null : reader.GetInt32(5)),
+            PreferredTheme = DeserializePreferredTheme(reader.IsDBNull(6) ? null : reader.GetString(6))
         };
     }
 
@@ -51,15 +52,16 @@ public class UserProfileRepository : IUserProfileRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO UserProfiles (Id, PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes)
-            VALUES ($id, $primaryPosition, $secondaryPosition, $metricThresholdsJson, $defaultSmoothingFilter, $preferredSpeedUnit, $preferredAggregationWindowMinutes)
+            INSERT INTO UserProfiles (Id, PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes, PreferredTheme)
+            VALUES ($id, $primaryPosition, $secondaryPosition, $metricThresholdsJson, $defaultSmoothingFilter, $preferredSpeedUnit, $preferredAggregationWindowMinutes, $preferredTheme)
             ON CONFLICT(Id) DO UPDATE SET
                 PrimaryPosition = excluded.PrimaryPosition,
                 SecondaryPosition = excluded.SecondaryPosition,
                 MetricThresholdsJson = excluded.MetricThresholdsJson,
                 DefaultSmoothingFilter = excluded.DefaultSmoothingFilter,
                 PreferredSpeedUnit = excluded.PreferredSpeedUnit,
-                PreferredAggregationWindowMinutes = excluded.PreferredAggregationWindowMinutes;
+                PreferredAggregationWindowMinutes = excluded.PreferredAggregationWindowMinutes,
+                PreferredTheme = excluded.PreferredTheme;
         ";
         command.Parameters.AddWithValue("$id", SingletonProfileId);
         command.Parameters.AddWithValue("$primaryPosition", profile.PrimaryPosition);
@@ -68,6 +70,7 @@ public class UserProfileRepository : IUserProfileRepository
         command.Parameters.AddWithValue("$defaultSmoothingFilter", profile.DefaultSmoothingFilter);
         command.Parameters.AddWithValue("$preferredSpeedUnit", profile.PreferredSpeedUnit);
         command.Parameters.AddWithValue("$preferredAggregationWindowMinutes", profile.PreferredAggregationWindowMinutes);
+        command.Parameters.AddWithValue("$preferredTheme", profile.PreferredTheme);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return profile;
@@ -122,6 +125,17 @@ public class UserProfileRepository : IUserProfileRepository
         return AggregationWindows.Supported.Contains(value.Value)
             ? value.Value
             : AggregationWindows.FiveMinutes;
+    }
+
+    private static string DeserializePreferredTheme(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return UiThemes.Dark;
+        }
+
+        return UiThemes.Supported.FirstOrDefault(theme => string.Equals(theme, value, StringComparison.OrdinalIgnoreCase))
+            ?? UiThemes.Dark;
     }
 }
 

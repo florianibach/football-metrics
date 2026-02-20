@@ -43,6 +43,7 @@ public class ProfileUseCase : IProfileUseCase
         var normalizedDefaultSmoothingFilter = NormalizeDefaultSmoothingFilter(request.DefaultSmoothingFilter, existingProfile.DefaultSmoothingFilter)!;
         var normalizedPreferredSpeedUnit = NormalizePreferredSpeedUnit(request.PreferredSpeedUnit, existingProfile.PreferredSpeedUnit)!;
         var normalizedPreferredAggregationWindowMinutes = NormalizePreferredAggregationWindowMinutes(request.PreferredAggregationWindowMinutes, existingProfile.PreferredAggregationWindowMinutes) ?? existingProfile.PreferredAggregationWindowMinutes;
+        var normalizedPreferredTheme = NormalizePreferredTheme(request.PreferredTheme, existingProfile.PreferredTheme)!;
 
         var submittedThresholds = request.MetricThresholds ?? existingProfile.MetricThresholds;
         submittedThresholds.MaxSpeedMode = NormalizeThresholdMode(submittedThresholds.MaxSpeedMode);
@@ -82,7 +83,8 @@ public class ProfileUseCase : IProfileUseCase
                 MetricThresholds = normalizedThresholds,
                 DefaultSmoothingFilter = normalizedDefaultSmoothingFilter,
                 PreferredSpeedUnit = normalizedPreferredSpeedUnit,
-                PreferredAggregationWindowMinutes = normalizedPreferredAggregationWindowMinutes
+                PreferredAggregationWindowMinutes = normalizedPreferredAggregationWindowMinutes,
+                PreferredTheme = normalizedPreferredTheme
             },
             cancellationToken);
 
@@ -141,6 +143,17 @@ public class ProfileUseCase : IProfileUseCase
 
     public static string? NormalizeOptional(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    public static string? NormalizePreferredTheme(string? requestedTheme, string fallbackTheme)
+    {
+        if (string.IsNullOrWhiteSpace(requestedTheme))
+        {
+            return fallbackTheme;
+        }
+
+        return UiThemes.Supported.FirstOrDefault(theme =>
+            string.Equals(theme, requestedTheme.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
 
     public static int? NormalizePreferredAggregationWindowMinutes(int? requestedWindow, int fallbackWindow)
     {
