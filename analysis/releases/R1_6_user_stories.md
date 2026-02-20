@@ -100,6 +100,27 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
+## Story R1.6-14: Sprint- & High-Intensity-Trackpoints mit Richtungsdarstellung auf der Karte
+**Als** Nutzer
+**möchte ich** Sprint- und High-Intensity-Runs als Trackpoints auf der Karte sehen, inklusive visuell erkennbarer Laufrichtung
+**damit** ich intensive Laufaktionen räumlich und zeitlich besser einordnen kann.
+
+### Acceptance Criteria
+- [ ] Die Kartenansicht bietet eine zusätzliche Layer-/Ansichtsoption für Trackpoints von `Sprints` und `High-Intensity Runs`.
+- [ ] Sprint-Trackpoints und High-Intensity-Trackpoints sind farblich eindeutig unterscheidbar (z. B. Sprint = Rot, High-Intensity = Orange).
+- [ ] Die Laufrichtung innerhalb eines Runs ist visuell erkennbar, z. B. über ansteigende Punktgröße oder Richtungspfeile; der letzte Punkt eines Runs ist eindeutig als „Endpunkt“ hervorgehoben.
+- [ ] Die Karteninteraktion entspricht der Heatmap: Zoomen, Verschieben (Panning) und Reset-Verhalten funktionieren identisch.
+- [ ] Eine kurze Erklärung in der UI beschreibt, wie die Darstellung zu lesen ist (Farbcode, Start-/Endpunkt, Bedeutung der Richtung).
+- [ ] Im HF-only-Modus wird die Ansicht nicht dargestellt; stattdessen erscheint ein konsistenter Hinweis auf fehlende GPS-Daten.
+
+### Verständnis-/Erklärungstext (fachlich)
+- **Farben:** Jede Farbe steht für eine Intensitätsklasse (`Sprint` vs. `High-Intensity Run`).
+- **Richtung:** Die Reihenfolge der Punkte zeigt die Bewegungsrichtung innerhalb eines Laufsegments.
+- **Endpunkt-Betonung:** Der größte oder besonders markierte Punkt kennzeichnet den letzten Punkt (Run-Ende) und erleichtert die Interpretation von Laufwegen.
+- **Einordnung:** Viele markierte Punkte in einem Feldbereich deuten auf wiederholte intensive Aktionen in dieser Zone hin.
+
+---
+
 ## Story R1.6-08: Bestehende Profil-Granularität 1/2/5 Minuten beibehalten
 **Als** Bestandsnutzer
 **möchte ich** weiterhin mit 1-, 2- oder 5-Minuten-Granularität vergleichen
@@ -191,6 +212,7 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - R1.6-04 Nachträgliche Segmentierung mit Verlaufshilfe
 - R1.6-05 Analyse-Parität Session ↔ Segmente
 - R1.6-06 Zeitfenster-/Segment-Intensitätsprofil
+- R1.6-14 Sprint- & High-Intensity-Trackpoints mit Richtungsdarstellung auf der Karte
 - R1.6-08 Beibehaltung 1/2/5-Minuten-Granularität
 - [x] R1.6-13 GPS-Punkte-Heatmap in GPS- und Dual-Mode
 
