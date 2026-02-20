@@ -114,6 +114,8 @@ type MetricThresholdProfile = {
 
 type SpeedUnit = 'km/h' | 'm/s' | 'min/km';
 
+type MainPage = 'sessions' | 'upload' | 'analysis' | 'segments' | 'compare' | 'profile';
+
 
 type ProfileRecalculationJob = {
   id: string;
@@ -1452,6 +1454,7 @@ function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
 export function App() {
   const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [activePage, setActivePage] = useState<MainPage>('sessions');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
   const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
@@ -2228,10 +2231,12 @@ export function App() {
           </div>
         </div>
         <nav className="sidebar-nav" aria-label="Primary">
-          <button type="button" className="nav-item nav-item--active">Overview</button>
-          <button type="button" className="nav-item">Insights</button>
-          <button type="button" className="nav-item">Compare</button>
-          <button type="button" className="nav-item">Preferences</button>
+          <button type="button" className={`nav-item ${activePage === 'sessions' ? 'nav-item--active' : ''}`} onClick={() => setActivePage('sessions')}>Sessions</button>
+          <button type="button" className={`nav-item ${activePage === 'upload' ? 'nav-item--active' : ''}`} onClick={() => setActivePage('upload')}>Upload</button>
+          <button type="button" className={`nav-item ${activePage === 'analysis' ? 'nav-item--active' : ''}`} onClick={() => setActivePage('analysis')}>Session Analysis</button>
+          <button type="button" className={`nav-item ${activePage === 'segments' ? 'nav-item--active' : ''}`} onClick={() => setActivePage('segments')}>Segment Analysis</button>
+          <button type="button" className={`nav-item ${activePage === 'compare' ? 'nav-item--active' : ''}`} onClick={() => setActivePage('compare')}>Compare</button>
+          <button type="button" className={`nav-item ${activePage === 'profile' ? 'nav-item--active' : ''}`} onClick={() => setActivePage('profile')}>Profile</button>
         </nav>
         <div className="mobile-promo">
           <p>Mobile first · 60-65%</p>
@@ -2262,7 +2267,7 @@ export function App() {
 
         <section className="header-block card">
           <div>
-            <h1>{t.title}</h1>
+            <h1>{activePage === 'sessions' ? t.historyTitle : activePage === 'upload' ? t.uploadButton : activePage === 'analysis' ? t.summaryTitle : activePage === 'segments' ? t.segmentsTitle : activePage === 'compare' ? t.sessionCompareTitle : t.profileSettingsTitle}</h1>
             <p className="subtitle">{t.maxFileSize}</p>
           </div>
           <div className="header-actions">
@@ -2273,6 +2278,7 @@ export function App() {
 
         <div className="dashboard-grid">
 
+      {activePage === 'profile' && (
       <section className="profile-settings card">
         <h2>{t.profileSettingsTitle}</h2>
         <form onSubmit={onProfileSubmit}>
@@ -2462,6 +2468,9 @@ export function App() {
           </p>
         ) : null}
       </section>
+      )}
+      {activePage === 'upload' && (
+      <section className="card">
       <form onSubmit={handleSubmit}>
         <label
           className={`dropzone ${isDragOver ? 'dropzone--active' : ''}`}
@@ -2480,7 +2489,10 @@ export function App() {
         </button>
       </form>
       <p>{validationMessage ?? message}</p>
+      </section>
+      )}
 
+      {activePage === 'sessions' && (
       <section>
         <h2>{t.historyTitle}</h2>
         <div className="history-controls">
@@ -2552,8 +2564,10 @@ export function App() {
           </table>
         )}
       </section>
+      )}
 
-      <section className="session-compare" aria-live="polite">
+      {activePage === 'compare' && (
+      <section className="session-compare card" aria-live="polite">
         <h2>{t.sessionCompareTitle}</h2>
         <p>{t.sessionCompareHint}</p>
         {compareSessions.length >= 2 && (
@@ -2607,9 +2621,17 @@ export function App() {
           </table>
         )}
       </section>
+      )}
 
-      {selectedSession && (
-        <section className="session-details" aria-live="polite">
+      {(activePage === 'analysis' || activePage === 'segments') && !selectedSession && (
+        <section className="card">
+          <h2>{t.summaryTitle}</h2>
+          <p>{t.historyEmpty}</p>
+        </section>
+      )}
+
+      {(activePage === 'analysis' || activePage === 'segments') && selectedSession && (
+        <section className="session-details card" aria-live="polite">
           <h2>{t.summaryTitle}</h2>
           <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
           <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
@@ -2645,6 +2667,7 @@ export function App() {
             )}
             <button type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
           </div>
+          {activePage === 'segments' && (
           <div className="segment-management">
             <h3>{t.segmentsTitle}</h3>
             {segmentActionError && <p className="segment-error" role="alert">{segmentActionError}</p>}
@@ -2722,6 +2745,10 @@ export function App() {
             )}
           </div>
 
+          )}
+
+          {activePage === 'analysis' && (
+          <>
           <div className="comparison-controls">
             <h3>{t.compareTitle}</h3>
             <label htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
@@ -2844,6 +2871,9 @@ export function App() {
               <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
             </ul>
           </div>
+          </>
+          )}
+
           <div className="interval-aggregation">
             <h3>{t.intervalAggregationTitle}</h3>
             <p>{t.intervalAggregationExplanation}</p>
