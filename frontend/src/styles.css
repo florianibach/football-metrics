@@ -397,6 +397,33 @@ button:disabled {
   background: #f2f4f7;
 }
 
+.gps-heatmap-view-toggle {
+  display: inline-flex;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 0.6rem;
+}
+
+.gps-heatmap-view-toggle button {
+  border: 0;
+  background: #ffffff;
+  color: #344054;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+
+.gps-heatmap-view-toggle button + button {
+  border-left: 1px solid #d0d5dd;
+}
+
+.gps-heatmap-view-toggle button.is-active {
+  background: #e6f0ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+
 .gps-heatmap {
   width: 100%;
   max-width: 560px;
@@ -436,4 +463,20 @@ button:disabled {
   stroke-width: 0.2;
   fill-opacity: 0.36;
   mix-blend-mode: normal;
+}
+
+.gps-heatmap__point-marker--blue {
+  fill: #60a5fa;
+  stroke: #1d4ed8;
+  stroke-width: 0.35;
+  fill-opacity: 0.9;
+}
+
+.gps-heatmap__track-line {
+  fill: none;
+  stroke: #1d4ed8;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-opacity: 0.7;
 }

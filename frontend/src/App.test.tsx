@@ -2071,6 +2071,44 @@ describe('App', () => {
     expect(satelliteImage?.getAttribute('href')).toContain('l=sat');
   });
 
+
+  it('R1_6_13_Ac06_allows_switching_between_heatmap_and_track_points_view', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
+
+    const heatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
+    expect(heatmap.querySelectorAll('.gps-heatmap__cell').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Track points' }));
+
+    await waitFor(() => {
+      const switchedHeatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
+      expect(switchedHeatmap.querySelectorAll('.gps-heatmap__cell').length).toBe(0);
+      expect(switchedHeatmap.querySelector('.gps-heatmap__track-line')).not.toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Heatmap' }));
+
+    await waitFor(() => {
+      const switchedBackHeatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
+      expect(switchedBackHeatmap.querySelectorAll('.gps-heatmap__cell').length).toBeGreaterThan(0);
+    });
+  });
+
   it('R1_6_13_Ac04_resets_local_heatmap_zoom_when_switching_sessions', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
