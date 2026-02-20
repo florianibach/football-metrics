@@ -1104,3 +1104,102 @@ button:focus-visible,
 .app-shell[data-theme='dark'] .side-nav__item:hover {
   color: #fff;
 }
+
+/* ===== UX feedback refinements ===== */
+.app-shell {
+  grid-template-columns: 300px minmax(0, 1fr);
+  min-height: 100vh;
+  width: 100%;
+}
+
+.container {
+  max-width: none;
+  width: 100%;
+  min-width: 0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+/* remove expensive effects causing scroll lag */
+.container,
+.segment-form,
+.gps-runs-list,
+.profile-theme-switch {
+  backdrop-filter: none !important;
+}
+
+.app-shell[data-theme='dark'] {
+  --bg: #111315;
+  --surface: #181a1d;
+  --text: #eceef1;
+  --muted: #a7adb7;
+  --border: #2c3138;
+}
+
+.app-shell[data-theme='dark'] .side-nav {
+  background: #14161a;
+  border-color: #2a2e35;
+  color: #e6e9ee;
+}
+
+.app-shell[data-theme='dark'] .side-nav__item,
+.app-shell[data-theme='dark'] .burger-menu {
+  color: #c8cdd6;
+}
+
+/* session list visual cleanup */
+.history-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.history-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.history-table tr {
+  background: var(--surface);
+}
+
+.history-table td,
+.history-table th {
+  border-bottom: 1px solid var(--border);
+}
+
+/* modern checkbox */
+input[type='checkbox'] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--brand-secondary);
+  border-radius: 5px;
+  background: transparent;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+input[type='checkbox']::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  transform: scale(0);
+  transition: transform 120ms ease-in-out;
+  box-shadow: inset 1em 1em var(--bs-primary);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+input[type='checkbox']:checked::before {
+  transform: scale(1);
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .container {
+    padding: 1rem;
+  }
+}

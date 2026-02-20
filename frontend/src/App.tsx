@@ -1504,6 +1504,7 @@ export function App() {
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<'analysis' | 'segments' | 'compare'>('analysis');
   const [activeMainPage, setActiveMainPage] = useState<'sessions' | 'upload' | 'profile' | 'session'>('sessions');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [isSessionMenuVisible, setIsSessionMenuVisible] = useState(false);
 
   const t = useMemo(() => {
     const localizedTranslations = translations[locale];
@@ -1571,6 +1572,7 @@ export function App() {
             setSelectedSession(normalizedPayload[0]);
             setSelectedFilter(normalizedPayload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
             setSessionContextForm(normalizedPayload[0].sessionContext);
+            setActiveMainPage('session');
             const initialCompareSelection = normalizedPayload.slice(0, 2).map((item) => item.id);
             setCompareSelectedSessionIds(initialCompareSelection);
             setCompareBaselineSessionId(initialCompareSelection[0] ?? null);
@@ -1634,6 +1636,8 @@ export function App() {
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
+    setActiveMainPage('session');
+    setIsSessionMenuVisible(true);
   }
 
   function resetSegmentForms() {
@@ -1716,6 +1720,7 @@ export function App() {
     applyUpdatedSession(payload);
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
+    setActiveMainPage('session');
     setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
     setMessage(t.sessionRecalculateSuccess);
   }
@@ -1739,6 +1744,8 @@ export function App() {
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
       setSessionContextForm(payload.sessionContext);
+      setActiveMainPage('session');
+      setIsSessionMenuVisible(true);
     setMessage(t.sessionContextSaveSuccess);
   }
 
@@ -1903,6 +1910,8 @@ export function App() {
       setCompareMode('smoothed');
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setSessionContextForm(payload.sessionContext);
+      setActiveMainPage('session');
+      setIsSessionMenuVisible(true);
       setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setCompareSelectedSessionIds((current) => [payload.id, ...current.filter((item) => item !== payload.id)].slice(0, 4));
@@ -2264,7 +2273,7 @@ export function App() {
 
     const element = document.getElementById(sectionId);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      element.scrollIntoView({ behavior: 'auto', block: 'start' });
     }
 
     setIsMobileNavOpen(false);
@@ -2283,7 +2292,7 @@ export function App() {
           <button type="button" className={`side-nav__item ${activeMainPage === 'sessions' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('sessions'); jumpToSection('session-list'); }}>Sessions</button>
           <button type="button" className={`side-nav__item ${activeMainPage === 'profile' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('profile'); jumpToSection('profile-settings'); }}>Profile</button>
         </nav>
-        {selectedSession && (
+        {selectedSession && activeMainPage === "session" && isSessionMenuVisible && (
           <div className="side-nav__session-subpages">
             <p>Session</p>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-analysis', 'analysis')}>Analyse</button>
@@ -2584,6 +2593,7 @@ export function App() {
                         setSessionContextForm(record.sessionContext);
                         setActiveSessionSubpage('analysis');
                         setActiveMainPage('session');
+                        setIsSessionMenuVisible(true);
                       }}
                     >
                       {t.historyOpenDetails}
