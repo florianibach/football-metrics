@@ -517,10 +517,7 @@ button:disabled {
 }
 
 .gps-runs-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.8rem;
-  max-width: 960px;
+  max-width: 560px;
 }
 
 .gps-runs-list {
@@ -561,11 +558,4 @@ button:disabled {
 
 .gps-heatmap__run--muted {
   opacity: 0.2;
-}
-
-@media (min-width: 980px) {
-  .gps-runs-layout {
-    grid-template-columns: minmax(0, 560px) minmax(260px, 1fr);
-    align-items: start;
-  }
 }

@@ -2966,8 +2966,8 @@ type RunSegment = {
   runType: 'sprint' | 'highIntensity';
   points: RenderPoint[];
   startElapsedSeconds: number;
-  endElapsedSeconds: number;
   durationSeconds: number;
+  distanceMeters: number;
 };
 
 type GpsRunsMapProps = {
@@ -3384,12 +3384,21 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
       const lastPoint = points[entries[entries.length - 1].index];
       const startElapsedSeconds = firstPoint.elapsedSeconds ?? 0;
       const endElapsedSeconds = lastPoint.elapsedSeconds ?? startElapsedSeconds;
+      const distanceMeters = entries.reduce((total, entry, entryIndex) => {
+        if (entryIndex === 0) {
+          return total;
+        }
+
+        const previousEntry = entries[entryIndex - 1];
+        return total + distanceMetersBetween(points[previousEntry.index], points[entry.index]);
+      }, 0);
+
       return {
         id: `${entries[0].runType}-${entries[0].index}`,
         runType: entries[0].runType,
         startElapsedSeconds,
-        endElapsedSeconds,
         durationSeconds: Math.max(0, endElapsedSeconds - startElapsedSeconds),
+        distanceMeters,
         points: entries.map((entry, entryIndex) => {
           const progression = entries.length === 1 ? 1 : entryIndex / (entries.length - 1);
           return {
@@ -3496,7 +3505,7 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
                       className={selectedRunId === segment.id ? 'is-active' : ''}
                       onClick={() => setSelectedRunId(segment.id)}
                     >
-                      {label} #{index + 1} · {formatElapsed(segment.startElapsedSeconds)}-{formatElapsed(segment.endElapsedSeconds)} · {formatDuration(segment.durationSeconds, locale, '0s')}
+                      {label} #{index + 1} · {formatElapsed(segment.startElapsedSeconds)} · {formatDuration(segment.durationSeconds, locale, '0s')} · {formatDistanceComparison(segment.distanceMeters, locale, '0 m')}
                     </button>
                   </li>
                 );
