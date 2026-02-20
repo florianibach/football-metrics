@@ -1229,11 +1229,24 @@ input[type='checkbox']:checked::before {
 }
 
 .app-shell[data-theme='dark'] {
-  --bg: #111315;
-  --surface: #181a1d;
+  --bg: #101214;
+  --surface: #17191c;
   --text: #eceef1;
   --muted: #a7adb7;
   --border: #2c3138;
+}
+
+/* force neutral surfaces (no blue tint) */
+.app-shell[data-theme='dark'] .container,
+.app-shell[data-theme='dark'] .segment-form,
+.app-shell[data-theme='dark'] .gps-runs-list,
+.app-shell[data-theme='dark'] .profile-theme-switch,
+.app-shell[data-theme='dark'] .history-table th,
+.app-shell[data-theme='dark'] .history-table td,
+.app-shell[data-theme='dark'] .session-context,
+.app-shell[data-theme='dark'] .profile-settings {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
 }
 
 .app-shell[data-theme='light'] .side-nav {
@@ -1260,11 +1273,26 @@ button,
   border-radius: 10px;
 }
 
+/* default/inactive buttons should use secondary */
+button,
+.btn,
+.btn-secondary,
+.btn-outline-secondary,
+.theme-btn,
+.tab-button,
+.gps-runs-list button,
+.gps-heatmap-view-toggle button,
+.gps-heatmap-controls button {
+  background: var(--bs-secondary) !important;
+  border-color: var(--bs-secondary) !important;
+  color: #fff !important;
+}
+
+/* active/primary actions */
+.btn-primary,
 .side-nav__item:hover,
 .side-nav__item--active,
 .theme-btn--active,
-button,
-.btn-primary,
 .tab-button--active,
 .gps-runs-list button.is-active,
 .gps-heatmap-view-toggle button.is-active {
@@ -1275,18 +1303,25 @@ button,
 
 button:hover,
 button:focus-visible,
-.btn-primary:hover,
-.btn-primary:focus-visible {
-  background: #236e63 !important;
-  border-color: #236e63 !important;
+.btn-secondary:hover,
+.btn-secondary:focus-visible,
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus-visible,
+.theme-btn:hover,
+.theme-btn:focus-visible,
+.gps-runs-list button:hover,
+.gps-heatmap-view-toggle button:hover,
+.gps-heatmap-controls button:hover {
+  background: #8794a7 !important;
+  border-color: #8794a7 !important;
 }
 
-.secondary-button,
-.btn-secondary,
-.btn-outline-secondary {
-  background: var(--bs-secondary) !important;
-  border-color: var(--bs-secondary) !important;
-  color: #fff !important;
+.btn-primary:hover,
+.btn-primary:focus-visible,
+.side-nav__item--active:hover,
+.theme-btn--active:hover {
+  background: #236e63 !important;
+  border-color: #236e63 !important;
 }
 
 .filter-guidance,
