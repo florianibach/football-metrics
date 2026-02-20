@@ -1229,7 +1229,7 @@ input[type='checkbox']:checked::before {
 }
 
 .app-shell[data-theme='dark'] {
-  --bg: rgb(33, 33, 33);
+  --bg: color-mix(in srgb, black 92%, var(--bs-dark));
   --surface: color-mix(in srgb, black 84%, var(--bs-dark));
   --text: color-mix(in srgb, white 94%, var(--bs-secondary));
   --muted: color-mix(in srgb, var(--bs-secondary) 82%, white);
@@ -1246,7 +1246,8 @@ input[type='checkbox']:checked::before {
 .app-shell[data-theme='dark'] .session-context,
 .app-shell[data-theme='dark'] .profile-settings,
 .app-shell[data-theme='dark'] .app-shell__main {
-  background: var(--surface) !important;
+  background: rgb(33, 33, 33) !important;
+  background: color(srgb 0.129412 0.129412 0.129412) !important;
   border-color: var(--border) !important;
 }
 
