@@ -208,6 +208,7 @@ type TranslationKey =
   | 'maxFileSize'
   | 'dropzoneText'
   | 'fileInputAriaLabel'
+  | 'uploadChooseFile'
   | 'uploadButton'
   | 'defaultMessage'
   | 'readyMessage'
@@ -485,6 +486,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     maxFileSize: 'Maximum file size: 20 MB.',
     dropzoneText: 'Drag & drop a TCX file here or choose one.',
     fileInputAriaLabel: 'Select TCX file',
+    uploadChooseFile: 'choose your file',
     uploadButton: 'Upload',
     defaultMessage: 'No file uploaded yet.',
     readyMessage: 'Ready to upload: {fileName}.',
@@ -757,6 +759,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     maxFileSize: 'Maximale Dateigröße: 20 MB.',
     dropzoneText: 'Ziehe eine TCX-Datei hierher oder wähle eine aus.',
     fileInputAriaLabel: 'TCX-Datei auswählen',
+    uploadChooseFile: 'Datei auswählen',
     uploadButton: 'Hochladen',
     defaultMessage: 'Noch keine Datei hochgeladen.',
     readyMessage: 'Bereit zum Hochladen: {fileName}.',
@@ -2522,10 +2525,14 @@ export function App() {
           onDragLeave={() => setIsDragOver(false)}
           onDrop={onDrop}
         >
-          <span>{t.dropzoneText}</span>
+          <div className="upload-form__drop-content">
+            <span className="upload-form__drop-title">{t.dropzoneText}</span>
+            <span className="upload-form__drop-action">{t.uploadChooseFile}</span>
+            <span className="upload-form__file-name">{selectedFile ? selectedFile.name : t.defaultMessage}</span>
+          </div>
           <input className="upload-form__file-input" type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} disabled={isUploading} />
         </label>
-        <button type="submit" className="upload-form__submit" disabled={!canSubmit}>
+        <button type="submit" className="upload-form__submit btn-primary" disabled={!canSubmit}>
           {t.uploadButton}
         </button>
       </form>

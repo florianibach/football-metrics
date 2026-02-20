@@ -926,7 +926,7 @@ button:focus-visible {
 
 .app-shell[data-theme='light'] .side-nav__header,
 .app-shell[data-theme='light'] .side-nav__brand {
-  color: #e9eef7;
+  color: var(--text) !important;
 }
 
 .app-shell[data-theme='light'] .side-nav__item {
@@ -1217,14 +1217,16 @@ input[type='checkbox']:checked::before {
 .upload-form {
   padding: 1rem;
   border: 1px solid var(--border);
-  border-radius: 0.9rem;
+  border-radius: 1rem;
   background: color-mix(in srgb, var(--surface) 96%, var(--bs-secondary));
 }
 
 .upload-form .dropzone {
-  border-color: color-mix(in srgb, var(--bs-secondary) 68%, var(--surface));
-  background: color-mix(in srgb, var(--surface) 92%, var(--bs-secondary));
+  border-color: color-mix(in srgb, var(--bs-secondary) 62%, var(--surface));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--surface) 95%, var(--bs-secondary)) 0%, color-mix(in srgb, var(--surface) 85%, var(--bs-secondary)) 100%);
   color: var(--muted);
+  padding: 1.25rem;
+  position: relative;
 }
 
 .upload-form .dropzone--active {
@@ -1233,12 +1235,50 @@ input[type='checkbox']:checked::before {
   color: var(--text);
 }
 
+.upload-form__drop-content {
+  display: grid;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.upload-form__drop-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.upload-form__drop-action {
+  color: var(--bs-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.16rem;
+}
+
+.upload-form__file-name {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
 .upload-form__file-input {
-  width: 100%;
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
 }
 
 .upload-form__submit {
   align-self: flex-start;
+  background: var(--bs-primary) !important;
+  border-color: var(--bs-primary) !important;
+  color: #fff !important;
+}
+
+.upload-form__submit:hover,
+.upload-form__submit:focus-visible {
+  background: color-mix(in srgb, var(--bs-primary) 82%, black) !important;
+  border-color: color-mix(in srgb, var(--bs-primary) 82%, black) !important;
+  color: #fff !important;
 }
 
 /* ===== Final palette enforcement (single source of truth) ===== */
