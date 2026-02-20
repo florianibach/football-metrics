@@ -2826,8 +2826,8 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const projectedSpanX = Math.max(Math.abs(maxProjected.x - minProjected.x), 10);
   const projectedSpanY = Math.max(Math.abs(maxProjected.y - minProjected.y), 10);
-  const projectedPaddingX = Math.max(projectedSpanX * 0.15, 15);
-  const projectedPaddingY = Math.max(projectedSpanY * 0.15, 15);
+  const projectedPaddingX = Math.max(projectedSpanX * 0.03, 4);
+  const projectedPaddingY = Math.max(projectedSpanY * 0.03, 4);
 
   const bboxMinX = Math.min(minProjected.x, maxProjected.x) - projectedPaddingX;
   const bboxMaxX = Math.max(minProjected.x, maxProjected.x) + projectedPaddingX;
