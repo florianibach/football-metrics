@@ -1206,7 +1206,7 @@ input[type='checkbox']:checked::before {
 
 /* ===== Final palette enforcement (single source of truth) ===== */
 :root {
-  --brand-primary: #287f71;
+  --brand-primary: #2c8b69;
   --brand-accent: #eb862a;
   --brand-info: #abbdd3;
   --brand-neutral: #97a3b6;
@@ -1221,19 +1221,19 @@ input[type='checkbox']:checked::before {
 }
 
 .app-shell[data-theme='light'] {
-  --bg: #eef1f5;
-  --surface: #ffffff;
-  --text: #111729;
-  --muted: #6a7588;
-  --border: #d6dce6;
+  --bg: var(--bs-light);
+  --surface: var(--bs-white);
+  --text: var(--bs-dark);
+  --muted: var(--bs-secondary);
+  --border: color-mix(in srgb, var(--bs-secondary) 42%, var(--bs-white));
 }
 
 .app-shell[data-theme='dark'] {
-  --bg: #101214;
-  --surface: #17191c;
-  --text: #eceef1;
-  --muted: #a7adb7;
-  --border: #2c3138;
+  --bg: color-mix(in srgb, var(--bs-dark) 94%, black);
+  --surface: color-mix(in srgb, var(--bs-dark) 84%, black);
+  --text: var(--bs-light);
+  --muted: color-mix(in srgb, var(--bs-secondary) 88%, var(--bs-light));
+  --border: color-mix(in srgb, var(--bs-secondary) 36%, var(--bs-dark));
 }
 
 /* force neutral surfaces (no blue tint) */
@@ -1249,16 +1249,11 @@ input[type='checkbox']:checked::before {
   border-color: var(--border) !important;
 }
 
-.app-shell[data-theme='light'] .side-nav {
-  background: var(--surface);
-  color: var(--text);
-  border-color: var(--border);
-}
-
-.app-shell[data-theme='dark'] .side-nav {
-  background: #14161a;
-  color: var(--text);
-  border-color: var(--border);
+/* menu inspired by reference */
+.side-nav {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  border-radius: 1.2rem;
 }
 
 .side-nav__item,
@@ -1270,7 +1265,19 @@ button,
 .btn-secondary,
 .btn-outline-primary,
 .btn-outline-secondary {
-  border-radius: 10px;
+  border-radius: 0.65rem;
+}
+
+.side-nav__item {
+  background: transparent !important;
+  color: var(--muted) !important;
+}
+
+.side-nav__item:hover,
+.side-nav__item--active {
+  background: color-mix(in srgb, var(--bs-primary) 16%, var(--surface)) !important;
+  color: var(--bs-dark) !important;
+  border-left: 0.3rem solid var(--bs-primary);
 }
 
 /* default/inactive buttons should use secondary */
@@ -1285,20 +1292,19 @@ button,
 .gps-heatmap-controls button {
   background: var(--bs-secondary) !important;
   border-color: var(--bs-secondary) !important;
-  color: #fff !important;
+  color: var(--bs-white) !important;
 }
 
 /* active/primary actions */
 .btn-primary,
-.side-nav__item:hover,
-.side-nav__item--active,
 .theme-btn--active,
 .tab-button--active,
 .gps-runs-list button.is-active,
+.gps-runs-list > button.is-active,
 .gps-heatmap-view-toggle button.is-active {
   background: var(--bs-primary) !important;
   border-color: var(--bs-primary) !important;
-  color: #fff !important;
+  color: var(--bs-white) !important;
 }
 
 button:hover,
@@ -1312,16 +1318,16 @@ button:focus-visible,
 .gps-runs-list button:hover,
 .gps-heatmap-view-toggle button:hover,
 .gps-heatmap-controls button:hover {
-  background: #8794a7 !important;
-  border-color: #8794a7 !important;
+  background: color-mix(in srgb, var(--bs-secondary) 85%, var(--bs-white)) !important;
+  border-color: color-mix(in srgb, var(--bs-secondary) 85%, var(--bs-white)) !important;
+  color: var(--bs-dark) !important;
 }
 
 .btn-primary:hover,
 .btn-primary:focus-visible,
-.side-nav__item--active:hover,
 .theme-btn--active:hover {
-  background: #236e63 !important;
-  border-color: #236e63 !important;
+  background: color-mix(in srgb, var(--bs-primary) 82%, var(--bs-dark)) !important;
+  border-color: color-mix(in srgb, var(--bs-primary) 82%, var(--bs-dark)) !important;
 }
 
 .filter-guidance,
@@ -1338,7 +1344,7 @@ button:focus-visible,
 .app-shell[data-theme='dark'] input,
 .app-shell[data-theme='dark'] select,
 .app-shell[data-theme='dark'] textarea {
-  background: #15181c !important;
+  background: color-mix(in srgb, var(--surface) 86%, black) !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
 }

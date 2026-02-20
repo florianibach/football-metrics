@@ -3612,7 +3612,7 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
         </InteractiveMap>
         <aside className="gps-runs-list" role="region" aria-label={listTitle}>
           <h4>{listTitle}</h4>
-          <button type="button" onClick={() => setSelectedRunId(null)}>{clearSelectionLabel}</button>
+          <button type="button" className={selectedRunId === null ? 'is-active' : ''} onClick={() => setSelectedRunId(null)}>{clearSelectionLabel}</button>
           {filteredRunSegments.length === 0 ? (
             <p>{listEmptyLabel}</p>
           ) : (
