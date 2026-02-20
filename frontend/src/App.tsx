@@ -2828,7 +2828,6 @@ type GpsPointHeatmapProps = {
 function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId }: GpsPointHeatmapProps) {
   const width = 560;
   const height = 320;
-  const radius = points.length > 3000 ? 4 : points.length > 1500 ? 5 : 6;
   const earthRadiusMeters = 6378137;
 
   const toWebMercator = (latitude: number, longitude: number) => {
@@ -2873,6 +2872,84 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   const [zoomScale, setZoomScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState<{ x: number; y: number; panX: number; panY: number } | null>(null);
+
+  const screenPoints = useMemo(() => projectedPoints.map((point) => ({
+    x: Math.min(width, Math.max(0, ((point.x - centerX) / metersPerPixel) + (width / 2))),
+    y: Math.min(height, Math.max(0, (height / 2) - ((point.y - centerY) / metersPerPixel)))
+  })), [projectedPoints, centerX, centerY, metersPerPixel]);
+
+  const densityCells = useMemo(() => {
+    const cellSize = 8;
+    const columns = Math.ceil(width / cellSize);
+    const rows = Math.ceil(height / cellSize);
+    const influenceRadius = points.length > 2800 ? 4 : points.length > 1400 ? 5 : 6;
+    const kernel: number[] = [];
+
+    for (let dy = -influenceRadius; dy <= influenceRadius; dy += 1) {
+      for (let dx = -influenceRadius; dx <= influenceRadius; dx += 1) {
+        const distance = Math.sqrt((dx ** 2) + (dy ** 2));
+        if (distance <= influenceRadius) {
+          const weight = Math.exp(-(distance ** 2) / (2 * (Math.max(1.8, influenceRadius / 2.2) ** 2)));
+          kernel.push(dx, dy, weight);
+        }
+      }
+    }
+
+    const density = new Float32Array(columns * rows);
+
+    for (const point of screenPoints) {
+      const baseColumn = Math.floor(point.x / cellSize);
+      const baseRow = Math.floor(point.y / cellSize);
+
+      for (let index = 0; index < kernel.length; index += 3) {
+        const column = baseColumn + kernel[index];
+        const row = baseRow + kernel[index + 1];
+
+        if (column < 0 || column >= columns || row < 0 || row >= rows) {
+          continue;
+        }
+
+        density[(row * columns) + column] += kernel[index + 2];
+      }
+    }
+
+    let maxDensity = 0;
+    for (const value of density) {
+      if (value > maxDensity) {
+        maxDensity = value;
+      }
+    }
+
+    if (maxDensity === 0) {
+      return [] as Array<{ x: number; y: number; value: number }>;
+    }
+
+    const cells: Array<{ x: number; y: number; value: number }> = [];
+    const minThreshold = maxDensity * 0.025;
+
+    for (let row = 0; row < rows; row += 1) {
+      for (let column = 0; column < columns; column += 1) {
+        const normalizedValue = density[(row * columns) + column] / maxDensity;
+        if (normalizedValue < minThreshold) {
+          continue;
+        }
+
+        cells.push({ x: column * cellSize, y: row * cellSize, value: normalizedValue });
+      }
+    }
+
+    return cells;
+  }, [height, points.length, screenPoints, width]);
+
+  const colorForDensity = (value: number) => {
+    const clamped = Math.max(0, Math.min(1, value));
+    if (clamped < 0.2) return `rgba(34, 121, 255, ${0.2 + (clamped * 0.7)})`;
+    if (clamped < 0.4) return `rgba(25, 212, 255, ${0.3 + ((clamped - 0.2) * 1.5)})`;
+    if (clamped < 0.6) return `rgba(95, 237, 72, ${0.45 + ((clamped - 0.4) * 1.5)})`;
+    if (clamped < 0.78) return `rgba(255, 231, 77, ${0.6 + ((clamped - 0.6) * 1.4)})`;
+    if (clamped < 0.9) return `rgba(255, 150, 46, ${0.8 + ((clamped - 0.78) * 1.3)})`;
+    return `rgba(235, 43, 43, ${0.92 + ((clamped - 0.9) * 0.8)})`;
+  };
 
   useEffect(() => {
     setZoomScale(1);
@@ -2939,7 +3016,6 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const centerTranslateX = (width / 2) + panOffset.x;
   const centerTranslateY = (height / 2) + panOffset.y;
-  const adjustedPointRadius = Math.max(1.2, radius / Math.pow(zoomScale, 1.15));
 
   return (
     <>
@@ -2953,20 +3029,17 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
         <g transform={`translate(${centerTranslateX} ${centerTranslateY}) scale(${zoomScale}) translate(${-width / 2} ${-height / 2})`}>
           <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
           <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
-          {projectedPoints.map((point, index) => {
-            const x = ((point.x - centerX) / metersPerPixel) + (width / 2);
-            const y = (height / 2) - ((point.y - centerY) / metersPerPixel);
-
-            return (
-              <circle
-                key={`${points[index].latitude}-${points[index].longitude}-${index}`}
-                cx={Math.min(width, Math.max(0, x))}
-                cy={Math.min(height, Math.max(0, y))}
-                r={adjustedPointRadius}
-                className="gps-heatmap__point"
-              />
-            );
-          })}
+          {densityCells.map((cell) => (
+            <rect
+              key={`${cell.x}-${cell.y}`}
+              x={cell.x}
+              y={cell.y}
+              width="8"
+              height="8"
+              fill={colorForDensity(cell.value)}
+              className="gps-heatmap__cell"
+            />
+          ))}
         </g>
       </svg>
     </>
