@@ -2284,7 +2284,7 @@ export function App() {
     <div className={`app-shell ${isMobileNavOpen ? 'app-shell--menu-open' : ''}`} data-theme={theme}>
       <aside className={`side-nav ${isMobileNavOpen ? 'side-nav--open' : ''}`}>
         <div className="side-nav__header">
-          <strong>Football Metrics</strong>
+          <strong className="side-nav__brand">Football Metrics</strong>
           <button type="button" className="side-nav__close" onClick={() => setIsMobileNavOpen(false)} aria-label="Close navigation">×</button>
         </div>
         <nav className="side-nav__menu" aria-label="Primary navigation">
@@ -2512,7 +2512,7 @@ export function App() {
           </p>
         ) : null}
       </section>
-      <form onSubmit={handleSubmit} id="upload-flow" className={activeMainPage === "upload" ? "" : "is-hidden"}>
+      <form onSubmit={handleSubmit} id="upload-flow" className={`upload-form ${activeMainPage === "upload" ? "" : "is-hidden"}`}>
         <label
           className={`dropzone ${isDragOver ? 'dropzone--active' : ''}`}
           onDragOver={(event) => {
@@ -2523,9 +2523,9 @@ export function App() {
           onDrop={onDrop}
         >
           <span>{t.dropzoneText}</span>
-          <input type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} disabled={isUploading} />
+          <input className="upload-form__file-input" type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} disabled={isUploading} />
         </label>
-        <button type="submit" disabled={!canSubmit}>
+        <button type="submit" className="upload-form__submit" disabled={!canSubmit}>
           {t.uploadButton}
         </button>
       </form>
