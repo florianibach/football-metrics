@@ -2843,7 +2843,17 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   const bboxMinY = minY - projectedPaddingY;
   const bboxMaxY = maxY + projectedPaddingY;
 
-  const satelliteImageUrl = `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bboxMinX},${bboxMinY},${bboxMaxX},${bboxMaxY}&bboxSR=3857&imageSR=3857&size=${width},${height}&format=jpg&adjustAspectRatio=false&f=image`;
+  const initialResolution = (2 * Math.PI * earthRadiusMeters) / 256;
+  const requiredResolution = Math.max((bboxMaxX - bboxMinX) / width, (bboxMaxY - bboxMinY) / height, 0.01);
+  const zoomLevel = Math.max(1, Math.min(19, Math.floor(Math.log2(initialResolution / requiredResolution))));
+
+  const centerX = (bboxMinX + bboxMaxX) / 2;
+  const centerY = (bboxMinY + bboxMaxY) / 2;
+  const centerLongitude = (centerX / earthRadiusMeters) * (180 / Math.PI);
+  const centerLatitude = (Math.atan(Math.exp(centerY / earthRadiusMeters)) * 360 / Math.PI) - 90;
+
+  const metersPerPixel = initialResolution / Math.pow(2, zoomLevel);
+  const satelliteImageUrl = `https://static-maps.yandex.ru/1.x/?l=sat&ll=${centerLongitude},${centerLatitude}&z=${zoomLevel}&size=${width},${height}&lang=en_US`;
 
   return (
     <svg className="gps-heatmap" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap">
@@ -2851,8 +2861,8 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
       <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
       {projectedPoints.map((point, index) => {
-        const x = ((point.x - bboxMinX) / (bboxMaxX - bboxMinX)) * width;
-        const y = height - (((point.y - bboxMinY) / (bboxMaxY - bboxMinY)) * height);
+        const x = ((point.x - centerX) / metersPerPixel) + (width / 2);
+        const y = (height / 2) - ((point.y - centerY) / metersPerPixel);
 
         return (
           <circle
