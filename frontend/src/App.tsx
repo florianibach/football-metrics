@@ -2835,8 +2835,8 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const spanX = Math.max(Math.abs(maxX - minX), 10);
   const spanY = Math.max(Math.abs(maxY - minY), 10);
-  const projectedPaddingX = Math.max(spanX * 0.08, 8);
-  const projectedPaddingY = Math.max(spanY * 0.1, 10);
+  const projectedPaddingX = Math.max(spanX * 0.1, 9);
+  const projectedPaddingY = Math.max(spanY * 0.13, 11);
 
   const bboxMinX = minX - projectedPaddingX;
   const bboxMaxX = maxX + projectedPaddingX;
@@ -2846,7 +2846,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   const initialResolution = (2 * Math.PI * earthRadiusMeters) / 256;
   const requiredResolution = Math.max((bboxMaxX - bboxMinX) / width, (bboxMaxY - bboxMinY) / height, 0.01);
   const baseZoomLevel = Math.floor(Math.log2(initialResolution / requiredResolution));
-  const zoomLevel = Math.max(1, Math.min(19, baseZoomLevel + 1));
+  const zoomLevel = Math.max(1, Math.min(19, baseZoomLevel));
 
   const centerX = (bboxMinX + bboxMaxX) / 2;
   const centerY = (bboxMinY + bboxMaxY) / 2;
