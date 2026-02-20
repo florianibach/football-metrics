@@ -2766,6 +2766,7 @@ export function App() {
                   zoomInLabel={t.gpsHeatmapZoomIn}
                   zoomOutLabel={t.gpsHeatmapZoomOut}
                   zoomResetLabel={t.gpsHeatmapZoomReset}
+                  sessionId={selectedSession.id}
                 />
               ) : (
                 <p>{t.gpsHeatmapNoDataHint}</p>
@@ -2821,9 +2822,10 @@ type GpsPointHeatmapProps = {
   zoomInLabel: string;
   zoomOutLabel: string;
   zoomResetLabel: string;
+  sessionId: string;
 };
 
-function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel }: GpsPointHeatmapProps) {
+function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId }: GpsPointHeatmapProps) {
   const width = 560;
   const height = 320;
   const radius = points.length > 3000 ? 4 : points.length > 1500 ? 5 : 6;
@@ -2872,6 +2874,12 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
+  useEffect(() => {
+    setZoomScale(1);
+    setPanOffset({ x: 0, y: 0 });
+    setDragStart(null);
+  }, [sessionId]);
+
   const clampPanOffset = (offset: { x: number; y: number }, scale: number) => {
     const maxPanX = Math.max(0, ((width * scale) - width) / 2);
     const maxPanY = Math.max(0, ((height * scale) - height) / 2);
@@ -2884,7 +2892,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const adjustZoom = (delta: number) => {
     setZoomScale((currentScale) => {
-      const nextScale = Math.max(1, Math.min(3, Number((currentScale + delta).toFixed(2))));
+      const nextScale = Math.max(1, Math.min(4, Number((currentScale + delta).toFixed(2))));
       setPanOffset((currentOffset) => clampPanOffset(currentOffset, nextScale));
       return nextScale;
     });
