@@ -1772,6 +1772,45 @@ describe('App', () => {
   });
 
 
+
+  it('R1_6_09_Ac05_shows_single_external_warning_banner_instead_of_repeating_warning_per_metric', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/profile')) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      const session = createUploadRecord();
+      const warningReason = 'GPS-derived metric calculated with reduced confidence. Please interpret with caution.';
+      session.summary.coreMetrics.metricAvailability = {
+        ...session.summary.coreMetrics.metricAvailability,
+        distanceMeters: { state: 'AvailableWithWarning', reason: warningReason },
+        sprintDistanceMeters: { state: 'AvailableWithWarning', reason: warningReason },
+        sprintCount: { state: 'AvailableWithWarning', reason: warningReason },
+        maxSpeedMetersPerSecond: { state: 'AvailableWithWarning', reason: warningReason },
+        highIntensityTimeSeconds: { state: 'AvailableWithWarning', reason: warningReason },
+        highIntensityRunCount: { state: 'AvailableWithWarning', reason: warningReason },
+        highSpeedDistanceMeters: { state: 'AvailableWithWarning', reason: warningReason },
+        runningDensityMetersPerMinute: { state: 'AvailableWithWarning', reason: warningReason },
+        accelerationCount: { state: 'AvailableWithWarning', reason: warningReason },
+        decelerationCount: { state: 'AvailableWithWarning', reason: warningReason }
+      };
+
+      return Promise.resolve({ ok: true, json: async () => [session] } as Response);
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
+    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('tab', { name: 'External metrics' }));
+    const externalSection = screen.getByText('External metrics (movement-based)').closest('div') as HTMLElement;
+
+    expect(within(externalSection).getByText('Warning: GPS-based external metrics were calculated with reduced confidence. Please interpret with caution.')).toBeInTheDocument();
+    expect(within(externalSection).queryByText(/Available with warning:/i)).not.toBeInTheDocument();
+  });
+
   it('R1_6_02_Ac01_Ac02_Ac03_Ac04_supports_hf_only_insights_without_gps_zero_values_and_with_comparison_label', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);

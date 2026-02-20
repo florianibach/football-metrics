@@ -280,6 +280,7 @@ type TranslationKey =
   | 'metricGpsChannelQualityReasons'
   | 'metricHeartRateChannelQualityStatus'
   | 'metricHeartRateChannelQualityReasons'
+  | 'externalMetricsWarningBanner'
   | 'historyTitle'
   | 'historyEmpty'
   | 'historyColumnFileName'
@@ -545,6 +546,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     availabilityNotMeasured: 'not measured',
     availabilityNotUsable: 'measurement unusable',
     availabilityAvailableWithWarning: 'available with warning',
+    externalMetricsWarningBanner: 'Warning: GPS-based external metrics were calculated with reduced confidence. Please interpret with caution.',
     historyTitle: 'Upload history',
     historyEmpty: 'No uploaded sessions yet.',
     historyColumnFileName: 'File name',
@@ -806,6 +808,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     availabilityNotMeasured: 'nicht gemessen',
     availabilityNotUsable: 'Messung unbrauchbar',
     availabilityAvailableWithWarning: 'mit Warnung verfügbar',
+    externalMetricsWarningBanner: 'Warnung: GPS-basierte externe Metriken wurden mit reduzierter Verlässlichkeit berechnet. Bitte mit Vorsicht interpretieren.',
     historyTitle: 'Upload-Historie',
     historyEmpty: 'Noch keine hochgeladenen Sessions.',
     historyColumnFileName: 'Dateiname',
@@ -1239,7 +1242,7 @@ function formatThresholds(thresholds: Record<string, string>): string {
 
 function formatMetricStatus(metricKey: string, coreMetrics: FootballCoreMetrics, t: Record<TranslationKey, string>): string | null {
   const status = coreMetrics.metricAvailability?.[metricKey];
-  if (!status || status.state === 'Available') {
+  if (!status || status.state === 'Available' || status.state === 'AvailableWithWarning') {
     return null;
   }
 
@@ -1254,6 +1257,9 @@ function withMetricStatus(value: string, metricKey: string, coreMetrics: Footbal
   return status ? `${value} — ${status}` : value;
 }
 
+function hasAvailableWithWarning(coreMetrics: FootballCoreMetrics, keys: string[]): boolean {
+  return keys.some((key) => coreMetrics.metricAvailability?.[key]?.state === 'AvailableWithWarning');
+}
 
 function sessionTypeText(sessionType: SessionType, t: Record<TranslationKey, string>): string {
   switch (sessionType) {
@@ -2698,10 +2704,18 @@ export function App() {
               </button>
             </div>
             <p>{t.coreMetricsCategoryDescription}</p>
-            {(coreMetricsCategoryFilter === 'all' || coreMetricsCategoryFilter === 'external') && (
+            {(coreMetricsCategoryFilter === 'all' || coreMetricsCategoryFilter === 'external') && (() => {
+              const externalMetricKeys = [
+                'distanceMeters', 'sprintDistanceMeters', 'sprintCount', 'maxSpeedMetersPerSecond', 'highIntensityTimeSeconds', 'highIntensityRunCount',
+                'highSpeedDistanceMeters', 'runningDensityMetersPerMinute', 'accelerationCount', 'decelerationCount'
+              ];
+              const showExternalWarning = hasAvailableWithWarning(selectedSession.summary.coreMetrics, externalMetricKeys);
+
+              return (
               <div>
                 <h4>{t.coreMetricsCategoryExternalTitle}</h4>
                 <p>{t.coreMetricsCategoryExternalHelp}</p>
+                {showExternalWarning && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
                 <ul className="metrics-list">
                   <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.distance} />
                   <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', selectedSession.summary.coreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
@@ -2717,7 +2731,8 @@ export function App() {
                   <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.decelerationCount} />
                 </ul>
               </div>
-            )}
+              );
+            })()}
             {(coreMetricsCategoryFilter === 'all' || coreMetricsCategoryFilter === 'internal') && (
               <div>
                 <h4>{t.coreMetricsCategoryInternalTitle}</h4>
