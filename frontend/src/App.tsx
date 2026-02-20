@@ -47,6 +47,12 @@ type IntervalAggregate = {
   coreMetrics: FootballCoreMetrics;
 };
 
+type GpsTrackpoint = {
+  latitude: number;
+  longitude: number;
+  elapsedSeconds: number | null;
+};
+
 type DataAvailability = {
   mode: 'Dual' | 'HeartRateOnly' | 'GpsOnly' | 'NotAvailable';
   gpsStatus: 'Available' | 'NotMeasured' | 'NotUsable';
@@ -69,6 +75,7 @@ type ActivitySummary = {
   qualityStatus: 'High' | 'Medium' | 'Low';
   qualityReasons: string[];
   dataAvailability?: DataAvailability | null;
+  gpsTrackpoints: GpsTrackpoint[];
   smoothing: SmoothingTrace;
   coreMetrics: FootballCoreMetrics;
   intervalAggregates: IntervalAggregate[];
@@ -309,6 +316,9 @@ type TranslationKey =
   | 'detailMissingHeartRateHint'
   | 'detailMissingDistanceHint'
   | 'detailMissingGpsHint'
+  | 'gpsHeatmapTitle'
+  | 'gpsHeatmapDescription'
+  | 'gpsHeatmapNoDataHint'
   | 'hfOnlyInsightTitle'
   | 'hfOnlyInsightInterpretation'
   | 'coreMetricsTitle'
@@ -561,6 +571,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
     detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
     detailMissingGpsHint: 'No GPS coordinates were detected in this file.',
+    gpsHeatmapTitle: 'GPS point heatmap',
+    gpsHeatmapDescription: 'Visual density map built from the imported GPS points of this session.',
+    gpsHeatmapNoDataHint: 'No heatmap available because GPS coordinates are missing in this session.',
     hfOnlyInsightTitle: 'HF-only interpretation aid',
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics (v1)',
@@ -808,6 +821,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
     detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
     detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.',
+    gpsHeatmapTitle: 'GPS-Punkte-Heatmap',
+    gpsHeatmapDescription: 'Visuelle Dichtekarte auf Basis der importierten GPS-Punkte dieser Session.',
+    gpsHeatmapNoDataHint: 'Keine Heatmap verfügbar, da in dieser Session GPS-Koordinaten fehlen.',
     hfOnlyInsightTitle: 'Interpretationshilfe für HF-only',
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken (v1)',
@@ -2061,6 +2077,34 @@ export function App() {
       cells
     };
   });
+  const heatmapData = useMemo(() => {
+    if (!selectedSession) {
+      return null;
+    }
+
+    const points = selectedSession.summary.gpsTrackpoints ?? [];
+    if (points.length === 0) {
+      return null;
+    }
+
+    const minLatitude = Math.min(...points.map((point) => point.latitude));
+    const maxLatitude = Math.max(...points.map((point) => point.latitude));
+    const minLongitude = Math.min(...points.map((point) => point.longitude));
+    const maxLongitude = Math.max(...points.map((point) => point.longitude));
+
+    return {
+      points,
+      minLatitude,
+      maxLatitude,
+      minLongitude,
+      maxLongitude
+    };
+  }, [selectedSession]);
+
+  const shouldShowGpsHeatmap = selectedSession
+    ? ['Dual', 'GpsOnly'].includes(resolveDataAvailability(selectedSession.summary).mode)
+    : false;
+
   const selectedSessionAggregates = useMemo(() => {
     if (!selectedSession) {
       return [];
@@ -2699,6 +2743,24 @@ export function App() {
             )}
           </div>
 
+          {shouldShowGpsHeatmap && (
+            <div className="gps-heatmap-section">
+              <h3>{t.gpsHeatmapTitle}</h3>
+              <p>{t.gpsHeatmapDescription}</p>
+              {heatmapData ? (
+                <GpsPointHeatmap
+                  points={heatmapData.points}
+                  minLatitude={heatmapData.minLatitude}
+                  maxLatitude={heatmapData.maxLatitude}
+                  minLongitude={heatmapData.minLongitude}
+                  maxLongitude={heatmapData.maxLongitude}
+                />
+              ) : (
+                <p>{t.gpsHeatmapNoDataHint}</p>
+              )}
+            </div>
+          )}
+
           {resolveDataAvailability(selectedSession.summary).mode === 'HeartRateOnly' && (
             <div className="detail-hints" role="note" aria-label={t.hfOnlyInsightTitle}>
               <p><strong>{t.hfOnlyInsightTitle}:</strong> {t.hfOnlyInsightInterpretation}</p>
@@ -2736,4 +2798,82 @@ export function App() {
     hour12: false,
     timeZone: 'UTC'
   }).format(date);
+}
+
+type GpsPointHeatmapProps = {
+  points: GpsTrackpoint[];
+  minLatitude: number;
+  maxLatitude: number;
+  minLongitude: number;
+  maxLongitude: number;
+};
+
+function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude }: GpsPointHeatmapProps) {
+  const width = 560;
+  const height = 320;
+  const radius = points.length > 3000 ? 4 : points.length > 1500 ? 5 : 6;
+  const earthRadiusMeters = 6378137;
+
+  const toWebMercator = (latitude: number, longitude: number) => {
+    const normalizedLatitude = Math.max(-85.05112878, Math.min(85.05112878, latitude));
+    const x = earthRadiusMeters * (longitude * Math.PI / 180);
+    const y = earthRadiusMeters * Math.log(Math.tan(Math.PI / 4 + (normalizedLatitude * Math.PI / 180) / 2));
+    return { x, y };
+  };
+
+  const projectedPoints = points.map((point) => toWebMercator(point.latitude, point.longitude));
+  const projectedXs = projectedPoints.map((point) => point.x);
+  const projectedYs = projectedPoints.map((point) => point.y);
+
+  const minProjected = toWebMercator(minLatitude, minLongitude);
+  const maxProjected = toWebMercator(maxLatitude, maxLongitude);
+
+  const minX = Math.min(...projectedXs, minProjected.x, maxProjected.x);
+  const maxX = Math.max(...projectedXs, minProjected.x, maxProjected.x);
+  const minY = Math.min(...projectedYs, minProjected.y, maxProjected.y);
+  const maxY = Math.max(...projectedYs, minProjected.y, maxProjected.y);
+
+  const spanX = Math.max(Math.abs(maxX - minX), 10);
+  const spanY = Math.max(Math.abs(maxY - minY), 10);
+  const projectedPaddingX = Math.max(spanX * 0.12, 10);
+  const projectedPaddingY = Math.max(spanY * 0.16, 12);
+
+  const bboxMinX = minX - projectedPaddingX;
+  const bboxMaxX = maxX + projectedPaddingX;
+  const bboxMinY = minY - projectedPaddingY;
+  const bboxMaxY = maxY + projectedPaddingY;
+
+  const initialResolution = (2 * Math.PI * earthRadiusMeters) / 256;
+  const requiredResolution = Math.max((bboxMaxX - bboxMinX) / width, (bboxMaxY - bboxMinY) / height, 0.01);
+  const zoomLevel = Math.max(1, Math.min(19, Math.floor(Math.log2(initialResolution / requiredResolution))));
+
+  const centerX = (bboxMinX + bboxMaxX) / 2;
+  const centerY = (bboxMinY + bboxMaxY) / 2;
+  const centerLongitude = (centerX / earthRadiusMeters) * (180 / Math.PI);
+  const centerLatitude = (Math.atan(Math.exp(centerY / earthRadiusMeters)) * 360 / Math.PI) - 90;
+
+  const metersPerPixel = initialResolution / Math.pow(2, zoomLevel);
+  const satelliteImageUrl = `https://static-maps.yandex.ru/1.x/?l=sat&ll=${centerLongitude},${centerLatitude}&z=${zoomLevel}&size=${width},${height}&lang=en_US`;
+
+  return (
+    <svg className="gps-heatmap" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap">
+      <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__background" />
+      <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
+      <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
+      {projectedPoints.map((point, index) => {
+        const x = ((point.x - centerX) / metersPerPixel) + (width / 2);
+        const y = (height / 2) - ((point.y - centerY) / metersPerPixel);
+
+        return (
+          <circle
+            key={`${points[index].latitude}-${points[index].longitude}-${index}`}
+            cx={Math.min(width, Math.max(0, x))}
+            cy={Math.min(height, Math.max(0, y))}
+            r={radius}
+            className="gps-heatmap__point"
+          />
+        );
+      })}
+    </svg>
+  );
 }
