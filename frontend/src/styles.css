@@ -1203,3 +1203,121 @@ input[type='checkbox']:checked::before {
     padding: 1rem;
   }
 }
+
+/* ===== Final palette enforcement (single source of truth) ===== */
+:root {
+  --brand-primary: #287f71;
+  --brand-accent: #eb862a;
+  --brand-info: #abbdd3;
+  --brand-neutral: #97a3b6;
+  --brand-dark: #111729;
+
+  --bs-primary: var(--brand-primary);
+  --bs-secondary: var(--brand-neutral);
+  --bs-success: var(--brand-primary);
+  --bs-info: var(--brand-info);
+  --bs-warning: var(--brand-accent);
+  --bs-dark: var(--brand-dark);
+}
+
+.app-shell[data-theme='light'] {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --text: #111729;
+  --muted: #6a7588;
+  --border: #d6dce6;
+}
+
+.app-shell[data-theme='dark'] {
+  --bg: #111315;
+  --surface: #181a1d;
+  --text: #eceef1;
+  --muted: #a7adb7;
+  --border: #2c3138;
+}
+
+.app-shell[data-theme='light'] .side-nav {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.app-shell[data-theme='dark'] .side-nav {
+  background: #14161a;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.side-nav__item,
+.burger-menu,
+.theme-btn,
+button,
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-outline-primary,
+.btn-outline-secondary {
+  border-radius: 10px;
+}
+
+.side-nav__item:hover,
+.side-nav__item--active,
+.theme-btn--active,
+button,
+.btn-primary,
+.tab-button--active,
+.gps-runs-list button.is-active,
+.gps-heatmap-view-toggle button.is-active {
+  background: var(--bs-primary) !important;
+  border-color: var(--bs-primary) !important;
+  color: #fff !important;
+}
+
+button:hover,
+button:focus-visible,
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  background: #236e63 !important;
+  border-color: #236e63 !important;
+}
+
+.secondary-button,
+.btn-secondary,
+.btn-outline-secondary {
+  background: var(--bs-secondary) !important;
+  border-color: var(--bs-secondary) !important;
+  color: #fff !important;
+}
+
+.filter-guidance,
+.quality-warning,
+.detail-hints {
+  background: color-mix(in srgb, var(--surface) 85%, var(--brand-info));
+}
+
+.filter-guidance { border-left-color: var(--bs-primary) !important; }
+.quality-warning,
+.detail-hints { border-left-color: var(--bs-warning) !important; }
+
+/* Remove mismatched native white inputs in dark mode */
+.app-shell[data-theme='dark'] input,
+.app-shell[data-theme='dark'] select,
+.app-shell[data-theme='dark'] textarea {
+  background: #15181c !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+.app-shell[data-theme='dark'] input::placeholder,
+.app-shell[data-theme='dark'] textarea::placeholder {
+  color: var(--muted);
+}
+
+/* Keep modern checkboxes with brand primary */
+input[type='checkbox'] {
+  border-color: var(--brand-neutral);
+}
+
+input[type='checkbox']::before {
+  box-shadow: inset 1em 1em var(--bs-primary);
+}
