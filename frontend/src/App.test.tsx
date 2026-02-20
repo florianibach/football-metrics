@@ -2071,6 +2071,73 @@ describe('App', () => {
     expect(satelliteImage?.getAttribute('href')).toContain('l=sat');
   });
 
+  it('R1_6_13_Ac04_resets_local_heatmap_zoom_when_switching_sessions', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({ id: 'upload-newer', fileName: 'newer.tcx', uploadedAtUtc: '2026-02-16T22:00:00.000Z' }),
+            createUploadRecord({ id: 'upload-older', fileName: 'older.tcx', uploadedAtUtc: '2026-02-16T21:00:00.000Z' })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+
+    const heatmapBeforeSwitch = screen.getByRole('img', { name: 'GPS point heatmap' });
+    const transformedLayerBeforeSwitch = heatmapBeforeSwitch.querySelector('g');
+    expect(transformedLayerBeforeSwitch?.getAttribute('transform')).toContain('scale(1.2)');
+
+    const openDetailButtons = screen.getAllByRole('button', { name: 'Open details' });
+    fireEvent.click(openDetailButtons[1]);
+
+    await waitFor(() => {
+      const heatmapAfterSwitch = screen.getByRole('img', { name: 'GPS point heatmap' });
+      const transformedLayerAfterSwitch = heatmapAfterSwitch.querySelector('g');
+      expect(transformedLayerAfterSwitch?.getAttribute('transform')).toContain('scale(1)');
+    });
+  });
+
+  it('R1_6_13_Ac05_allows_more_zoom_in_clicks_before_hitting_the_max_scale', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
+    const zoomInButton = screen.getByRole('button', { name: 'Zoom in' });
+
+    for (let click = 0; click < 20; click += 1) {
+      fireEvent.click(zoomInButton);
+    }
+
+    const heatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
+    const transformedLayer = heatmap.querySelector('g');
+    expect(transformedLayer?.getAttribute('transform')).toContain('scale(5)');
+  });
+
   it('R1_6_13_Ac03_hides_heatmap_and_shows_gps_missing_hint_for_hf_only_sessions', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);

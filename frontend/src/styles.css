@@ -378,11 +378,37 @@ button:disabled {
   margin-top: 1rem;
 }
 
+.gps-heatmap-controls {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.gps-heatmap-controls button {
+  border: 1px solid #d0d5dd;
+  background: #ffffff;
+  color: #101828;
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+.gps-heatmap-controls button:hover {
+  background: #f2f4f7;
+}
+
 .gps-heatmap {
   width: 100%;
   max-width: 560px;
   border: 1px solid #d0d5dd;
   border-radius: 8px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.gps-heatmap--dragging {
+  cursor: grabbing;
 }
 
 .gps-heatmap__background {

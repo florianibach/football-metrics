@@ -1,4 +1,4 @@
-import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, DragEvent, FormEvent, PointerEvent, useEffect, useMemo, useState } from 'react';
 
 type SmoothingTrace = {
   selectedStrategy: string;
@@ -319,6 +319,9 @@ type TranslationKey =
   | 'gpsHeatmapTitle'
   | 'gpsHeatmapDescription'
   | 'gpsHeatmapNoDataHint'
+  | 'gpsHeatmapZoomIn'
+  | 'gpsHeatmapZoomOut'
+  | 'gpsHeatmapZoomReset'
   | 'hfOnlyInsightTitle'
   | 'hfOnlyInsightInterpretation'
   | 'coreMetricsTitle'
@@ -574,6 +577,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsHeatmapTitle: 'GPS point heatmap',
     gpsHeatmapDescription: 'Visual density map built from the imported GPS points of this session.',
     gpsHeatmapNoDataHint: 'No heatmap available because GPS coordinates are missing in this session.',
+    gpsHeatmapZoomIn: 'Zoom in',
+    gpsHeatmapZoomOut: 'Zoom out',
+    gpsHeatmapZoomReset: 'Reset zoom',
     hfOnlyInsightTitle: 'HF-only interpretation aid',
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics (v1)',
@@ -824,6 +830,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsHeatmapTitle: 'GPS-Punkte-Heatmap',
     gpsHeatmapDescription: 'Visuelle Dichtekarte auf Basis der importierten GPS-Punkte dieser Session.',
     gpsHeatmapNoDataHint: 'Keine Heatmap verfügbar, da in dieser Session GPS-Koordinaten fehlen.',
+    gpsHeatmapZoomIn: 'Hineinzoomen',
+    gpsHeatmapZoomOut: 'Herauszoomen',
+    gpsHeatmapZoomReset: 'Zoom zurücksetzen',
     hfOnlyInsightTitle: 'Interpretationshilfe für HF-only',
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken (v1)',
@@ -2754,6 +2763,10 @@ export function App() {
                   maxLatitude={heatmapData.maxLatitude}
                   minLongitude={heatmapData.minLongitude}
                   maxLongitude={heatmapData.maxLongitude}
+                  zoomInLabel={t.gpsHeatmapZoomIn}
+                  zoomOutLabel={t.gpsHeatmapZoomOut}
+                  zoomResetLabel={t.gpsHeatmapZoomReset}
+                  sessionId={selectedSession.id}
                 />
               ) : (
                 <p>{t.gpsHeatmapNoDataHint}</p>
@@ -2806,9 +2819,13 @@ type GpsPointHeatmapProps = {
   maxLatitude: number;
   minLongitude: number;
   maxLongitude: number;
+  zoomInLabel: string;
+  zoomOutLabel: string;
+  zoomResetLabel: string;
+  sessionId: string;
 };
 
-function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude }: GpsPointHeatmapProps) {
+function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId }: GpsPointHeatmapProps) {
   const width = 560;
   const height = 320;
   const radius = points.length > 3000 ? 4 : points.length > 1500 ? 5 : 6;
@@ -2835,45 +2852,123 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const spanX = Math.max(Math.abs(maxX - minX), 10);
   const spanY = Math.max(Math.abs(maxY - minY), 10);
-  const projectedPaddingX = Math.max(spanX * 0.12, 10);
-  const projectedPaddingY = Math.max(spanY * 0.16, 12);
+  const projectedPaddingX = Math.max(spanX * 0.095, 9);
+  const projectedPaddingY = Math.max(spanY * 0.12, 10.5);
 
   const bboxMinX = minX - projectedPaddingX;
   const bboxMaxX = maxX + projectedPaddingX;
   const bboxMinY = minY - projectedPaddingY;
   const bboxMaxY = maxY + projectedPaddingY;
 
+  const fixedZoomLevel = 17;
   const initialResolution = (2 * Math.PI * earthRadiusMeters) / 256;
-  const requiredResolution = Math.max((bboxMaxX - bboxMinX) / width, (bboxMaxY - bboxMinY) / height, 0.01);
-  const zoomLevel = Math.max(1, Math.min(19, Math.floor(Math.log2(initialResolution / requiredResolution))));
 
   const centerX = (bboxMinX + bboxMaxX) / 2;
   const centerY = (bboxMinY + bboxMaxY) / 2;
   const centerLongitude = (centerX / earthRadiusMeters) * (180 / Math.PI);
   const centerLatitude = (Math.atan(Math.exp(centerY / earthRadiusMeters)) * 360 / Math.PI) - 90;
 
-  const metersPerPixel = initialResolution / Math.pow(2, zoomLevel);
-  const satelliteImageUrl = `https://static-maps.yandex.ru/1.x/?l=sat&ll=${centerLongitude},${centerLatitude}&z=${zoomLevel}&size=${width},${height}&lang=en_US`;
+  const metersPerPixel = initialResolution / Math.pow(2, fixedZoomLevel);
+  const satelliteImageUrl = `https://static-maps.yandex.ru/1.x/?l=sat&ll=${centerLongitude},${centerLatitude}&z=${fixedZoomLevel}&size=${width},${height}&lang=en_US`;
+  const [zoomScale, setZoomScale] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState<{ x: number; y: number; panX: number; panY: number } | null>(null);
+
+  useEffect(() => {
+    setZoomScale(1);
+    setPanOffset({ x: 0, y: 0 });
+    setDragStart(null);
+  }, [sessionId]);
+
+  const clampPanOffset = (offset: { x: number; y: number }, scale: number) => {
+    const maxPanX = Math.max(0, ((width * scale) - width) / 2);
+    const maxPanY = Math.max(0, ((height * scale) - height) / 2);
+
+    return {
+      x: Math.max(-maxPanX, Math.min(maxPanX, offset.x)),
+      y: Math.max(-maxPanY, Math.min(maxPanY, offset.y))
+    };
+  };
+
+  const adjustZoom = (delta: number) => {
+    setZoomScale((currentScale) => {
+      const nextScale = Math.max(1, Math.min(5, Number((currentScale + delta).toFixed(2))));
+      setPanOffset((currentOffset) => clampPanOffset(currentOffset, nextScale));
+      return nextScale;
+    });
+  };
+
+  const toSvgCoordinates = (event: PointerEvent<SVGSVGElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const scaleX = width / rect.width;
+    const scaleY = height / rect.height;
+
+    return {
+      x: (event.clientX - rect.left) * scaleX,
+      y: (event.clientY - rect.top) * scaleY
+    };
+  };
+
+  const onPointerDown = (event: PointerEvent<SVGSVGElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const coordinates = toSvgCoordinates(event);
+    setDragStart({ x: coordinates.x, y: coordinates.y, panX: panOffset.x, panY: panOffset.y });
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onPointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (!dragStart) {
+      return;
+    }
+
+    const coordinates = toSvgCoordinates(event);
+    const nextOffset = {
+      x: dragStart.panX + (coordinates.x - dragStart.x),
+      y: dragStart.panY + (coordinates.y - dragStart.y)
+    };
+
+    setPanOffset(clampPanOffset(nextOffset, zoomScale));
+  };
+
+  const onPointerEnd = () => {
+    setDragStart(null);
+  };
+
+  const centerTranslateX = (width / 2) + panOffset.x;
+  const centerTranslateY = (height / 2) + panOffset.y;
+  const adjustedPointRadius = Math.max(1.2, radius / Math.pow(zoomScale, 1.15));
 
   return (
-    <svg className="gps-heatmap" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap">
-      <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__background" />
-      <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
-      <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
-      {projectedPoints.map((point, index) => {
-        const x = ((point.x - centerX) / metersPerPixel) + (width / 2);
-        const y = (height / 2) - ((point.y - centerY) / metersPerPixel);
+    <>
+      <div className="gps-heatmap-controls" role="group" aria-label="Heatmap controls">
+        <button type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
+        <button type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
+        <button type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
+      </div>
+      <svg className={`gps-heatmap ${dragStart ? 'gps-heatmap--dragging' : ''}`} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} onPointerLeave={onPointerEnd}>
+        <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__background" />
+        <g transform={`translate(${centerTranslateX} ${centerTranslateY}) scale(${zoomScale}) translate(${-width / 2} ${-height / 2})`}>
+          <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
+          <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
+          {projectedPoints.map((point, index) => {
+            const x = ((point.x - centerX) / metersPerPixel) + (width / 2);
+            const y = (height / 2) - ((point.y - centerY) / metersPerPixel);
 
-        return (
-          <circle
-            key={`${points[index].latitude}-${points[index].longitude}-${index}`}
-            cx={Math.min(width, Math.max(0, x))}
-            cy={Math.min(height, Math.max(0, y))}
-            r={radius}
-            className="gps-heatmap__point"
-          />
-        );
-      })}
-    </svg>
+            return (
+              <circle
+                key={`${points[index].latitude}-${points[index].longitude}-${index}`}
+                cx={Math.min(width, Math.max(0, x))}
+                cy={Math.min(height, Math.max(0, y))}
+                r={adjustedPointRadius}
+                className="gps-heatmap__point"
+              />
+            );
+          })}
+        </g>
+      </svg>
+    </>
   );
 }
