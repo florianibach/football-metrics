@@ -1501,7 +1501,7 @@ export function App() {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<'analysis' | 'segments' | 'compare'>('analysis');
   const [activeMainPage, setActiveMainPage] = useState<'sessions' | 'upload' | 'profile' | 'session'>('sessions');
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
   const t = useMemo(() => {
     const localizedTranslations = translations[locale];
@@ -2245,10 +2245,6 @@ export function App() {
           <button type="button" className={`side-nav__item ${activeMainPage === 'sessions' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('sessions'); jumpToSection('session-list'); }}>Sessions</button>
           <button type="button" className={`side-nav__item ${activeMainPage === 'profile' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('profile'); jumpToSection('profile-settings'); }}>Profile</button>
         </nav>
-        <div className="theme-switch" role="group" aria-label="Theme switch">
-          <button type="button" className={`side-nav__item ${theme === 'light' ? 'side-nav__item--active' : ''}`} onClick={() => setTheme('light')}>Light</button>
-          <button type="button" className={`side-nav__item ${theme === 'dark' ? 'side-nav__item--active' : ''}`} onClick={() => setTheme('dark')}>Dark</button>
-        </div>
         {selectedSession && (
           <div className="side-nav__session-subpages">
             <p>Session</p>
@@ -2275,6 +2271,13 @@ export function App() {
 
       <section className={`profile-settings ${activeMainPage === "profile" ? "" : "is-hidden"}`} id="profile-settings">
         <h2>{t.profileSettingsTitle}</h2>
+        <div className="profile-theme-switch" role="group" aria-label="Theme switch">
+          <span>Theme</span>
+          <div className="profile-theme-switch__controls">
+            <button type="button" className={theme === "light" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => setTheme("light")}>Light</button>
+            <button type="button" className={theme === "dark" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => setTheme("dark")}>Dark</button>
+          </div>
+        </div>
         <form onSubmit={onProfileSubmit}>
           <label htmlFor="profile-primary-position">{t.profilePrimaryPosition}</label>
           <select
