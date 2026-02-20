@@ -2148,6 +2148,94 @@ describe('App', () => {
     });
   });
 
+  it('R1_6_14_Ac01_Ac02_Ac03_Ac05_shows_runs_layer_with_color_coding_direction_and_explanation', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: [
+                  { latitude: 50.9366, longitude: 6.9603, elapsedSeconds: 0 },
+                  { latitude: 50.9366, longitude: 6.96085, elapsedSeconds: 5 },
+                  { latitude: 50.9366, longitude: 6.9614, elapsedSeconds: 10 },
+                  { latitude: 50.9366, longitude: 6.96182, elapsedSeconds: 15 },
+                  { latitude: 50.9366, longitude: 6.96224, elapsedSeconds: 20 }
+                ]
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sprint & high-intensity runs' }));
+
+    expect(screen.getByText('Sprint points are red, high-intensity points are orange. Point size increases along the run direction; the outlined final point marks the run end.')).toBeInTheDocument();
+
+    const heatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
+    expect(heatmap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--sprint').length).toBeGreaterThan(0);
+    expect(heatmap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity').length).toBeGreaterThan(0);
+
+    const endPoints = Array.from(heatmap.querySelectorAll('.gps-heatmap__run-point--end'));
+    expect(endPoints.length).toBeGreaterThan(0);
+    expect(endPoints.some((node) => node.classList.contains('gps-heatmap__run--sprint'))).toBe(true);
+  });
+
+  it('R1_6_14_Ac04_reuses_heatmap_zoom_and_reset_controls_for_runs_layer', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: [
+                  { latitude: 50.9366, longitude: 6.9603, elapsedSeconds: 0 },
+                  { latitude: 50.9366, longitude: 6.96085, elapsedSeconds: 5 },
+                  { latitude: 50.9366, longitude: 6.9614, elapsedSeconds: 10 },
+                  { latitude: 50.9366, longitude: 6.96182, elapsedSeconds: 15 }
+                ]
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sprint & high-intensity runs' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    let transformedLayer = screen.getByRole('img', { name: 'GPS point heatmap' }).querySelector('g');
+    expect(transformedLayer?.getAttribute('transform')).toContain('scale(1.2)');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset zoom' }));
+    transformedLayer = screen.getByRole('img', { name: 'GPS point heatmap' }).querySelector('g');
+    expect(transformedLayer?.getAttribute('transform')).toContain('scale(1)');
+  });
+
+
   it('R1_6_13_Ac04_resets_local_heatmap_zoom_when_switching_sessions', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);

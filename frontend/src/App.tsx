@@ -335,6 +335,8 @@ type TranslationKey =
   | 'gpsHeatmapZoomReset'
   | 'gpsHeatmapViewHeatmap'
   | 'gpsHeatmapViewPoints'
+  | 'gpsHeatmapViewRuns'
+  | 'gpsHeatmapRunsExplanation'
   | 'hfOnlyInsightTitle'
   | 'hfOnlyInsightInterpretation'
   | 'coreMetricsTitle'
@@ -601,6 +603,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsHeatmapZoomReset: 'Reset zoom',
     gpsHeatmapViewHeatmap: 'Heatmap',
     gpsHeatmapViewPoints: 'Track points',
+    gpsHeatmapViewRuns: 'Sprint & high-intensity runs',
+    gpsHeatmapRunsExplanation: 'Sprint points are red, high-intensity points are orange. Point size increases along the run direction; the outlined final point marks the run end.',
     hfOnlyInsightTitle: 'HF-only interpretation aid',
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics (v1)',
@@ -863,6 +867,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsHeatmapZoomReset: 'Zoom zurücksetzen',
     gpsHeatmapViewHeatmap: 'Heatmap',
     gpsHeatmapViewPoints: 'Trackpunkte',
+    gpsHeatmapViewRuns: 'Sprint- & High-Intensity-Runs',
+    gpsHeatmapRunsExplanation: 'Sprint-Punkte sind rot, High-Intensity-Punkte orange. Die Punktgröße steigt entlang der Laufrichtung; der umrandete letzte Punkt markiert das Run-Ende.',
     hfOnlyInsightTitle: 'Interpretationshilfe für HF-only',
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken (v1)',
@@ -2154,6 +2160,23 @@ export function App() {
     };
   }, [selectedSession]);
 
+
+  const runTrackThresholds = useMemo(() => {
+    if (!selectedSession) {
+      return { sprintThresholdMps: null, highIntensityThresholdMps: null };
+    }
+
+    const sprintThresholdRaw = selectedSession.summary.coreMetrics.thresholds.SprintSpeedThresholdMps;
+    const highIntensityThresholdRaw = selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps;
+    const sprintThresholdMps = sprintThresholdRaw ? Number(sprintThresholdRaw) : Number.NaN;
+    const highIntensityThresholdMps = highIntensityThresholdRaw ? Number(highIntensityThresholdRaw) : Number.NaN;
+
+    return {
+      sprintThresholdMps: Number.isFinite(sprintThresholdMps) ? sprintThresholdMps : null,
+      highIntensityThresholdMps: Number.isFinite(highIntensityThresholdMps) ? highIntensityThresholdMps : null
+    };
+  }, [selectedSession]);
+
   const shouldShowGpsHeatmap = selectedSession
     ? ['Dual', 'GpsOnly'].includes(resolveDataAvailability(selectedSession.summary).mode)
     : false;
@@ -2825,6 +2848,10 @@ export function App() {
                   zoomResetLabel={t.gpsHeatmapZoomReset}
                   viewHeatmapLabel={t.gpsHeatmapViewHeatmap}
                   viewPointsLabel={t.gpsHeatmapViewPoints}
+                  viewRunsLabel={t.gpsHeatmapViewRuns}
+                  runsExplanation={t.gpsHeatmapRunsExplanation}
+                  sprintThresholdMps={runTrackThresholds.sprintThresholdMps}
+                  highIntensityThresholdMps={runTrackThresholds.highIntensityThresholdMps}
                   sessionId={selectedSession.id}
                 />
               ) : (
@@ -2883,6 +2910,10 @@ type GpsPointHeatmapProps = {
   zoomResetLabel: string;
   viewHeatmapLabel: string;
   viewPointsLabel: string;
+  viewRunsLabel: string;
+  runsExplanation: string;
+  sprintThresholdMps: number | null;
+  highIntensityThresholdMps: number | null;
   sessionId: string;
 };
 
@@ -2892,12 +2923,13 @@ type HeatmapLayerProps = {
   satelliteImageUrl: string;
   densityCells: Array<{ x: number; y: number; value: number }>;
   screenPoints: Array<{ x: number; y: number }>;
+  runTrackSegments: Array<{ id: string; colorClassName: string; points: Array<{ x: number; y: number; radius: number; isEnd: boolean }> }>;
   shouldRenderPointMarkers: boolean;
-  viewMode: 'heatmap' | 'points';
+  viewMode: 'heatmap' | 'points' | 'runs';
   colorForDensity: (value: number) => string;
 };
 
-const HeatmapLayer = memo(function HeatmapLayer({ width, height, satelliteImageUrl, densityCells, screenPoints, shouldRenderPointMarkers, viewMode, colorForDensity }: HeatmapLayerProps) {
+const HeatmapLayer = memo(function HeatmapLayer({ width, height, satelliteImageUrl, densityCells, screenPoints, runTrackSegments, shouldRenderPointMarkers, viewMode, colorForDensity }: HeatmapLayerProps) {
   return (
     <>
       <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
@@ -2912,7 +2944,8 @@ const HeatmapLayer = memo(function HeatmapLayer({ width, height, satelliteImageU
           fill={colorForDensity(cell.value)}
           className="gps-heatmap__cell"
         />
-      )) : (
+      )) : null}
+      {viewMode === 'points' ? (
         <>
           <polyline
             points={screenPoints.map((point) => `${point.x},${point.y}`).join(' ')}
@@ -2928,12 +2961,33 @@ const HeatmapLayer = memo(function HeatmapLayer({ width, height, satelliteImageU
             />
           )) : null}
         </>
-      )}
+      ) : null}
+      {viewMode === 'runs' ? (
+        <>
+          {runTrackSegments.map((segment) => (
+            <g key={segment.id}>
+              <polyline
+                points={segment.points.map((point) => `${point.x},${point.y}`).join(' ')}
+                className={`gps-heatmap__run-line ${segment.colorClassName}`}
+              />
+              {segment.points.map((point, index) => (
+                <circle
+                  key={`${segment.id}-${index}`}
+                  cx={point.x}
+                  cy={point.y}
+                  r={point.radius}
+                  className={`gps-heatmap__run-point ${segment.colorClassName} ${point.isEnd ? 'gps-heatmap__run-point--end' : ''}`}
+                />
+              ))}
+            </g>
+          ))}
+        </>
+      ) : null}
     </>
   );
 });
 
-function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, viewHeatmapLabel, viewPointsLabel, sessionId }: GpsPointHeatmapProps) {
+function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, viewHeatmapLabel, viewPointsLabel, viewRunsLabel, runsExplanation, sprintThresholdMps, highIntensityThresholdMps, sessionId }: GpsPointHeatmapProps) {
   const width = 560;
   const height = 320;
   const earthRadiusMeters = 6378137;
@@ -2979,7 +3033,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   const satelliteImageUrl = `https://static-maps.yandex.ru/1.x/?l=sat&ll=${centerLongitude},${centerLatitude}&z=${fixedZoomLevel}&size=${width},${height}&lang=en_US`;
   const [zoomScale, setZoomScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [viewMode, setViewMode] = useState<'heatmap' | 'points'>('heatmap');
+  const [viewMode, setViewMode] = useState<'heatmap' | 'points' | 'runs'>('heatmap');
   const [dragStart, setDragStart] = useState<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -3063,6 +3117,100 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   }, []);
 
   const shouldRenderPointMarkers = points.length <= 2500;
+
+  const runTrackSegments = useMemo(() => {
+    if (sprintThresholdMps === null || highIntensityThresholdMps === null || points.length < 2) {
+      return [] as Array<{ id: string; colorClassName: string; points: Array<{ x: number; y: number; radius: number; isEnd: boolean }> }>;
+    }
+
+    type RunClass = 'sprint' | 'high-intensity';
+    type IndexedPoint = { index: number; className: RunClass };
+
+    const earthRadius = 6371000;
+    const toRadians = (value: number) => (value * Math.PI) / 180;
+    const distanceMetersBetween = (first: GpsTrackpoint, second: GpsTrackpoint) => {
+      const dLat = toRadians(second.latitude - first.latitude);
+      const dLon = toRadians(second.longitude - first.longitude);
+      const lat1 = toRadians(first.latitude);
+      const lat2 = toRadians(second.latitude);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * (Math.sin(dLon / 2) ** 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return earthRadius * c;
+    };
+
+    const classifiedPoints: IndexedPoint[] = [];
+
+    for (let index = 1; index < points.length; index += 1) {
+      const previous = points[index - 1];
+      const current = points[index];
+
+      if (previous.elapsedSeconds === null || current.elapsedSeconds === null) {
+        continue;
+      }
+
+      const deltaSeconds = current.elapsedSeconds - previous.elapsedSeconds;
+      if (deltaSeconds <= 0) {
+        continue;
+      }
+
+      const speedMps = distanceMetersBetween(previous, current) / deltaSeconds;
+      if (speedMps >= sprintThresholdMps) {
+        classifiedPoints.push({ index, className: 'sprint' });
+      } else if (speedMps >= highIntensityThresholdMps) {
+        classifiedPoints.push({ index, className: 'high-intensity' });
+      }
+    }
+
+    if (classifiedPoints.length === 0) {
+      return [] as Array<{ id: string; colorClassName: string; points: Array<{ x: number; y: number; radius: number; isEnd: boolean }> }>;
+    }
+
+    const segments: Array<{ id: string; colorClassName: string; points: Array<{ x: number; y: number; radius: number; isEnd: boolean }> }> = [];
+    let currentSegment = [classifiedPoints[0]];
+
+    for (let index = 1; index < classifiedPoints.length; index += 1) {
+      const point = classifiedPoints[index];
+      const previous = classifiedPoints[index - 1];
+      const shouldContinue = point.className === previous.className && point.index === previous.index + 1;
+
+      if (shouldContinue) {
+        currentSegment.push(point);
+        continue;
+      }
+
+      segments.push({
+        id: `${currentSegment[0].className}-${currentSegment[0].index}`,
+        colorClassName: currentSegment[0].className === 'sprint' ? 'gps-heatmap__run--sprint' : 'gps-heatmap__run--high-intensity',
+        points: currentSegment.map((entry, entryIndex) => {
+          const progression = currentSegment.length === 1 ? 1 : entryIndex / (currentSegment.length - 1);
+          return {
+            x: screenPoints[entry.index].x,
+            y: screenPoints[entry.index].y,
+            radius: 1.8 + (progression * 2),
+            isEnd: entryIndex === currentSegment.length - 1
+          };
+        })
+      });
+
+      currentSegment = [point];
+    }
+
+    segments.push({
+      id: `${currentSegment[0].className}-${currentSegment[0].index}`,
+      colorClassName: currentSegment[0].className === 'sprint' ? 'gps-heatmap__run--sprint' : 'gps-heatmap__run--high-intensity',
+      points: currentSegment.map((entry, entryIndex) => {
+        const progression = currentSegment.length === 1 ? 1 : entryIndex / (currentSegment.length - 1);
+        return {
+          x: screenPoints[entry.index].x,
+          y: screenPoints[entry.index].y,
+          radius: 1.8 + (progression * 2),
+          isEnd: entryIndex === currentSegment.length - 1
+        };
+      })
+    });
+
+    return segments;
+  }, [highIntensityThresholdMps, points, screenPoints, sprintThresholdMps]);
 
   useEffect(() => {
     setZoomScale(1);
@@ -3155,16 +3303,18 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       <div className="gps-heatmap-view-toggle" role="group" aria-label="Heatmap view mode">
         <button type="button" className={viewMode === 'heatmap' ? 'is-active' : ''} onClick={() => setViewMode('heatmap')}>{viewHeatmapLabel}</button>
         <button type="button" className={viewMode === 'points' ? 'is-active' : ''} onClick={() => setViewMode('points')}>{viewPointsLabel}</button>
+        <button type="button" className={viewMode === 'runs' ? 'is-active' : ''} onClick={() => setViewMode('runs')}>{viewRunsLabel}</button>
       </div>
       <div className="gps-heatmap-controls" role="group" aria-label="Heatmap controls">
         <button type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
         <button type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
         <button type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
       </div>
+      {viewMode === 'runs' && <p className="gps-heatmap-runs-explanation">{runsExplanation}</p>}
       <svg className={`gps-heatmap ${dragStart ? 'gps-heatmap--dragging' : ''}`} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} onPointerLeave={onPointerEnd}>
         <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__background" />
         <g transform={`translate(${centerTranslateX} ${centerTranslateY}) scale(${zoomScale}) translate(${-width / 2} ${-height / 2})`}>
-          <HeatmapLayer width={width} height={height} satelliteImageUrl={satelliteImageUrl} densityCells={densityCells} screenPoints={screenPoints} shouldRenderPointMarkers={shouldRenderPointMarkers} viewMode={viewMode} colorForDensity={colorForDensity} />
+          <HeatmapLayer width={width} height={height} satelliteImageUrl={satelliteImageUrl} densityCells={densityCells} screenPoints={screenPoints} runTrackSegments={runTrackSegments} shouldRenderPointMarkers={shouldRenderPointMarkers} viewMode={viewMode} colorForDensity={colorForDensity} />
         </g>
       </svg>
     </>

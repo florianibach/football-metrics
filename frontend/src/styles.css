@@ -480,3 +480,38 @@ button:disabled {
   stroke-linejoin: round;
   stroke-opacity: 0.7;
 }
+
+.gps-heatmap-runs-explanation {
+  margin: 0 0 0.6rem;
+  color: #1f2937;
+  font-size: 0.9rem;
+}
+
+.gps-heatmap__run-line {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-opacity: 0.85;
+}
+
+.gps-heatmap__run-point {
+  fill-opacity: 0.82;
+  stroke-width: 0.4;
+}
+
+.gps-heatmap__run-point--end {
+  fill-opacity: 1;
+  stroke: #ffffff;
+  stroke-width: 1.1;
+}
+
+.gps-heatmap__run--sprint {
+  stroke: #dc2626;
+  fill: #dc2626;
+}
+
+.gps-heatmap__run--high-intensity {
+  stroke: #f97316;
+  fill: #f97316;
+}
