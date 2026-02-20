@@ -1,4 +1,4 @@
-import { ChangeEvent, DragEvent, FormEvent, PointerEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, DragEvent, FormEvent, PointerEvent, ReactNode, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type SmoothingTrace = {
   selectedStrategy: string;
@@ -343,6 +343,7 @@ type TranslationKey =
   | 'gpsRunsListTitle'
   | 'gpsRunsListEmpty'
   | 'gpsRunsListShowAll'
+  | 'gpsRunsListTopSpeed'
   | 'gpsRunsMapExplanation'
   | 'hfOnlyInsightTitle'
   | 'hfOnlyInsightInterpretation'
@@ -618,6 +619,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsRunsListTitle: 'Detected runs',
     gpsRunsListEmpty: 'No sprint or high-intensity runs detected for the current filter.',
     gpsRunsListShowAll: 'Show all listed runs',
+    gpsRunsListTopSpeed: 'Top speed',
     gpsRunsMapExplanation: 'Sprint runs are red, high-intensity runs are orange. Point size increases in running direction; outlined points mark run endings.',
     hfOnlyInsightTitle: 'HF-only interpretation aid',
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
@@ -889,6 +891,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsRunsListTitle: 'Erkannte Runs',
     gpsRunsListEmpty: 'Für den aktuellen Filter wurden keine Sprint- oder High-Intensity-Runs erkannt.',
     gpsRunsListShowAll: 'Alle gelisteten Runs anzeigen',
+    gpsRunsListTopSpeed: 'Top-Speed',
     gpsRunsMapExplanation: 'Sprint-Runs sind rot, High-Intensity-Runs orange. Die Punktgröße steigt mit der Laufrichtung; umrandete Punkte markieren das Run-Ende.',
     hfOnlyInsightTitle: 'Interpretationshilfe für HF-only',
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
@@ -2898,9 +2901,11 @@ export function App() {
                 listTitle={t.gpsRunsListTitle}
                 listEmptyLabel={t.gpsRunsListEmpty}
                 clearSelectionLabel={t.gpsRunsListShowAll}
+                topSpeedLabel={t.gpsRunsListTopSpeed}
                 explanationLabel={t.gpsRunsMapExplanation}
                 sprintMetricLabel={t.metricSprintCount}
                 highIntensityMetricLabel={t.metricHighIntensityRunCount}
+                speedUnit={selectedSession.selectedSpeedUnit}
                 locale={locale}
                 sessionId={selectedSession.id}
               />
@@ -2968,6 +2973,7 @@ type RunSegment = {
   startElapsedSeconds: number;
   durationSeconds: number;
   distanceMeters: number;
+  topSpeedMetersPerSecond: number;
 };
 
 type GpsRunsMapProps = {
@@ -2987,9 +2993,11 @@ type GpsRunsMapProps = {
   listTitle: string;
   listEmptyLabel: string;
   clearSelectionLabel: string;
+  topSpeedLabel: string;
   explanationLabel: string;
   sprintMetricLabel: string;
   highIntensityMetricLabel: string;
+  speedUnit: SpeedUnit;
   locale: Locale;
   sessionId: string;
 };
@@ -2997,12 +3005,18 @@ type GpsRunsMapProps = {
 type HeatmapLayerProps = {
   width: number;
   height: number;
-  satelliteImageUrl: string;
   densityCells: Array<{ x: number; y: number; value: number }>;
   screenPoints: Array<{ x: number; y: number }>;
   shouldRenderPointMarkers: boolean;
   viewMode: 'heatmap' | 'points';
   colorForDensity: (value: number) => string;
+};
+
+type MapSurfaceProps = {
+  width: number;
+  height: number;
+  satelliteImageUrl: string;
+  children: ReactNode;
 };
 
 type InteractiveMapProps = {
@@ -3193,11 +3207,19 @@ function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, 
   );
 }
 
-const HeatmapLayer = memo(function HeatmapLayer({ width, height, satelliteImageUrl, densityCells, screenPoints, shouldRenderPointMarkers, viewMode, colorForDensity }: HeatmapLayerProps) {
+function MapSurface({ width, height, satelliteImageUrl, children }: MapSurfaceProps) {
   return (
     <>
       <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
       <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
+      {children}
+    </>
+  );
+}
+
+const HeatmapLayer = memo(function HeatmapLayer({ width, height, densityCells, screenPoints, shouldRenderPointMarkers, viewMode, colorForDensity }: HeatmapLayerProps) {
+  return (
+    <>
       {viewMode === 'heatmap' ? densityCells.map((cell) => (
         <rect
           key={`${cell.x}-${cell.y}`}
@@ -3320,14 +3342,16 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       </div>
       <InteractiveMap zoomInLabel={zoomInLabel} zoomOutLabel={zoomOutLabel} zoomResetLabel={zoomResetLabel} sessionId={sessionId} ariaLabel="GPS point heatmap">
         {() => (
-          <HeatmapLayer width={width} height={height} satelliteImageUrl={satelliteImageUrl} densityCells={densityCells} screenPoints={screenPoints} shouldRenderPointMarkers={shouldRenderPointMarkers} viewMode={viewMode} colorForDensity={colorForDensity} />
+          <MapSurface width={width} height={height} satelliteImageUrl={satelliteImageUrl}>
+            <HeatmapLayer width={width} height={height} densityCells={densityCells} screenPoints={screenPoints} shouldRenderPointMarkers={shouldRenderPointMarkers} viewMode={viewMode} colorForDensity={colorForDensity} />
+          </MapSurface>
         )}
       </InteractiveMap>
     </>
   );
 }
 
-function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, sprintThresholdMps, highIntensityThresholdMps, showAllLabel, showSprintLabel, showHighIntensityLabel, listTitle, listEmptyLabel, clearSelectionLabel, explanationLabel, sprintMetricLabel, highIntensityMetricLabel, locale, sessionId }: GpsRunsMapProps) {
+function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, sprintThresholdMps, highIntensityThresholdMps, showAllLabel, showSprintLabel, showHighIntensityLabel, listTitle, listEmptyLabel, clearSelectionLabel, topSpeedLabel, explanationLabel, sprintMetricLabel, highIntensityMetricLabel, speedUnit, locale, sessionId }: GpsRunsMapProps) {
   const { width, height, screenPoints, satelliteImageUrl } = useMapProjection(points, minLatitude, maxLatitude, minLongitude, maxLongitude);
   const [runFilter, setRunFilter] = useState<'all' | 'sprint' | 'highIntensity'>('all');
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -3349,7 +3373,7 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
       return earthRadius * c;
     };
 
-    const classified: Array<{ index: number; runType: 'sprint' | 'highIntensity' }> = [];
+    const classified: Array<{ index: number; runType: 'sprint' | 'highIntensity'; speedMps: number }> = [];
 
     for (let index = 1; index < points.length; index += 1) {
       const previous = points[index - 1];
@@ -3366,9 +3390,9 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
 
       const speedMps = distanceMetersBetween(previous, current) / deltaSeconds;
       if (speedMps >= sprintThresholdMps) {
-        classified.push({ index, runType: 'sprint' });
+        classified.push({ index, runType: 'sprint', speedMps });
       } else if (speedMps >= highIntensityThresholdMps) {
-        classified.push({ index, runType: 'highIntensity' });
+        classified.push({ index, runType: 'highIntensity', speedMps });
       }
     }
 
@@ -3379,7 +3403,7 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
     const segments: RunSegment[] = [];
     let currentSegment = [classified[0]];
 
-    const buildSegment = (entries: Array<{ index: number; runType: 'sprint' | 'highIntensity' }>): RunSegment => {
+    const buildSegment = (entries: Array<{ index: number; runType: 'sprint' | 'highIntensity'; speedMps: number }>): RunSegment => {
       const firstPoint = points[entries[0].index];
       const lastPoint = points[entries[entries.length - 1].index];
       const startElapsedSeconds = firstPoint.elapsedSeconds ?? 0;
@@ -3399,12 +3423,13 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
         startElapsedSeconds,
         durationSeconds: Math.max(0, endElapsedSeconds - startElapsedSeconds),
         distanceMeters,
+        topSpeedMetersPerSecond: Math.max(...entries.map((entry) => entry.speedMps)),
         points: entries.map((entry, entryIndex) => {
           const progression = entries.length === 1 ? 1 : entryIndex / (entries.length - 1);
           return {
             x: screenPoints[entry.index].x,
             y: screenPoints[entry.index].y,
-            radius: 1.8 + (progression * 2),
+            radius: 1.1 + (progression * 1.2),
             isEnd: entryIndex === entries.length - 1
           };
         })
@@ -3465,9 +3490,7 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
       <div className="gps-runs-layout">
         <InteractiveMap zoomInLabel={zoomInLabel} zoomOutLabel={zoomOutLabel} zoomResetLabel={zoomResetLabel} sessionId={sessionId} ariaLabel="GPS sprint and high-intensity runs map">
           {() => (
-            <>
-              <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
-              <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
+            <MapSurface width={width} height={height} satelliteImageUrl={satelliteImageUrl}>
               {filteredRunSegments.map((segment) => {
                 const isMuted = selectedRunId !== null && selectedRunId !== segment.id;
                 const colorClass = segment.runType === 'sprint' ? 'gps-heatmap__run--sprint' : 'gps-heatmap__run--high-intensity';
@@ -3486,7 +3509,7 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
                   </g>
                 );
               })}
-            </>
+            </MapSurface>
           )}
         </InteractiveMap>
         <aside className="gps-runs-list" role="region" aria-label={listTitle}>
@@ -3505,7 +3528,7 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
                       className={selectedRunId === segment.id ? 'is-active' : ''}
                       onClick={() => setSelectedRunId(segment.id)}
                     >
-                      {label} #{index + 1} · {formatElapsed(segment.startElapsedSeconds)} · {formatDuration(segment.durationSeconds, locale, '0s')} · {formatDistanceComparison(segment.distanceMeters, locale, '0 m')}
+                      {label} #{index + 1} · {formatElapsed(segment.startElapsedSeconds)} · {formatDuration(segment.durationSeconds, locale, '0s')} · {formatDistanceComparison(segment.distanceMeters, locale, '0 m')} · {topSpeedLabel}: {formatSpeed(segment.topSpeedMetersPerSecond, speedUnit, 'n/a')}
                     </button>
                   </li>
                 );

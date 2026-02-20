@@ -497,13 +497,13 @@ button:disabled {
 
 .gps-heatmap__run-point {
   fill-opacity: 0.82;
-  stroke-width: 0.4;
+  stroke-width: 0.3;
 }
 
 .gps-heatmap__run-point--end {
   fill-opacity: 1;
   stroke: #ffffff;
-  stroke-width: 1.1;
+  stroke-width: 0.8;
 }
 
 .gps-heatmap__run--sprint {

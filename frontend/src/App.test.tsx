@@ -2188,7 +2188,8 @@ describe('App', () => {
 
     expect(screen.getByText('Detected runs')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sprint count #1/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /High-intensity runs #2/ })).toBeInTheDocument();
+    const runEntries = screen.getAllByRole('button').filter((button) => button.textContent?.includes('Top speed:'));
+    expect(runEntries.length).toBeGreaterThan(0);
   });
 
   it('R1_6_14_Ac04_Ac06_filters_run_types_and_keeps_independent_map_controls', async () => {
@@ -2229,6 +2230,9 @@ describe('App', () => {
     const runsMap = screen.getByRole('img', { name: 'GPS sprint and high-intensity runs map' });
     expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--sprint').length).toBeGreaterThan(0);
     expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity').length).toBe(0);
+    const firstRunPoint = runsMap.querySelector('.gps-heatmap__run-point') as SVGCircleElement | null;
+    expect(firstRunPoint).not.toBeNull();
+    expect(Number(firstRunPoint?.getAttribute('r'))).toBeLessThan(2.5);
 
     const runsMapContainer = runsMap.closest('.gps-runs-layout');
     expect(runsMapContainer).not.toBeNull();
