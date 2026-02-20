@@ -89,7 +89,7 @@ public static partial class TcxMetricsExtractor
         var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
         var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints, effectiveThresholds);
 
-        var gpsTrackpoints = smoothedTrackpoints
+        var gpsTrackpoints = trackpointSnapshots
             .Where(snapshot => snapshot.Latitude.HasValue && snapshot.Longitude.HasValue)
             .Select(snapshot => new TcxGpsTrackpoint(
                 snapshot.Latitude!.Value,
