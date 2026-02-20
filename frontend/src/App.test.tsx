@@ -2110,7 +2110,7 @@ describe('App', () => {
     });
   });
 
-  it('R1_6_13_Ac05_allows_15_zoom_in_clicks_before_hitting_the_max_scale', async () => {
+  it('R1_6_13_Ac05_allows_more_zoom_in_clicks_before_hitting_the_max_scale', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
       if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
@@ -2135,7 +2135,7 @@ describe('App', () => {
 
     const heatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
     const transformedLayer = heatmap.querySelector('g');
-    expect(transformedLayer?.getAttribute('transform')).toContain('scale(4)');
+    expect(transformedLayer?.getAttribute('transform')).toContain('scale(5)');
   });
 
   it('R1_6_13_Ac03_hides_heatmap_and_shows_gps_missing_hint_for_hf_only_sessions', async () => {

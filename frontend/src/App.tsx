@@ -2892,7 +2892,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const adjustZoom = (delta: number) => {
     setZoomScale((currentScale) => {
-      const nextScale = Math.max(1, Math.min(4, Number((currentScale + delta).toFixed(2))));
+      const nextScale = Math.max(1, Math.min(5, Number((currentScale + delta).toFixed(2))));
       setPanOffset((currentOffset) => clampPanOffset(currentOffset, nextScale));
       return nextScale;
     });
