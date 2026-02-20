@@ -135,6 +135,7 @@ type UserProfile = {
   defaultSmoothingFilter: SmoothingFilter;
   preferredSpeedUnit: SpeedUnit;
   preferredAggregationWindowMinutes: 1 | 2 | 5;
+  preferredTheme: 'light' | 'dark';
   latestRecalculationJob?: ProfileRecalculationJob | null;
 };
 
@@ -1494,7 +1495,8 @@ export function App() {
     },
     defaultSmoothingFilter: 'AdaptiveMedian',
     preferredSpeedUnit: 'km/h',
-    preferredAggregationWindowMinutes: 5
+    preferredAggregationWindowMinutes: 5,
+    preferredTheme: 'dark'
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
@@ -1556,8 +1558,10 @@ export function App() {
               metricThresholds: profilePayload.metricThresholds as MetricThresholdProfile,
               defaultSmoothingFilter: (profilePayload.defaultSmoothingFilter as SmoothingFilter) ?? 'AdaptiveMedian',
               preferredSpeedUnit: (profilePayload.preferredSpeedUnit as SpeedUnit) ?? 'km/h',
-              preferredAggregationWindowMinutes: (profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5
+              preferredAggregationWindowMinutes: (profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5,
+              preferredTheme: (profilePayload.preferredTheme as 'light' | 'dark') ?? 'dark'
             });
+            setTheme((profilePayload.preferredTheme as 'light' | 'dark') ?? 'dark');
             setAggregationWindowMinutes((profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5);
             setLatestProfileRecalculationJob(profilePayload.latestRecalculationJob ?? null);
           }
@@ -1911,6 +1915,38 @@ export function App() {
     }
   }
 
+
+  async function onThemeSelect(nextTheme: 'light' | 'dark') {
+    setTheme(nextTheme);
+    setProfileForm((current) => ({ ...current, preferredTheme: nextTheme }));
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...profileForm, preferredTheme: nextTheme })
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as UserProfile;
+      setProfileForm({
+        primaryPosition: payload.primaryPosition,
+        secondaryPosition: payload.secondaryPosition,
+        metricThresholds: payload.metricThresholds,
+        defaultSmoothingFilter: payload.defaultSmoothingFilter,
+        preferredSpeedUnit: payload.preferredSpeedUnit,
+        preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes,
+        preferredTheme: payload.preferredTheme
+      });
+      setTheme(payload.preferredTheme);
+    } catch {
+      // keep local selection even if persistence fails
+    }
+  }
+
   async function onProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setProfileValidationMessage(null);
@@ -1928,7 +1964,7 @@ export function App() {
     const response = await fetch(`${apiBaseUrl}/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profileForm)
+      body: JSON.stringify({ ...profileForm, preferredTheme: theme })
     });
 
     if (!response.ok) {
@@ -1943,8 +1979,10 @@ export function App() {
       metricThresholds: payload.metricThresholds,
       defaultSmoothingFilter: payload.defaultSmoothingFilter,
       preferredSpeedUnit: payload.preferredSpeedUnit,
-      preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes
+      preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes,
+      preferredTheme: payload.preferredTheme
     });
+    setTheme(payload.preferredTheme);
     setAggregationWindowMinutes(payload.preferredAggregationWindowMinutes);
     setLatestProfileRecalculationJob(payload.latestRecalculationJob ?? null);
     setProfileValidationMessage(t.profileSaveSuccess);
@@ -2274,8 +2312,8 @@ export function App() {
         <div className="profile-theme-switch" role="group" aria-label="Theme switch">
           <span>Theme</span>
           <div className="profile-theme-switch__controls">
-            <button type="button" className={theme === "light" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => setTheme("light")}>Light</button>
-            <button type="button" className={theme === "dark" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => setTheme("dark")}>Dark</button>
+            <button type="button" className={theme === "light" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => void onThemeSelect("light")}>Light</button>
+            <button type="button" className={theme === "dark" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => void onThemeSelect("dark")}>Dark</button>
           </div>
         </div>
         <form onSubmit={onProfileSubmit}>

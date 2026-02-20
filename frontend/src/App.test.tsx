@@ -178,6 +178,7 @@ describe('App', () => {
       defaultSmoothingFilter: 'AdaptiveMedian',
       preferredSpeedUnit: 'km/h',
       preferredAggregationWindowMinutes: 5,
+      preferredTheme: 'dark',
       ...overrides
     };
   }

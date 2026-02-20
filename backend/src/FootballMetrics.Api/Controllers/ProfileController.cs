@@ -64,6 +64,12 @@ public class ProfileController : ControllerBase
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported speed unit", $"Unsupported preferred speed unit. Supported values: {string.Join(", ", SpeedUnits.Supported)}.", ApiErrorCodes.ValidationError);
         }
 
+        var normalizedPreferredTheme = ProfileUseCase.NormalizePreferredTheme(request.PreferredTheme, existingProfile.PreferredTheme);
+        if (normalizedPreferredTheme is null)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported preferred theme", $"Unsupported preferred theme. Supported values: {string.Join(", ", UiThemes.Supported)}.", ApiErrorCodes.ValidationError);
+        }
+
         var submittedThresholds = request.MetricThresholds ?? existingProfile.MetricThresholds;
         submittedThresholds.MaxSpeedMode = ProfileUseCase.NormalizeThresholdMode(submittedThresholds.MaxSpeedMode);
         submittedThresholds.MaxHeartRateMode = ProfileUseCase.NormalizeThresholdMode(submittedThresholds.MaxHeartRateMode);
@@ -81,7 +87,7 @@ public class ProfileController : ControllerBase
         }
 
         var profile = await _profileUseCase.UpdateProfileAsync(
-            new UpdateUserProfileRequest(request.PrimaryPosition, request.SecondaryPosition, request.MetricThresholds, request.DefaultSmoothingFilter, request.PreferredSpeedUnit, request.PreferredAggregationWindowMinutes),
+            new UpdateUserProfileRequest(request.PrimaryPosition, request.SecondaryPosition, request.MetricThresholds, request.DefaultSmoothingFilter, request.PreferredSpeedUnit, request.PreferredAggregationWindowMinutes, request.PreferredTheme),
             cancellationToken);
 
         var latestRecalculationJob = await _profileUseCase.GetLatestRecalculationJobAsync(cancellationToken);
@@ -95,7 +101,7 @@ public class ProfileController : ControllerBase
     }
 
     private static UserProfileResponseDto ToResponse(UserProfile profile, ProfileRecalculationJob? latestRecalculationJob)
-        => new(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes, ToDto(latestRecalculationJob));
+        => new(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes, profile.PreferredTheme, ToDto(latestRecalculationJob));
 
     private static ProfileRecalculationJobDto? ToDto(ProfileRecalculationJob? job)
         => job is null

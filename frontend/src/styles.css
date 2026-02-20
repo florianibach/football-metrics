@@ -2,11 +2,11 @@
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: #101828;
   background: #f2f4f7;
-  --bg: #f2f4f7;
-  --surface: #ffffff;
-  --text: #101828;
-  --muted: #475467;
-  --border: #d0d5dd;
+  --bg: #0f1117;
+  --surface: #171a23;
+  --text: #eceff6;
+  --muted: #9ca3b2;
+  --border: #2a2f3b;
 }
 
 .app-shell[data-theme='dark'] {
@@ -70,12 +70,12 @@ form {
 }
 
 .dropzone--active {
-  border-color: #2f7d5b;
-  background-color: #edf7f1;
+  border-color: #c7f43a;
+  background-color: #2a2d36;
 }
 
 button {
-  background-color: #2f7d5b;
+  background-color: #c7f43a;
   color: white;
   border: none;
   border-radius: 8px;
@@ -206,8 +206,8 @@ button:disabled {
 }
 
 .filter-guidance {
-  border-left: 4px solid #2f7d5b;
-  background: #edf7f1;
+  border-left: 4px solid #c7f43a;
+  background: #2a2d36;
   color: #1d3229;
   border-radius: 6px;
   padding: 0.65rem 0.85rem;
@@ -231,7 +231,7 @@ button:disabled {
 }
 
 .tab-button--active {
-  background: #2f7d5b;
+  background: #c7f43a;
   color: #ffffff;
 }
 
@@ -246,7 +246,7 @@ button:disabled {
   margin-left: 0.3rem;
   border-radius: 50%;
   background: #d9f0e4;
-  color: #1f6a4b;
+  color: #a7cd33;
   font-size: 0.75rem;
   font-weight: 700;
   cursor: help;
@@ -434,7 +434,7 @@ button:disabled {
 
 .gps-heatmap-view-toggle button.is-active {
   background: #e8f5ee;
-  color: #1f6a4b;
+  color: #a7cd33;
   font-weight: 600;
 }
 
@@ -481,15 +481,15 @@ button:disabled {
 }
 
 .gps-heatmap__point-marker--blue {
-  fill: #7bc7a1;
-  stroke: #1f6a4b;
+  fill: #d4f761;
+  stroke: #a7cd33;
   stroke-width: 0.35;
   fill-opacity: 0.9;
 }
 
 .gps-heatmap__track-line {
   fill: none;
-  stroke: #1f6a4b;
+  stroke: #a7cd33;
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -567,8 +567,8 @@ button:disabled {
 }
 
 .gps-runs-list button.is-active {
-  border-color: #2f7d5b;
-  background: #edf7f1;
+  border-color: #c7f43a;
+  background: #2a2d36;
 }
 
 .gps-heatmap__run--muted {
@@ -584,7 +584,7 @@ button:disabled {
 }
 
 .side-nav {
-  background: #102118;
+  background: #161923;
   color: #d5efe2;
   padding: 1rem;
   position: sticky;
@@ -619,7 +619,7 @@ button:disabled {
 .side-nav__session-subpages p {
   margin: 0.75rem 0 0.2rem;
   font-size: 0.8rem;
-  color: #8bc7ab;
+  color: #8f95a3;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -627,8 +627,8 @@ button:disabled {
 .side-nav__item {
   width: 100%;
   text-align: left;
-  background: #173025;
-  border: 1px solid #234233;
+  background: #232734;
+  border: 1px solid #2f3442;
   color: #e7f8f0;
   padding: 0.55rem 0.7rem;
   border-radius: 0.65rem;
@@ -636,8 +636,8 @@ button:disabled {
 
 .side-nav__item:hover,
 .side-nav__item--active {
-  background: #2f7d5b;
-  border-color: #2f7d5b;
+  background: #c7f43a;
+  border-color: #c7f43a;
 }
 
 .mobile-topbar {
@@ -645,9 +645,9 @@ button:disabled {
 }
 
 .burger-menu {
-  background: #173025;
+  background: #232734;
   color: #e7f8f0;
-  border: 1px solid #234233;
+  border: 1px solid #2f3442;
   border-radius: 0.6rem;
   width: auto;
   padding: 0.4rem 0.65rem;
@@ -660,7 +660,7 @@ button:focus-visible {
 
 .secondary-button:hover,
 .secondary-button:focus-visible {
-  background-color: #1f6a4b;
+  background-color: #a7cd33;
 }
 
 .is-hidden {
@@ -792,11 +792,11 @@ button:focus-visible {
 }
 
 .app-shell[data-theme='light'] {
-  --bg: #f3f6fb;
+  --bg: #f4f6fb;
   --surface: #ffffff;
-  --text: #111827;
-  --muted: #556177;
-  --border: #d8dfec;
+  --text: #171923;
+  --muted: #5c6373;
+  --border: #dbe0ea;
 }
 
 .app-shell {
@@ -819,7 +819,7 @@ button:focus-visible {
 
 .side-nav__item--active,
 .side-nav__item:hover {
-  background: linear-gradient(90deg, #233729 0%, #2f7d5b 100%);
+  background: linear-gradient(90deg, #2a2d36 0%, #c7f43a 100%);
 }
 
 .profile-theme-switch {
@@ -855,12 +855,12 @@ button:focus-visible {
 }
 
 button {
-  background-color: #2f7d5b;
+  background-color: #c7f43a;
 }
 
 button:hover,
 button:focus-visible {
-  background-color: #275f47;
+  background-color: #b8e736;
 }
 
 .app-shell[data-theme='dark'] .history-table tr,
@@ -899,4 +899,39 @@ button:focus-visible {
     flex: 1;
     width: 100%;
   }
+}
+
+
+/* Bootstrap-ish component polish */
+.container, .segment-form, .gps-runs-list, .profile-theme-switch {
+  backdrop-filter: blur(2px);
+}
+
+.side-nav__item {
+  font-weight: 500;
+}
+
+.side-nav__item--active {
+  color: #111318;
+}
+
+.theme-btn--active {
+  box-shadow: 0 0 0 1px rgba(199,244,58,0.45), 0 6px 14px rgba(199,244,58,0.28);
+}
+
+.app-shell[data-theme='light'] .side-nav {
+  background: #1b1f2a;
+  color: #e9eef7;
+}
+
+.app-shell[data-theme='light'] .side-nav__item {
+  background: #242938;
+  border-color: #30374a;
+  color: #e9eef7;
+}
+
+.app-shell[data-theme='light'] .side-nav__item--active,
+.app-shell[data-theme='light'] .side-nav__item:hover {
+  background: linear-gradient(90deg, #c9f83c 0%, #d7fb67 100%);
+  color: #12151d;
 }
