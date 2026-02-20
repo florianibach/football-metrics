@@ -421,19 +421,19 @@ button:disabled {
 
 .gps-heatmap__overlay {
   fill: #0b1220;
-  fill-opacity: 0.2;
+  fill-opacity: 0.28;
 }
 
 .gps-heatmap__cell {
   shape-rendering: geometricPrecision;
-  filter: blur(3px);
-  mix-blend-mode: screen;
+  filter: blur(2.6px);
+  mix-blend-mode: normal;
 }
 
 .gps-heatmap__point-marker {
-  fill: #fff7cc;
-  stroke: #ffe066;
-  stroke-width: 0.5;
-  fill-opacity: 0.9;
-  mix-blend-mode: screen;
+  fill: #ffb703;
+  stroke: #f77f00;
+  stroke-width: 0.2;
+  fill-opacity: 0.36;
+  mix-blend-mode: normal;
 }

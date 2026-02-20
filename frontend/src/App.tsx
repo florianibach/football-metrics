@@ -2831,10 +2831,11 @@ type HeatmapLayerProps = {
   satelliteImageUrl: string;
   densityCells: Array<{ x: number; y: number; value: number }>;
   screenPoints: Array<{ x: number; y: number }>;
+  shouldRenderPointMarkers: boolean;
   colorForDensity: (value: number) => string;
 };
 
-const HeatmapLayer = memo(function HeatmapLayer({ width, height, satelliteImageUrl, densityCells, screenPoints, colorForDensity }: HeatmapLayerProps) {
+const HeatmapLayer = memo(function HeatmapLayer({ width, height, satelliteImageUrl, densityCells, screenPoints, shouldRenderPointMarkers, colorForDensity }: HeatmapLayerProps) {
   return (
     <>
       <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
@@ -2850,15 +2851,15 @@ const HeatmapLayer = memo(function HeatmapLayer({ width, height, satelliteImageU
           className="gps-heatmap__cell"
         />
       ))}
-      {screenPoints.map((point, index) => (
+      {shouldRenderPointMarkers ? screenPoints.map((point, index) => (
         <circle
           key={`point-${index}`}
           cx={point.x}
           cy={point.y}
-          r="1.35"
+          r="1.1"
           className="gps-heatmap__point-marker"
         />
-      ))}
+      )) : null}
     </>
   );
 });
@@ -2983,13 +2984,15 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const colorForDensity = useCallback((value: number) => {
     const clamped = Math.max(0, Math.min(1, value));
-    if (clamped < 0.2) return `rgba(255, 208, 58, ${0.3 + (clamped * 1.2)})`;
-    if (clamped < 0.4) return `rgba(255, 157, 44, ${0.42 + ((clamped - 0.2) * 1.6)})`;
-    if (clamped < 0.6) return `rgba(255, 112, 36, ${0.62 + ((clamped - 0.4) * 1.5)})`;
-    if (clamped < 0.78) return `rgba(244, 74, 41, ${0.78 + ((clamped - 0.6) * 1.15)})`;
-    if (clamped < 0.9) return `rgba(232, 43, 34, ${0.88 + ((clamped - 0.78) * 0.95)})`;
-    return `rgba(196, 18, 18, 1)`;
+    if (clamped < 0.16) return `rgba(12, 101, 255, ${0.26 + (clamped * 1.65)})`;
+    if (clamped < 0.34) return `rgba(0, 195, 255, ${0.34 + ((clamped - 0.16) * 2.05)})`;
+    if (clamped < 0.52) return `rgba(20, 237, 124, ${0.5 + ((clamped - 0.34) * 1.72)})`;
+    if (clamped < 0.7) return `rgba(235, 237, 24, ${0.62 + ((clamped - 0.52) * 1.95)})`;
+    if (clamped < 0.86) return `rgba(255, 137, 19, ${0.74 + ((clamped - 0.7) * 1.58)})`;
+    return `rgba(224, 36, 25, ${0.95 + ((clamped - 0.86) * 0.45)})`;
   }, []);
+
+  const shouldRenderPointMarkers = points.length <= 320;
 
   useEffect(() => {
     setZoomScale(1);
@@ -3086,7 +3089,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       <svg className={`gps-heatmap ${dragStart ? 'gps-heatmap--dragging' : ''}`} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} onPointerLeave={onPointerEnd}>
         <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__background" />
         <g transform={`translate(${centerTranslateX} ${centerTranslateY}) scale(${zoomScale}) translate(${-width / 2} ${-height / 2})`}>
-          <HeatmapLayer width={width} height={height} satelliteImageUrl={satelliteImageUrl} densityCells={densityCells} screenPoints={screenPoints} colorForDensity={colorForDensity} />
+          <HeatmapLayer width={width} height={height} satelliteImageUrl={satelliteImageUrl} densityCells={densityCells} screenPoints={screenPoints} shouldRenderPointMarkers={shouldRenderPointMarkers} colorForDensity={colorForDensity} />
         </g>
       </svg>
     </>
