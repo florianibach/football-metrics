@@ -1904,6 +1904,7 @@ export function App() {
       setCompareSelectedSessionIds((current) => [payload.id, ...current.filter((item) => item !== payload.id)].slice(0, 4));
       setCompareBaselineSessionId(payload.id);
       setSelectedFile(null);
+      setActivePage('analysis');
     } catch {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
     } finally {
@@ -2246,11 +2247,10 @@ export function App() {
 
       <div className="app-main">
         <header className="topbar card">
-          <label className="topbar-search" htmlFor="quick-search">
-            <span aria-hidden="true">🔍</span>
-            <input id="quick-search" placeholder="Search task" />
-            <kbd>⌘ F</kbd>
-          </label>
+          <div className="topbar-context">
+            <span className="context-label">R1.6</span>
+            <strong>Football Metrics</strong>
+          </div>
           <div className="topbar-actions">
             <div className="language-switcher">
               <label htmlFor="language-selector">{t.languageLabel}</label>
@@ -2268,11 +2268,11 @@ export function App() {
         <section className="header-block card">
           <div>
             <h1>{activePage === 'sessions' ? t.historyTitle : activePage === 'upload' ? t.uploadButton : activePage === 'analysis' ? t.summaryTitle : activePage === 'segments' ? t.segmentsTitle : activePage === 'compare' ? t.sessionCompareTitle : t.profileSettingsTitle}</h1>
-            <p className="subtitle">{t.maxFileSize}</p>
+            <p className="subtitle">Session-zentrierte Analyse mit Upload → Qualitätsblick → Analyse.</p>
           </div>
           <div className="header-actions">
-            <button type="button">+ Add Session</button>
-            <button type="button" className="secondary-button">Import Data</button>
+            <button type="button" onClick={() => setActivePage('upload')}>+ Add Session</button>
+            <button type="button" className="secondary-button" onClick={() => setActivePage('sessions')}>Session List</button>
           </div>
         </section>
 
@@ -2493,7 +2493,13 @@ export function App() {
       )}
 
       {activePage === 'sessions' && (
-      <section>
+      <section className="sessions-page card">
+        <div className="workflow-strip">
+          <article className="workflow-step is-active"><strong>1</strong><span>Session-Liste</span></article>
+          <article className="workflow-step"><strong>2</strong><span>Upload</span></article>
+          <article className="workflow-step"><strong>3</strong><span>Analyse</span></article>
+          <article className="workflow-step"><strong>4</strong><span>Vergleich</span></article>
+        </div>
         <h2>{t.historyTitle}</h2>
         <div className="history-controls">
           <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
@@ -2501,70 +2507,55 @@ export function App() {
             <option value="desc">{t.historySortNewest}</option>
             <option value="asc">{t.historySortOldest}</option>
           </select>
+          <button type="button" className="secondary-button" onClick={() => setActivePage('upload')}>{t.uploadButton}</button>
         </div>
 
         {sortedHistory.length === 0 ? (
           <p>{t.historyEmpty}</p>
         ) : (
-          <table className="history-table">
-            <thead>
-              <tr>
-                <th>{t.historyColumnFileName}</th>
-                <th>{t.historyColumnUploadTime}</th>
-                <th>{t.historyColumnActivityTime}</th>
-                <th>{t.historyColumnQuality}</th>
-                <th>{t.historyColumnSessionType}</th>
-                <th>{t.historyColumnDataMode}</th>
-                <th>{t.historySelectForComparison}</th>
-                <th>{t.historyOpenDetails}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedHistory.map((record) => (
-                <tr key={record.id}>
-                  <td>{record.fileName}</td>
-                  <td>{formatLocalDateTime(record.uploadedAtUtc)}</td>
-                  <td>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
-                  <td>{qualityStatusText(record.summary.qualityStatus, t)}</td>
-                  <td>{sessionTypeText(record.sessionContext.sessionType, t)}</td>
-                  <td>{dataModeText(resolveDataAvailability(record.summary).mode, t)}</td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      aria-label={`${t.historySelectForComparison}: ${record.fileName}`}
-                      checked={compareSelectedSessionIds.includes(record.id)}
-                      onChange={(event) => {
-                        setCompareSelectedSessionIds((current) => {
-                          if (event.target.checked) {
-                            return [...current, record.id].slice(-4);
-                          }
-
-                          return current.filter((item) => item !== record.id);
-                        });
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="secondary-button"
-                      onClick={() => {
-                        setSelectedSession(record);
-                        setCompareMode('smoothed');
-                        setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
-                        setSessionContextForm(record.sessionContext);
-                      }}
-                    >
-                      {t.historyOpenDetails}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ul className="session-list" aria-label={t.historyTitle}>
+            {sortedHistory.map((record) => (
+              <li key={record.id} className="session-card-item">
+                <div className="session-card-main">
+                  <strong>{record.fileName}</strong>
+                  <span>{qualityStatusText(record.summary.qualityStatus, t)} · {sessionTypeText(record.sessionContext.sessionType, t)}</span>
+                  <small>{formatLocalDateTime(record.uploadedAtUtc)} · {dataModeText(resolveDataAvailability(record.summary).mode, t)}</small>
+                </div>
+                <label className="modern-check" aria-label={`${t.historySelectForComparison}: ${record.fileName}`}>
+                  <input
+                    type="checkbox"
+                    checked={compareSelectedSessionIds.includes(record.id)}
+                    onChange={(event) => {
+                      setCompareSelectedSessionIds((current) => {
+                        if (event.target.checked) {
+                          return [...current, record.id].slice(-4);
+                        }
+                        return current.filter((item) => item !== record.id);
+                      });
+                    }}
+                  />
+                  <span />
+                </label>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => {
+                    setSelectedSession(record);
+                    setCompareMode('smoothed');
+                    setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
+                    setSessionContextForm(record.sessionContext);
+                    setActivePage('analysis');
+                  }}
+                >
+                  {t.historyOpenDetails}
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
       )}
+
 
       {activePage === 'compare' && (
       <section className="session-compare card" aria-live="polite">

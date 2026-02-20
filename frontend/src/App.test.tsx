@@ -116,6 +116,9 @@ describe('App multi-page IA navigation', () => {
       if (url.endsWith('/profile') && (!init || init.method === undefined)) {
         return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
       }
+      if (url.endsWith('/tcx/upload') && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: async () => ({ ...createUploadRecord(), id: 'upload-new', fileName: 'new-session.tcx' }) } as Response);
+      }
       return Promise.resolve({ ok: true, json: async () => ({}) } as Response);
     });
   });
@@ -123,15 +126,28 @@ describe('App multi-page IA navigation', () => {
   it('shows Session list as entry page', async () => {
     render(<App />);
     await screen.findByRole('button', { name: 'Sessions' });
-    expect(screen.getByText('File name')).toBeInTheDocument();
+    expect(screen.getByText('session.tcx')).toBeInTheDocument();
   });
 
   it('navigates to Upload page', async () => {
     render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Upload' }));
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Upload' }))[0]);
     expect(screen.getByLabelText('Select TCX file')).toBeInTheDocument();
   });
 
+
+  it('redirects to analysis after successful upload', async () => {
+    render(<App />);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Upload' }))[0]);
+
+    const input = screen.getByLabelText('Select TCX file') as HTMLInputElement;
+    const file = new File(['tcx'], 'new-session.tcx', { type: 'application/xml' });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    fireEvent.submit(input.closest('form') as HTMLFormElement);
+
+    expect(await screen.findByRole('heading', { level: 2, name: 'Session details' })).toBeInTheDocument();
+  });
   it('navigates to Compare page', async () => {
     render(<App />);
     fireEvent.click(await screen.findByRole('button', { name: 'Compare' }));
