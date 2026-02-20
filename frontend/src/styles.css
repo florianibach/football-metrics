@@ -1229,7 +1229,7 @@ input[type='checkbox']:checked::before {
 }
 
 .app-shell[data-theme='dark'] {
-  --bg: color-mix(in srgb, black 92%, var(--bs-dark));
+  --bg: rgb(33, 33, 33);
   --surface: color-mix(in srgb, black 84%, var(--bs-dark));
   --text: color-mix(in srgb, white 94%, var(--bs-secondary));
   --muted: color-mix(in srgb, var(--bs-secondary) 82%, white);
@@ -1403,6 +1403,23 @@ button:focus-visible,
 .app-shell[data-theme='dark'] input::placeholder,
 .app-shell[data-theme='dark'] textarea::placeholder {
   color: var(--muted);
+}
+
+
+
+/* tracking points + track line use primary and thinner markers */
+.gps-heatmap__point-marker,
+.gps-heatmap__point-marker--blue {
+  fill: var(--bs-primary) !important;
+  stroke: var(--bs-primary) !important;
+  stroke-width: 0.14 !important;
+  fill-opacity: 0.85 !important;
+}
+
+.gps-heatmap__track-line {
+  stroke: var(--bs-primary) !important;
+  stroke-width: 1.1 !important;
+  stroke-opacity: 0.8 !important;
 }
 
 /* Keep modern checkboxes with brand primary */

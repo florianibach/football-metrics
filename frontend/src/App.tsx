@@ -3339,7 +3339,7 @@ const HeatmapLayer = memo(function HeatmapLayer({ width, height, densityCells, s
               key={`point-${index}`}
               cx={point.x}
               cy={point.y}
-              r="1.25"
+              r="0.85"
               className="gps-heatmap__point-marker gps-heatmap__point-marker--blue"
             />
           )) : null}
