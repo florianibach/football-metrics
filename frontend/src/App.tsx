@@ -3101,14 +3101,14 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   return (
     <>
+      <div className="gps-heatmap-view-toggle" role="group" aria-label="Heatmap view mode">
+        <button type="button" className={viewMode === 'heatmap' ? 'is-active' : ''} onClick={() => setViewMode('heatmap')}>{viewHeatmapLabel}</button>
+        <button type="button" className={viewMode === 'points' ? 'is-active' : ''} onClick={() => setViewMode('points')}>{viewPointsLabel}</button>
+      </div>
       <div className="gps-heatmap-controls" role="group" aria-label="Heatmap controls">
         <button type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
         <button type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
         <button type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
-      </div>
-      <div className="gps-heatmap-view-toggle" role="group" aria-label="Heatmap view mode">
-        <button type="button" className={viewMode === 'heatmap' ? 'is-active' : ''} onClick={() => setViewMode('heatmap')}>{viewHeatmapLabel}</button>
-        <button type="button" className={viewMode === 'points' ? 'is-active' : ''} onClick={() => setViewMode('points')}>{viewPointsLabel}</button>
       </div>
       <svg className={`gps-heatmap ${dragStart ? 'gps-heatmap--dragging' : ''}`} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} onPointerLeave={onPointerEnd}>
         <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__background" />
