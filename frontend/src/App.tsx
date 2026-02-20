@@ -2812,18 +2812,29 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   const width = 560;
   const height = 320;
   const radius = 16;
+  const earthRadiusMeters = 6378137;
 
-  const latitudeRange = Math.max(maxLatitude - minLatitude, 0.000001);
-  const longitudeRange = Math.max(maxLongitude - minLongitude, 0.000001);
-  const latitudePadding = Math.max(latitudeRange * 0.15, 0.00025);
-  const longitudePadding = Math.max(longitudeRange * 0.15, 0.00025);
+  const toWebMercator = (latitude: number, longitude: number) => {
+    const normalizedLatitude = Math.max(-85.05112878, Math.min(85.05112878, latitude));
+    const x = earthRadiusMeters * (longitude * Math.PI / 180);
+    const y = earthRadiusMeters * Math.log(Math.tan(Math.PI / 4 + (normalizedLatitude * Math.PI / 180) / 2));
+    return { x, y };
+  };
 
-  const bboxMinLatitude = minLatitude - latitudePadding;
-  const bboxMaxLatitude = maxLatitude + latitudePadding;
-  const bboxMinLongitude = minLongitude - longitudePadding;
-  const bboxMaxLongitude = maxLongitude + longitudePadding;
+  const minProjected = toWebMercator(minLatitude, minLongitude);
+  const maxProjected = toWebMercator(maxLatitude, maxLongitude);
 
-  const satelliteImageUrl = `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bboxMinLongitude},${bboxMinLatitude},${bboxMaxLongitude},${bboxMaxLatitude}&bboxSR=4326&imageSR=4326&size=${width},${height}&format=jpg&f=image`;
+  const projectedSpanX = Math.max(Math.abs(maxProjected.x - minProjected.x), 10);
+  const projectedSpanY = Math.max(Math.abs(maxProjected.y - minProjected.y), 10);
+  const projectedPaddingX = Math.max(projectedSpanX * 0.15, 15);
+  const projectedPaddingY = Math.max(projectedSpanY * 0.15, 15);
+
+  const bboxMinX = Math.min(minProjected.x, maxProjected.x) - projectedPaddingX;
+  const bboxMaxX = Math.max(minProjected.x, maxProjected.x) + projectedPaddingX;
+  const bboxMinY = Math.min(minProjected.y, maxProjected.y) - projectedPaddingY;
+  const bboxMaxY = Math.max(minProjected.y, maxProjected.y) + projectedPaddingY;
+
+  const satelliteImageUrl = `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bboxMinX},${bboxMinY},${bboxMaxX},${bboxMaxY}&bboxSR=3857&imageSR=3857&size=${width},${height}&format=jpg&f=image`;
 
   return (
     <svg className="gps-heatmap" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap">
@@ -2831,8 +2842,9 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
       <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
       {points.map((point, index) => {
-        const x = ((point.longitude - bboxMinLongitude) / (bboxMaxLongitude - bboxMinLongitude)) * width;
-        const y = height - (((point.latitude - bboxMinLatitude) / (bboxMaxLatitude - bboxMinLatitude)) * height);
+        const projectedPoint = toWebMercator(point.latitude, point.longitude);
+        const x = ((projectedPoint.x - bboxMinX) / (bboxMaxX - bboxMinX)) * width;
+        const y = height - (((projectedPoint.y - bboxMinY) / (bboxMaxY - bboxMinY)) * height);
 
         return (
           <circle
