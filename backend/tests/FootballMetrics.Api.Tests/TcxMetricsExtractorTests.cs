@@ -39,8 +39,26 @@ public class TcxMetricsExtractorTests
 
         summary.DataAvailability.Mode.Should().Be("GpsOnly");
         summary.DataAvailability.HeartRateStatus.Should().Be("NotMeasured");
-        summary.DataAvailability.GpsStatus.Should().Be("NotUsable");
-        summary.DataAvailability.GpsReason.Should().NotBeNullOrWhiteSpace();
+        summary.DataAvailability.GpsStatus.Should().Be("Available");
+        summary.DataAvailability.GpsReason.Should().BeNull();
+    }
+
+
+    [Fact]
+    public void R1_6_09_Ac01_Ac04_Ac05_Extract_WithMinorGpsJumps_ShouldExposeChannelQualityAndWarningAvailability()
+    {
+        var doc = XDocument.Parse(@"<TrainingCenterDatabase><Activities><Activity><Lap><Track>
+          <Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:01Z</Time><Position><LatitudeDegrees>50.00001</LatitudeDegrees><LongitudeDegrees>7.00001</LongitudeDegrees></Position><HeartRateBpm><Value>121</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:02Z</Time><Position><LatitudeDegrees>50.00008</LatitudeDegrees><LongitudeDegrees>7.00008</LongitudeDegrees></Position><HeartRateBpm><Value>122</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2026-02-16T10:00:03Z</Time><Position><LatitudeDegrees>50.00015</LatitudeDegrees><LongitudeDegrees>7.00015</LongitudeDegrees></Position><HeartRateBpm><Value>123</Value></HeartRateBpm></Trackpoint>
+        </Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var summary = TcxMetricsExtractor.Extract(doc);
+
+        summary.DataAvailability.GpsQualityStatus.Should().NotBeNullOrWhiteSpace();
+        summary.DataAvailability.HeartRateQualityStatus.Should().NotBeNullOrWhiteSpace();
+        summary.CoreMetrics.MetricAvailability["distanceMeters"].State.Should().BeOneOf("Available", "AvailableWithWarning");
     }
 
     [Fact]

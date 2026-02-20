@@ -5,4 +5,8 @@ public sealed record TcxDataAvailability(
     string GpsStatus,
     string? GpsReason,
     string HeartRateStatus,
-    string? HeartRateReason);
+    string? HeartRateReason,
+    string? GpsQualityStatus = null,
+    IReadOnlyList<string>? GpsQualityReasons = null,
+    string? HeartRateQualityStatus = null,
+    IReadOnlyList<string>? HeartRateQualityReasons = null);

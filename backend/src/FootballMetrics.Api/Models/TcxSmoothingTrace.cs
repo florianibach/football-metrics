@@ -9,4 +9,7 @@ public sealed record TcxSmoothingTrace(
     int BaselineDirectionChanges,
     int SmoothedDirectionChanges,
     int CorrectedOutlierCount,
+    int RemovedOutlierCount,
+    double CorrectedPointRatio,
+    string RepairMethod,
     DateTime AnalyzedAtUtc);
