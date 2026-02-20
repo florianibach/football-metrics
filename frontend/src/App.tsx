@@ -1500,6 +1500,8 @@ export function App() {
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<'analysis' | 'segments' | 'compare'>('analysis');
+  const [activeMainPage, setActiveMainPage] = useState<'sessions' | 'upload' | 'profile' | 'session'>('sessions');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   const t = useMemo(() => {
     const localizedTranslations = translations[locale];
@@ -2232,17 +2234,21 @@ export function App() {
 
 
   return (
-    <div className={`app-shell ${isMobileNavOpen ? 'app-shell--menu-open' : ''}`}>
+    <div className={`app-shell ${isMobileNavOpen ? 'app-shell--menu-open' : ''}`} data-theme={theme}>
       <aside className={`side-nav ${isMobileNavOpen ? 'side-nav--open' : ''}`}>
         <div className="side-nav__header">
           <strong>Football Metrics</strong>
           <button type="button" className="side-nav__close" onClick={() => setIsMobileNavOpen(false)} aria-label="Close navigation">×</button>
         </div>
         <nav className="side-nav__menu" aria-label="Primary navigation">
-          <button type="button" className="side-nav__item" onClick={() => jumpToSection('upload-flow')}>Upload area</button>
-          <button type="button" className="side-nav__item" onClick={() => jumpToSection('session-list')}>History</button>
-          <button type="button" className="side-nav__item" onClick={() => jumpToSection('profile-settings')}>Profile</button>
+          <button type="button" className={`side-nav__item ${activeMainPage === 'upload' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('upload'); jumpToSection('upload-flow'); }}>Upload area</button>
+          <button type="button" className={`side-nav__item ${activeMainPage === 'sessions' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('sessions'); jumpToSection('session-list'); }}>Sessions</button>
+          <button type="button" className={`side-nav__item ${activeMainPage === 'profile' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('profile'); jumpToSection('profile-settings'); }}>Profile</button>
         </nav>
+        <div className="theme-switch" role="group" aria-label="Theme switch">
+          <button type="button" className={`side-nav__item ${theme === 'light' ? 'side-nav__item--active' : ''}`} onClick={() => setTheme('light')}>Light</button>
+          <button type="button" className={`side-nav__item ${theme === 'dark' ? 'side-nav__item--active' : ''}`} onClick={() => setTheme('dark')}>Dark</button>
+        </div>
         {selectedSession && (
           <div className="side-nav__session-subpages">
             <p>Session</p>
@@ -2267,7 +2273,7 @@ export function App() {
       <p className="subtitle">{t.subtitle}</p>
       <p className="subtitle">{t.maxFileSize}</p>
 
-      <section className="profile-settings" id="profile-settings">
+      <section className={`profile-settings ${activeMainPage === "profile" ? "" : "is-hidden"}`} id="profile-settings">
         <h2>{t.profileSettingsTitle}</h2>
         <form onSubmit={onProfileSubmit}>
           <label htmlFor="profile-primary-position">{t.profilePrimaryPosition}</label>
@@ -2456,7 +2462,7 @@ export function App() {
           </p>
         ) : null}
       </section>
-      <form onSubmit={handleSubmit} id="upload-flow">
+      <form onSubmit={handleSubmit} id="upload-flow" className={activeMainPage === "upload" ? "" : "is-hidden"}>
         <label
           className={`dropzone ${isDragOver ? 'dropzone--active' : ''}`}
           onDragOver={(event) => {
@@ -2475,7 +2481,7 @@ export function App() {
       </form>
       <p>{validationMessage ?? message}</p>
 
-      <section id="session-list">
+      <section id="session-list" className={activeMainPage === "sessions" ? "" : "is-hidden"}>
         <h2>{t.historyTitle}</h2>
         <div className="history-controls">
           <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
@@ -2536,6 +2542,7 @@ export function App() {
                         setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
                         setSessionContextForm(record.sessionContext);
                         setActiveSessionSubpage('analysis');
+                        setActiveMainPage('session');
                       }}
                     >
                       {t.historyOpenDetails}
@@ -2548,7 +2555,7 @@ export function App() {
         )}
       </section>
 
-      <section className={`session-compare ${activeSessionSubpage === "compare" ? "" : "is-hidden"}`} aria-live="polite" id="session-compare">
+      <section className={`session-compare ${activeMainPage === "session" && activeSessionSubpage === "compare" ? "" : "is-hidden"}`} aria-live="polite" id="session-compare">
         <h2>{t.sessionCompareTitle}</h2>
         <p>{t.sessionCompareHint}</p>
         {compareSessions.length >= 2 && (
@@ -2604,12 +2611,12 @@ export function App() {
       </section>
 
       {selectedSession && (
-        <section className="session-details" aria-live="polite" id="session-analysis">
+        <section className={`session-details ${activeMainPage === "session" ? "" : "is-hidden"}`} aria-live="polite" id="session-analysis">
           <h2>{t.summaryTitle}</h2>
           <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
           <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
           <h3>{t.sessionRecalculateHistoryTitle}</h3>
-          {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className="metrics-list">{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
+          {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className={`metrics-list ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
           <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
           <div className="session-context">
             <h3>{t.sessionContextTitle}</h3>
@@ -2839,7 +2846,7 @@ export function App() {
               <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
             </ul>
           </div>
-          <div className="interval-aggregation">
+          <div className={`interval-aggregation ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
             <h3>{t.intervalAggregationTitle}</h3>
             <p>{t.intervalAggregationExplanation}</p>
             <label htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
@@ -2895,7 +2902,7 @@ export function App() {
             )}
           </div>
 
-          {shouldShowGpsHeatmap && (
+          {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && (
             <div className="gps-heatmap-section">
               <h3>{t.gpsHeatmapTitle}</h3>
               <p>{t.gpsHeatmapDescription}</p>
@@ -2919,7 +2926,7 @@ export function App() {
             </div>
           )}
 
-          {shouldShowGpsHeatmap && heatmapData && (
+          {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && heatmapData && (
             <div className="gps-heatmap-section">
               <h3>{t.gpsRunsMapTitle}</h3>
               <p>{t.gpsRunsMapDescription}</p>
