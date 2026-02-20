@@ -2872,6 +2872,24 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [dragStart, setDragStart] = useState<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
+  const clampPanOffset = (offset: { x: number; y: number }, scale: number) => {
+    const maxPanX = Math.max(0, ((width * scale) - width) / 2);
+    const maxPanY = Math.max(0, ((height * scale) - height) / 2);
+
+    return {
+      x: Math.max(-maxPanX, Math.min(maxPanX, offset.x)),
+      y: Math.max(-maxPanY, Math.min(maxPanY, offset.y))
+    };
+  };
+
+  const adjustZoom = (delta: number) => {
+    setZoomScale((currentScale) => {
+      const nextScale = Math.max(1, Math.min(3, Number((currentScale + delta).toFixed(2))));
+      setPanOffset((currentOffset) => clampPanOffset(currentOffset, nextScale));
+      return nextScale;
+    });
+  };
+
   const toSvgCoordinates = (event: PointerEvent<SVGSVGElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const scaleX = width / rect.width;
@@ -2899,10 +2917,12 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     }
 
     const coordinates = toSvgCoordinates(event);
-    setPanOffset({
+    const nextOffset = {
       x: dragStart.panX + (coordinates.x - dragStart.x),
       y: dragStart.panY + (coordinates.y - dragStart.y)
-    });
+    };
+
+    setPanOffset(clampPanOffset(nextOffset, zoomScale));
   };
 
   const onPointerEnd = () => {
@@ -2911,12 +2931,13 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const centerTranslateX = (width / 2) + panOffset.x;
   const centerTranslateY = (height / 2) + panOffset.y;
+  const adjustedPointRadius = Math.max(1.2, radius / Math.pow(zoomScale, 1.15));
 
   return (
     <>
       <div className="gps-heatmap-controls" role="group" aria-label="Heatmap controls">
-        <button type="button" onClick={() => setZoomScale((current) => Math.max(0.8, Number((current - 0.2).toFixed(2))))}>{zoomOutLabel}</button>
-        <button type="button" onClick={() => setZoomScale((current) => Math.min(3, Number((current + 0.2).toFixed(2))))}>{zoomInLabel}</button>
+        <button type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
+        <button type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
         <button type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
       </div>
       <svg className={`gps-heatmap ${dragStart ? 'gps-heatmap--dragging' : ''}`} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerEnd} onPointerCancel={onPointerEnd} onPointerLeave={onPointerEnd}>
@@ -2925,18 +2946,18 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
           <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
           <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
           {projectedPoints.map((point, index) => {
-        const x = ((point.x - centerX) / metersPerPixel) + (width / 2);
-        const y = (height / 2) - ((point.y - centerY) / metersPerPixel);
+            const x = ((point.x - centerX) / metersPerPixel) + (width / 2);
+            const y = (height / 2) - ((point.y - centerY) / metersPerPixel);
 
-        return (
-          <circle
-            key={`${points[index].latitude}-${points[index].longitude}-${index}`}
-            cx={Math.min(width, Math.max(0, x))}
-            cy={Math.min(height, Math.max(0, y))}
-            r={radius}
-            className="gps-heatmap__point"
-          />
-        );
+            return (
+              <circle
+                key={`${points[index].latitude}-${points[index].longitude}-${index}`}
+                cx={Math.min(width, Math.max(0, x))}
+                cy={Math.min(height, Math.max(0, y))}
+                r={adjustedPointRadius}
+                className="gps-heatmap__point"
+              />
+            );
           })}
         </g>
       </svg>
