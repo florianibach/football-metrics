@@ -319,6 +319,9 @@ type TranslationKey =
   | 'gpsHeatmapTitle'
   | 'gpsHeatmapDescription'
   | 'gpsHeatmapNoDataHint'
+  | 'gpsHeatmapZoomIn'
+  | 'gpsHeatmapZoomOut'
+  | 'gpsHeatmapZoomReset'
   | 'hfOnlyInsightTitle'
   | 'hfOnlyInsightInterpretation'
   | 'coreMetricsTitle'
@@ -574,6 +577,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsHeatmapTitle: 'GPS point heatmap',
     gpsHeatmapDescription: 'Visual density map built from the imported GPS points of this session.',
     gpsHeatmapNoDataHint: 'No heatmap available because GPS coordinates are missing in this session.',
+    gpsHeatmapZoomIn: 'Zoom in',
+    gpsHeatmapZoomOut: 'Zoom out',
+    gpsHeatmapZoomReset: 'Reset zoom',
     hfOnlyInsightTitle: 'HF-only interpretation aid',
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics (v1)',
@@ -824,6 +830,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsHeatmapTitle: 'GPS-Punkte-Heatmap',
     gpsHeatmapDescription: 'Visuelle Dichtekarte auf Basis der importierten GPS-Punkte dieser Session.',
     gpsHeatmapNoDataHint: 'Keine Heatmap verfügbar, da in dieser Session GPS-Koordinaten fehlen.',
+    gpsHeatmapZoomIn: 'Hineinzoomen',
+    gpsHeatmapZoomOut: 'Herauszoomen',
+    gpsHeatmapZoomReset: 'Zoom zurücksetzen',
     hfOnlyInsightTitle: 'Interpretationshilfe für HF-only',
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken (v1)',
@@ -1415,6 +1424,7 @@ export function App() {
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
+  const [heatmapZoomOffset, setHeatmapZoomOffset] = useState(0);
 
   const t = useMemo(() => {
     const localizedTranslations = translations[locale];
@@ -1441,6 +1451,10 @@ export function App() {
       return (aTime - bTime) * directionFactor;
     });
   }, [uploadHistory, sortDirection]);
+
+  useEffect(() => {
+    setHeatmapZoomOffset(0);
+  }, [selectedSession?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2748,13 +2762,21 @@ export function App() {
               <h3>{t.gpsHeatmapTitle}</h3>
               <p>{t.gpsHeatmapDescription}</p>
               {heatmapData ? (
-                <GpsPointHeatmap
-                  points={heatmapData.points}
-                  minLatitude={heatmapData.minLatitude}
-                  maxLatitude={heatmapData.maxLatitude}
-                  minLongitude={heatmapData.minLongitude}
-                  maxLongitude={heatmapData.maxLongitude}
-                />
+                <>
+                  <div className="gps-heatmap-controls" role="group" aria-label={t.gpsHeatmapTitle}>
+                    <button type="button" onClick={() => setHeatmapZoomOffset((current) => Math.max(-2, current - 1))}>{t.gpsHeatmapZoomOut}</button>
+                    <button type="button" onClick={() => setHeatmapZoomOffset((current) => Math.min(3, current + 1))}>{t.gpsHeatmapZoomIn}</button>
+                    <button type="button" onClick={() => setHeatmapZoomOffset(0)}>{t.gpsHeatmapZoomReset}</button>
+                  </div>
+                  <GpsPointHeatmap
+                    points={heatmapData.points}
+                    minLatitude={heatmapData.minLatitude}
+                    maxLatitude={heatmapData.maxLatitude}
+                    minLongitude={heatmapData.minLongitude}
+                    maxLongitude={heatmapData.maxLongitude}
+                    zoomOffset={heatmapZoomOffset}
+                  />
+                </>
               ) : (
                 <p>{t.gpsHeatmapNoDataHint}</p>
               )}
@@ -2806,9 +2828,10 @@ type GpsPointHeatmapProps = {
   maxLatitude: number;
   minLongitude: number;
   maxLongitude: number;
+  zoomOffset: number;
 };
 
-function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude }: GpsPointHeatmapProps) {
+function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomOffset }: GpsPointHeatmapProps) {
   const width = 560;
   const height = 320;
   const radius = points.length > 3000 ? 4 : points.length > 1500 ? 5 : 6;
@@ -2835,8 +2858,8 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const spanX = Math.max(Math.abs(maxX - minX), 10);
   const spanY = Math.max(Math.abs(maxY - minY), 10);
-  const projectedPaddingX = Math.max(spanX * 0.1, 9);
-  const projectedPaddingY = Math.max(spanY * 0.13, 11);
+  const projectedPaddingX = Math.max(spanX * 0.095, 9);
+  const projectedPaddingY = Math.max(spanY * 0.12, 10.5);
 
   const bboxMinX = minX - projectedPaddingX;
   const bboxMaxX = maxX + projectedPaddingX;
@@ -2846,7 +2869,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   const initialResolution = (2 * Math.PI * earthRadiusMeters) / 256;
   const requiredResolution = Math.max((bboxMaxX - bboxMinX) / width, (bboxMaxY - bboxMinY) / height, 0.01);
   const baseZoomLevel = Math.floor(Math.log2(initialResolution / requiredResolution));
-  const zoomLevel = Math.max(1, Math.min(19, baseZoomLevel));
+  const zoomLevel = Math.max(1, Math.min(19, baseZoomLevel + zoomOffset));
 
   const centerX = (bboxMinX + bboxMaxX) / 2;
   const centerY = (bboxMinY + bboxMaxY) / 2;
