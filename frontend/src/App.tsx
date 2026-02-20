@@ -2821,18 +2821,43 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     return { x, y };
   };
 
+  const quantile = (sortedValues: number[], percentile: number) => {
+    if (sortedValues.length === 0) {
+      return 0;
+    }
+
+    const index = (sortedValues.length - 1) * percentile;
+    const lower = Math.floor(index);
+    const upper = Math.ceil(index);
+    if (lower === upper) {
+      return sortedValues[lower];
+    }
+
+    const fraction = index - lower;
+    return sortedValues[lower] + (sortedValues[upper] - sortedValues[lower]) * fraction;
+  };
+
+  const projectedPoints = points.map((point) => toWebMercator(point.latitude, point.longitude));
+  const projectedXs = projectedPoints.map((point) => point.x).sort((a, b) => a - b);
+  const projectedYs = projectedPoints.map((point) => point.y).sort((a, b) => a - b);
+
   const minProjected = toWebMercator(minLatitude, minLongitude);
   const maxProjected = toWebMercator(maxLatitude, maxLongitude);
 
-  const projectedSpanX = Math.max(Math.abs(maxProjected.x - minProjected.x), 10);
-  const projectedSpanY = Math.max(Math.abs(maxProjected.y - minProjected.y), 10);
-  const projectedPaddingX = Math.max(projectedSpanX * 0.03, 4);
-  const projectedPaddingY = Math.max(projectedSpanY * 0.03, 4);
+  const robustMinX = quantile(projectedXs, 0.01);
+  const robustMaxX = quantile(projectedXs, 0.99);
+  const robustMinY = quantile(projectedYs, 0.01);
+  const robustMaxY = quantile(projectedYs, 0.99);
 
-  const bboxMinX = Math.min(minProjected.x, maxProjected.x) - projectedPaddingX;
-  const bboxMaxX = Math.max(minProjected.x, maxProjected.x) + projectedPaddingX;
-  const bboxMinY = Math.min(minProjected.y, maxProjected.y) - projectedPaddingY;
-  const bboxMaxY = Math.max(minProjected.y, maxProjected.y) + projectedPaddingY;
+  const spanX = Math.max(Math.abs(robustMaxX - robustMinX), Math.abs(maxProjected.x - minProjected.x), 10);
+  const spanY = Math.max(Math.abs(robustMaxY - robustMinY), Math.abs(maxProjected.y - minProjected.y), 10);
+  const projectedPaddingX = Math.max(spanX * 0.08, 8);
+  const projectedPaddingY = Math.max(spanY * 0.08, 8);
+
+  const bboxMinX = robustMinX - projectedPaddingX;
+  const bboxMaxX = robustMaxX + projectedPaddingX;
+  const bboxMinY = robustMinY - projectedPaddingY;
+  const bboxMaxY = robustMaxY + projectedPaddingY;
 
   const satelliteImageUrl = `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bboxMinX},${bboxMinY},${bboxMaxX},${bboxMaxY}&bboxSR=3857&imageSR=3857&size=${width},${height}&format=jpg&f=image`;
 
@@ -2841,14 +2866,13 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__background" />
       <image href={satelliteImageUrl} x="0" y="0" width={width} height={height} preserveAspectRatio="none" className="gps-heatmap__satellite" />
       <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
-      {points.map((point, index) => {
-        const projectedPoint = toWebMercator(point.latitude, point.longitude);
-        const x = ((projectedPoint.x - bboxMinX) / (bboxMaxX - bboxMinX)) * width;
-        const y = height - (((projectedPoint.y - bboxMinY) / (bboxMaxY - bboxMinY)) * height);
+      {projectedPoints.map((point, index) => {
+        const x = ((point.x - bboxMinX) / (bboxMaxX - bboxMinX)) * width;
+        const y = height - (((point.y - bboxMinY) / (bboxMaxY - bboxMinY)) * height);
 
         return (
           <circle
-            key={`${point.latitude}-${point.longitude}-${index}`}
+            key={`${points[index].latitude}-${points[index].longitude}-${index}`}
             cx={Math.min(width, Math.max(0, x))}
             cy={Math.min(height, Math.max(0, y))}
             r={radius}
