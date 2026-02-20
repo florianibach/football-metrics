@@ -100,18 +100,18 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
-## Story R1.6-14: Sprint- & High-Intensity-Trackpoints mit Richtungsdarstellung auf der Karte
+## Story R1.6-14: Sprint- & High-Intensity-Trackpoints mit Richtungsdarstellung auf der Karte ✅ DONE
 **Als** Nutzer
 **möchte ich** Sprint- und High-Intensity-Runs als Trackpoints auf der Karte sehen, inklusive visuell erkennbarer Laufrichtung
 **damit** ich intensive Laufaktionen räumlich und zeitlich besser einordnen kann.
 
 ### Acceptance Criteria
-- [ ] Die Kartenansicht bietet eine zusätzliche Layer-/Ansichtsoption für Trackpoints von `Sprints` und `High-Intensity Runs`.
-- [ ] Sprint-Trackpoints und High-Intensity-Trackpoints sind farblich eindeutig unterscheidbar (z. B. Sprint = Rot, High-Intensity = Orange).
-- [ ] Die Laufrichtung innerhalb eines Runs ist visuell erkennbar, z. B. über ansteigende Punktgröße oder Richtungspfeile; der letzte Punkt eines Runs ist eindeutig als „Endpunkt“ hervorgehoben.
-- [ ] Die Karteninteraktion entspricht der Heatmap: Zoomen, Verschieben (Panning) und Reset-Verhalten funktionieren identisch.
-- [ ] Eine kurze Erklärung in der UI beschreibt, wie die Darstellung zu lesen ist (Farbcode, Start-/Endpunkt, Bedeutung der Richtung).
-- [ ] Im HF-only-Modus wird die Ansicht nicht dargestellt; stattdessen erscheint ein konsistenter Hinweis auf fehlende GPS-Daten.
+- [x] Die Kartenansicht bietet eine zusätzliche Layer-/Ansichtsoption für Trackpoints von `Sprints` und `High-Intensity Runs`.
+- [x] Sprint-Trackpoints und High-Intensity-Trackpoints sind farblich eindeutig unterscheidbar (z. B. Sprint = Rot, High-Intensity = Orange).
+- [x] Die Laufrichtung innerhalb eines Runs ist visuell erkennbar, z. B. über ansteigende Punktgröße oder Richtungspfeile; der letzte Punkt eines Runs ist eindeutig als „Endpunkt“ hervorgehoben.
+- [x] Die Karteninteraktion entspricht der Heatmap: Zoomen, Verschieben (Panning) und Reset-Verhalten funktionieren identisch.
+- [x] Eine kurze Erklärung in der UI beschreibt, wie die Darstellung zu lesen ist (Farbcode, Start-/Endpunkt, Bedeutung der Richtung).
+- [x] Im HF-only-Modus wird die Ansicht nicht dargestellt; stattdessen erscheint ein konsistenter Hinweis auf fehlende GPS-Daten.
 
 ### Verständnis-/Erklärungstext (fachlich)
 - **Farben:** Jede Farbe steht für eine Intensitätsklasse (`Sprint` vs. `High-Intensity Run`).

@@ -480,3 +480,82 @@ button:disabled {
   stroke-linejoin: round;
   stroke-opacity: 0.7;
 }
+
+.gps-heatmap-runs-explanation {
+  margin: 0 0 0.6rem;
+  color: #1f2937;
+  font-size: 0.9rem;
+}
+
+.gps-heatmap__run-line {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-opacity: 0.85;
+}
+
+.gps-heatmap__run-point {
+  fill-opacity: 0.82;
+  stroke-width: 0.3;
+}
+
+.gps-heatmap__run-point--end {
+  fill-opacity: 1;
+  stroke: #ffffff;
+  stroke-width: 0.8;
+}
+
+.gps-heatmap__run--sprint {
+  stroke: #dc2626;
+  fill: #dc2626;
+}
+
+.gps-heatmap__run--high-intensity {
+  stroke: #f97316;
+  fill: #f97316;
+}
+
+.gps-runs-layout {
+  max-width: 560px;
+}
+
+.gps-runs-list {
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  padding: 0.7rem;
+  background: #ffffff;
+}
+
+.gps-runs-list h4 {
+  margin: 0 0 0.6rem;
+}
+
+.gps-runs-list ul {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.gps-runs-list button {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0.4rem 0.55rem;
+  color: #111827;
+  cursor: pointer;
+}
+
+.gps-runs-list button.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.gps-heatmap__run--muted {
+  opacity: 0.2;
+}

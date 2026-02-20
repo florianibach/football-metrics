@@ -2148,6 +2148,100 @@ describe('App', () => {
     });
   });
 
+  it('R1_6_14_Ac01_Ac02_Ac03_Ac05_renders_separate_runs_map_with_filter_and_selectable_run_list', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: [
+                  { latitude: 50.9366, longitude: 6.9603, elapsedSeconds: 0 },
+                  { latitude: 50.9366, longitude: 6.96085, elapsedSeconds: 5 },
+                  { latitude: 50.9366, longitude: 6.9614, elapsedSeconds: 10 },
+                  { latitude: 50.9366, longitude: 6.96182, elapsedSeconds: 15 },
+                  { latitude: 50.9366, longitude: 6.96224, elapsedSeconds: 20 }
+                ]
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('Sprint & high-intensity trackpoints')).toBeInTheDocument();
+    expect(screen.getByText('Separate map with the same controls as the heatmap. Filter sprint/high-intensity runs and select single runs from the list.')).toBeInTheDocument();
+
+    const runsMap = screen.getByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+    expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--sprint').length).toBeGreaterThan(0);
+    expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity').length).toBeGreaterThan(0);
+
+    expect(screen.getByText('Detected runs')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sprint count #1/ })).toBeInTheDocument();
+    const runEntries = screen.getAllByRole('button').filter((button) => button.textContent?.includes('Top speed:'));
+    expect(runEntries.length).toBeGreaterThan(0);
+  });
+
+  it('R1_6_14_Ac04_Ac06_filters_run_types_and_keeps_independent_map_controls', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: [
+                  { latitude: 50.9366, longitude: 6.9603, elapsedSeconds: 0 },
+                  { latitude: 50.9366, longitude: 6.96085, elapsedSeconds: 5 },
+                  { latitude: 50.9366, longitude: 6.9614, elapsedSeconds: 10 },
+                  { latitude: 50.9366, longitude: 6.96182, elapsedSeconds: 15 },
+                  { latitude: 50.9366, longitude: 6.96224, elapsedSeconds: 20 }
+                ]
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Only sprints' }));
+
+    const runsMap = screen.getByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+    expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--sprint').length).toBeGreaterThan(0);
+    expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity').length).toBe(0);
+    const firstRunPoint = runsMap.querySelector('.gps-heatmap__run-point') as SVGCircleElement | null;
+    expect(firstRunPoint).not.toBeNull();
+    expect(Number(firstRunPoint?.getAttribute('r'))).toBeLessThan(2.5);
+
+    const runsMapContainer = runsMap.closest('.gps-runs-layout');
+    expect(runsMapContainer).not.toBeNull();
+    fireEvent.click(within(runsMapContainer as HTMLElement).getByRole('button', { name: 'Zoom in' }));
+    const transformedRunsLayer = runsMap.querySelector('g');
+    expect(transformedRunsLayer?.getAttribute('transform')).toContain('scale(1.2)');
+  });
+
+
   it('R1_6_13_Ac04_resets_local_heatmap_zoom_when_switching_sessions', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
@@ -2171,7 +2265,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Zoom in' })[0]);
 
     const heatmapBeforeSwitch = screen.getByRole('img', { name: 'GPS point heatmap' });
     const transformedLayerBeforeSwitch = heatmapBeforeSwitch.querySelector('g');
@@ -2204,7 +2298,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
-    const zoomInButton = screen.getByRole('button', { name: 'Zoom in' });
+    const zoomInButton = screen.getAllByRole('button', { name: 'Zoom in' })[0];
 
     for (let click = 0; click < 20; click += 1) {
       fireEvent.click(zoomInButton);
