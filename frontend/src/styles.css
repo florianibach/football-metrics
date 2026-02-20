@@ -935,3 +935,172 @@ button:focus-visible {
   background: linear-gradient(90deg, #c9f83c 0%, #d7fb67 100%);
   color: #12151d;
 }
+
+/* ===== Brand palette override (requested) ===== */
+:root {
+  --brand-primary: #287f71;
+  --brand-secondary: #97a3b6;
+  --brand-accent: #eb862a;
+  --brand-info: #abbdd3;
+  --brand-dark: #111729;
+
+  --bs-primary: var(--brand-primary);
+  --bs-secondary: var(--brand-secondary);
+  --bs-success: var(--brand-primary);
+  --bs-info: var(--brand-info);
+  --bs-warning: var(--brand-accent);
+  --bs-dark: var(--brand-dark);
+
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --text: #111729;
+  --muted: #6a7588;
+  --border: #d6dce6;
+}
+
+.app-shell[data-theme='dark'] {
+  --bg: #111729;
+  --surface: #171f33;
+  --text: #eef2f7;
+  --muted: #abbdd3;
+  --border: #2a3550;
+}
+
+.app-shell {
+  background: var(--bg);
+}
+
+.container,
+.segment-form,
+.gps-runs-list,
+.profile-theme-switch,
+.history-table tr,
+.quality-warning,
+.detail-hints,
+.filter-guidance {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.subtitle,
+.baseline-selector p,
+.profile-settings p,
+.session-context p,
+.gps-heatmap-runs-explanation {
+  color: var(--muted);
+}
+
+button,
+.btn-primary,
+.btn-outline-primary {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: #fff;
+}
+
+button:hover,
+button:focus-visible,
+.btn-primary:hover,
+.btn-primary:focus-visible {
+  background-color: #216b5f;
+  border-color: #216b5f;
+}
+
+.secondary-button,
+.btn-secondary,
+.btn-outline-secondary {
+  background-color: var(--bs-secondary);
+  border-color: var(--bs-secondary);
+  color: #fff;
+}
+
+.secondary-button:hover,
+.secondary-button:focus-visible,
+.btn-secondary:hover,
+.btn-secondary:focus-visible {
+  background-color: #8794a7;
+  border-color: #8794a7;
+}
+
+.side-nav {
+  background: #f8f9fb;
+  color: #111729;
+  border: 1px solid #dce2eb;
+  box-shadow: none;
+}
+
+.side-nav__header {
+  border-bottom: 1px solid #e6eaf1;
+  padding-bottom: 0.5rem;
+}
+
+.side-nav__session-subpages p {
+  color: #7e8aa0;
+}
+
+.side-nav__item,
+.burger-menu {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #485369;
+}
+
+.side-nav__item:hover,
+.side-nav__item--active,
+.app-shell[data-theme='light'] .side-nav__item--active,
+.app-shell[data-theme='light'] .side-nav__item:hover {
+  background: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: #fff;
+}
+
+.theme-btn {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.theme-btn--active {
+  background: var(--bs-primary);
+  border-color: var(--bs-primary);
+  color: #fff;
+  box-shadow: none;
+}
+
+.tab-button--active,
+.gps-runs-list button.is-active {
+  background: var(--bs-primary) !important;
+  border-color: var(--bs-primary) !important;
+  color: #fff !important;
+}
+
+.metric-help {
+  background: color-mix(in srgb, var(--bs-primary) 18%, #fff);
+  color: var(--bs-primary);
+}
+
+.filter-guidance {
+  border-left-color: var(--bs-primary);
+}
+
+.quality-warning,
+.detail-hints {
+  border-left-color: var(--bs-warning);
+}
+
+.app-shell[data-theme='dark'] .side-nav {
+  background: #131b2e;
+  color: #eaf0f8;
+  border-color: #2a3550;
+}
+
+.app-shell[data-theme='dark'] .side-nav__item,
+.app-shell[data-theme='dark'] .burger-menu {
+  color: #b9c7da;
+}
+
+.app-shell[data-theme='dark'] .side-nav__item--active,
+.app-shell[data-theme='dark'] .side-nav__item:hover {
+  color: #fff;
+}
