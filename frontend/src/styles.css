@@ -1210,7 +1210,7 @@ input[type='checkbox']:checked::before {
   --brand-accent: #eb862a;
   --brand-info: #abbdd3;
   --brand-neutral: #97a3b6;
-  --brand-dark: #111729;
+  --brand-dark: #1a1a1a;
 
   --bs-primary: var(--brand-primary);
   --bs-secondary: var(--brand-neutral);
@@ -1221,19 +1221,19 @@ input[type='checkbox']:checked::before {
 }
 
 .app-shell[data-theme='light'] {
-  --bg: var(--bs-light);
-  --surface: var(--bs-white);
-  --text: var(--bs-dark);
-  --muted: var(--bs-secondary);
-  --border: color-mix(in srgb, var(--bs-secondary) 42%, var(--bs-white));
+  --bg: color-mix(in srgb, white 95%, var(--bs-secondary));
+  --surface: white;
+  --text: color-mix(in srgb, black 88%, var(--bs-dark));
+  --muted: color-mix(in srgb, var(--bs-secondary) 84%, black);
+  --border: color-mix(in srgb, var(--bs-secondary) 42%, white);
 }
 
 .app-shell[data-theme='dark'] {
-  --bg: color-mix(in srgb, var(--bs-dark) 94%, black);
-  --surface: color-mix(in srgb, var(--bs-dark) 84%, black);
-  --text: var(--bs-light);
-  --muted: color-mix(in srgb, var(--bs-secondary) 88%, var(--bs-light));
-  --border: color-mix(in srgb, var(--bs-secondary) 36%, var(--bs-dark));
+  --bg: color-mix(in srgb, black 92%, var(--bs-dark));
+  --surface: color-mix(in srgb, black 84%, var(--bs-dark));
+  --text: color-mix(in srgb, white 94%, var(--bs-secondary));
+  --muted: color-mix(in srgb, var(--bs-secondary) 82%, white);
+  --border: color-mix(in srgb, var(--bs-secondary) 34%, black);
 }
 
 /* force neutral surfaces (no blue tint) */
@@ -1244,16 +1244,30 @@ input[type='checkbox']:checked::before {
 .app-shell[data-theme='dark'] .history-table th,
 .app-shell[data-theme='dark'] .history-table td,
 .app-shell[data-theme='dark'] .session-context,
-.app-shell[data-theme='dark'] .profile-settings {
+.app-shell[data-theme='dark'] .profile-settings,
+.app-shell[data-theme='dark'] .app-shell__main {
   background: var(--surface) !important;
   border-color: var(--border) !important;
 }
 
-/* menu inspired by reference */
+/* menu style aligned to provided reference */
 .side-nav {
-  background: var(--surface) !important;
-  border-color: var(--border) !important;
-  border-radius: 1.2rem;
+  background: color-mix(in srgb, var(--surface) 96%, var(--bs-secondary)) !important;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, white) !important;
+  border-radius: 1.25rem !important;
+  padding: 1rem 0.75rem !important;
+}
+
+.side-nav__header {
+  border-bottom: 0 !important;
+  margin-bottom: 0.6rem;
+}
+
+.side-nav__session-subpages p {
+  color: var(--muted) !important;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .side-nav__item,
@@ -1271,13 +1285,17 @@ button,
 .side-nav__item {
   background: transparent !important;
   color: var(--muted) !important;
+  border: 1px solid transparent !important;
+  justify-content: flex-start;
+  font-weight: 500;
 }
 
 .side-nav__item:hover,
 .side-nav__item--active {
-  background: color-mix(in srgb, var(--bs-primary) 16%, var(--surface)) !important;
-  color: var(--bs-dark) !important;
-  border-left: 0.3rem solid var(--bs-primary);
+  background: color-mix(in srgb, var(--bs-primary) 14%, var(--surface)) !important;
+  color: var(--text) !important;
+  border-color: color-mix(in srgb, var(--bs-primary) 35%, var(--surface)) !important;
+  box-shadow: inset 0.24rem 0 0 0 var(--bs-primary);
 }
 
 /* default/inactive buttons should use secondary */
@@ -1292,7 +1310,7 @@ button,
 .gps-heatmap-controls button {
   background: var(--bs-secondary) !important;
   border-color: var(--bs-secondary) !important;
-  color: var(--bs-white) !important;
+  color: white !important;
 }
 
 /* active/primary actions */
@@ -1304,7 +1322,7 @@ button,
 .gps-heatmap-view-toggle button.is-active {
   background: var(--bs-primary) !important;
   border-color: var(--bs-primary) !important;
-  color: var(--bs-white) !important;
+  color: white !important;
 }
 
 button:hover,
@@ -1318,16 +1336,16 @@ button:focus-visible,
 .gps-runs-list button:hover,
 .gps-heatmap-view-toggle button:hover,
 .gps-heatmap-controls button:hover {
-  background: color-mix(in srgb, var(--bs-secondary) 85%, var(--bs-white)) !important;
-  border-color: color-mix(in srgb, var(--bs-secondary) 85%, var(--bs-white)) !important;
+  background: color-mix(in srgb, var(--bs-secondary) 85%, white) !important;
+  border-color: color-mix(in srgb, var(--bs-secondary) 85%, white) !important;
   color: var(--bs-dark) !important;
 }
 
 .btn-primary:hover,
 .btn-primary:focus-visible,
 .theme-btn--active:hover {
-  background: color-mix(in srgb, var(--bs-primary) 82%, var(--bs-dark)) !important;
-  border-color: color-mix(in srgb, var(--bs-primary) 82%, var(--bs-dark)) !important;
+  background: color-mix(in srgb, var(--bs-primary) 82%, black) !important;
+  border-color: color-mix(in srgb, var(--bs-primary) 82%, black) !important;
 }
 
 .filter-guidance,
@@ -1344,7 +1362,7 @@ button:focus-visible,
 .app-shell[data-theme='dark'] input,
 .app-shell[data-theme='dark'] select,
 .app-shell[data-theme='dark'] textarea {
-  background: color-mix(in srgb, var(--surface) 86%, black) !important;
+  background: color-mix(in srgb, var(--surface) 88%, black) !important;
   color: var(--text) !important;
   border-color: var(--border) !important;
 }
