@@ -2148,7 +2148,7 @@ describe('App', () => {
     });
   });
 
-  it('R1_6_14_Ac01_Ac02_Ac03_Ac05_shows_runs_layer_with_color_coding_direction_and_explanation', async () => {
+  it('R1_6_14_Ac01_Ac02_Ac03_Ac05_renders_separate_runs_map_with_filter_and_selectable_run_list', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
       if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
@@ -2179,21 +2179,19 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Sprint & high-intensity runs' }));
+    expect(await screen.findByText('Sprint & high-intensity trackpoints')).toBeInTheDocument();
+    expect(screen.getByText('Separate map with the same controls as the heatmap. Filter sprint/high-intensity runs and select single runs from the list.')).toBeInTheDocument();
 
-    expect(screen.getByText('Sprint points are red, high-intensity points are orange. Point size increases along the run direction; the outlined final point marks the run end.')).toBeInTheDocument();
+    const runsMap = screen.getByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+    expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--sprint').length).toBeGreaterThan(0);
+    expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity').length).toBeGreaterThan(0);
 
-    const heatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
-    expect(heatmap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--sprint').length).toBeGreaterThan(0);
-    expect(heatmap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity').length).toBeGreaterThan(0);
-
-    const endPoints = Array.from(heatmap.querySelectorAll('.gps-heatmap__run-point--end'));
-    expect(endPoints.length).toBeGreaterThan(0);
-    expect(endPoints.some((node) => node.classList.contains('gps-heatmap__run--sprint'))).toBe(true);
+    expect(screen.getByText('Detected runs')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sprint count #1/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /High-intensity runs #2/ })).toBeInTheDocument();
   });
 
-  it('R1_6_14_Ac04_reuses_heatmap_zoom_and_reset_controls_for_runs_layer', async () => {
+  it('R1_6_14_Ac04_Ac06_filters_run_types_and_keeps_independent_map_controls', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
       if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
@@ -2206,7 +2204,8 @@ describe('App', () => {
                   { latitude: 50.9366, longitude: 6.9603, elapsedSeconds: 0 },
                   { latitude: 50.9366, longitude: 6.96085, elapsedSeconds: 5 },
                   { latitude: 50.9366, longitude: 6.9614, elapsedSeconds: 10 },
-                  { latitude: 50.9366, longitude: 6.96182, elapsedSeconds: 15 }
+                  { latitude: 50.9366, longitude: 6.96182, elapsedSeconds: 15 },
+                  { latitude: 50.9366, longitude: 6.96224, elapsedSeconds: 20 }
                 ]
               })
             })
@@ -2223,16 +2222,19 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Sprint & high-intensity runs' }));
+    expect(await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
-    let transformedLayer = screen.getByRole('img', { name: 'GPS point heatmap' }).querySelector('g');
-    expect(transformedLayer?.getAttribute('transform')).toContain('scale(1.2)');
+    fireEvent.click(screen.getByRole('button', { name: 'Only sprints' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset zoom' }));
-    transformedLayer = screen.getByRole('img', { name: 'GPS point heatmap' }).querySelector('g');
-    expect(transformedLayer?.getAttribute('transform')).toContain('scale(1)');
+    const runsMap = screen.getByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+    expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--sprint').length).toBeGreaterThan(0);
+    expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity').length).toBe(0);
+
+    const runsMapContainer = runsMap.closest('.gps-runs-layout');
+    expect(runsMapContainer).not.toBeNull();
+    fireEvent.click(within(runsMapContainer as HTMLElement).getByRole('button', { name: 'Zoom in' }));
+    const transformedRunsLayer = runsMap.querySelector('g');
+    expect(transformedRunsLayer?.getAttribute('transform')).toContain('scale(1.2)');
   });
 
 
@@ -2259,7 +2261,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Zoom in' })[0]);
 
     const heatmapBeforeSwitch = screen.getByRole('img', { name: 'GPS point heatmap' });
     const transformedLayerBeforeSwitch = heatmapBeforeSwitch.querySelector('g');
@@ -2292,7 +2294,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
-    const zoomInButton = screen.getByRole('button', { name: 'Zoom in' });
+    const zoomInButton = screen.getAllByRole('button', { name: 'Zoom in' })[0];
 
     for (let click = 0; click < 20; click += 1) {
       fireEvent.click(zoomInButton);
