@@ -400,8 +400,8 @@ button:disabled {
 
 .gps-heatmap__point {
   fill: #38bdf8;
-  fill-opacity: 0.28;
+  fill-opacity: 0.18;
   stroke: #e0f2fe;
-  stroke-opacity: 0.35;
+  stroke-opacity: 0.2;
   stroke-width: 1;
 }

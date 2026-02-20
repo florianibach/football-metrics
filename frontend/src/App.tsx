@@ -2811,7 +2811,7 @@ type GpsPointHeatmapProps = {
 function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude }: GpsPointHeatmapProps) {
   const width = 560;
   const height = 320;
-  const radius = 16;
+  const radius = points.length > 3000 ? 4 : points.length > 1500 ? 5 : 6;
   const earthRadiusMeters = 6378137;
 
   const toWebMercator = (latitude: number, longitude: number) => {
