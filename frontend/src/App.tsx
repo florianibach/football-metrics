@@ -2925,7 +2925,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     }
 
     const cells: Array<{ x: number; y: number; value: number }> = [];
-    const minThreshold = maxDensity * 0.025;
+    const minThreshold = 0.025;
 
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
@@ -3038,6 +3038,15 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
               height="8"
               fill={colorForDensity(cell.value)}
               className="gps-heatmap__cell"
+            />
+          ))}
+          {screenPoints.map((point, index) => (
+            <circle
+              key={`point-${index}`}
+              cx={point.x}
+              cy={point.y}
+              r="1.6"
+              className="gps-heatmap__point-marker"
             />
           ))}
         </g>
