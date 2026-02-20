@@ -1,0 +1,349 @@
+{
+  // UI handoff brief extracted from provided screenshot.
+  "meta": {
+    "project": "Football Metrics",
+    "surface": "Desktop analytics dashboard",
+    "source": "Single static screenshot",
+    "intent": "Designer-to-developer implementation handoff",
+    "deliverable_format": "JSONC"
+  },
+
+  "layout": {
+    "canvas": {
+      "overall_style": "Soft, modern fintech dashboard with rounded shell, low-contrast neutrals, and green-led emphasis.",
+      "max_content_width_behavior": "Centered dashboard shell with generous page gutters and high-radius outer corners.",
+      "outer_shell": {
+        "background": "light neutral",
+        "radius": "~32px",
+        "padding": "~16-24px",
+        "internal_gap": "~12-16px between major regions"
+      }
+    },
+
+    "regions": {
+      "sidebar": {
+        "width": "~17-20% on desktop",
+        "structure": [
+          "Brand mark + wordmark at top",
+          "Menu group (Dashboard active)",
+          "General group (Settings, Help, Logout)",
+          "Promotional app-download card anchored near bottom"
+        ],
+        "surface": "slightly darker than main content background",
+        "corner_radius": "~20px"
+      },
+      "main": {
+        "topbar": "Search + utility icons + user profile chip",
+        "content_grid": "Card-driven dashboard with multi-column spans",
+        "density": "Medium; cards are compact but not cramped"
+      }
+    },
+
+    "grid_logic": {
+      "desktop_assumption": "12-column conceptual grid",
+      "rows": [
+        "Row 1: heading + two CTA buttons",
+        "Row 2: four KPI cards equal width",
+        "Row 3: analytics chart (wide), reminder card (medium), project list (narrow/tall)",
+        "Row 4: team card (wide), progress card (medium), time-tracker card (narrow)"
+      ],
+      "card_rhythm": "Uniform card radius and interior padding unify all modules"
+    }
+  },
+
+  "component_specs": {
+    "sidebar": {
+      "brand": {
+        "icon": "Rounded mascot-like green emblem",
+        "wordmark": "Donezo",
+        "tone": "Friendly but professional"
+      },
+      "menu_items": {
+        "style": "Icon + label rows with subtle spacing",
+        "active_item": "Dashboard uses darker text, stronger icon, and a small vertical green active indicator at the very left edge",
+        "notification_badge": "Tiny dark-green badge on Tasks (e.g., '12+')"
+      },
+      "promo_card": {
+        "title": "Download our Mobile App",
+        "visual": "Abstract deep-green swirl/line media background",
+        "cta": "Rounded green download button"
+      }
+    },
+
+    "topbar": {
+      "search": {
+        "shape": "Pill input",
+        "left_icon": "Magnifier",
+        "placeholder": "Search task",
+        "right_hint": "Keyboard shortcut chip ('⌘ F')"
+      },
+      "actions": [
+        "Mail/notification icon button",
+        "Bell icon button"
+      ],
+      "profile": {
+        "avatar": "Circular illustrated avatar",
+        "name": "Totok Michael",
+        "email": "tmichael20@mail.com",
+        "container": "Transparent/flat, aligned right"
+      }
+    },
+
+    "header_block": {
+      "title": "Dashboard",
+      "subtitle": "Plan, prioritize, and accomplish your tasks with ease.",
+      "actions": [
+        "Primary filled pill button: '+ Add Project'",
+        "Secondary outlined pill button: 'Import Data'"
+      ]
+    },
+
+    "kpi_cards": {
+      "count": 4,
+      "common_pattern": "Title, top-right circular arrow glyph, dominant numeric metric, small trend/status row",
+      "featured_card": "Total Projects card uses green gradient fill and inverted (light) typography",
+      "others": "White/light cards with dark text and muted green trend captions"
+    },
+
+    "project_analytics_card": {
+      "title": "Project Analytics",
+      "chart_type": "Rounded vertical capsule bars across weekdays",
+      "styling": "Alternates striped pending bars and solid green completion/progress bars",
+      "annotation": "Small floating percentage label over one bar (e.g., 74%)"
+    },
+
+    "reminder_card": {
+      "title": "Reminders",
+      "content": "Meeting title + time range",
+      "cta": "Primary green pill button 'Start Meeting' with small leading icon"
+    },
+
+    "project_list_card": {
+      "title": "Project",
+      "action": "Small outlined '+ New' button",
+      "items": "Icon, task title, due date per row",
+      "layout": "Compact vertical list"
+    },
+
+    "team_collaboration_card": {
+      "title": "Team Collaboration",
+      "action": "Outlined '+ Add Member'",
+      "rows": "Avatar + member name + current work item + status chip",
+      "status_chips": ["Completed", "In Progress", "Pending"],
+      "chip_style": "Pastel-tinted background with matching text"
+    },
+
+    "project_progress_card": {
+      "title": "Project Progress",
+      "visual": "Semi-donut gauge",
+      "center_metric": "41%",
+      "legend": "Completed, In Progress, Pending using dot/stripe markers"
+    },
+
+    "time_tracker_card": {
+      "title": "Time Tracker",
+      "background": "High-contrast abstract green wave media",
+      "time": "Digital timer (01:24:08)",
+      "controls": "Pause and stop circular controls",
+      "treatment": "Inverted text/icons over rich background"
+    }
+  },
+
+  "typography": {
+    "font_character": "Clean geometric sans with rounded terminals",
+    "hierarchy": {
+      "page_title": "Very large, bold",
+      "card_titles": "Medium semibold",
+      "metrics": "Large bold numerals",
+      "meta_text": "Small regular/medium muted",
+      "labels_badges": "Small to extra-small"
+    },
+    "line_height_behavior": "Compact in headings, comfortable in body/meta rows"
+  },
+
+  "spacing_and_shape": {
+    "global_spacing_scale": "Approx 4/8px base rhythm",
+    "card_padding": "~20-24px",
+    "chip_padding": "~6-12px depending on role",
+    "corner_radii": {
+      "shell": "~32px",
+      "cards": "~18-20px",
+      "inputs_buttons": "pill (full radius) or ~12-16px",
+      "icon_buttons": "circular"
+    }
+  },
+
+  "light_mode": {
+    "theme_intent": "High clarity, low visual fatigue, subtle depth",
+    "surfaces": {
+      "app_bg": "very light cool gray",
+      "shell": "off-white",
+      "card": "white or near-white",
+      "sidebar": "slightly darker neutral than cards"
+    },
+    "text": {
+      "primary": "near-black",
+      "secondary": "cool gray",
+      "inverse": "white for dark/green surfaces"
+    },
+    "borders": "thin, low-contrast neutral lines"
+  },
+
+  "dark_mode": {
+    "theme_intent": "Preserve fintech polish while increasing contrast and reducing glare",
+    "surfaces": {
+      "app_bg": "deep cool charcoal",
+      "shell": "near-slate",
+      "card": "dark slate with slight elevation",
+      "sidebar": "slightly darker than main cards for structure"
+    },
+    "text": {
+      "primary": "near-white",
+      "secondary": "desaturated gray",
+      "inverse": "dark text only on very light accent chips if needed"
+    },
+    "borders": "subtle bright-on-dark separators",
+    "notes": [
+      "Keep green accents vivid but shift slightly brighter for legibility on dark surfaces.",
+      "Striped pending states should use higher-contrast stripe lines than in light mode.",
+      "Do not overuse pure black; maintain layered depth between background/shell/cards."
+    ]
+  },
+
+  "color_tokens": {
+    "primary_palette": {
+      "name": "Emerald",
+      "50": "#ECFDF3",
+      "100": "#D1FADF",
+      "200": "#A6F4C5",
+      "300": "#6CE9A6",
+      "400": "#32D583",
+      "500": "#12B76A",
+      "600": "#039855",
+      "700": "#027A48",
+      "800": "#05603A",
+      "900": "#054F31",
+      "usage": [
+        "Primary CTA fills",
+        "Featured KPI background gradient anchors",
+        "Positive trend indicators",
+        "Gauge/chart completed and in-progress states"
+      ]
+    },
+
+    "secondary_palette": {
+      "name": "Teal",
+      "50": "#F0FDFA",
+      "100": "#CCFBF1",
+      "200": "#99F6E4",
+      "300": "#5EEAD4",
+      "400": "#2DD4BF",
+      "500": "#14B8A6",
+      "600": "#0D9488",
+      "700": "#0F766E",
+      "800": "#115E59",
+      "900": "#134E4A",
+      "usage": [
+        "Secondary data accents",
+        "Alternate chart bars",
+        "Optional hover/active modulation where emerald is dominant"
+      ]
+    },
+
+    "neutral_grays": {
+      "gray_25": "#FCFCFD",
+      "gray_50": "#F9FAFB",
+      "gray_100": "#F2F4F7",
+      "gray_200": "#EAECF0",
+      "gray_300": "#D0D5DD",
+      "gray_400": "#98A2B3",
+      "gray_500": "#667085",
+      "gray_600": "#475467",
+      "gray_700": "#344054",
+      "gray_800": "#1D2939",
+      "gray_900": "#101828",
+      "usage": "Text hierarchy, shells, borders, subtle fills"
+    },
+
+    "accent_colors": {
+      "warning": "#F59E0B",
+      "danger": "#EF4444",
+      "info": "#3B82F6",
+      "violet": "#8B5CF6",
+      "lime": "#84CC16",
+      "usage": "Status chips, tiny list icons, micro-data signifiers"
+    },
+
+    "complex_media": {
+      "kpi_gradient": "linear-gradient(135deg, #0E6B3B 0%, #17995D 55%, #12B76A 100%)",
+      "time_tracker_bg": "deep green layered wave pattern (dark-to-light radial and curved overlays)",
+      "promo_bg": "dark emerald/black blend with abstract contour lines",
+      "shadow_tokens": {
+        "soft": "0 4px 18px rgba(16, 24, 40, 0.06)",
+        "medium": "0 10px 28px rgba(16, 24, 40, 0.10)",
+        "green_glow": "0 8px 22px rgba(18, 183, 106, 0.28)"
+      }
+    }
+  },
+
+  "interaction_states": {
+    "buttons": {
+      "primary": {
+        "default": "emerald 700 fill + white text",
+        "hover": "slightly brighter or elevated",
+        "active": "darker shade with reduced shadow",
+        "focus": "2px emerald/teal ring"
+      },
+      "secondary_outline": {
+        "default": "transparent with dark/green border",
+        "hover": "soft tinted background",
+        "active": "increased border contrast"
+      }
+    },
+    "cards": {
+      "hover": "optional subtle lift on interactive cards",
+      "static_cards": "remain flat to maintain calm data-reading experience"
+    },
+    "list_rows": {
+      "hover": "light tint highlight",
+      "selected": "not visible in screenshot; reserve tokenized style"
+    }
+  },
+
+  "responsive_spec": {
+    "tailwind_breakpoints": {
+      "sm": "640px",
+      "md": "768px",
+      "lg": "1024px",
+      "xl": "1280px",
+      "2xl": "1536px"
+    },
+    "behavior_by_breakpoint": {
+      "base_to_sm": [
+        "Single-column flow.",
+        "Sidebar converts to top drawer/hamburger pattern.",
+        "Topbar wraps: search full-width first row; profile/actions second row.",
+        "KPI cards stack vertically.",
+        "Project list moves below charts.",
+        "Buttons become full-width or two-up with equal width based on space."
+      ],
+      "md": [
+        "Two-column card rhythm begins.",
+        "Sidebar can be collapsible icon rail.",
+        "Header title/subtitle left, actions right but may wrap.",
+        "Charts keep simplified paddings and slightly reduced typographic scale."
+      ],
+      "lg": [
+        "Primary desktop layout appears: persistent sidebar + multi-column content.",
+        "KPI row displays four cards in one row.",
+        "Analytics/reminders/project list occupy mixed spans similar to screenshot."
+      ],
+      "xl_to_2xl": [
+        "Increase whitespace and card gutters.",
+        "Keep comfortable line lengths; avoid stretching text blocks excessively.",
+        "Preserve maximum readable width by constraining inner content when needed."
+      ]
+    }
+  },
+  "implementation_prompt_file": "analysis/ui/football-metrics-ui-implementation-prompt.md"
+}
