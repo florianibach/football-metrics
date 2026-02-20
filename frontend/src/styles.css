@@ -402,6 +402,13 @@ button:disabled {
   max-width: 560px;
   border: 1px solid #d0d5dd;
   border-radius: 8px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.gps-heatmap--dragging {
+  cursor: grabbing;
 }
 
 .gps-heatmap__background {
