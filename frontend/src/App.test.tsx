@@ -2068,6 +2068,7 @@ describe('App', () => {
     const satelliteImage = heatmap.querySelector('image');
     expect(satelliteImage).not.toBeNull();
     expect(satelliteImage?.getAttribute('href')).toContain('World_Imagery/MapServer/export');
+    expect(satelliteImage?.getAttribute('href')).toContain('adjustAspectRatio=false');
   });
 
   it('R1_6_13_Ac03_hides_heatmap_and_shows_gps_missing_hint_for_hf_only_sessions', async () => {

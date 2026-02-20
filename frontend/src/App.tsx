@@ -2843,7 +2843,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   const bboxMinY = minY - projectedPaddingY;
   const bboxMaxY = maxY + projectedPaddingY;
 
-  const satelliteImageUrl = `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bboxMinX},${bboxMinY},${bboxMaxX},${bboxMaxY}&bboxSR=3857&imageSR=3857&size=${width},${height}&format=jpg&f=image`;
+  const satelliteImageUrl = `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bboxMinX},${bboxMinY},${bboxMaxX},${bboxMaxY}&bboxSR=3857&imageSR=3857&size=${width},${height}&format=jpg&adjustAspectRatio=false&f=image`;
 
   return (
     <svg className="gps-heatmap" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="GPS point heatmap">
