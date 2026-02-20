@@ -2821,43 +2821,27 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     return { x, y };
   };
 
-  const quantile = (sortedValues: number[], percentile: number) => {
-    if (sortedValues.length === 0) {
-      return 0;
-    }
-
-    const index = (sortedValues.length - 1) * percentile;
-    const lower = Math.floor(index);
-    const upper = Math.ceil(index);
-    if (lower === upper) {
-      return sortedValues[lower];
-    }
-
-    const fraction = index - lower;
-    return sortedValues[lower] + (sortedValues[upper] - sortedValues[lower]) * fraction;
-  };
-
   const projectedPoints = points.map((point) => toWebMercator(point.latitude, point.longitude));
-  const projectedXs = projectedPoints.map((point) => point.x).sort((a, b) => a - b);
-  const projectedYs = projectedPoints.map((point) => point.y).sort((a, b) => a - b);
+  const projectedXs = projectedPoints.map((point) => point.x);
+  const projectedYs = projectedPoints.map((point) => point.y);
 
   const minProjected = toWebMercator(minLatitude, minLongitude);
   const maxProjected = toWebMercator(maxLatitude, maxLongitude);
 
-  const robustMinX = quantile(projectedXs, 0.01);
-  const robustMaxX = quantile(projectedXs, 0.99);
-  const robustMinY = quantile(projectedYs, 0.01);
-  const robustMaxY = quantile(projectedYs, 0.99);
+  const minX = Math.min(...projectedXs, minProjected.x, maxProjected.x);
+  const maxX = Math.max(...projectedXs, minProjected.x, maxProjected.x);
+  const minY = Math.min(...projectedYs, minProjected.y, maxProjected.y);
+  const maxY = Math.max(...projectedYs, minProjected.y, maxProjected.y);
 
-  const spanX = Math.max(Math.abs(robustMaxX - robustMinX), Math.abs(maxProjected.x - minProjected.x), 10);
-  const spanY = Math.max(Math.abs(robustMaxY - robustMinY), Math.abs(maxProjected.y - minProjected.y), 10);
-  const projectedPaddingX = Math.max(spanX * 0.08, 8);
-  const projectedPaddingY = Math.max(spanY * 0.08, 8);
+  const spanX = Math.max(Math.abs(maxX - minX), 10);
+  const spanY = Math.max(Math.abs(maxY - minY), 10);
+  const projectedPaddingX = Math.max(spanX * 0.12, 12);
+  const projectedPaddingY = Math.max(spanY * 0.12, 12);
 
-  const bboxMinX = robustMinX - projectedPaddingX;
-  const bboxMaxX = robustMaxX + projectedPaddingX;
-  const bboxMinY = robustMinY - projectedPaddingY;
-  const bboxMaxY = robustMaxY + projectedPaddingY;
+  const bboxMinX = minX - projectedPaddingX;
+  const bboxMaxX = maxX + projectedPaddingX;
+  const bboxMinY = minY - projectedPaddingY;
+  const bboxMaxY = maxY + projectedPaddingY;
 
   const satelliteImageUrl = `https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bboxMinX},${bboxMinY},${bboxMaxX},${bboxMaxY}&bboxSR=3857&imageSR=3857&size=${width},${height}&format=jpg&f=image`;
 
