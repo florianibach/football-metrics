@@ -2494,8 +2494,8 @@ export function App() {
           <p>{t.profileThresholdVersion}: {profileForm.metricThresholds.version}</p>
           <p>{t.profileThresholdUpdatedAt}: {formatUtcDateTime(profileForm.metricThresholds.updatedAtUtc, locale, t.notAvailable)}</p>
 
-          <button type="submit">{t.profileSave}</button>
-          <button type="button" onClick={onTriggerProfileRecalculation}>{t.profileRecalculateAllButton}</button>
+          <button type="submit" className="btn-primary">{t.profileSave}</button>
+          <button type="button" className="secondary-button" onClick={onTriggerProfileRecalculation}>{t.profileRecalculateAllButton}</button>
         </form>
         <p>
           {interpolate(t.profileCurrentPosition, {

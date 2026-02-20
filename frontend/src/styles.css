@@ -1298,6 +1298,39 @@ button,
   box-shadow: inset 0.24rem 0 0 0 var(--bs-primary);
 }
 
+
+
+/* content card wrapper on top of dark canvas */
+.container {
+  background: color-mix(in srgb, var(--surface) 96%, var(--bs-secondary));
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem 1.1rem;
+}
+
+.gps-heatmap-view-toggle {
+  border-color: var(--bs-secondary) !important;
+  background: transparent !important;
+}
+
+.gps-heatmap-view-toggle button {
+  border-radius: 0 !important;
+}
+
+.gps-heatmap-view-toggle button:first-child {
+  border-top-left-radius: 0.65rem !important;
+  border-bottom-left-radius: 0.65rem !important;
+}
+
+.gps-heatmap-view-toggle button:last-child {
+  border-top-right-radius: 0.65rem !important;
+  border-bottom-right-radius: 0.65rem !important;
+}
+
+.gps-heatmap-view-toggle button + button {
+  border-left: 1px solid color-mix(in srgb, var(--bs-secondary) 60%, white) !important;
+}
+
 /* default/inactive buttons should use secondary */
 button,
 .btn,
@@ -1336,9 +1369,9 @@ button:focus-visible,
 .gps-runs-list button:hover,
 .gps-heatmap-view-toggle button:hover,
 .gps-heatmap-controls button:hover {
-  background: color-mix(in srgb, var(--bs-secondary) 85%, white) !important;
-  border-color: color-mix(in srgb, var(--bs-secondary) 85%, white) !important;
-  color: var(--bs-dark) !important;
+  background: var(--bs-primary) !important;
+  border-color: var(--bs-primary) !important;
+  color: white !important;
 }
 
 .btn-primary:hover,
