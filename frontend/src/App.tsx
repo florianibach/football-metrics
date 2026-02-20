@@ -1451,6 +1451,7 @@ function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
 
 export function App() {
   const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
   const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
@@ -2217,19 +2218,62 @@ export function App() {
 
 
   return (
-    <main className="container">
-      <div className="language-switcher">
-        <label htmlFor="language-selector">{t.languageLabel}</label>
-        <select id="language-selector" value={locale} onChange={onLocaleChange}>
-          <option value="en">{t.languageEnglish}</option>
-          <option value="de">{t.languageGerman}</option>
-        </select>
-      </div>
-      <h1>{t.title}</h1>
-      <p className="subtitle">{t.subtitle}</p>
-      <p className="subtitle">{t.maxFileSize}</p>
+    <main className={`container theme--${theme}`}>
+      <aside className="app-sidebar card">
+        <div className="brand-block">
+          <div className="brand-icon" aria-hidden="true">⚽</div>
+          <div>
+            <strong>Football Metrics</strong>
+            <p>{t.subtitle}</p>
+          </div>
+        </div>
+        <nav className="sidebar-nav" aria-label="Primary">
+          <button type="button" className="nav-item nav-item--active">Overview</button>
+          <button type="button" className="nav-item">Insights</button>
+          <button type="button" className="nav-item">Compare</button>
+          <button type="button" className="nav-item">Preferences</button>
+        </nav>
+        <div className="mobile-promo">
+          <p>Mobile first · 60-65%</p>
+          <strong>Optimized session review on the go</strong>
+        </div>
+      </aside>
 
-      <section className="profile-settings">
+      <div className="app-main">
+        <header className="topbar card">
+          <label className="topbar-search" htmlFor="quick-search">
+            <span aria-hidden="true">🔍</span>
+            <input id="quick-search" placeholder="Search task" />
+            <kbd>⌘ F</kbd>
+          </label>
+          <div className="topbar-actions">
+            <div className="language-switcher">
+              <label htmlFor="language-selector">{t.languageLabel}</label>
+              <select id="language-selector" value={locale} onChange={onLocaleChange}>
+                <option value="en">{t.languageEnglish}</option>
+                <option value="de">{t.languageGerman}</option>
+              </select>
+            </div>
+            <button type="button" className="icon-button" onClick={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}>
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+          </div>
+        </header>
+
+        <section className="header-block card">
+          <div>
+            <h1>{t.title}</h1>
+            <p className="subtitle">{t.maxFileSize}</p>
+          </div>
+          <div className="header-actions">
+            <button type="button">+ Add Session</button>
+            <button type="button" className="secondary-button">Import Data</button>
+          </div>
+        </section>
+
+        <div className="dashboard-grid">
+
+      <section className="profile-settings card">
         <h2>{t.profileSettingsTitle}</h2>
         <form onSubmit={onProfileSubmit}>
           <label htmlFor="profile-primary-position">{t.profilePrimaryPosition}</label>
@@ -2927,9 +2971,13 @@ export function App() {
           )}
         </section>
       )}
+        </div>
+      </div>
     </main>
   );
-}function formatUtcDateTime(value: string | null | undefined, locale: Locale, fallback: string): string {
+}
+
+function formatUtcDateTime(value: string | null | undefined, locale: Locale, fallback: string): string {
   if (!value) {
     return fallback;
   }
