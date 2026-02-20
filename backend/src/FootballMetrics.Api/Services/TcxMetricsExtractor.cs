@@ -83,7 +83,7 @@ public static partial class TcxMetricsExtractor
         var source = smoothedDistanceMeters.HasValue ? "CalculatedFromGps" : (hasFileDistance ? "ProvidedByFile" : "NotAvailable");
 
         var qualityAssessment = AssessQuality(smoothedTrackpoints, outlierSpeedThresholdMps);
-        var dataAvailability = BuildDataAvailability(rawGpsPoints.Count > 0, heartRates.Count > 0, qualityAssessment.Status);
+        var dataAvailability = BuildDataAvailability(rawGpsPoints.Count > 0, heartRates.Count > 0, qualityAssessment.Status, qualityAssessment.GpsAssessment, qualityAssessment.HeartRateAssessment);
         var smoothingTrace = BuildSmoothingTrace(normalizedFilter, trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
         var effectiveThresholds = thresholdProfile ?? MetricThresholdProfile.CreateDefault();
         var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
@@ -120,20 +120,37 @@ public static partial class TcxMetricsExtractor
     }
 
 
-    private static TcxDataAvailability BuildDataAvailability(bool hasGpsData, bool hasHeartRateData, string qualityStatus)
+    private static TcxDataAvailability BuildDataAvailability(bool hasGpsData, bool hasHeartRateData, string qualityStatus, ChannelQualityAssessment gpsAssessment, ChannelQualityAssessment heartRateAssessment)
     {
         var gpsStatus = hasGpsData
-            ? (string.Equals(qualityStatus, "High", StringComparison.OrdinalIgnoreCase) ? "Available" : "NotUsable")
+            ? (string.Equals(gpsAssessment.Status, "Low", StringComparison.OrdinalIgnoreCase)
+                ? "NotUsable"
+                : string.Equals(gpsAssessment.Status, "Medium", StringComparison.OrdinalIgnoreCase)
+                    ? "AvailableWithWarning"
+                    : "Available")
             : "NotMeasured";
         var gpsReason = gpsStatus switch
         {
             "NotMeasured" => "GPS not present in this session.",
-            "NotUsable" => $"GPS unusable because quality is {qualityStatus}. Required: High.",
+            "NotUsable" => $"GPS unusable because GPS-channel quality is {gpsAssessment.Status}.",
+            "AvailableWithWarning" => $"GPS available with warning because GPS-channel quality is {gpsAssessment.Status}.",
             _ => null
         };
 
-        var heartRateStatus = hasHeartRateData ? "Available" : "NotMeasured";
-        var heartRateReason = hasHeartRateData ? null : "Heart-rate data not present in this session.";
+        var heartRateStatus = hasHeartRateData
+            ? (string.Equals(heartRateAssessment.Status, "Low", StringComparison.OrdinalIgnoreCase)
+                ? "NotUsable"
+                : string.Equals(heartRateAssessment.Status, "Medium", StringComparison.OrdinalIgnoreCase)
+                    ? "AvailableWithWarning"
+                    : "Available")
+            : "NotMeasured";
+        var heartRateReason = heartRateStatus switch
+        {
+            "NotMeasured" => "Heart-rate data not present in this session.",
+            "NotUsable" => $"Heart-rate data unusable because HR-channel quality is {heartRateAssessment.Status}.",
+            "AvailableWithWarning" => $"Heart-rate data available with warning because HR-channel quality is {heartRateAssessment.Status}.",
+            _ => null
+        };
 
         var mode = (hasGpsData, hasHeartRateData) switch
         {
@@ -143,7 +160,7 @@ public static partial class TcxMetricsExtractor
             _ => "NotAvailable"
         };
 
-        return new TcxDataAvailability(mode, gpsStatus, gpsReason, heartRateStatus, heartRateReason);
+        return new TcxDataAvailability(mode, gpsStatus, gpsReason, heartRateStatus, heartRateReason, gpsAssessment.Status, gpsAssessment.Reasons, heartRateAssessment.Status, heartRateAssessment.Reasons);
     }
 
     private static List<TrackpointSnapshot> ApplySmoothingFilter(
@@ -206,6 +223,10 @@ public static partial class TcxMetricsExtractor
             }
         };
 
+        var correctedPointRatio = rawTrackpoints.Count == 0
+            ? 0
+            : correctedOutlierCount / (double)rawTrackpoints.Count;
+
         return new TcxSmoothingTrace(
             selectedStrategy,
             parameters,
@@ -215,6 +236,9 @@ public static partial class TcxMetricsExtractor
             baselineDirectionChanges,
             smoothedDirectionChanges,
             correctedOutlierCount,
+            correctedOutlierCount,
+            correctedPointRatio,
+            "AdaptiveInterpolation",
             DateTime.UtcNow);
     }
 
@@ -589,7 +613,8 @@ public static partial class TcxMetricsExtractor
     {
         if (trackpoints.Count == 0)
         {
-            return new QualityAssessment("Low", new List<string> { "No trackpoints found in TCX file." });
+            var empty = new ChannelQualityAssessment("Low", new List<string> { "No trackpoints found in TCX file." });
+            return new QualityAssessment("Low", new List<string> { "No trackpoints found in TCX file." }, empty, empty);
         }
 
         var reasons = new List<string>();
@@ -603,49 +628,82 @@ public static partial class TcxMetricsExtractor
         var missingGpsRatio = (double)missingGpsCount / trackpoints.Count;
         var missingHeartRateRatio = (double)missingHeartRateCount / trackpoints.Count;
 
+        var gpsReasons = new List<string>();
+        var hrReasons = new List<string>();
+
         if (missingTimestampRatio > 0.5)
         {
             penaltyPoints += 2;
             reasons.Add($"Many trackpoints are missing timestamps ({missingTimestampCount}/{trackpoints.Count}).");
+            gpsReasons.Add($"Many trackpoints are missing timestamps ({missingTimestampCount}/{trackpoints.Count}).");
+            hrReasons.Add($"Many trackpoints are missing timestamps ({missingTimestampCount}/{trackpoints.Count}).");
         }
         else if (missingTimestampRatio > 0.1)
         {
             penaltyPoints += 1;
             reasons.Add($"Some trackpoints are missing timestamps ({missingTimestampCount}/{trackpoints.Count}).");
+            gpsReasons.Add($"Some trackpoints are missing timestamps ({missingTimestampCount}/{trackpoints.Count}).");
+            hrReasons.Add($"Some trackpoints are missing timestamps ({missingTimestampCount}/{trackpoints.Count}).");
         }
 
+        var gpsPenaltyPoints = 0;
         if (missingGpsRatio > 0.5)
         {
             penaltyPoints += 2;
-            reasons.Add($"GPS coverage is limited ({trackpoints.Count - missingGpsCount}/{trackpoints.Count} points with coordinates).");
+            gpsPenaltyPoints += 2;
+            var reason = $"GPS coverage is limited ({trackpoints.Count - missingGpsCount}/{trackpoints.Count} points with coordinates).";
+            reasons.Add(reason);
+            gpsReasons.Add(reason);
         }
         else if (missingGpsRatio > 0.1)
         {
             penaltyPoints += 1;
-            reasons.Add($"GPS data is partially missing ({trackpoints.Count - missingGpsCount}/{trackpoints.Count} points with coordinates).");
+            gpsPenaltyPoints += 1;
+            var reason = $"GPS data is partially missing ({trackpoints.Count - missingGpsCount}/{trackpoints.Count} points with coordinates).";
+            reasons.Add(reason);
+            gpsReasons.Add(reason);
         }
 
+        var hrPenaltyPoints = 0;
         if (missingHeartRateRatio > 0.5)
         {
             penaltyPoints += 2;
-            reasons.Add($"Heart rate data is mostly missing ({trackpoints.Count - missingHeartRateCount}/{trackpoints.Count} points with heart rate).");
+            hrPenaltyPoints += 2;
+            var reason = $"Heart rate data is mostly missing ({trackpoints.Count - missingHeartRateCount}/{trackpoints.Count} points with heart rate).";
+            reasons.Add(reason);
+            hrReasons.Add(reason);
         }
         else if (missingHeartRateRatio > 0.1)
         {
             penaltyPoints += 1;
-            reasons.Add($"Heart rate data is partially missing ({trackpoints.Count - missingHeartRateCount}/{trackpoints.Count} points with heart rate).");
+            hrPenaltyPoints += 1;
+            var reason = $"Heart rate data is partially missing ({trackpoints.Count - missingHeartRateCount}/{trackpoints.Count} points with heart rate).";
+            reasons.Add(reason);
+            hrReasons.Add(reason);
         }
 
-        var unplausibleJumpCount = CountUnplausibleGpsJumps(trackpoints, outlierSpeedThresholdMps);
+        var (unplausibleJumpCount, clusteredJumpCount) = CountUnplausibleGpsJumps(trackpoints, outlierSpeedThresholdMps);
+        var gpsPointsWithTime = trackpoints.Count(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue);
+        var jumpRatio = gpsPointsWithTime == 0 ? 0d : (double)unplausibleJumpCount / gpsPointsWithTime;
         if (unplausibleJumpCount >= 2)
         {
-            penaltyPoints += 2;
-            reasons.Add($"Detected multiple implausible GPS jumps ({unplausibleJumpCount}).");
+            var clusteredOrSignificant = clusteredJumpCount > 0 || jumpRatio >= 0.01;
+            var jumpPenalty = clusteredOrSignificant ? 2 : 1;
+            penaltyPoints += jumpPenalty;
+            gpsPenaltyPoints += jumpPenalty;
+            var reason = clusteredOrSignificant
+                ? $"Detected multiple implausible GPS jumps ({unplausibleJumpCount})."
+                : $"Detected isolated implausible GPS jumps ({unplausibleJumpCount}) with low share ({jumpRatio:P2}).";
+            reasons.Add(reason);
+            gpsReasons.Add(reason);
         }
         else if (unplausibleJumpCount > 0)
         {
             penaltyPoints += 1;
-            reasons.Add($"Detected isolated implausible GPS jumps ({unplausibleJumpCount}).");
+            gpsPenaltyPoints += 1;
+            var reason = $"Detected isolated implausible GPS jumps ({unplausibleJumpCount}).";
+            reasons.Add(reason);
+            gpsReasons.Add(reason);
         }
 
         var status = penaltyPoints >= 4
@@ -659,10 +717,23 @@ public static partial class TcxMetricsExtractor
             reasons.Add("Trackpoints are complete with GPS and heart rate data. No implausible jumps detected.");
         }
 
-        return new QualityAssessment(status, reasons);
+        if (gpsReasons.Count == 0)
+        {
+            gpsReasons.Add("GPS measurements are complete and consistent.");
+        }
+
+        if (hrReasons.Count == 0)
+        {
+            hrReasons.Add("Heart-rate measurements are complete and consistent.");
+        }
+
+        var gpsStatus = gpsPenaltyPoints >= 4 ? "Low" : gpsPenaltyPoints >= 2 ? "Medium" : "High";
+        var hrStatus = hrPenaltyPoints >= 4 ? "Low" : hrPenaltyPoints >= 2 ? "Medium" : "High";
+
+        return new QualityAssessment(status, reasons, new ChannelQualityAssessment(gpsStatus, gpsReasons), new ChannelQualityAssessment(hrStatus, hrReasons));
     }
 
-    private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
+private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
         IReadOnlyList<TrackpointSnapshot> trackpoints,
         string qualityStatus,
         double? totalDistanceMeters,
@@ -727,7 +798,7 @@ public static partial class TcxMetricsExtractor
 
         var hasGpsMeasurements = gpsPoints.Count > 0;
         var gpsSegmentsAreUsable = segments.Count > 0;
-        var gpsQualityIsUsable = string.Equals(qualityStatus, "High", StringComparison.OrdinalIgnoreCase);
+        var gpsQualityIsUsable = !string.Equals(qualityStatus, "Low", StringComparison.OrdinalIgnoreCase);
 
         double? sprintDistanceMeters = null;
         int? sprintCount = null;
@@ -770,7 +841,7 @@ public static partial class TcxMetricsExtractor
                          "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
                      })
             {
-                MarkMetric(key, "NotUsable", $"GPS-derived metric is unusable because data quality is {qualityStatus}. Required: High.");
+                MarkMetric(key, "NotUsable", $"GPS-derived metric is unusable because data quality is {qualityStatus}.");
             }
         }
         else
@@ -849,7 +920,13 @@ public static partial class TcxMetricsExtractor
                          "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
                      })
             {
-                MarkMetric(key, "Available");
+                var metricState = string.Equals(qualityStatus, "Medium", StringComparison.OrdinalIgnoreCase)
+                    ? "AvailableWithWarning"
+                    : "Available";
+                var metricReason = string.Equals(metricState, "AvailableWithWarning", StringComparison.OrdinalIgnoreCase)
+                    ? "GPS-derived metric calculated with reduced confidence. Please interpret with caution."
+                    : null;
+                MarkMetric(key, metricState, metricReason);
             }
         }
 
@@ -973,7 +1050,7 @@ public static partial class TcxMetricsExtractor
             }
         }
 
-        var availableMetrics = metricAvailability.Count(entry => string.Equals(entry.Value.State, "Available", StringComparison.OrdinalIgnoreCase));
+        var availableMetrics = metricAvailability.Count(entry => string.Equals(entry.Value.State, "Available", StringComparison.OrdinalIgnoreCase) || string.Equals(entry.Value.State, "AvailableWithWarning", StringComparison.OrdinalIgnoreCase));
 
         return new TcxFootballCoreMetrics(
             availableMetrics > 0,
@@ -997,7 +1074,7 @@ public static partial class TcxMetricsExtractor
             thresholds);
     }
 
-    private static int CountUnplausibleGpsJumps(IReadOnlyList<TrackpointSnapshot> trackpoints, double outlierSpeedThresholdMps)
+    private static (int JumpCount, int ClusteredJumpCount) CountUnplausibleGpsJumps(IReadOnlyList<TrackpointSnapshot> trackpoints, double outlierSpeedThresholdMps)
     {
         var pointsWithGpsAndTime = trackpoints
             .Where(tp => tp.TimeUtc.HasValue && tp.Latitude.HasValue && tp.Longitude.HasValue)
@@ -1006,10 +1083,12 @@ public static partial class TcxMetricsExtractor
 
         if (pointsWithGpsAndTime.Count < 2)
         {
-            return 0;
+            return (0, 0);
         }
 
         var unplausibleJumpCount = 0;
+        var clusteredJumpCount = 0;
+        var previousWasJump = false;
         for (var index = 1; index < pointsWithGpsAndTime.Count; index++)
         {
             var previous = pointsWithGpsAndTime[index - 1];
@@ -1028,11 +1107,22 @@ public static partial class TcxMetricsExtractor
             if (speedMetersPerSecond > outlierSpeedThresholdMps)
             {
                 unplausibleJumpCount++;
+                if (previousWasJump)
+                {
+                    clusteredJumpCount++;
+                }
+
+                previousWasJump = true;
+                continue;
             }
+
+            previousWasJump = false;
         }
 
-        return unplausibleJumpCount;
+        return (unplausibleJumpCount, clusteredJumpCount);
     }
 
 
+    private sealed record ChannelQualityAssessment(string Status, IReadOnlyList<string> Reasons);
+    private sealed record QualityAssessment(string Status, IReadOnlyList<string> Reasons, ChannelQualityAssessment GpsAssessment, ChannelQualityAssessment HeartRateAssessment);
 }

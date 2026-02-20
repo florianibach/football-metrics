@@ -13,7 +13,7 @@ type SmoothingTrace = {
 };
 
 type MetricAvailability = {
-  state: 'Available' | 'NotMeasured' | 'NotUsable';
+  state: 'Available' | 'NotMeasured' | 'NotUsable' | 'AvailableWithWarning';
   reason: string | null;
 };
 
@@ -55,10 +55,14 @@ type GpsTrackpoint = {
 
 type DataAvailability = {
   mode: 'Dual' | 'HeartRateOnly' | 'GpsOnly' | 'NotAvailable';
-  gpsStatus: 'Available' | 'NotMeasured' | 'NotUsable';
+  gpsStatus: 'Available' | 'NotMeasured' | 'NotUsable' | 'AvailableWithWarning';
   gpsReason: string | null;
-  heartRateStatus: 'Available' | 'NotMeasured' | 'NotUsable';
+  heartRateStatus: 'Available' | 'NotMeasured' | 'NotUsable' | 'AvailableWithWarning';
   heartRateReason: string | null;
+  gpsQualityStatus?: 'High' | 'Medium' | 'Low' | null;
+  gpsQualityReasons?: string[] | null;
+  heartRateQualityStatus?: 'High' | 'Medium' | 'Low' | null;
+  heartRateQualityReasons?: string[] | null;
 };
 
 type ActivitySummary = {
@@ -270,6 +274,12 @@ type TranslationKey =
   | 'availabilityAvailable'
   | 'availabilityNotMeasured'
   | 'availabilityNotUsable'
+  | 'availabilityAvailableWithWarning'
+  | 'metricStateAvailableWithWarning'
+  | 'metricGpsChannelQualityStatus'
+  | 'metricGpsChannelQualityReasons'
+  | 'metricHeartRateChannelQualityStatus'
+  | 'metricHeartRateChannelQualityReasons'
   | 'historyTitle'
   | 'historyEmpty'
   | 'historyColumnFileName'
@@ -495,6 +505,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHelpGps: 'Indicates if coordinate points exist.',
     metricQualityStatus: 'Data quality',
     metricQualityReasons: 'Quality reasons',
+    metricGpsChannelQualityStatus: 'GPS channel quality',
+    metricGpsChannelQualityReasons: 'GPS channel quality reasons',
+    metricHeartRateChannelQualityStatus: 'Heart-rate channel quality',
+    metricHeartRateChannelQualityReasons: 'Heart-rate channel quality reasons',
     metricDataMode: 'Data mode',
     metricSmoothingStrategy: 'Smoothing strategy',
     metricSmoothingOutlier: 'Outlier detection',
@@ -530,6 +544,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     availabilityAvailable: 'available',
     availabilityNotMeasured: 'not measured',
     availabilityNotUsable: 'measurement unusable',
+    availabilityAvailableWithWarning: 'available with warning',
     historyTitle: 'Upload history',
     historyEmpty: 'No uploaded sessions yet.',
     historyColumnFileName: 'File name',
@@ -590,6 +605,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     coreMetricsUnavailable: 'Core metrics unavailable: {reason}',
     metricStateNotMeasured: 'Not measured',
     metricStateNotUsable: 'Measurement unusable',
+    metricStateAvailableWithWarning: 'Available with warning',
     metricSprintDistance: 'Sprint distance',
     metricSprintCount: 'Sprint count',
     metricMaxSpeed: 'Maximum speed',
@@ -750,6 +766,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricHelpGps: 'Zeigt, ob Koordinatenpunkte vorhanden sind.',
     metricQualityStatus: 'Datenqualität',
     metricQualityReasons: 'Qualitätsgründe',
+    metricGpsChannelQualityStatus: 'GPS-Kanalqualität',
+    metricGpsChannelQualityReasons: 'GPS-Kanal Qualitätsgründe',
+    metricHeartRateChannelQualityStatus: 'HF-Kanalqualität',
+    metricHeartRateChannelQualityReasons: 'HF-Kanal Qualitätsgründe',
     metricDataMode: 'Datenmodus',
     metricSmoothingStrategy: 'Glättungsstrategie',
     metricSmoothingOutlier: 'Ausreißer-Erkennung',
@@ -785,6 +805,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     availabilityAvailable: 'verfügbar',
     availabilityNotMeasured: 'nicht gemessen',
     availabilityNotUsable: 'Messung unbrauchbar',
+    availabilityAvailableWithWarning: 'mit Warnung verfügbar',
     historyTitle: 'Upload-Historie',
     historyEmpty: 'Noch keine hochgeladenen Sessions.',
     historyColumnFileName: 'Dateiname',
@@ -845,6 +866,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     coreMetricsUnavailable: 'Kernmetriken nicht verfügbar: {reason}',
     metricStateNotMeasured: 'Nicht gemessen',
     metricStateNotUsable: 'Messung unbrauchbar',
+    metricStateAvailableWithWarning: 'Mit Warnhinweis verfügbar',
     metricSprintDistance: 'Sprintdistanz',
     metricSprintCount: 'Anzahl Sprints',
     metricMaxSpeed: 'Maximalgeschwindigkeit',
@@ -1221,7 +1243,9 @@ function formatMetricStatus(metricKey: string, coreMetrics: FootballCoreMetrics,
     return null;
   }
 
-  const label = status.state === 'NotMeasured' ? t.metricStateNotMeasured : t.metricStateNotUsable;
+  const label = status.state === 'NotMeasured'
+    ? t.metricStateNotMeasured
+    : (status.state === 'AvailableWithWarning' ? t.metricStateAvailableWithWarning : t.metricStateNotUsable);
   return status.reason ? `${label}: ${status.reason}` : label;
 }
 
@@ -1260,7 +1284,7 @@ function resolveDataAvailability(summary: ActivitySummary): DataAvailability {
 
   const hasHeartRateData = summary.heartRateAverageBpm !== null || summary.heartRateMinBpm !== null || summary.heartRateMaxBpm !== null;
   const gpsStatus: DataAvailability['gpsStatus'] = summary.hasGpsData
-    ? (summary.qualityStatus === 'High' ? 'Available' : 'NotUsable')
+    ? (summary.qualityStatus === 'Low' ? 'NotUsable' : (summary.qualityStatus === 'Medium' ? 'AvailableWithWarning' : 'Available'))
     : 'NotMeasured';
 
   const mode: DataAvailability['mode'] = summary.hasGpsData
@@ -1272,9 +1296,15 @@ function resolveDataAvailability(summary: ActivitySummary): DataAvailability {
     gpsStatus,
     gpsReason: gpsStatus === 'NotMeasured'
       ? 'GPS not present in this session.'
-      : (gpsStatus === 'NotUsable' ? `GPS unusable because quality is ${summary.qualityStatus}. Required: High.` : null),
+      : (gpsStatus === 'NotUsable'
+        ? `GPS unusable because quality is ${summary.qualityStatus}.`
+        : (gpsStatus === 'AvailableWithWarning' ? `GPS available with warning because quality is ${summary.qualityStatus}.` : null)),
     heartRateStatus: hasHeartRateData ? 'Available' : 'NotMeasured',
-    heartRateReason: hasHeartRateData ? null : 'Heart-rate data not present in this session.'
+    heartRateReason: hasHeartRateData ? null : 'Heart-rate data not present in this session.',
+    gpsQualityStatus: summary.qualityStatus,
+    gpsQualityReasons: summary.qualityReasons,
+    heartRateQualityStatus: summary.qualityStatus,
+    heartRateQualityReasons: summary.qualityReasons
   };
 }
 
@@ -1309,6 +1339,8 @@ function availabilityText(status: DataAvailability['gpsStatus'], t: Record<Trans
       return t.availabilityAvailable;
     case 'NotMeasured':
       return t.availabilityNotMeasured;
+    case 'AvailableWithWarning':
+      return t.availabilityAvailableWithWarning;
     default:
       return t.availabilityNotUsable;
   }
@@ -2632,6 +2664,10 @@ export function App() {
             <MetricListItem label={t.metricGps} value={selectedSession.summary.hasGpsData ? t.yes : t.no} helpText={`${metricHelp.gps} ${t.metricHelpGps}`} />
             <MetricListItem label={t.metricQualityStatus} value={qualityStatusText(selectedSession.summary.qualityStatus, t)} helpText={metricHelp.qualityStatus} />
             <MetricListItem label={t.metricQualityReasons} value={selectedSession.summary.qualityReasons.join(' | ')} helpText={metricHelp.qualityReasons} />
+            <MetricListItem label={t.metricGpsChannelQualityStatus} value={qualityStatusText((resolveDataAvailability(selectedSession.summary).gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)} helpText={metricHelp.qualityStatus} />
+            <MetricListItem label={t.metricGpsChannelQualityReasons} value={(resolveDataAvailability(selectedSession.summary).gpsQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')} helpText={metricHelp.qualityReasons} />
+            <MetricListItem label={t.metricHeartRateChannelQualityStatus} value={qualityStatusText((resolveDataAvailability(selectedSession.summary).heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)} helpText={metricHelp.qualityStatus} />
+            <MetricListItem label={t.metricHeartRateChannelQualityReasons} value={(resolveDataAvailability(selectedSession.summary).heartRateQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')} helpText={metricHelp.qualityReasons} />
             <MetricListItem label={t.metricDataMode} value={dataAvailabilitySummaryText(selectedSession.summary, t)} helpText={t.metricDataMode} />
             <MetricListItem label={t.metricDataChange} value={dataChangeMetric} helpText={metricHelp.dataChange} />
             <MetricListItem label={t.filterSourceLabel} value={selectedSession.selectedSmoothingFilterSource === 'ManualOverride' ? t.filterSourceManualOverride : selectedSession.selectedSmoothingFilterSource === 'ProfileRecalculation' ? t.filterSourceProfileRecalculation : t.filterSourceProfileDefault} />

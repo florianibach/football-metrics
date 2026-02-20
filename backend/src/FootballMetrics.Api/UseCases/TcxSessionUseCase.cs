@@ -367,7 +367,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
     {
         if (rawFileContent.Length == 0)
         {
-            return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "No quality assessment available." }, new TcxDataAvailability("NotAvailable", "NotMeasured", "GPS not present in this session.", "NotMeasured", "Heart-rate data not present in this session."), Array.Empty<TcxGpsTrackpoint>(), new TcxSmoothingTrace("NotAvailable", new Dictionary<string, string>(), null, null, 0, 0, 0, 0, DateTime.UtcNow), new TcxFootballCoreMetrics(false, "Core metrics unavailable.", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, new Dictionary<string, TcxMetricAvailability>(), new Dictionary<string, string>()), Array.Empty<TcxIntervalAggregate>());
+            return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "No quality assessment available." }, new TcxDataAvailability("NotAvailable", "NotMeasured", "GPS not present in this session.", "NotMeasured", "Heart-rate data not present in this session.", "Low", new List<string> { "No GPS quality assessment available." }, "Low", new List<string> { "No heart-rate quality assessment available." }), Array.Empty<TcxGpsTrackpoint>(), new TcxSmoothingTrace("NotAvailable", new Dictionary<string, string>(), null, null, 0, 0, 0, 0, 0, 0, "NotAvailable", DateTime.UtcNow), new TcxFootballCoreMetrics(false, "Core metrics unavailable.", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, new Dictionary<string, TcxMetricAvailability>(), new Dictionary<string, string>()), Array.Empty<TcxIntervalAggregate>());
         }
 
         try
@@ -384,7 +384,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         }
         catch
         {
-            return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "TCX summary unavailable due to invalid stored content." }, new TcxDataAvailability("NotAvailable", "NotMeasured", "GPS not present in this session.", "NotMeasured", "Heart-rate data not present in this session."), Array.Empty<TcxGpsTrackpoint>(), new TcxSmoothingTrace("NotAvailable", new Dictionary<string, string>(), null, null, 0, 0, 0, 0, DateTime.UtcNow), new TcxFootballCoreMetrics(false, "Core metrics unavailable.", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, new Dictionary<string, TcxMetricAvailability>(), new Dictionary<string, string>()), Array.Empty<TcxIntervalAggregate>());
+            return new TcxActivitySummary(null, null, 0, null, null, null, null, false, null, "NotAvailable", "Low", new List<string> { "TCX summary unavailable due to invalid stored content." }, new TcxDataAvailability("NotAvailable", "NotMeasured", "GPS not present in this session.", "NotMeasured", "Heart-rate data not present in this session.", "Low", new List<string> { "No GPS quality assessment available." }, "Low", new List<string> { "No heart-rate quality assessment available." }), Array.Empty<TcxGpsTrackpoint>(), new TcxSmoothingTrace("NotAvailable", new Dictionary<string, string>(), null, null, 0, 0, 0, 0, 0, 0, "NotAvailable", DateTime.UtcNow), new TcxFootballCoreMetrics(false, "Core metrics unavailable.", null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, new Dictionary<string, TcxMetricAvailability>(), new Dictionary<string, string>()), Array.Empty<TcxIntervalAggregate>());
         }
     }
 
@@ -394,18 +394,38 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         var hasGpsData = summary.HasGpsData;
         var hasHeartRateData = summary.HeartRateAverageBpm.HasValue || summary.HeartRateMinBpm.HasValue || summary.HeartRateMaxBpm.HasValue;
 
+        var gpsQualityStatus = summary.DataAvailability?.GpsQualityStatus ?? summary.QualityStatus;
+        var heartRateQualityStatus = summary.DataAvailability?.HeartRateQualityStatus ?? summary.QualityStatus;
+
         var gpsStatus = hasGpsData
-            ? (string.Equals(summary.QualityStatus, "High", StringComparison.OrdinalIgnoreCase) ? "Available" : "NotUsable")
+            ? (string.Equals(gpsQualityStatus, "Low", StringComparison.OrdinalIgnoreCase)
+                ? "NotUsable"
+                : string.Equals(gpsQualityStatus, "Medium", StringComparison.OrdinalIgnoreCase)
+                    ? "AvailableWithWarning"
+                    : "Available")
             : "NotMeasured";
         var gpsReason = gpsStatus switch
         {
             "NotMeasured" => "GPS not present in this session.",
-            "NotUsable" => $"GPS unusable because quality is {summary.QualityStatus}. Required: High.",
+            "NotUsable" => $"GPS unusable because GPS-channel quality is {gpsQualityStatus}.",
+            "AvailableWithWarning" => $"GPS available with warning because GPS-channel quality is {gpsQualityStatus}.",
             _ => null
         };
 
-        var heartRateStatus = hasHeartRateData ? "Available" : "NotMeasured";
-        var heartRateReason = hasHeartRateData ? null : "Heart-rate data not present in this session.";
+        var heartRateStatus = hasHeartRateData
+            ? (string.Equals(heartRateQualityStatus, "Low", StringComparison.OrdinalIgnoreCase)
+                ? "NotUsable"
+                : string.Equals(heartRateQualityStatus, "Medium", StringComparison.OrdinalIgnoreCase)
+                    ? "AvailableWithWarning"
+                    : "Available")
+            : "NotMeasured";
+        var heartRateReason = heartRateStatus switch
+        {
+            "NotMeasured" => "Heart-rate data not present in this session.",
+            "NotUsable" => $"Heart-rate data unusable because HR-channel quality is {heartRateQualityStatus}.",
+            "AvailableWithWarning" => $"Heart-rate data available with warning because HR-channel quality is {heartRateQualityStatus}.",
+            _ => null
+        };
 
         var mode = (hasGpsData, hasHeartRateData) switch
         {
@@ -415,7 +435,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             _ => "NotAvailable"
         };
 
-        return new TcxDataAvailability(mode, gpsStatus, gpsReason, heartRateStatus, heartRateReason);
+        return new TcxDataAvailability(mode, gpsStatus, gpsReason, heartRateStatus, heartRateReason, gpsQualityStatus, summary.DataAvailability?.GpsQualityReasons ?? new List<string>(), heartRateQualityStatus, summary.DataAvailability?.HeartRateQualityReasons ?? new List<string>());
     }
 
     private static TcxActivitySummary EnsureDataAvailability(TcxActivitySummary summary)

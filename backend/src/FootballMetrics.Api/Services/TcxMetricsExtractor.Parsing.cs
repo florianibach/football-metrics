@@ -78,7 +78,6 @@ public static partial class TcxMetricsExtractor
             ? parsed
             : null;
 
-    private sealed record QualityAssessment(string Status, IReadOnlyList<string> Reasons);
 
     private sealed record TrackpointSnapshot(DateTime? TimeUtc, int? HeartRateBpm, double? Latitude, double? Longitude);
 }
