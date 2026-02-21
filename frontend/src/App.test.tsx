@@ -249,8 +249,11 @@ describe('App', () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    await screen.findByTestId('upload-quality-step');
+    fireEvent.click(screen.getByRole('button', { name: 'To session analysis' }));
 
-    await waitFor(() => expect(aggregationWindowSelector.value).toBe('5'));
+    const aggregationWindowSelectorAfterUpload = await screen.findByLabelText('Aggregation window') as HTMLSelectElement;
+    await waitFor(() => expect(aggregationWindowSelectorAfterUpload.value).toBe('5'));
 
     const profileSaveCalls = fetchMock.mock.calls.filter(([input, init]) => String(input).endsWith('/profile') && init?.method === 'PUT');
     expect(profileSaveCalls).toHaveLength(0);
@@ -366,9 +369,8 @@ describe('App', () => {
       expect(screen.getByText(/Upload successful: session\.tcx at/)).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Session details')).toBeInTheDocument();
-    expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
-    expect(screen.getAllByText(/5.100 km \(5,100(\.0)? m\)/).length).toBeGreaterThan(0);
+    const qualityStep = await screen.findByTestId('upload-quality-step');
+    expect(within(qualityStep).getByRole('heading', { name: 'Quality details', level: 3 })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalled();
   });
 
@@ -2528,16 +2530,15 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
 
     const qualityStep = await screen.findByTestId('upload-quality-step');
-    expect(within(qualityStep).getByText('Quality check')).toBeInTheDocument();
-    expect(within(qualityStep).getByRole('button', { name: 'Quality info' })).toBeInTheDocument();
+    expect(within(qualityStep).getByRole('heading', { name: 'Quality details', level: 3 })).toBeInTheDocument();
+    expect(within(qualityStep).getByText(/Session data/)).toBeInTheDocument();
 
-    fireEvent.click(within(qualityStep).getByRole('button', { name: 'Quality info' }));
-    const qualitySidebar = await screen.findByTestId('quality-details-sidebar');
-    expect(within(qualitySidebar).getByText('Overall quality:')).toBeInTheDocument();
+    expect(within(qualityStep).getByText(/Data change due to smoothing:/)).toBeInTheDocument();
+    expect(screen.queryByText('Session context')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'To session analysis' }));
     await waitFor(() => {
-      expect(screen.getByTestId('upload-quality-step')).toHaveClass('is-hidden');
+      expect(screen.queryByTestId('upload-quality-step')).not.toBeInTheDocument();
     });
   });
 
@@ -2569,9 +2570,9 @@ describe('App', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Quality info' })[0]);
 
     const qualitySidebar = await screen.findByTestId('quality-details-sidebar');
-    expect(within(qualitySidebar).getByRole('heading', { name: 'Quality details' })).toBeInTheDocument();
-    expect(within(qualitySidebar).getByText('Key interpretation impacts')).toBeInTheDocument();
-    expect(within(qualitySidebar).getByText(/Heart-rate signal has dropouts/)).toBeInTheDocument();
+    expect(within(qualitySidebar).getByRole('heading', { name: 'Quality details', level: 3 })).toBeInTheDocument();
+    expect(within(qualitySidebar).getByText(/Data quality:/)).toBeInTheDocument();
+    expect(within(qualitySidebar).getAllByText(/Heart-rate signal has dropouts/).length).toBeGreaterThan(0);
   });
 
 
@@ -2699,7 +2700,8 @@ describe('App', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/sessions/new-session');
     });
-    expect(screen.getByText('Quality check')).toBeInTheDocument();
+    const qualityStep = await screen.findByTestId('upload-quality-step');
+    expect(within(qualityStep).getByRole('heading', { name: 'Quality details', level: 3 })).toBeInTheDocument();
   });
 
 });

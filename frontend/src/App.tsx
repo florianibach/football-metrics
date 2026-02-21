@@ -2686,6 +2686,63 @@ export function App() {
       .sort((a, b) => a.windowIndex - b.windowIndex);
   }, [selectedSession, aggregationWindowMinutes]);
 
+
+  const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
+
+  const renderQualityDetailsContent = (speedUnitInputId: string) => {
+    if (!selectedSession) {
+      return <p>{t.notAvailable}</p>;
+    }
+
+    const selectedDataAvailability = resolveDataAvailability(selectedSession.summary);
+    const selectedFilterSource = selectedSession.selectedSmoothingFilterSource === 'ManualOverride'
+      ? t.filterSourceManualOverride
+      : selectedSession.selectedSmoothingFilterSource === 'ProfileRecalculation'
+        ? t.filterSourceProfileRecalculation
+        : t.filterSourceProfileDefault;
+
+    return (
+      <div className="quality-details-content">
+        <h4>Session data</h4>
+        <ul className="metrics-list">
+          <li><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</li>
+          <li><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount}</li>
+          <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)}</li>
+          <li><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no}</li>
+          <li><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</li>
+        </ul>
+
+        <h4>{t.qualityDetailsSidebarTitle}</h4>
+        <ul className="metrics-list">
+          <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
+          <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
+          <li><strong>{t.metricGpsChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+          <li><strong>{t.metricGpsChannelQualityReasons}:</strong> {(selectedDataAvailability.gpsQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
+          <li><strong>{t.metricHeartRateChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+          <li><strong>{t.metricHeartRateChannelQualityReasons}:</strong> {(selectedDataAvailability.heartRateQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
+          <li><strong>{t.uploadQualityImpacts}:</strong> {qualityImpactItems.length > 0 ? qualityImpactItems.join(' | ') : t.notAvailable}</li>
+        </ul>
+
+        <h4>Processing & profile</h4>
+        <ul className="metrics-list">
+          <li><strong>{t.metricDataChange}:</strong> {dataChangeMetric}</li>
+          <li><strong>{t.filterSourceLabel}:</strong> {selectedFilterSource}</li>
+          <li>
+            <label htmlFor={speedUnitInputId}><strong>{t.sessionSpeedUnitLabel}</strong></label>
+            <select id={speedUnitInputId} value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
+              <option value="km/h">km/h</option>
+              <option value="m/s">m/s</option>
+              <option value="min/km">min/km</option>
+            </select>
+          </li>
+          <li><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</li>
+          <li><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
+          <li><strong>{t.metricSmoothingOutlier}:</strong> {`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`}</li>
+        </ul>
+      </div>
+    );
+  };
+
   const jumpToSection = useCallback((sectionId: string, sessionSubpage?: SessionSubpage) => {
     if (sessionSubpage) {
       setActiveSessionSubpage(sessionSubpage);
@@ -3218,44 +3275,36 @@ export function App() {
           <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(false)}>{t.historyFilterClose}</button>
         </div>
         <div className="history-controls history-controls--sidebar metric-info-sidebar-content">
-          {selectedSession && qualityDetails ? (
-            <ul className="metrics-list">
-              <li><strong>{t.uploadQualityOverall}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
-              <li><strong>{t.uploadQualityGps}:</strong> {qualityStatusText((qualityDetails.gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
-              <li><strong>{t.uploadQualityHeartRate}:</strong> {qualityStatusText((qualityDetails.heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
-            </ul>
-          ) : (
-            <p>{t.notAvailable}</p>
-          )}
-          <h4>{t.uploadQualityImpacts}</h4>
-          {qualityImpactItems.length === 0 ? <p>{t.notAvailable}</p> : (
-            <ul className="metrics-list">
-              {qualityImpactItems.map((impact) => <li key={impact}>{impact}</li>)}
-            </ul>
-          )}
+          {renderQualityDetailsContent('quality-sidebar-speed-unit')}
         </div>
       </aside>
 
       {selectedSession && (
         <section className={`session-details ${activeMainPage === "session" ? "" : "is-hidden"}`} aria-live="polite" id="session-analysis">
-          <h2>{t.summaryTitle}</h2>
-          <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
-          <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
-          <h3>{t.sessionRecalculateHistoryTitle}</h3>
-          {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className={`metrics-list ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
-          <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
-          <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
-          <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
-
-          <section data-testid="upload-quality-step" className={`upload-quality-step ${showUploadQualityStep && activeSessionSubpage === 'analysis' ? '' : 'is-hidden'}`}>
-            <h3>{t.uploadQualityStepTitle}</h3>
-            <p>{t.uploadQualityStepIntro}</p>
-            <div className="upload-quality-step__actions">
+          {isQualityDetailsPageVisible ? (
+            <section data-testid="upload-quality-step" className="upload-quality-step">
+              <h3>{t.qualityDetailsSidebarTitle}</h3>
+              <p>{t.uploadQualityStepIntro}</p>
+              {renderQualityDetailsContent('quality-page-speed-unit')}
+              <div className="upload-quality-step__actions">
+                <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
+              </div>
+            </section>
+          ) : (
+            <>
+              <h2>{t.summaryTitle}</h2>
+              <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
+              <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
+              <h3>{t.sessionRecalculateHistoryTitle}</h3>
+              {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className={`metrics-list ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
+              <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
+              <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
               <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
-              <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
-            </div>
-          </section>
+            </>
+          )}
 
+          {!isQualityDetailsPageVisible && (
+          <>
           <div className="session-context">
             <h3>{t.sessionContextTitle}</h3>
             <label htmlFor="session-type-selector">{t.sessionTypeLabel}</label>
@@ -3394,24 +3443,6 @@ export function App() {
             </select>
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
-          <ul className="metrics-list">
-            <MetricListItem label={t.metricStartTime} value={selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable} helpText={`${metricHelp.startTime} ${t.metricHelpStartTime}`} />
-            <MetricListItem label={t.metricTrackpoints} value={selectedSession.summary.trackpointCount} helpText={`${metricHelp.trackpoints} ${t.metricHelpTrackpoints}`} />
-            <MetricListItem label={t.metricDistance} value={`${formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — ${distanceSourceText(selectedSession.summary.distanceSource)}`} helpText={`${metricHelp.distance} ${t.metricHelpDistance}`} />
-            <MetricListItem label={t.metricGps} value={selectedSession.summary.hasGpsData ? t.yes : t.no} helpText={`${metricHelp.gps} ${t.metricHelpGps}`} />
-            <MetricListItem label={t.metricDataMode} value={dataAvailabilitySummaryText(selectedSession.summary, t)} helpText={t.metricDataMode} />
-            <MetricListItem label={t.metricDataChange} value={dataChangeMetric} helpText={metricHelp.dataChange} />
-            <MetricListItem label={t.filterSourceLabel} value={selectedSession.selectedSmoothingFilterSource === 'ManualOverride' ? t.filterSourceManualOverride : selectedSession.selectedSmoothingFilterSource === 'ProfileRecalculation' ? t.filterSourceProfileRecalculation : t.filterSourceProfileDefault} />
-            <label htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
-            <select id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
-              <option value="km/h">km/h</option>
-              <option value="m/s">m/s</option>
-              <option value="min/km">min/km</option>
-            </select>
-            <MetricListItem label={t.sessionSpeedUnitSourceLabel} value={selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault} />
-            <MetricListItem label={t.metricSmoothingStrategy} value={selectedSession.summary.smoothing.selectedStrategy} helpText={metricHelp.smoothingStrategy} />
-            <MetricListItem label={t.metricSmoothingOutlier} value={`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`} helpText={metricHelp.smoothingOutlier} />
-          </ul>
           <div className="core-metrics-section">
             <h3>{t.coreMetricsTitle}</h3>
             {!selectedSession.summary.coreMetrics.isAvailable && (
@@ -3609,6 +3640,8 @@ export function App() {
             <p>{t.sessionDeleteWarning}</p>
             <button type="button" className="danger-button" onClick={onDeleteSession}>{t.sessionDeleteButton}</button>
           </div>
+          </>
+          )}
         </section>
       )}
     </main>
