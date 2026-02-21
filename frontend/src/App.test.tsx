@@ -2658,4 +2658,42 @@ describe('App', () => {
     expect(window.location.pathname).toBe('/sessions');
   });
 
+
+  it('R1_6_UXIA_Increment2_upload_from_compare_always_returns_to_analysis_subpage', async () => {
+    const oldSession = createUploadRecord({ id: 'old-session', fileName: 'old-session.tcx' });
+    const compareSession = createUploadRecord({ id: 'compare-session', fileName: 'compare-session.tcx', uploadedAtUtc: '2026-02-16T23:10:00.000Z' });
+    const newUpload = createUploadRecord({ id: 'new-session', fileName: 'new-session.tcx' });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [oldSession, compareSession] } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: false, json: async () => ({}) } as Response);
+      }
+      if (url.endsWith('/tcx/upload')) {
+        return Promise.resolve({ ok: true, json: async () => newUpload } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/old-session/compare'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: { files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'new-session.tcx', { type: 'application/xml' })] }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/sessions/new-session');
+    });
+    expect(screen.getByText('Quality check')).toBeInTheDocument();
+  });
+
 });

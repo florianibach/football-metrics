@@ -2121,6 +2121,7 @@ export function App() {
     applyUpdatedSession(payload);
       setSessionContextForm(payload.sessionContext);
       setActiveSessionIdFromRoute(payload.id);
+      setActiveSessionSubpage('analysis');
       setActiveMainPage('session');
       setIsSessionMenuVisible(true);
     setMessage(t.sessionContextSaveSuccess);
@@ -2288,6 +2289,7 @@ export function App() {
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setSessionContextForm(payload.sessionContext);
       setActiveSessionIdFromRoute(payload.id);
+      setActiveSessionSubpage('analysis');
       setActiveMainPage('session');
       setShowUploadQualityStep(true);
       setIsSessionMenuVisible(true);
@@ -2724,7 +2726,7 @@ export function App() {
         </div>
         <nav className="side-nav__menu" aria-label="Primary navigation">
           <button type="button" className={`side-nav__item ${activeMainPage === 'sessions' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('sessions'); jumpToSection('session-list'); }}>Sessions</button>
-          <button type="button" className={`side-nav__item ${activeMainPage === 'upload' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('upload'); jumpToSection('upload-flow'); }}>Upload area</button>
+          <button type="button" className={`side-nav__item ${activeMainPage === 'upload' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('upload'); setActiveSessionSubpage('analysis'); jumpToSection('upload-flow'); }}>Upload area</button>
           <button type="button" className={`side-nav__item ${activeMainPage === 'profile' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('profile'); jumpToSection('profile-settings'); }}>Profile</button>
         </nav>
         {selectedSession && activeMainPage === "session" && isSessionMenuVisible && (
