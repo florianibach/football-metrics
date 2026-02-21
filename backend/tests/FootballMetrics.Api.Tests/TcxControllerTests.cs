@@ -272,6 +272,32 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
+    public async Task R1_6_UXIA_Increment4_SplitSegment_ShouldCreateTwoContiguousSegments()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "segment-split.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var createUpload = await client.PostAsync("/api/v1/tcx/upload", form);
+        createUpload.StatusCode.Should().Be(HttpStatusCode.Created);
+        var upload = await createUpload.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+
+        var initial = await client.GetFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>($"/api/v1/tcx/{upload!.Id}");
+        initial.Should().NotBeNull();
+        initial!.Segments.Should().ContainSingle();
+
+        var splitResponse = await client.PostAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments/split", new SplitSegmentRequestDto(initial.Segments[0].Id, 1, "Part A", "Part B", "initial split"));
+        splitResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var splitPayload = await splitResponse.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+        splitPayload.Should().NotBeNull();
+        splitPayload!.Segments.Should().HaveCount(2);
+        splitPayload.Segments.Select(segment => segment.StartSecond).Should().BeEquivalentTo(new[] { 0, 1 });
+        splitPayload.SegmentChangeHistory.Last().Action.Should().Be("Split");
+    }
+
+    [Fact]
     public async Task R1_6_03_Ac03_OverlappingSegments_ShouldReturnValidationError()
     {
         var client = _factory.CreateClient();

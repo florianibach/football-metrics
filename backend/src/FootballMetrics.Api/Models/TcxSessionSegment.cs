@@ -11,5 +11,5 @@ public sealed record TcxSegmentChangeEntry(
     int Version,
     DateTime ChangedAtUtc,
     string Action,
-    string? Reason,
+    string? Notes,
     IReadOnlyList<TcxSessionSegment> SegmentsSnapshot);
