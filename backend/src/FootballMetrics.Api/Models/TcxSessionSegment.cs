@@ -5,7 +5,8 @@ public sealed record TcxSessionSegment(
     string Label,
     int StartSecond,
     int EndSecond,
-    string Category);
+    string Category,
+    string? Notes);
 
 public sealed record TcxSegmentChangeEntry(
     int Version,

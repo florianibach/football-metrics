@@ -281,7 +281,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
 
         EnsureNoInvalidOverlap(segments, startSecond, endSecond, null);
 
-        segments.Add(new TcxSessionSegment(Guid.NewGuid(), normalizedLabel, startSecond, endSecond, NormalizeSegmentCategory(category)));
+        segments.Add(new TcxSessionSegment(Guid.NewGuid(), normalizedLabel, startSecond, endSecond, NormalizeSegmentCategory(category), NormalizeOptionalNotes(notes)));
         var nextHistory = AppendSegmentHistory(upload, "Created", notes, segments);
 
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
@@ -311,7 +311,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         ValidateSegmentRange(nextStart, nextEnd);
         EnsureNoInvalidOverlap(segments, nextStart, nextEnd, segmentId);
 
-        segments[index] = existing with { Label = nextLabel, StartSecond = nextStart, EndSecond = nextEnd, Category = NormalizeSegmentCategory(category ?? existing.Category) };
+        segments[index] = existing with { Label = nextLabel, StartSecond = nextStart, EndSecond = nextEnd, Category = NormalizeSegmentCategory(category ?? existing.Category), Notes = string.IsNullOrWhiteSpace(notes) ? existing.Notes : NormalizeOptionalNotes(notes) };
         var nextHistory = AppendSegmentHistory(upload, "Updated", notes, segments);
 
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
@@ -364,7 +364,8 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             string.IsNullOrWhiteSpace(label) ? target.Label : NormalizeSegmentLabel(label),
             Math.Min(source.StartSecond, target.StartSecond),
             Math.Max(source.EndSecond, target.EndSecond),
-            target.Category);
+            target.Category,
+            NormalizeOptionalNotes(notes) ?? target.Notes);
 
         segments.RemoveAll(segment => segment.Id == sourceSegmentId || segment.Id == targetSegmentId);
         EnsureNoInvalidOverlap(segments, merged.StartSecond, merged.EndSecond, null);
@@ -396,8 +397,8 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         }
 
         segments.RemoveAll(segment => segment.Id == segmentId);
-        segments.Add(new TcxSessionSegment(Guid.NewGuid(), string.IsNullOrWhiteSpace(leftLabel) ? $"{segmentToSplit.Label} A" : NormalizeSegmentLabel(leftLabel), segmentToSplit.StartSecond, splitSecond, segmentToSplit.Category));
-        segments.Add(new TcxSessionSegment(Guid.NewGuid(), string.IsNullOrWhiteSpace(rightLabel) ? $"{segmentToSplit.Label} B" : NormalizeSegmentLabel(rightLabel), splitSecond, segmentToSplit.EndSecond, segmentToSplit.Category));
+        segments.Add(new TcxSessionSegment(Guid.NewGuid(), string.IsNullOrWhiteSpace(leftLabel) ? $"{segmentToSplit.Label} A" : NormalizeSegmentLabel(leftLabel), segmentToSplit.StartSecond, splitSecond, segmentToSplit.Category, NormalizeOptionalNotes(notes) ?? segmentToSplit.Notes));
+        segments.Add(new TcxSessionSegment(Guid.NewGuid(), string.IsNullOrWhiteSpace(rightLabel) ? $"{segmentToSplit.Label} B" : NormalizeSegmentLabel(rightLabel), splitSecond, segmentToSplit.EndSecond, segmentToSplit.Category, NormalizeOptionalNotes(notes) ?? segmentToSplit.Notes));
 
         var nextHistory = AppendSegmentHistory(upload, "Split", notes, segments);
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
@@ -537,7 +538,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         var parsed = string.IsNullOrWhiteSpace(upload.SegmentsSnapshotJson)
             ? new List<TcxSessionSegment>()
             : (JsonSerializer.Deserialize<List<TcxSessionSegment>>(upload.SegmentsSnapshotJson) ?? new List<TcxSessionSegment>())
-                .Select(segment => segment with { Category = NormalizeSegmentCategory(segment.Category) })
+                .Select(segment => segment with { Category = NormalizeSegmentCategory(segment.Category), Notes = NormalizeOptionalNotes(segment.Notes) })
                 .ToList();
 
         if (parsed.Count > 0)
@@ -549,7 +550,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         var defaultEnd = Math.Max(2, (int)Math.Round(summary.DurationSeconds ?? 0d));
         return new[]
         {
-            new TcxSessionSegment(CreateDefaultSegmentId(upload.Id), "Gesamte Session", 0, defaultEnd, "Other")
+            new TcxSessionSegment(CreateDefaultSegmentId(upload.Id), "Gesamte Session", 0, defaultEnd, "Other", null)
         };
     }
 
@@ -620,6 +621,9 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         "Athletik",
         "Cooldown"
     };
+
+    private static string? NormalizeOptionalNotes(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static string NormalizeSegmentCategory(string? value)
     {

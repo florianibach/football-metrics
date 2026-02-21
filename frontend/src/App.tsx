@@ -161,6 +161,7 @@ type SessionSegment = {
   category?: SegmentCategory;
   startSecond: number;
   endSecond: number;
+  notes?: string | null;
 };
 
 type SegmentChangeEntry = {
@@ -513,6 +514,15 @@ type TranslationKey =
   | 'segmentSplitAction'
   | 'segmentSplitSuccess'
   | 'segmentValidationSplitSecond'
+  | 'segmentCategoryOther'
+  | 'segmentCategoryWarmup'
+  | 'segmentCategoryGameForm'
+  | 'segmentCategoryFinishing'
+  | 'segmentCategoryAthletics'
+  | 'segmentCategoryCooldown'
+  | 'segmentScopeHint'
+  | 'segmentDerivedMetricsTitle'
+  | 'segmentBackToSessionMetrics'
   | 'sessionRecalculateButton'
   | 'sessionRecalculateSuccess'
   | 'sessionRecalculateProfileInfo'
@@ -871,7 +881,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentSplitRightLabel: 'Right label (optional)',
     segmentSplitAction: 'Split',
     segmentSplitSuccess: 'Segment split.',
-    segmentValidationSplitSecond: 'Split second must be inside the selected segment.'
+    segmentValidationSplitSecond: 'Split second must be inside the selected segment.',
+    segmentCategoryOther: 'Other',
+    segmentCategoryWarmup: 'Warm-up',
+    segmentCategoryGameForm: 'Game form',
+    segmentCategoryFinishing: 'Finishing',
+    segmentCategoryAthletics: 'Athletics',
+    segmentCategoryCooldown: 'Cooldown',
+    segmentScopeHint: 'Segment-focused analysis is active.',
+    segmentDerivedMetricsTitle: 'Segment metrics (time-window based)',
+    segmentBackToSessionMetrics: 'Back to full-session metrics'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -1201,7 +1220,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentSplitRightLabel: 'Rechtes Label (optional)',
     segmentSplitAction: 'Teilen',
     segmentSplitSuccess: 'Segment geteilt.',
-    segmentValidationSplitSecond: 'Die Teilungssekunde muss innerhalb des Segments liegen.'
+    segmentValidationSplitSecond: 'Die Teilungssekunde muss innerhalb des Segments liegen.',
+    segmentCategoryOther: 'Other',
+    segmentCategoryWarmup: 'Aufwärmen',
+    segmentCategoryGameForm: 'Spielform',
+    segmentCategoryFinishing: 'Torschuss',
+    segmentCategoryAthletics: 'Athletik',
+    segmentCategoryCooldown: 'Cooldown',
+    segmentScopeHint: 'Segment-fokussierte Analyse ist aktiv.',
+    segmentDerivedMetricsTitle: 'Segment-Metriken (zeitfensterbasiert)',
+    segmentBackToSessionMetrics: 'Zurück zu Session-Metriken'
   }
 };
 
@@ -1542,7 +1570,8 @@ function resolveDataAvailability(summary: ActivitySummary): DataAvailability {
 function normalizeUploadRecord(record: UploadRecord): UploadRecord {
   const normalizedSegments = (record.segments ?? []).map((segment) => ({
     ...segment,
-    category: (segmentCategoryOptions.find((option) => option === segment.category) ?? 'Other')
+    category: (segmentCategoryOptions.find((option) => option === segment.category) ?? 'Other'),
+    notes: segment.notes ?? null
   }));
 
   const segments = normalizedSegments;
@@ -1627,6 +1656,17 @@ const smoothingFilterOptions: SmoothingFilter[] = ['Raw', 'AdaptiveMedian', 'Sav
 const segmentCategoryOptions = ['Other', 'Aufwärmen', 'Spielform', 'Torschuss', 'Athletik', 'Cooldown'] as const;
 
 type SegmentCategory = typeof segmentCategoryOptions[number];
+
+function segmentCategoryLabel(category: SegmentCategory, t: Record<TranslationKey, string>): string {
+  switch (category) {
+    case 'Aufwärmen': return t.segmentCategoryWarmup;
+    case 'Spielform': return t.segmentCategoryGameForm;
+    case 'Torschuss': return t.segmentCategoryFinishing;
+    case 'Athletik': return t.segmentCategoryAthletics;
+    case 'Cooldown': return t.segmentCategoryCooldown;
+    default: return t.segmentCategoryOther;
+  }
+}
 
 function getFilterLabel(filter: SmoothingFilter, t: Record<TranslationKey, string>): string {
   switch (filter) {
@@ -1762,8 +1802,10 @@ export function App() {
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const [mergeForm, setMergeForm] = useState({ sourceSegmentId: '', targetSegmentId: '', label: '', notes: '' });
   const [splitForm, setSplitForm] = useState({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
+  const [segmentEditorsOpen, setSegmentEditorsOpen] = useState({ edit: false, merge: false, split: false });
   const [segmentActionError, setSegmentActionError] = useState<string | null>(null);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
+  const [analysisScope, setAnalysisScope] = useState<'session' | 'segment'>('session');
   const [profileForm, setProfileForm] = useState<UserProfile>({
     primaryPosition: 'CentralMidfielder',
     secondaryPosition: null,
@@ -2144,6 +2186,7 @@ export function App() {
     setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', notes: '' });
     setSplitForm({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
   }
 
 
@@ -2258,6 +2301,7 @@ export function App() {
     }
 
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
 
     if (!segmentForm.category.trim() || !segmentForm.label.trim() || segmentForm.startSecond.trim() === '' || segmentForm.endSecond.trim() === '') {
       setSegmentActionError(t.segmentValidationRequired);
@@ -2308,6 +2352,7 @@ export function App() {
     applyUpdatedSession(payload);
     resetSegmentForms();
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setMessage(editingSegmentId ? t.segmentUpdateSuccess : t.segmentCreateSuccess);
   }
 
@@ -2318,8 +2363,9 @@ export function App() {
       label: segment.label,
       startSecond: String(segment.startSecond),
       endSecond: String(segment.endSecond),
-      notes: ''
+      notes: segment.notes ?? ''
     });
+    setSegmentEditorsOpen({ edit: true, merge: false, split: false });
     setSplitForm((current) => ({ ...current, segmentId: segment.id }));
   }
 
@@ -2343,6 +2389,7 @@ export function App() {
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setMessage(t.segmentDeleteSuccess);
   }
 
@@ -2352,6 +2399,7 @@ export function App() {
     }
 
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
 
     if (!mergeForm.sourceSegmentId || !mergeForm.targetSegmentId) {
       setSegmentActionError(t.segmentValidationMergeSelection);
@@ -2379,6 +2427,7 @@ export function App() {
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', notes: '' });
     setMessage(t.segmentMergeSuccess);
   }
@@ -2389,6 +2438,7 @@ export function App() {
     }
 
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
 
     if (!splitForm.segmentId || splitForm.splitSecond.trim() === '') {
       setSegmentActionError(t.segmentValidationSplitSecond);
@@ -2423,6 +2473,7 @@ export function App() {
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setSplitForm({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
     setMessage(t.segmentSplitSuccess);
   }
@@ -2852,6 +2903,8 @@ export function App() {
     setAnalysisAccordionState((current) => ({ ...current, [key]: !current[key] }));
   }, []);
 
+  const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
+
   const selectedSessionAggregates = useMemo(() => {
     if (!selectedSession) {
       return [];
@@ -2861,6 +2914,47 @@ export function App() {
       .filter((aggregate) => aggregate.windowMinutes === aggregationWindowMinutes)
       .sort((a, b) => a.windowIndex - b.windowIndex);
   }, [selectedSession, aggregationWindowMinutes]);
+
+  const isSegmentScopeActive = analysisScope === 'segment' && selectedSegment !== null;
+
+  const selectedAnalysisAggregates = useMemo(() => {
+    if (!isSegmentScopeActive || !selectedSegment) {
+      return selectedSessionAggregates;
+    }
+
+    return selectedSessionAggregates.filter((aggregate) => {
+      const windowStart = new Date(aggregate.windowStartUtc).getTime();
+      const activityStart = selectedSession?.summary.activityStartTimeUtc ? new Date(selectedSession.summary.activityStartTimeUtc).getTime() : Number.NaN;
+      if (!Number.isFinite(windowStart) || !Number.isFinite(activityStart)) {
+        return true;
+      }
+
+      const offsetSeconds = (windowStart - activityStart) / 1000;
+      const windowEnd = offsetSeconds + aggregate.windowDurationSeconds;
+      return offsetSeconds < selectedSegment.endSecond && windowEnd > selectedSegment.startSecond;
+    });
+  }, [isSegmentScopeActive, selectedSegment, selectedSessionAggregates, selectedSession?.summary.activityStartTimeUtc]);
+
+  const segmentDerivedMetrics = useMemo(() => {
+    if (!isSegmentScopeActive || !selectedSegment) {
+      return null;
+    }
+
+    const source = selectedAnalysisAggregates;
+    if (source.length === 0) {
+      return null;
+    }
+
+    return {
+      durationSeconds: selectedSegment.endSecond - selectedSegment.startSecond,
+      distanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.distanceMeters ?? 0), 0),
+      sprintDistanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.sprintDistanceMeters ?? 0), 0),
+      sprintCount: source.reduce((sum, item) => sum + (item.coreMetrics.sprintCount ?? 0), 0),
+      highIntensityTimeSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.highIntensityTimeSeconds ?? 0), 0),
+      highIntensityRunCount: source.reduce((sum, item) => sum + (item.coreMetrics.highIntensityRunCount ?? 0), 0),
+      maxSpeedMetersPerSecond: Math.max(...source.map((item) => item.coreMetrics.maxSpeedMetersPerSecond ?? 0))
+    };
+  }, [isSegmentScopeActive, selectedSegment, selectedAnalysisAggregates]);
 
 
   const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
@@ -2928,8 +3022,6 @@ export function App() {
   }, []);
 
 
-  const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
-
   return (
     <div className={`app-shell ${isMobileNavOpen ? 'app-shell--menu-open' : ''}`} data-theme={theme}>
       <aside className={`side-nav ${isMobileNavOpen ? 'side-nav--open' : ''}`}>
@@ -2962,7 +3054,7 @@ export function App() {
         {selectedSession && activeMainPage === "session" && isSessionMenuVisible && (
           <div className="side-nav__session-subpages">
             <p>Session</p>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-analysis', 'analysis')}>{t.sessionSubpageAnalysis}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageAnalysis}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segments' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segments', 'segments')}>{t.sessionSubpageSegments}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segmentEdit' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segment-edit', 'segmentEdit')}>{t.sessionSubpageSegmentEdit}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'compare' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-compare', 'compare')}>{t.sessionSubpageCompare}</button>
@@ -3355,6 +3447,7 @@ export function App() {
                         setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
                         setSessionContextForm(record.sessionContext);
                         setShowUploadQualityStep(false);
+                        setAnalysisScope('session');
                         setActiveSessionSubpage('analysis');
                         setActiveSessionIdFromRoute(record.id);
                         setActiveMainPage('session');
@@ -3471,7 +3564,22 @@ export function App() {
               <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
               <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
               <p><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</p>
-              {selectedSegment && <p><strong>{t.segmentsTitle}:</strong> {selectedSegment.category ?? 'General'} · {selectedSegment.label} ({selectedSegment.startSecond}s-{selectedSegment.endSecond}s)</p>}
+              {selectedSegment && <p><strong>{t.segmentsTitle}:</strong> {segmentCategoryLabel(selectedSegment.category ?? 'Other', t)} · {selectedSegment.label} ({selectedSegment.startSecond}s-{selectedSegment.endSecond}s)</p>}
+              {isSegmentScopeActive && <p><strong>{t.segmentScopeHint}</strong> <button type="button" className="secondary-button" onClick={() => setAnalysisScope('session')}>{t.segmentBackToSessionMetrics}</button></p>}
+              {isSegmentScopeActive && segmentDerivedMetrics && (
+                <div className="analysis-disclosure__content">
+                  <h3>{t.segmentDerivedMetricsTitle}</h3>
+                  <ul className="metrics-list">
+                    <li><strong>{t.metricDuration}:</strong> {formatDuration(segmentDerivedMetrics.durationSeconds, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(segmentDerivedMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(segmentDerivedMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricSprintCount}:</strong> {segmentDerivedMetrics.sprintCount}</li>
+                    <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(segmentDerivedMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricHighIntensityRunCount}:</strong> {segmentDerivedMetrics.highIntensityRunCount}</li>
+                    <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(segmentDerivedMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
+                  </ul>
+                </div>
+              )}
             </>
           )}
 
@@ -3547,12 +3655,12 @@ export function App() {
                 <tbody>
                   {selectedSession.segments.map((segment) => (
                     <tr key={segment.id}>
-                      <td>{segment.category ?? 'Other'}</td>
+                      <td>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
                       <td>{segment.label}</td>
                       <td>{segment.startSecond}</td>
                       <td>{segment.endSecond}</td>
                       <td>
-                        <button type="button" className="secondary-button" onClick={() => { setSelectedSegmentId(segment.id); setActiveSessionSubpage('analysis'); }}>{t.segmentAnalyzeAction}</button>
+                        <button type="button" className="secondary-button" onClick={() => { setSelectedSegmentId(segment.id); setAnalysisScope('segment'); setActiveSessionSubpage('analysis'); }}>{t.segmentAnalyzeAction}</button>
                       </td>
                     </tr>
                   ))}
@@ -3576,21 +3684,28 @@ export function App() {
               <tbody>
                 {selectedSession.segments.map((segment) => (
                   <tr key={`edit-${segment.id}`}>
-                    <td>{segment.category ?? 'Other'}</td>
+                    <td>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
                     <td>{segment.label}</td>
                     <td>{segment.startSecond}</td>
                     <td>{segment.endSecond}</td>
                     <td>
                       <button type="button" className="secondary-button" onClick={() => onEditSegment(segment)}>{t.segmentEdit}</button>
+                      <button type="button" className="secondary-button" onClick={() => { setMergeForm((current) => ({ ...current, sourceSegmentId: segment.id, targetSegmentId: selectedSession.segments.find((candidate) => candidate.id !== segment.id)?.id ?? '' })); setSegmentEditorsOpen({ edit: false, merge: true, split: false }); }}>{t.segmentMergeAction}</button>
+                      <button type="button" className="secondary-button" onClick={() => { const midpoint = Math.floor((segment.startSecond + segment.endSecond) / 2); setSplitForm({ segmentId: segment.id, splitSecond: String(midpoint), leftLabel: '', rightLabel: '', notes: segment.notes ?? '' }); setSegmentEditorsOpen({ edit: false, merge: false, split: true }); }}>{t.segmentSplitAction}</button>
                       <button type="button" onClick={() => onDeleteSegment(segment.id)}>{t.segmentDelete}</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="segment-form">
+            <section className="analysis-disclosure">
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, edit: !current.edit }))} aria-expanded={segmentEditorsOpen.edit}>
+                <span>{t.segmentEdit}</span>
+                <span className="analysis-disclosure__action">{segmentEditorsOpen.edit ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+              </button>
+              {segmentEditorsOpen.edit && <div className="segment-form">
               <label htmlFor="segment-category">{t.segmentCategory}</label>
-              <select id="segment-category" value={segmentForm.category} onChange={(event) => setSegmentForm((current) => ({ ...current, category: event.target.value as SegmentCategory }))}>{segmentCategoryOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
+              <select id="segment-category" value={segmentForm.category} onChange={(event) => setSegmentForm((current) => ({ ...current, category: event.target.value as SegmentCategory }))}>{segmentCategoryOptions.map((option) => <option key={option} value={option}>{segmentCategoryLabel(option, t)}</option>)}</select>
               <label htmlFor="segment-label">{t.segmentLabel}</label>
               <input id="segment-label" value={segmentForm.label} onChange={(event) => setSegmentForm((current) => ({ ...current, label: event.target.value }))} />
               <label htmlFor="segment-start">{t.segmentStartSecond}</label>
@@ -3603,9 +3718,15 @@ export function App() {
                 <button type="button" onClick={onSaveSegment}>{editingSegmentId ? t.segmentUpdate : t.segmentAdd}</button>
                 {editingSegmentId && <button type="button" className="secondary-button" onClick={resetSegmentForms}>{t.segmentCancelEdit}</button>}
               </div>
-            </div>
+            </div>}
+            </section>
 
-            <div className="segment-form">
+            <section className="analysis-disclosure">
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, merge: !current.merge }))} aria-expanded={segmentEditorsOpen.merge}>
+                <span>{t.segmentMergeTitle}</span>
+                <span className="analysis-disclosure__action">{segmentEditorsOpen.merge ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+              </button>
+              {segmentEditorsOpen.merge && <div className="segment-form">
               <h4>{t.segmentMergeTitle}</h4>
               <label htmlFor="merge-source">{t.segmentMergeSource}</label>
               <select id="merge-source" value={mergeForm.sourceSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, sourceSegmentId: event.target.value }))}>
@@ -3622,9 +3743,15 @@ export function App() {
               <label htmlFor="merge-reason">{t.segmentNotes}</label>
               <input id="merge-reason" value={mergeForm.notes} onChange={(event) => setMergeForm((current) => ({ ...current, notes: event.target.value }))} />
               <button type="button" onClick={onMergeSegments}>{t.segmentMergeAction}</button>
-            </div>
+            </div>}
+            </section>
 
-            <div className="segment-form">
+            <section className="analysis-disclosure">
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, split: !current.split }))} aria-expanded={segmentEditorsOpen.split}>
+                <span>{t.segmentSplitTitle}</span>
+                <span className="analysis-disclosure__action">{segmentEditorsOpen.split ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+              </button>
+              {segmentEditorsOpen.split && <div className="segment-form">
               <h4>{t.segmentSplitTitle}</h4>
               <label htmlFor="split-segment">{t.segmentSplitSegment}</label>
               <select id="split-segment" value={splitForm.segmentId} onChange={(event) => setSplitForm((current) => ({ ...current, segmentId: event.target.value }))}>
@@ -3640,14 +3767,15 @@ export function App() {
               <label htmlFor="split-notes">{t.segmentNotes}</label>
               <input id="split-notes" value={splitForm.notes} onChange={(event) => setSplitForm((current) => ({ ...current, notes: event.target.value }))} />
               <button type="button" onClick={onSplitSegment}>{t.segmentSplitAction}</button>
-            </div>
+            </div>}
+            </section>
 
             <h4>{t.segmentHistoryTitle}</h4>
             {selectedSession.segmentChangeHistory.length === 0 ? (
               <p>{t.historyEmpty}</p>
             ) : (
               <ul className="metrics-list">
-                {selectedSession.segmentChangeHistory.map((entry) => (
+                {[...selectedSession.segmentChangeHistory].reverse().map((entry) => (
                   <li key={`${entry.version}-${entry.changedAtUtc}`}>v{entry.version} • {entry.action} • {formatLocalDateTime(entry.changedAtUtc)}{entry.notes ? ` • ${entry.notes}` : ''}</li>
                 ))}
               </ul>
@@ -3716,7 +3844,7 @@ export function App() {
             </select>
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
-          <section className={`core-metrics-section analysis-disclosure analysis-block--core ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+          <section className={`core-metrics-section analysis-disclosure analysis-block--core ${activeSessionSubpage === "analysis" && !isSegmentScopeActive ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('coreMetrics')} aria-expanded={analysisAccordionState.coreMetrics}>
               <span>{t.coreMetricsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.coreMetrics ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -3807,8 +3935,8 @@ export function App() {
               <option value={2}>{t.intervalAggregationWindow2}</option>
               <option value={5}>{t.intervalAggregationWindow5}</option>
             </select>
-            <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedSessionAggregates.length.toString() })}</p>
-            {selectedSessionAggregates.length === 0 ? (
+            <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedAnalysisAggregates.length.toString() })}</p>
+            {selectedAnalysisAggregates.length === 0 ? (
               <p>{t.intervalAggregationNoData}</p>
             ) : (
               <table className="history-table interval-table">
@@ -3820,7 +3948,7 @@ export function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedSessionAggregates.map((aggregate) => (
+                  {selectedAnalysisAggregates.map((aggregate) => (
                     <tr key={`${aggregate.windowMinutes}-${aggregate.windowIndex}`}>
                       <td>{formatLocalDateTime(aggregate.windowStartUtc)}</td>
                       <td>

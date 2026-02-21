@@ -2040,13 +2040,13 @@ describe('App', () => {
     const createdResponse = createUploadRecord({
       id: 'upload-segment',
       segments: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }],
-      segmentChangeHistory: [{ version: 1, changedAtUtc: '2026-02-16T22:10:00.000Z', action: 'Created', reason: 'Initial', segmentsSnapshot: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }] }]
+      segmentChangeHistory: [{ version: 1, changedAtUtc: '2026-02-16T22:10:00.000Z', action: 'Created', notes: 'Initial', segmentsSnapshot: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }] }]
     });
 
     const updatedResponse = createUploadRecord({
       id: 'upload-segment',
       segments: [{ id: 'seg-1', label: 'Activation', startSecond: 0, endSecond: 240 }],
-      segmentChangeHistory: [{ version: 1, changedAtUtc: '2026-02-16T22:10:00.000Z', action: 'Created', reason: 'Initial', segmentsSnapshot: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }] }, { version: 2, changedAtUtc: '2026-02-16T22:20:00.000Z', action: 'Updated', reason: 'Trimmed', segmentsSnapshot: [{ id: 'seg-1', label: 'Activation', startSecond: 0, endSecond: 240 }] }]
+      segmentChangeHistory: [{ version: 1, changedAtUtc: '2026-02-16T22:10:00.000Z', action: 'Created', notes: 'Initial', segmentsSnapshot: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }] }, { version: 2, changedAtUtc: '2026-02-16T22:20:00.000Z', action: 'Updated', notes: 'Trimmed', segmentsSnapshot: [{ id: 'seg-1', label: 'Activation', startSecond: 0, endSecond: 240 }] }]
     });
 
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
@@ -2076,6 +2076,9 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
     await screen.findByText('Session segments');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit segments' }));
+    const editPanelToggle = document.querySelector('#session-segment-edit .analysis-disclosure__toggle') as HTMLButtonElement;
+    fireEvent.click(editPanelToggle);
 
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Warm-up' } });
     fireEvent.change(screen.getByLabelText('Start (s)'), { target: { value: '0' } });
@@ -2128,6 +2131,9 @@ describe('App', () => {
     await screen.findByText('Upload history');
     fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
     await screen.findByText('Session segments');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit segments' }));
+    const editPanelToggle = document.querySelector('#session-segment-edit .analysis-disclosure__toggle') as HTMLButtonElement;
+    fireEvent.click(editPanelToggle);
 
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Overlap' } });
     fireEvent.change(screen.getByLabelText('Start (s)'), { target: { value: '100' } });
@@ -2136,9 +2142,11 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Segments must not overlap.'));
 
+    const mergePanelToggle = document.querySelectorAll('#session-segment-edit .analysis-disclosure__toggle')[1] as HTMLButtonElement;
+    fireEvent.click(mergePanelToggle);
     fireEvent.change(screen.getByLabelText('Source segment'), { target: { value: 'seg-a' } });
     fireEvent.change(screen.getByLabelText('Target segment'), { target: { value: 'seg-b' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Merge' }).at(-1)!);
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Only adjacent segments can be merged.'));
 
