@@ -507,7 +507,9 @@ type TranslationKey =
   | 'profileRecalculationStatusTitle'
   | 'profileRecalculationStatusRunning'
   | 'profileRecalculationStatusCompleted'
-  | 'profileRecalculationStatusFailed';
+  | 'profileRecalculationStatusFailed'
+  | 'sessionProcessingTitle'
+  | 'qualityDetailsWarning';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
 const normalizedApiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, '');
@@ -701,7 +703,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsRunsMapExplanation: 'Sprint runs are red, high-intensity runs are orange. Point size increases in running direction; outlined points mark run endings.',
     hfOnlyInsightTitle: 'HF-only interpretation aid',
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
-    coreMetricsTitle: 'Football core metrics (v1)',
+    coreMetricsTitle: 'Football core metrics',
+    sessionProcessingTitle: 'Processing settings',
+    qualityDetailsWarning: 'Warning: Quality is reduced in at least one channel. Interpret impacted metrics with caution.',
     coreMetricsUnavailable: 'Core metrics unavailable: {reason}',
     metricStateNotMeasured: 'Not measured',
     metricStateNotUsable: 'Measurement unusable',
@@ -1010,7 +1014,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsRunsMapExplanation: 'Sprint-Runs sind rot, High-Intensity-Runs orange. Die Punktgröße steigt mit der Laufrichtung; umrandete Punkte markieren das Run-Ende.',
     hfOnlyInsightTitle: 'Interpretationshilfe für HF-only',
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
-    coreMetricsTitle: 'Fußball-Kernmetriken (v1)',
+    coreMetricsTitle: 'Fußball-Kernmetriken',
+    sessionProcessingTitle: 'Verarbeitungseinstellungen',
+    qualityDetailsWarning: 'Warnung: Die Qualität ist in mindestens einem Kanal reduziert. Betroffene Metriken bitte vorsichtig interpretieren.',
     coreMetricsUnavailable: 'Kernmetriken nicht verfügbar: {reason}',
     metricStateNotMeasured: 'Nicht gemessen',
     metricStateNotUsable: 'Messung unbrauchbar',
@@ -2689,7 +2695,7 @@ export function App() {
 
   const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
 
-  const renderQualityDetailsContent = (speedUnitInputId: string) => {
+  const renderQualityDetailsContent = () => {
     if (!selectedSession) {
       return <p>{t.notAvailable}</p>;
     }
@@ -2713,6 +2719,9 @@ export function App() {
         </ul>
 
         <h4>{t.qualityDetailsSidebarTitle}</h4>
+        {selectedSession.summary.qualityStatus !== 'High' || (selectedDataAvailability.gpsQualityStatus && selectedDataAvailability.gpsQualityStatus !== 'High') || (selectedDataAvailability.heartRateQualityStatus && selectedDataAvailability.heartRateQualityStatus !== 'High') ? (
+          <p className="quality-warning">{t.qualityDetailsWarning}</p>
+        ) : null}
         <ul className="metrics-list">
           <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
           <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
@@ -2727,14 +2736,6 @@ export function App() {
         <ul className="metrics-list">
           <li><strong>{t.metricDataChange}:</strong> {dataChangeMetric}</li>
           <li><strong>{t.filterSourceLabel}:</strong> {selectedFilterSource}</li>
-          <li>
-            <label htmlFor={speedUnitInputId}><strong>{t.sessionSpeedUnitLabel}</strong></label>
-            <select id={speedUnitInputId} value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
-              <option value="km/h">km/h</option>
-              <option value="m/s">m/s</option>
-              <option value="min/km">min/km</option>
-            </select>
-          </li>
           <li><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</li>
           <li><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
           <li><strong>{t.metricSmoothingOutlier}:</strong> {`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`}</li>
@@ -3275,7 +3276,7 @@ export function App() {
           <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(false)}>{t.historyFilterClose}</button>
         </div>
         <div className="history-controls history-controls--sidebar metric-info-sidebar-content">
-          {renderQualityDetailsContent('quality-sidebar-speed-unit')}
+          {renderQualityDetailsContent()}
         </div>
       </aside>
 
@@ -3285,7 +3286,7 @@ export function App() {
             <section data-testid="upload-quality-step" className="upload-quality-step">
               <h3>{t.qualityDetailsSidebarTitle}</h3>
               <p>{t.uploadQualityStepIntro}</p>
-              {renderQualityDetailsContent('quality-page-speed-unit')}
+              {renderQualityDetailsContent()}
               <div className="upload-quality-step__actions">
                 <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
               </div>
@@ -3299,6 +3300,7 @@ export function App() {
               {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className={`metrics-list ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
               <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
               <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
+              <p><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</p>
               <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
             </>
           )}
@@ -3410,6 +3412,17 @@ export function App() {
               </ul>
             )}
           </div>
+
+          <section className={`session-processing-settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+            <h3>{t.sessionProcessingTitle}</h3>
+            <label htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
+            <select id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
+              <option value="km/h">km/h</option>
+              <option value="m/s">m/s</option>
+              <option value="min/km">min/km</option>
+            </select>
+            <p><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</p>
+          </section>
 
           <div className={`comparison-controls ${activeSessionSubpage === "compare" ? "" : "is-hidden"}`}>
             <h3>{t.compareTitle}</h3>

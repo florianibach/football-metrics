@@ -941,7 +941,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument();
+      expect(screen.getByText('Football core metrics')).toBeInTheDocument();
     });
 
     expect(screen.getAllByText(/Sprint distance:/).length).toBeGreaterThan(0);
@@ -1713,7 +1713,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Speed unit'), { target: { value: 'm/s' } });
 
     await waitFor(() => expect(screen.getAllByText(/7\.42 m\/s/).length).toBeGreaterThan(0));
-    expect(screen.getByText('Manual override')).toBeInTheDocument();
+    expect(screen.getAllByText('Manual override').length).toBeGreaterThan(0);
   });
 
 
@@ -1726,7 +1726,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
 
     expect(screen.getByText('External metrics (movement-based)')).toBeInTheDocument();
     expect(screen.getByText('Internal metrics (heart-rate-based)')).toBeInTheDocument();
@@ -1771,7 +1771,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('tab', { name: 'External metrics' }));
     const externalSection = screen.getByText('External metrics (movement-based)').closest('div');
@@ -1817,7 +1817,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('tab', { name: 'External metrics' }));
     const externalSection = screen.getByText('External metrics (movement-based)').closest('div');
@@ -1861,7 +1861,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('tab', { name: 'External metrics' }));
     const externalSection = screen.getByText('External metrics (movement-based)').closest('div') as HTMLElement;
@@ -2534,12 +2534,14 @@ describe('App', () => {
     expect(within(qualityStep).getByText(/Session data/)).toBeInTheDocument();
 
     expect(within(qualityStep).getByText(/Data change due to smoothing:/)).toBeInTheDocument();
+    expect(within(qualityStep).queryByLabelText('Speed unit')).not.toBeInTheDocument();
     expect(screen.queryByText('Session context')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'To session analysis' }));
     await waitFor(() => {
       expect(screen.queryByTestId('upload-quality-step')).not.toBeInTheDocument();
     });
+    expect(screen.getAllByText(/Data mode:/).length).toBeGreaterThan(0);
   });
 
   it('R1_6_UXIA_Increment2_Story2_2_opens_persistent_quality_details_sidebar_in_session_analysis', async () => {
@@ -2572,6 +2574,8 @@ describe('App', () => {
     const qualitySidebar = await screen.findByTestId('quality-details-sidebar');
     expect(within(qualitySidebar).getByRole('heading', { name: 'Quality details', level: 3 })).toBeInTheDocument();
     expect(within(qualitySidebar).getByText(/Data quality:/)).toBeInTheDocument();
+    expect(within(qualitySidebar).getByText(/Warning: Quality is reduced in at least one channel/)).toBeInTheDocument();
+    expect(within(qualitySidebar).queryByLabelText('Speed unit')).not.toBeInTheDocument();
     expect(within(qualitySidebar).getAllByText(/Heart-rate signal has dropouts/).length).toBeGreaterThan(0);
   });
 
