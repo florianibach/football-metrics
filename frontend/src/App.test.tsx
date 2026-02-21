@@ -2368,16 +2368,16 @@ describe('App', () => {
     render(<App />);
 
     await screen.findByText('Session details');
-    await waitFor(() => expect(window.location.pathname).toBe('/session/upload-1'));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Segmente' }));
-    await waitFor(() => expect(window.location.pathname).toBe('/session/upload-1/segments'));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Vergleich' }));
-    await waitFor(() => expect(window.location.pathname).toBe('/session/upload-1/compare'));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/compare'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Analyse' }));
-    await waitFor(() => expect(window.location.pathname).toBe('/session/upload-1'));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
     await waitFor(() => expect(window.location.pathname).toBe('/upload'));
@@ -2386,7 +2386,7 @@ describe('App', () => {
     await waitFor(() => expect(window.location.pathname).toBe('/profile'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
-    await waitFor(() => expect(window.location.pathname).toBe('/'));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions'));
 
     window.history.back();
     window.dispatchEvent(new PopStateEvent('popstate'));
@@ -2418,7 +2418,7 @@ describe('App', () => {
     fireEvent.click(screen.getByText('Football Metrics'));
 
     await waitFor(() => {
-      expect(window.location.pathname).toBe('/');
+      expect(window.location.pathname).toBe('/sessions');
       expect(screen.getByText('Upload history')).toBeInTheDocument();
     });
   });

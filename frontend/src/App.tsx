@@ -1465,7 +1465,16 @@ function resolveRouteFromPath(pathname: string): RouteState {
     return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null };
   }
 
-  const sessionRouteMatch = pathname.match(/^\/session\/([^/]+)(?:\/(segments|compare))?$/);
+  if (pathname === '/') {
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+  }
+
+  if (pathname === '/sessions') {
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+  }
+
+  const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|compare))?$/)
+    ?? pathname.match(/^\/session\/([^/]+)(?:\/(segments|compare))?$/);
   if (sessionRouteMatch) {
     return {
       mainPage: 'session',
@@ -1475,7 +1484,7 @@ function resolveRouteFromPath(pathname: string): RouteState {
   }
 
   if (pathname === '/session') {
-    return { mainPage: 'session', sessionSubpage: 'analysis', sessionId: null };
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
   }
 
   return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
@@ -1492,23 +1501,23 @@ function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, ses
 
   if (mainPage === 'session') {
     if (!sessionId) {
-      return '/session';
+      return '/sessions';
     }
 
     const encodedSessionId = encodeURIComponent(sessionId);
 
     if (sessionSubpage === 'segments') {
-      return `/session/${encodedSessionId}/segments`;
+      return `/sessions/${encodedSessionId}/segments`;
     }
 
     if (sessionSubpage === 'compare') {
-      return `/session/${encodedSessionId}/compare`;
+      return `/sessions/${encodedSessionId}/compare`;
     }
 
-    return `/session/${encodedSessionId}`;
+    return `/sessions/${encodedSessionId}`;
   }
 
-  return '/';
+  return '/sessions';
 }
 
 export function App() {
