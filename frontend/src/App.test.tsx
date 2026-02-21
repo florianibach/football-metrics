@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from './App';
 
 describe('App', () => {
@@ -2444,8 +2444,10 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions'));
 
-    window.history.back();
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    await act(async () => {
+      window.history.back();
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
     await waitFor(() => {
       expect(window.location.pathname).toBe('/profiles');
       expect(screen.getByText('Profile settings')).toBeInTheDocument();
