@@ -103,6 +103,8 @@ Diese Analyse bewertet den aktuellen App-Stand aus UX/UI/IA-Sicht und gleicht ih
 **Ziel:** Finden & Starten beschleunigen, IA-Vorschlag sauber erfüllen.
 
 ### User Story 1.1
+**Status: ✅ Done**
+
 Als Spieler möchte ich Sessions nach **Typ**, **Datum** und **Qualitätsstatus** filtern, damit ich schnell die relevanten Einheiten finde.
 
 **Acceptance Criteria**
@@ -114,6 +116,8 @@ Als Spieler möchte ich Sessions nach **Typ**, **Datum** und **Qualitätsstatus*
 - „Filter zurücksetzen“-Aktion vorhanden.
 
 ### User Story 1.2
+**Status: ✅ Done**
+
 Als Spieler möchte ich die Session-Liste rein zum **Finden/Öffnen** nutzen und den Vergleich erst aus einer geöffneten Session starten, damit der Hauptflow klar bleibt.
 
 **Acceptance Criteria**
@@ -270,3 +274,17 @@ So entsteht zuerst ein spürbarer UX-Gewinn im Hauptflow (finden/uploaden/verste
 - Technik-DoD:
   - Unit-/Integration-Tests für neue Entscheidungslogik (Filter, Baseline, Kompatibilität, Segment-Default).
   - E2E-Smoke für Hauptflow: Session-Liste → Upload → Qualitätsstep → Session → Segmentauswahl → Vergleich.
+
+
+## Increment 7 — Metrik-Infos als Sidebar statt Tooltip
+
+**Ziel:** Erklärungen zu Metriken auf Mobile und Desktop besser lesbar machen.
+
+### User Story 7.1
+Als Spieler möchte ich beim Klick auf das Info-Icon einer Metrik eine Sidebar mit der vollständigen Erklärung öffnen, damit ich längere Hinweise besser lesen kann als in einem Tooltip.
+
+**Acceptance Criteria**
+- Klick auf das Info-Icon öffnet rechts eine Sidebar mit Titel der Metrik und vollständigem Erklärungstext.
+- Die Sidebar hat einen klaren Schließen-Button und lässt sich auch über Overlay-Klick schließen.
+- Tooltip-basierte Erklärung am Info-Icon entfällt für diese Metriken.
+- Verhalten funktioniert auf Desktop und Mobile konsistent.

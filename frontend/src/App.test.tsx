@@ -401,6 +401,55 @@ describe('App', () => {
     expect(screen.getAllByText('medium').length).toBeGreaterThan(0);
   });
 
+
+  it('R1_6_UXIA_Increment1_Story1_1_filters_sessions_by_type_quality_and_date_and_resets', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          id: 'match-high',
+          fileName: 'match-high.tcx',
+          uploadedAtUtc: '2026-02-16T20:00:00.000Z',
+          sessionContext: { sessionType: 'Match', matchResult: null, competition: null, opponentName: null, opponentLogoUrl: null },
+          summary: createSummary({ qualityStatus: 'High', activityStartTimeUtc: '2026-02-16T18:00:00.000Z' })
+        }),
+        createUploadRecord({
+          id: 'training-low',
+          fileName: 'training-low.tcx',
+          uploadedAtUtc: '2026-02-17T20:00:00.000Z',
+          sessionContext: { sessionType: 'Training', matchResult: null, competition: null, opponentName: null, opponentLogoUrl: null },
+          summary: createSummary({ qualityStatus: 'Low', activityStartTimeUtc: '2026-02-17T18:00:00.000Z' })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Upload history')).toBeInTheDocument());
+    expect(screen.getAllByText('match-high.tcx').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('training-low.tcx').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /Filter & sort/ }));
+    expect((screen.getByLabelText('Date from') as HTMLInputElement).value).not.toBe('');
+    expect((screen.getByLabelText('Date to') as HTMLInputElement).value).not.toBe('');
+    fireEvent.change(screen.getByLabelText('Filter by quality status'), { target: { value: 'High' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    expect(screen.getAllByText('match-high.tcx').length).toBeGreaterThan(0);
+    const historySection = document.getElementById('session-list') as HTMLElement;
+    expect(within(historySection).queryByText('training-low.tcx')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Filter & sort/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Match' }));
+    fireEvent.change(screen.getByLabelText('Date from'), { target: { value: '2026-02-16' } });
+    fireEvent.change(screen.getByLabelText('Date to'), { target: { value: '2026-02-16' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    expect(screen.getAllByText('match-high.tcx').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /Filter & sort/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
+    expect(screen.getAllByText('training-low.tcx').length).toBeGreaterThan(0);
+  });
+
   it('Mvp05_Ac03_sorts_history_by_upload_time_with_newest_first_as_default', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
@@ -419,7 +468,9 @@ describe('App', () => {
     const rowsNewestFirst = screen.getAllByRole('row');
     expect(rowsNewestFirst[1]).toHaveTextContent('new.tcx');
 
+    fireEvent.click(screen.getByRole('button', { name: /Filter & sort/ }));
     fireEvent.change(screen.getByLabelText('Sort by upload time'), { target: { value: 'asc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     const rowsOldestFirst = screen.getAllByRole('row');
     expect(rowsOldestFirst[1]).toHaveTextContent('old.tcx');
@@ -1045,13 +1096,17 @@ describe('App', () => {
       expect(screen.getByText('Session details')).toBeInTheDocument();
     });
 
-    const distanceInfo = screen.getAllByRole('note', { name: 'Distance explanation' })[0];
+    const distanceInfo = screen.getAllByRole('button', { name: 'Distance explanation' })[0];
     expect(distanceInfo).toBeInTheDocument();
-    expect(distanceInfo).toHaveAttribute('title', expect.stringContaining('Purpose: quantifies covered ground'));
-    expect(distanceInfo).toHaveAttribute('title', expect.stringContaining('Unit: km and m'));
 
-    const sprintDistanceInfo = screen.getByRole('note', { name: 'Sprint distance explanation' });
-    expect(sprintDistanceInfo).toHaveAttribute('title', expect.stringContaining('Very low values usually mean little sprint exposure'));
+    fireEvent.click(distanceInfo);
+    expect(screen.getByText(/Purpose: quantifies covered ground/)).toBeInTheDocument();
+    expect(screen.getByText(/Unit: km and m/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+    const sprintDistanceInfo = screen.getByRole('button', { name: 'Sprint distance explanation' });
+    fireEvent.click(sprintDistanceInfo);
+    expect(screen.getByText(/Very low values usually mean little sprint exposure/)).toBeInTheDocument();
   });
 
   it('R1_06_Ac03_Ac04_localizes_and_explains_quality_gated_unavailable_metrics', async () => {
@@ -1100,14 +1155,16 @@ describe('App', () => {
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
 
-    const sprintDistanceInfoDe = screen.getByRole('note', { name: 'Anzahl Sprints explanation' });
-    expect(sprintDistanceInfoDe).toHaveAttribute('title', expect.stringContaining('0-2 niedrig, 3-6 mittel, >6 hoch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Anzahl Sprints explanation' }));
+    expect(screen.getByText(/0-2 niedrig, 3-6 mittel, >6 hoch/)).toBeInTheDocument();
 
-    const trimpInfoDe = screen.getByRole('note', { name: 'TRIMP (Edwards) explanation' });
-    expect(trimpInfoDe).toHaveAttribute('title', expect.stringContaining('40-80 mittel'));
+    fireEvent.click(screen.getByRole('button', { name: 'Details schließen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'TRIMP (Edwards) explanation' }));
+    expect(screen.getByText(/40-80 mittel/)).toBeInTheDocument();
 
-    const recoveryInfoDe = screen.getByRole('note', { name: 'HF-Erholung nach 60s explanation' });
-    expect(recoveryInfoDe).toHaveAttribute('title', expect.stringContaining('12-20 mittel, >20 gut'));
+    fireEvent.click(screen.getByRole('button', { name: 'Details schließen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'HF-Erholung nach 60s explanation' }));
+    expect(screen.getByText(/12-20 mittel, >20 gut/)).toBeInTheDocument();
   });
 
 
@@ -1239,29 +1296,32 @@ describe('App', () => {
           id: 'base',
           fileName: 'base-session.tcx',
           uploadedAtUtc: '2026-02-16T20:00:00.000Z',
+          sessionContext: {
+            sessionType: 'Training',
+            matchResult: null,
+            competition: null,
+            opponentName: null,
+            opponentLogoUrl: null
+          },
           summary: createSummary({ qualityStatus: 'High' })
         }),
         createUploadRecord({
           id: 'compare',
           fileName: 'compare-session.tcx',
           uploadedAtUtc: '2026-02-16T21:00:00.000Z',
-          summary: createSummary({
-            qualityStatus: 'Low',
-            durationSeconds: 2100,
-            coreMetrics: {
-              ...baseCoreMetrics(),
-              distanceMeters: 6200,
-              sprintDistanceMeters: 1200,
-              sprintCount: 6,
-              highIntensityTimeSeconds: 420,
-              trainingImpulseEdwards: 95.0
-            }
-          })
+          summary: createSummary({ qualityStatus: 'Low' })
         }),
         createUploadRecord({
           id: 'third',
           fileName: 'third-session.tcx',
           uploadedAtUtc: '2026-02-16T22:00:00.000Z',
+          sessionContext: {
+            sessionType: 'Match',
+            matchResult: null,
+            competition: null,
+            opponentName: null,
+            opponentLogoUrl: null
+          },
           summary: createSummary({ qualityStatus: 'Medium' })
         })
       ]
@@ -1269,32 +1329,26 @@ describe('App', () => {
 
     render(<App />);
 
+    await waitFor(() => expect(screen.getByText('Session details')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
+
     await waitFor(() => expect(screen.getByText('Session comparison')).toBeInTheDocument());
 
-    const compareCheckboxes = screen.getAllByRole('checkbox', { name: /Select for comparison/ });
-    expect(compareCheckboxes.length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByRole('checkbox', { name: 'Select for comparison: base-session.tcx' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Select for comparison: compare-session.tcx' })).toBeChecked();
+    const selector = screen.getByLabelText('Comparison session');
+    expect(within(selector).getByRole('option', { name: /base-session\.tcx \(active session\)/ })).toBeInTheDocument();
+    expect(within(selector).getByRole('option', { name: 'compare-session.tcx' })).toBeInTheDocument();
+    expect(within(selector).queryByRole('option', { name: 'third-session.tcx' })).not.toBeInTheDocument();
 
+    fireEvent.change(selector, { target: { value: 'compare' } });
     expect(screen.getByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).toBeInTheDocument();
-    expect(screen.getByText(/\(baseline\)$/)).toBeInTheDocument();
-    expect(screen.getAllByText(/Delta vs baseline:/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Delta \(%\) vs baseline:/).length).toBeGreaterThan(0);
+    fireEvent.change(selector, { target: { value: 'base' } });
 
-    const baselineSelector = screen.getByLabelText('Baseline session');
-    expect(within(baselineSelector).getByRole('option', { name: 'base-session.tcx' })).toBeInTheDocument();
-    fireEvent.change(baselineSelector, { target: { value: 'compare' } });
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'compare-session.tcx (baseline)' })).toBeInTheDocument());
+    await waitFor(() => {
+      expect(screen.getByRole('columnheader', { name: /base-session\.tcx \(baseline\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: 'base-session.tcx' })).toBeInTheDocument();
+    });
 
-    const comparisonTable = screen.getAllByRole('table')[1];
-    expect(within(comparisonTable).getByText('Distance')).toBeInTheDocument();
-    expect(within(comparisonTable).getByText('Duration')).toBeInTheDocument();
-    expect(within(comparisonTable).getByText('Heart rate avg')).toBeInTheDocument();
-    expect(within(comparisonTable).getByText('Direction changes')).toBeInTheDocument();
-    expect(within(comparisonTable).getByText('TRIMP (Edwards)')).toBeInTheDocument();
-
-    fireEvent.click(compareCheckboxes[1]);
-    await waitFor(() => expect(screen.queryByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).not.toBeInTheDocument());
+    expect(screen.queryByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).not.toBeInTheDocument();
   });
 
 
@@ -1878,12 +1932,14 @@ describe('App', () => {
     expect(screen.getByText(/TRIMP\/min/)).toBeInTheDocument();
     expect(screen.getAllByText(/GPS coordinates were not recorded for this session\./).length).toBeGreaterThan(0);
 
-    const compareCheckboxes = await screen.findAllByRole('checkbox');
-    fireEvent.click(compareCheckboxes[0]);
-    fireEvent.click(compareCheckboxes[1]);
+    fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
+    await screen.findByText('Session comparison');
+    const comparisonSelector = await screen.findByLabelText('Comparison session');
+    fireEvent.change(comparisonSelector, { target: { value: 'upload-dual-2' } });
 
-    expect(await screen.findByText('Data mode')).toBeInTheDocument();
-    expect(screen.getByText('Heart-rate only')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: /dual-2\.tcx/ })).toBeInTheDocument());
+    expect(screen.getAllByText('Data mode').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Heart-rate only').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Dual (GPS + heart rate)').length).toBeGreaterThan(0);
   });
 
@@ -2370,13 +2426,13 @@ describe('App', () => {
     await screen.findByText('Session details');
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Segmente' }));
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Vergleich' }));
+    fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/compare'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Analyse' }));
+    fireEvent.click(screen.getByRole('button', { name: /Analysis|Analyse/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
