@@ -1514,3 +1514,116 @@ input[type='checkbox'] {
 input[type='checkbox']::before {
   box-shadow: inset 1em 1em var(--bs-primary);
 }
+
+/* Increment 1: session filter toolbar polish */
+.history-controls--filters {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  margin-bottom: 1rem;
+}
+
+.history-filter-group {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.history-filter-group label,
+.history-filter-group legend {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+  margin: 0;
+}
+
+.history-filter-group select,
+.history-filter-group input[type='date'] {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.4rem 0.6rem;
+}
+
+.history-filter-group:nth-child(1),
+.history-filter-group:nth-child(2) {
+  grid-column: span 3;
+}
+
+.history-filter-group--types {
+  grid-column: span 4;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem 0.55rem;
+}
+
+.history-filter-checkbox-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+}
+
+.history-filter-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+}
+
+.history-filter-group--date {
+  grid-column: span 1;
+}
+
+.history-filter-group--action {
+  grid-column: span 12;
+  justify-content: end;
+}
+
+.history-filter-reset {
+  min-height: 38px;
+}
+
+@media (max-width: 1024px) {
+  .history-controls--filters {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .history-filter-group:nth-child(1),
+  .history-filter-group:nth-child(2),
+  .history-filter-group--types {
+    grid-column: span 3;
+  }
+
+  .history-filter-group--date {
+    grid-column: span 3;
+  }
+}
+
+@media (max-width: 768px) {
+  .history-controls--filters {
+    grid-template-columns: 1fr;
+    padding: 0.7rem;
+  }
+
+  .history-filter-group,
+  .history-filter-group:nth-child(1),
+  .history-filter-group:nth-child(2),
+  .history-filter-group--types,
+  .history-filter-group--date,
+  .history-filter-group--action {
+    grid-column: 1 / -1;
+  }
+
+  .history-filter-group--action {
+    justify-content: stretch;
+  }
+
+  .history-filter-reset {
+    width: 100%;
+  }
+}

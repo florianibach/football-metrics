@@ -2757,57 +2757,69 @@ export function App() {
 
       <section id="session-list" className={activeMainPage === "sessions" ? "" : "is-hidden"}>
         <h2>{t.historyTitle}</h2>
-        <div className="history-controls">
-          <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
-          <select id="history-sort-selector" value={sortDirection} onChange={(event) => setSortDirection(event.target.value as SortDirection)}>
-            <option value="desc">{t.historySortNewest}</option>
-            <option value="asc">{t.historySortOldest}</option>
-          </select>
+        <div className="history-controls history-controls--filters">
+          <div className="history-filter-group">
+            <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
+            <select id="history-sort-selector" value={sortDirection} onChange={(event) => setSortDirection(event.target.value as SortDirection)}>
+              <option value="desc">{t.historySortNewest}</option>
+              <option value="asc">{t.historySortOldest}</option>
+            </select>
+          </div>
 
-          <label htmlFor="history-quality-filter">{t.historyFilterQualityStatus}</label>
-          <select id="history-quality-filter" value={qualityStatusFilter} onChange={(event) => setQualityStatusFilter(event.target.value as 'All' | ActivitySummary['qualityStatus'])}>
-            <option value="All">{t.historyFilterQualityAll}</option>
-            <option value="High">{qualityStatusText('High', t)}</option>
-            <option value="Medium">{qualityStatusText('Medium', t)}</option>
-            <option value="Low">{qualityStatusText('Low', t)}</option>
-          </select>
+          <div className="history-filter-group">
+            <label htmlFor="history-quality-filter">{t.historyFilterQualityStatus}</label>
+            <select id="history-quality-filter" value={qualityStatusFilter} onChange={(event) => setQualityStatusFilter(event.target.value as 'All' | ActivitySummary['qualityStatus'])}>
+              <option value="All">{t.historyFilterQualityAll}</option>
+              <option value="High">{qualityStatusText('High', t)}</option>
+              <option value="Medium">{qualityStatusText('Medium', t)}</option>
+              <option value="Low">{qualityStatusText('Low', t)}</option>
+            </select>
+          </div>
 
-          <fieldset>
+          <fieldset className="history-filter-group history-filter-group--types">
             <legend>{t.historyFilterSessionType}</legend>
-            {availableSessionTypes.map((sessionType) => (
-              <label key={sessionType}>
-                <input
-                  type="checkbox"
-                  checked={sessionTypeFilters.includes(sessionType)}
-                  onChange={(event) => {
-                    setSessionTypeFilters((current) => event.target.checked
-                      ? [...current, sessionType]
-                      : current.filter((item) => item !== sessionType));
-                  }}
-                />
-                {sessionTypeText(sessionType, t)}
-              </label>
-            ))}
+            <div className="history-filter-checkbox-list">
+              {availableSessionTypes.map((sessionType) => (
+                <label key={sessionType} className="history-filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={sessionTypeFilters.includes(sessionType)}
+                    onChange={(event) => {
+                      setSessionTypeFilters((current) => event.target.checked
+                        ? [...current, sessionType]
+                        : current.filter((item) => item !== sessionType));
+                    }}
+                  />
+                  <span>{sessionTypeText(sessionType, t)}</span>
+                </label>
+              ))}
+            </div>
           </fieldset>
 
-          <label htmlFor="history-date-from">{t.historyFilterDateFrom}</label>
-          <input id="history-date-from" type="date" value={dateFromFilter} onChange={(event) => setDateFromFilter(event.target.value)} />
+          <div className="history-filter-group history-filter-group--date">
+            <label htmlFor="history-date-from">{t.historyFilterDateFrom}</label>
+            <input id="history-date-from" type="date" value={dateFromFilter} onChange={(event) => setDateFromFilter(event.target.value)} />
+          </div>
 
-          <label htmlFor="history-date-to">{t.historyFilterDateTo}</label>
-          <input id="history-date-to" type="date" value={dateToFilter} onChange={(event) => setDateToFilter(event.target.value)} />
+          <div className="history-filter-group history-filter-group--date">
+            <label htmlFor="history-date-to">{t.historyFilterDateTo}</label>
+            <input id="history-date-to" type="date" value={dateToFilter} onChange={(event) => setDateToFilter(event.target.value)} />
+          </div>
 
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => {
-              setSessionTypeFilters([]);
-              setQualityStatusFilter('All');
-              setDateFromFilter('');
-              setDateToFilter('');
-            }}
-          >
-            {t.historyFilterReset}
-          </button>
+          <div className="history-filter-group history-filter-group--action">
+            <button
+              type="button"
+              className="secondary-button history-filter-reset"
+              onClick={() => {
+                setSessionTypeFilters([]);
+                setQualityStatusFilter('All');
+                setDateFromFilter('');
+                setDateToFilter('');
+              }}
+            >
+              {t.historyFilterReset}
+            </button>
+          </div>
         </div>
 
         {filteredHistory.length === 0 ? (
