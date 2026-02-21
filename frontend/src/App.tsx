@@ -509,7 +509,11 @@ type TranslationKey =
   | 'profileRecalculationStatusCompleted'
   | 'profileRecalculationStatusFailed'
   | 'sessionProcessingTitle'
+  | 'analysisSectionExpand'
+  | 'analysisSectionCollapse'
   | 'qualityDetailsWarning';
+
+type AnalysisAccordionKey = 'sessionContext' | 'processingSettings' | 'coreMetrics' | 'intervalAggregation' | 'gpsHeatmap' | 'gpsRunsMap';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
 const normalizedApiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, '');
@@ -705,6 +709,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics',
     sessionProcessingTitle: 'Processing settings',
+    analysisSectionExpand: 'Show section',
+    analysisSectionCollapse: 'Hide section',
     qualityDetailsWarning: 'Warning: Quality is reduced in at least one channel. Interpret impacted metrics with caution.',
     coreMetricsUnavailable: 'Core metrics unavailable: {reason}',
     metricStateNotMeasured: 'Not measured',
@@ -1016,6 +1022,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken',
     sessionProcessingTitle: 'Verarbeitungseinstellungen',
+    analysisSectionExpand: 'Bereich anzeigen',
+    analysisSectionCollapse: 'Bereich ausblenden',
     qualityDetailsWarning: 'Warnung: Die Qualität ist in mindestens einem Kanal reduziert. Betroffene Metriken bitte vorsichtig interpretieren.',
     coreMetricsUnavailable: 'Kernmetriken nicht verfügbar: {reason}',
     metricStateNotMeasured: 'Nicht gemessen',
@@ -1714,6 +1722,19 @@ export function App() {
   const [activeSessionIdFromRoute, setActiveSessionIdFromRoute] = useState<string | null>(initialRoute.sessionId);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [isSessionMenuVisible, setIsSessionMenuVisible] = useState(false);
+  const [analysisAccordionState, setAnalysisAccordionState] = useState<Record<AnalysisAccordionKey, boolean>>(() => {
+    const isMobileViewport = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
+    const expandedByDefault = !isMobileViewport;
+
+    return {
+      sessionContext: expandedByDefault,
+      processingSettings: expandedByDefault,
+      coreMetrics: expandedByDefault,
+      intervalAggregation: expandedByDefault,
+      gpsHeatmap: expandedByDefault,
+      gpsRunsMap: expandedByDefault
+    };
+  });
 
   const t = useMemo(() => {
     const localizedTranslations = translations[locale];
@@ -2682,6 +2703,10 @@ export function App() {
     ? ['Dual', 'GpsOnly'].includes(resolveDataAvailability(selectedSession.summary).mode)
     : false;
 
+  const toggleAnalysisSection = useCallback((key: AnalysisAccordionKey) => {
+    setAnalysisAccordionState((current) => ({ ...current, [key]: !current[key] }));
+  }, []);
+
   const selectedSessionAggregates = useMemo(() => {
     if (!selectedSession) {
       return [];
@@ -3307,8 +3332,13 @@ export function App() {
 
           {!isQualityDetailsPageVisible && (
           <>
-          <div className="session-context">
-            <h3>{t.sessionContextTitle}</h3>
+          <section className="analysis-disclosure">
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionContext')} aria-expanded={analysisAccordionState.sessionContext}>
+              <span>{t.sessionContextTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.sessionContext ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+            </button>
+            {analysisAccordionState.sessionContext && (
+            <div className="session-context">
             <label htmlFor="session-type-selector">{t.sessionTypeLabel}</label>
             <select
               id="session-type-selector"
@@ -3336,6 +3366,8 @@ export function App() {
             )}
             <button type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
           </div>
+            )}
+          </section>
           <div className={`segment-management ${activeSessionSubpage === "segments" ? "" : "is-hidden"}`} id="session-segments">
             <h3>{t.segmentsTitle}</h3>
             {segmentActionError && <p className="segment-error" role="alert">{segmentActionError}</p>}
@@ -3413,8 +3445,13 @@ export function App() {
             )}
           </div>
 
-          <section className={`session-processing-settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <h3>{t.sessionProcessingTitle}</h3>
+          <section className={`session-processing-settings analysis-disclosure ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('processingSettings')} aria-expanded={analysisAccordionState.processingSettings}>
+              <span>{t.sessionProcessingTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.processingSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+            </button>
+            {analysisAccordionState.processingSettings && (
+            <>
             <label htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
             <select id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
               <option value="km/h">km/h</option>
@@ -3422,6 +3459,8 @@ export function App() {
               <option value="min/km">min/km</option>
             </select>
             <p><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</p>
+            </>
+            )}
           </section>
 
           <div className={`comparison-controls ${activeSessionSubpage === "compare" ? "" : "is-hidden"}`}>
@@ -3456,8 +3495,13 @@ export function App() {
             </select>
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
-          <div className="core-metrics-section">
-            <h3>{t.coreMetricsTitle}</h3>
+          <section className="core-metrics-section analysis-disclosure">
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('coreMetrics')} aria-expanded={analysisAccordionState.coreMetrics}>
+              <span>{t.coreMetricsTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.coreMetrics ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+            </button>
+            {analysisAccordionState.coreMetrics && (
+            <>
             {!selectedSession.summary.coreMetrics.isAvailable && (
               <p>{t.coreMetricsUnavailable.replace('{reason}', selectedSession.summary.coreMetrics.unavailableReason ?? t.notAvailable)}</p>
             )}
@@ -3521,9 +3565,16 @@ export function App() {
               <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(selectedSession.summary.coreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
               <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
             </ul>
-          </div>
-          <div className={`interval-aggregation ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <h3>{t.intervalAggregationTitle}</h3>
+            </>
+            )}
+          </section>
+          <section className={`interval-aggregation analysis-disclosure ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('intervalAggregation')} aria-expanded={analysisAccordionState.intervalAggregation}>
+              <span>{t.intervalAggregationTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.intervalAggregation ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+            </button>
+            {analysisAccordionState.intervalAggregation && (
+            <>
             <p>{t.intervalAggregationExplanation}</p>
             <label htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
             <select
@@ -3576,11 +3627,18 @@ export function App() {
                 </tbody>
               </table>
             )}
-          </div>
+            </>
+            )}
+          </section>
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && (
-            <div className="gps-heatmap-section">
-              <h3>{t.gpsHeatmapTitle}</h3>
+            <section className="gps-heatmap-section analysis-disclosure">
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('gpsHeatmap')} aria-expanded={analysisAccordionState.gpsHeatmap}>
+                <span>{t.gpsHeatmapTitle}</span>
+                <span className="analysis-disclosure__action">{analysisAccordionState.gpsHeatmap ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+              </button>
+              {analysisAccordionState.gpsHeatmap && (
+              <>
               <p>{t.gpsHeatmapDescription}</p>
               {heatmapData ? (
                 <GpsPointHeatmap
@@ -3599,12 +3657,19 @@ export function App() {
               ) : (
                 <p>{t.gpsHeatmapNoDataHint}</p>
               )}
-            </div>
+              </>
+              )}
+            </section>
           )}
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && heatmapData && (
-            <div className="gps-heatmap-section">
-              <h3>{t.gpsRunsMapTitle}</h3>
+            <section className="gps-heatmap-section analysis-disclosure">
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('gpsRunsMap')} aria-expanded={analysisAccordionState.gpsRunsMap}>
+                <span>{t.gpsRunsMapTitle}</span>
+                <span className="analysis-disclosure__action">{analysisAccordionState.gpsRunsMap ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+              </button>
+              {analysisAccordionState.gpsRunsMap && (
+              <>
               <p>{t.gpsRunsMapDescription}</p>
               <GpsRunsMap
                 points={heatmapData.points}
@@ -3631,7 +3696,9 @@ export function App() {
                 locale={locale}
                 sessionId={selectedSession.id}
               />
-            </div>
+              </>
+              )}
+            </section>
           )}
 
           {resolveDataAvailability(selectedSession.summary).mode === 'HeartRateOnly' && (
