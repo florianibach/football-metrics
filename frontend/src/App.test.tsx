@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App } from './App';
 
 describe('App', () => {
@@ -249,8 +249,11 @@ describe('App', () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    await screen.findByTestId('upload-quality-step');
+    fireEvent.click(screen.getByRole('button', { name: 'To session analysis' }));
 
-    await waitFor(() => expect(aggregationWindowSelector.value).toBe('5'));
+    const aggregationWindowSelectorAfterUpload = await screen.findByLabelText('Aggregation window') as HTMLSelectElement;
+    await waitFor(() => expect(aggregationWindowSelectorAfterUpload.value).toBe('5'));
 
     const profileSaveCalls = fetchMock.mock.calls.filter(([input, init]) => String(input).endsWith('/profile') && init?.method === 'PUT');
     expect(profileSaveCalls).toHaveLength(0);
@@ -322,6 +325,7 @@ describe('App', () => {
 
     render(<App />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
     expect(screen.getByText('Football Metrics – TCX Upload')).toBeInTheDocument();
     expect(screen.getByText('Maximum file size: 20 MB.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
@@ -365,9 +369,8 @@ describe('App', () => {
       expect(screen.getByText(/Upload successful: session\.tcx at/)).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Session details')).toBeInTheDocument();
-    expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
-    expect(screen.getAllByText(/5.100 km \(5,100(\.0)? m\)/).length).toBeGreaterThan(0);
+    const qualityStep = await screen.findByTestId('upload-quality-step');
+    expect(within(qualityStep).getByRole('heading', { name: 'Quality details', level: 3 })).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalled();
   });
 
@@ -938,7 +941,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument();
+      expect(screen.getByText('Football core metrics')).toBeInTheDocument();
     });
 
     expect(screen.getAllByText(/Sprint distance:/).length).toBeGreaterThan(0);
@@ -1080,7 +1083,7 @@ describe('App', () => {
 
     expect(screen.getByText('Sort by upload time')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
-    expect(screen.getByText(/Data quality:/)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Quality info' }).length).toBeGreaterThan(0);
   });
 
 
@@ -1710,7 +1713,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Speed unit'), { target: { value: 'm/s' } });
 
     await waitFor(() => expect(screen.getAllByText(/7\.42 m\/s/).length).toBeGreaterThan(0));
-    expect(screen.getByText('Manual override')).toBeInTheDocument();
+    expect(screen.getAllByText('Manual override').length).toBeGreaterThan(0);
   });
 
 
@@ -1723,7 +1726,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
 
     expect(screen.getByText('External metrics (movement-based)')).toBeInTheDocument();
     expect(screen.getByText('Internal metrics (heart-rate-based)')).toBeInTheDocument();
@@ -1768,7 +1771,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('tab', { name: 'External metrics' }));
     const externalSection = screen.getByText('External metrics (movement-based)').closest('div');
@@ -1814,7 +1817,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('tab', { name: 'External metrics' }));
     const externalSection = screen.getByText('External metrics (movement-based)').closest('div');
@@ -1858,7 +1861,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics (v1)')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('tab', { name: 'External metrics' }));
     const externalSection = screen.getByText('External metrics (movement-based)').closest('div') as HTMLElement;
@@ -1926,7 +1929,7 @@ describe('App', () => {
 
     expect((await screen.findAllByText('Heart-rate only')).length).toBeGreaterThan(0);
 
-    fireEvent.click((await screen.findAllByRole('button', { name: /Details|Open details/ }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Open details' }))[0]);
 
     expect(await screen.findByText(/HF-only interpretation aid/)).toBeInTheDocument();
     expect(screen.getByText(/TRIMP\/min/)).toBeInTheDocument();
@@ -2021,10 +2024,10 @@ describe('App', () => {
     render(<App />);
     fireEvent.change(await screen.findByLabelText('Language'), { target: { value: 'en' } });
 
-    fireEvent.click((await screen.findAllByRole('button', { name: /Details|Open details/ }))[0]);
-    expect(await screen.findByText(/GPS unusable because quality is Low\. Required: High\./)).toBeInTheDocument();
-    expect(screen.getByText(/measurement unusable \(GPS unusable because quality is Low/)).toBeInTheDocument();
-    expect(screen.getByText(/not measured \(Heart-rate data not present/)).toBeInTheDocument();
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Open details' }))[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Quality info' })[0]);
+    expect((await screen.findAllByText(/GPS unusable because quality is Low\. Required: High\./)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Heart-rate data not present in this session\./).length).toBeGreaterThan(0);
   });
 
   it('R1_6_03_Ac01_Ac02_ui_allows_segment_creation_and_editing', async () => {
@@ -2444,8 +2447,10 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions'));
 
-    window.history.back();
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    await act(async () => {
+      window.history.back();
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
     await waitFor(() => {
       expect(window.location.pathname).toBe('/profiles');
       expect(screen.getByText('Profile settings')).toBeInTheDocument();
@@ -2479,5 +2484,228 @@ describe('App', () => {
     });
   });
 
+
+
+  it('R1_6_UXIA_Increment2_Story2_1_shows_quality_check_step_after_upload_and_allows_continue_to_analysis', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/tcx/upload')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => createUploadRecord({
+            summary: createSummary({
+              qualityStatus: 'Medium',
+              qualityReasons: ['GPS quality is moderate; interpret speed peaks carefully.'],
+              dataAvailability: {
+                mode: 'Dual',
+                gpsStatus: 'AvailableWithWarning',
+                gpsReason: 'GPS jitter detected in parts of the session.',
+                heartRateStatus: 'Available',
+                heartRateReason: null,
+                gpsQualityStatus: 'Medium',
+                heartRateQualityStatus: 'High'
+              }
+            })
+          })
+        } as Response);
+      }
+
+      if (url.endsWith('/tcx')) {
+        return Promise.resolve({ ok: true, json: async () => [] } as Response);
+      }
+
+      if (url.endsWith('/profile')) {
+        return Promise.resolve({ ok: false, json: async () => ({}) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: { files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'increment2.tcx', { type: 'application/xml' })] }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    const qualityStep = await screen.findByTestId('upload-quality-step');
+    expect(within(qualityStep).getByRole('heading', { name: 'Quality details', level: 3 })).toBeInTheDocument();
+    expect(within(qualityStep).getByText(/Session data/)).toBeInTheDocument();
+
+    expect(within(qualityStep).getByText(/Data change due to smoothing:/)).toBeInTheDocument();
+    expect(within(qualityStep).queryByLabelText('Speed unit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Session context')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'To session analysis' }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('upload-quality-step')).not.toBeInTheDocument();
+    });
+    expect(screen.getAllByText(/Data mode:/).length).toBeGreaterThan(0);
+  });
+
+  it('R1_6_UXIA_Increment2_Story2_2_opens_persistent_quality_details_sidebar_in_session_analysis', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          summary: createSummary({
+            qualityStatus: 'Low',
+            qualityReasons: ['Heart-rate signal has dropouts; intensity interpretation is limited.'],
+            dataAvailability: {
+              mode: 'Dual',
+              gpsStatus: 'Available',
+              gpsReason: null,
+              heartRateStatus: 'NotUsable',
+              heartRateReason: 'Heart-rate channel unusable in second half.',
+              gpsQualityStatus: 'High',
+              heartRateQualityStatus: 'Low'
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getAllByRole('button', { name: 'Quality info' })[0]);
+
+    const qualitySidebar = await screen.findByTestId('quality-details-sidebar');
+    expect(within(qualitySidebar).getByRole('heading', { name: 'Quality details', level: 3 })).toBeInTheDocument();
+    expect(within(qualitySidebar).getByText(/Data quality:/)).toBeInTheDocument();
+    expect(within(qualitySidebar).getByText(/Warning: Quality is reduced in at least one channel/)).toBeInTheDocument();
+    expect(within(qualitySidebar).queryByLabelText('Speed unit')).not.toBeInTheDocument();
+    expect(within(qualitySidebar).getAllByText(/Heart-rate signal has dropouts/).length).toBeGreaterThan(0);
+  });
+
+
+  it('R1_6_UXIA_Increment2_allows_deleting_a_session_from_danger_zone', async () => {
+    const first = createUploadRecord({ id: 'delete-me', fileName: 'delete-me.tcx' });
+    const second = createUploadRecord({ id: 'keep-me', fileName: 'keep-me.tcx', uploadedAtUtc: '2026-02-16T23:00:00.000Z' });
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [first, second] } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: false, json: async () => ({}) } as Response);
+      }
+      if (url.endsWith('/tcx/delete-me') && init?.method === 'DELETE') {
+        return Promise.resolve({ ok: true, status: 204, text: async () => '' } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    const sessionList = document.getElementById('session-list') as HTMLElement;
+    const deleteMeRow = within(sessionList).getByText('delete-me.tcx').closest('tr') as HTMLElement;
+    fireEvent.click(within(deleteMeRow).getByRole('button', { name: 'Open details' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete session' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Session deleted successfully.')).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/sessions');
+    });
+    expect(screen.getByText('Upload history')).toBeInTheDocument();
+  });
+
+
+  it('R1_6_UXIA_Increment2_keeps_new_upload_selected_instead_of_switching_back_to_previous_session', async () => {
+    const oldSession = createUploadRecord({ id: 'old-session', fileName: 'old-session.tcx' });
+    const newUpload = createUploadRecord({ id: 'new-session', fileName: 'new-session.tcx' });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [oldSession] } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: false, json: async () => ({}) } as Response);
+      }
+      if (url.endsWith('/tcx/upload')) {
+        return Promise.resolve({ ok: true, json: async () => newUpload } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: { files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'new-session.tcx', { type: 'application/xml' })] }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('new-session.tcx').length).toBeGreaterThan(0);
+      expect(window.location.pathname).toBe('/sessions/new-session');
+    });
+  });
+
+  it('R1_6_UXIA_Increment2_refresh_on_sessions_list_stays_on_sessions_list', async () => {
+    window.history.pushState({}, '', '/sessions');
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord({ id: 'existing', fileName: 'existing.tcx' })] } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: false, json: async () => ({}) } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Upload history');
+    expect(window.location.pathname).toBe('/sessions');
+  });
+
+
+  it('R1_6_UXIA_Increment2_upload_from_compare_always_returns_to_analysis_subpage', async () => {
+    const oldSession = createUploadRecord({ id: 'old-session', fileName: 'old-session.tcx' });
+    const compareSession = createUploadRecord({ id: 'compare-session', fileName: 'compare-session.tcx', uploadedAtUtc: '2026-02-16T23:10:00.000Z' });
+    const newUpload = createUploadRecord({ id: 'new-session', fileName: 'new-session.tcx' });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [oldSession, compareSession] } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: false, json: async () => ({}) } as Response);
+      }
+      if (url.endsWith('/tcx/upload')) {
+        return Promise.resolve({ ok: true, json: async () => newUpload } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/old-session/compare'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: { files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'new-session.tcx', { type: 'application/xml' })] }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/sessions/new-session');
+    });
+    const qualityStep = await screen.findByTestId('upload-quality-step');
+    expect(within(qualityStep).getByRole('heading', { name: 'Quality details', level: 3 })).toBeInTheDocument();
+  });
 
 });

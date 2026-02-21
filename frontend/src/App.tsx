@@ -307,6 +307,12 @@ type TranslationKey =
   | 'sessionContextOpponentLogoUrl'
   | 'sessionContextSave'
   | 'sessionContextSaveSuccess'
+  | 'sessionDangerZoneTitle'
+  | 'sessionDeleteWarning'
+  | 'sessionDeleteButton'
+  | 'sessionDeleteConfirm'
+  | 'sessionDeleteSuccess'
+  | 'sessionDeleteFailed'
   | 'sessionContextOnlyForMatches'
   | 'historySortLabel'
   | 'historySortNewest'
@@ -323,6 +329,15 @@ type TranslationKey =
   | 'historyFilterClose'
   | 'historyFilterDefaultsHint'
   | 'historyOpenDetails'
+  | 'uploadQualityStepTitle'
+  | 'uploadQualityStepIntro'
+  | 'uploadQualityOverall'
+  | 'uploadQualityGps'
+  | 'uploadQualityHeartRate'
+  | 'uploadQualityImpacts'
+  | 'uploadQualityProceedToAnalysis'
+  | 'sessionQualityDetailsButton'
+  | 'qualityDetailsSidebarTitle'
   | 'sessionCompareSelectionTitle'
   | 'sessionCompareSelectionHint'
   | 'sessionCompareSelectSession'
@@ -492,7 +507,9 @@ type TranslationKey =
   | 'profileRecalculationStatusTitle'
   | 'profileRecalculationStatusRunning'
   | 'profileRecalculationStatusCompleted'
-  | 'profileRecalculationStatusFailed';
+  | 'profileRecalculationStatusFailed'
+  | 'sessionProcessingTitle'
+  | 'qualityDetailsWarning';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
 const normalizedApiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, '');
@@ -605,6 +622,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionContextOpponentLogoUrl: 'Opponent logo URL (optional)',
     sessionContextSave: 'Save context',
     sessionContextSaveSuccess: 'Session context saved.',
+    sessionDangerZoneTitle: 'Danger zone',
+    sessionDeleteWarning: 'Deleting a session removes all related analysis data and cannot be undone.',
+    sessionDeleteButton: 'Delete session',
+    sessionDeleteConfirm: 'Do you really want to delete this session? This action cannot be undone.',
+    sessionDeleteSuccess: 'Session deleted successfully.',
+    sessionDeleteFailed: 'Deleting the session failed.',
     sessionContextOnlyForMatches: 'Game context fields are only used for sessions of type Match.',
     historySortLabel: 'Sort by upload time',
     historySortNewest: 'Newest first',
@@ -621,6 +644,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterClose: 'Close',
     historyFilterDefaultsHint: 'Defaults: Newest first, all quality states, all session types, full date range.',
     historyOpenDetails: 'Open details',
+    uploadQualityStepTitle: 'Quality check',
+    uploadQualityStepIntro: 'Review this compact quality summary before jumping into session analysis.',
+    uploadQualityOverall: 'Overall quality',
+    uploadQualityGps: 'GPS channel',
+    uploadQualityHeartRate: 'Heart-rate channel',
+    uploadQualityImpacts: 'Key interpretation impacts',
+    uploadQualityProceedToAnalysis: 'To session analysis',
+    sessionQualityDetailsButton: 'Quality info',
+    qualityDetailsSidebarTitle: 'Quality details',
     sessionCompareSelectionTitle: 'Comparison sessions',
     sessionCompareSelectionHint: 'Select exactly 1 comparison session of the same session type.',
     sessionCompareSelectSession: 'Select session',
@@ -671,7 +703,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsRunsMapExplanation: 'Sprint runs are red, high-intensity runs are orange. Point size increases in running direction; outlined points mark run endings.',
     hfOnlyInsightTitle: 'HF-only interpretation aid',
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
-    coreMetricsTitle: 'Football core metrics (v1)',
+    coreMetricsTitle: 'Football core metrics',
+    sessionProcessingTitle: 'Processing settings',
+    qualityDetailsWarning: 'Warning: Quality is reduced in at least one channel. Interpret impacted metrics with caution.',
     coreMetricsUnavailable: 'Core metrics unavailable: {reason}',
     metricStateNotMeasured: 'Not measured',
     metricStateNotUsable: 'Measurement unusable',
@@ -899,6 +933,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionContextOpponentLogoUrl: 'Gegner-Logo-URL (optional)',
     sessionContextSave: 'Kontext speichern',
     sessionContextSaveSuccess: 'Session-Kontext gespeichert.',
+    sessionDangerZoneTitle: 'Danger Zone',
+    sessionDeleteWarning: 'Das Löschen einer Session entfernt alle zugehörigen Analysedaten und kann nicht rückgängig gemacht werden.',
+    sessionDeleteButton: 'Session löschen',
+    sessionDeleteConfirm: 'Möchtest du diese Session wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+    sessionDeleteSuccess: 'Session erfolgreich gelöscht.',
+    sessionDeleteFailed: 'Session konnte nicht gelöscht werden.',
     sessionContextOnlyForMatches: 'Spielkontext-Felder werden nur für Sessions vom Typ Spiel verwendet.',
     historySortLabel: 'Nach Upload-Zeit sortieren',
     historySortNewest: 'Neueste zuerst',
@@ -915,6 +955,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterClose: 'Schließen',
     historyFilterDefaultsHint: 'Standard: Neueste zuerst, alle Qualitätsstufen, alle Session-Typen, voller Datumsbereich.',
     historyOpenDetails: 'Details öffnen',
+    uploadQualityStepTitle: 'Qualitätscheck',
+    uploadQualityStepIntro: 'Prüfe diese kompakte Qualitätsübersicht, bevor du in die Session-Analyse wechselst.',
+    uploadQualityOverall: 'Gesamtqualität',
+    uploadQualityGps: 'GPS-Kanal',
+    uploadQualityHeartRate: 'Herzfrequenz-Kanal',
+    uploadQualityImpacts: 'Kernauswirkungen auf die Interpretation',
+    uploadQualityProceedToAnalysis: 'Zur Session-Analyse',
+    sessionQualityDetailsButton: 'Qualitätsdetails',
+    qualityDetailsSidebarTitle: 'Qualitätsdetails',
     sessionCompareSelectionTitle: 'Vergleichs-Sessions',
     sessionCompareSelectionHint: 'Wähle genau 1 Vergleichs-Session mit identischem Session-Typ.',
     sessionCompareSelectSession: 'Session auswählen',
@@ -965,7 +1014,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsRunsMapExplanation: 'Sprint-Runs sind rot, High-Intensity-Runs orange. Die Punktgröße steigt mit der Laufrichtung; umrandete Punkte markieren das Run-Ende.',
     hfOnlyInsightTitle: 'Interpretationshilfe für HF-only',
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
-    coreMetricsTitle: 'Fußball-Kernmetriken (v1)',
+    coreMetricsTitle: 'Fußball-Kernmetriken',
+    sessionProcessingTitle: 'Verarbeitungseinstellungen',
+    qualityDetailsWarning: 'Warnung: Die Qualität ist in mindestens einem Kanal reduziert. Betroffene Metriken bitte vorsichtig interpretieren.',
     coreMetricsUnavailable: 'Kernmetriken nicht verfügbar: {reason}',
     metricStateNotMeasured: 'Nicht gemessen',
     metricStateNotUsable: 'Messung unbrauchbar',
@@ -1594,6 +1645,7 @@ function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, ses
 
 export function App() {
   const initialRoute = resolveRouteFromPath(window.location.pathname);
+  const shouldAutoOpenFirstSession = window.location.pathname === '/';
   const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
@@ -1612,6 +1664,8 @@ export function App() {
   const [draftDateToFilter, setDraftDateToFilter] = useState('');
   const [isMetricInfoSidebarOpen, setIsMetricInfoSidebarOpen] = useState(false);
   const [activeMetricInfo, setActiveMetricInfo] = useState<{ label: string; helpText: string } | null>(null);
+  const [isQualityDetailsSidebarOpen, setIsQualityDetailsSidebarOpen] = useState(false);
+  const [showUploadQualityStep, setShowUploadQualityStep] = useState(false);
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -1833,6 +1887,7 @@ export function App() {
     setSelectedFilter(matchedSession.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(matchedSession.sessionContext);
     setIsSessionMenuVisible(true);
+    setShowUploadQualityStep(false);
   }, [activeMainPage, activeSessionIdFromRoute, selectedSession?.id, uploadHistory]);
 
   useEffect(() => {
@@ -1871,18 +1926,35 @@ export function App() {
           }
           const normalizedPayload = payload.map(normalizeUploadRecord);
           setUploadHistory(normalizedPayload);
-          if (normalizedPayload.length > 0) {
-            const initialSession = activeSessionIdFromRoute
-              ? normalizedPayload.find((item) => item.id === activeSessionIdFromRoute) ?? normalizedPayload[0]
-              : normalizedPayload[0];
 
-            setSelectedSession(initialSession);
-            setSelectedFilter(initialSession.summary.smoothing.selectedStrategy as SmoothingFilter);
-            setSessionContextForm(initialSession.sessionContext);
-            setActiveMainPage('session');
+          if (normalizedPayload.length === 0) {
+            if (initialRoute.mainPage === 'session') {
+              setActiveMainPage('sessions');
+            }
+            return;
+          }
+
+          const routeSession = activeSessionIdFromRoute
+            ? normalizedPayload.find((item) => item.id === activeSessionIdFromRoute) ?? null
+            : null;
+
+          const preferredSession = routeSession ?? normalizedPayload[0];
+          setSelectedSession(preferredSession);
+          setSelectedFilter(preferredSession.summary.smoothing.selectedStrategy as SmoothingFilter);
+          setSessionContextForm(preferredSession.sessionContext);
+          setShowUploadQualityStep(false);
+          setCompareOpponentSessionId(normalizedPayload.find((item) => item.id !== preferredSession.id)?.id ?? null);
+
+          if (initialRoute.mainPage === 'session') {
             setIsSessionMenuVisible(true);
-            setActiveSessionIdFromRoute(initialSession.id);
-            setCompareOpponentSessionId(normalizedPayload[1]?.id ?? null);
+            setActiveMainPage('session');
+            setActiveSessionIdFromRoute(preferredSession.id);
+          } else if (initialRoute.mainPage === 'sessions' && shouldAutoOpenFirstSession) {
+            setIsSessionMenuVisible(true);
+            setActiveMainPage('session');
+            setActiveSessionIdFromRoute(preferredSession.id);
+          } else {
+            setIsSessionMenuVisible(false);
           }
         }
       } catch {
@@ -1943,7 +2015,9 @@ export function App() {
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
+    setActiveSessionIdFromRoute(payload.id);
     setActiveMainPage('session');
+    setShowUploadQualityStep(false);
     setIsSessionMenuVisible(true);
   }
 
@@ -2027,6 +2101,7 @@ export function App() {
     applyUpdatedSession(payload);
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
+    setActiveSessionIdFromRoute(payload.id);
     setActiveMainPage('session');
     setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
     setMessage(t.sessionRecalculateSuccess);
@@ -2052,6 +2127,7 @@ export function App() {
     applyUpdatedSession(payload);
       setSessionContextForm(payload.sessionContext);
       setActiveSessionIdFromRoute(payload.id);
+      setActiveSessionSubpage('analysis');
       setActiveMainPage('session');
       setIsSessionMenuVisible(true);
     setMessage(t.sessionContextSaveSuccess);
@@ -2218,7 +2294,10 @@ export function App() {
       setCompareMode('smoothed');
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setSessionContextForm(payload.sessionContext);
+      setActiveSessionIdFromRoute(payload.id);
+      setActiveSessionSubpage('analysis');
       setActiveMainPage('session');
+      setShowUploadQualityStep(true);
       setIsSessionMenuVisible(true);
       setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
@@ -2231,6 +2310,37 @@ export function App() {
     }
   }
 
+
+
+  async function onDeleteSession() {
+    if (!selectedSession) {
+      return;
+    }
+
+    if (!window.confirm(t.sessionDeleteConfirm)) {
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}`, {
+      method: 'DELETE'
+    });
+
+    if (!response.ok) {
+      setMessage(t.sessionDeleteFailed);
+      return;
+    }
+
+    const remainingSessions = uploadHistory.filter((item) => item.id !== selectedSession.id);
+    setUploadHistory(remainingSessions);
+    setSelectedSession(null);
+    setCompareOpponentSessionId(null);
+    setShowUploadQualityStep(false);
+    setActiveSessionSubpage('analysis');
+    setActiveSessionIdFromRoute(null);
+    setActiveMainPage('sessions');
+    setIsSessionMenuVisible(false);
+    setMessage(t.sessionDeleteSuccess);
+  }
 
   async function onThemeSelect(nextTheme: 'light' | 'dark') {
     setTheme(nextTheme);
@@ -2394,6 +2504,15 @@ export function App() {
     : '';
 
   const selectedFilterDescription = t[getFilterDescriptionKey(selectedFilter)];
+
+  const qualityDetails = selectedSession ? resolveDataAvailability(selectedSession.summary) : null;
+  const qualityImpactItems = selectedSession
+    ? [
+      ...selectedSession.summary.qualityReasons,
+      qualityDetails?.gpsReason,
+      qualityDetails?.heartRateReason
+    ].filter((reason, index, items): reason is string => Boolean(reason) && items.indexOf(reason) === index).slice(0, 4)
+    : [];
 
   const displayedMaxSpeedMps = profileForm.metricThresholds.maxSpeedMode === 'Adaptive'
     ? profileForm.metricThresholds.effectiveMaxSpeedMps
@@ -2573,6 +2692,58 @@ export function App() {
       .sort((a, b) => a.windowIndex - b.windowIndex);
   }, [selectedSession, aggregationWindowMinutes]);
 
+
+  const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
+
+  const renderQualityDetailsContent = () => {
+    if (!selectedSession) {
+      return <p>{t.notAvailable}</p>;
+    }
+
+    const selectedDataAvailability = resolveDataAvailability(selectedSession.summary);
+    const selectedFilterSource = selectedSession.selectedSmoothingFilterSource === 'ManualOverride'
+      ? t.filterSourceManualOverride
+      : selectedSession.selectedSmoothingFilterSource === 'ProfileRecalculation'
+        ? t.filterSourceProfileRecalculation
+        : t.filterSourceProfileDefault;
+
+    return (
+      <div className="quality-details-content">
+        <h4>Session data</h4>
+        <ul className="metrics-list">
+          <li><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</li>
+          <li><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount}</li>
+          <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)}</li>
+          <li><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no}</li>
+          <li><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</li>
+        </ul>
+
+        <h4>{t.qualityDetailsSidebarTitle}</h4>
+        {selectedSession.summary.qualityStatus !== 'High' || (selectedDataAvailability.gpsQualityStatus && selectedDataAvailability.gpsQualityStatus !== 'High') || (selectedDataAvailability.heartRateQualityStatus && selectedDataAvailability.heartRateQualityStatus !== 'High') ? (
+          <p className="quality-warning">{t.qualityDetailsWarning}</p>
+        ) : null}
+        <ul className="metrics-list">
+          <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
+          <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
+          <li><strong>{t.metricGpsChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+          <li><strong>{t.metricGpsChannelQualityReasons}:</strong> {(selectedDataAvailability.gpsQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
+          <li><strong>{t.metricHeartRateChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+          <li><strong>{t.metricHeartRateChannelQualityReasons}:</strong> {(selectedDataAvailability.heartRateQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
+          <li><strong>{t.uploadQualityImpacts}:</strong> {qualityImpactItems.length > 0 ? qualityImpactItems.join(' | ') : t.notAvailable}</li>
+        </ul>
+
+        <h4>Processing & profile</h4>
+        <ul className="metrics-list">
+          <li><strong>{t.metricDataChange}:</strong> {dataChangeMetric}</li>
+          <li><strong>{t.filterSourceLabel}:</strong> {selectedFilterSource}</li>
+          <li><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</li>
+          <li><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
+          <li><strong>{t.metricSmoothingOutlier}:</strong> {`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`}</li>
+        </ul>
+      </div>
+    );
+  };
+
   const jumpToSection = useCallback((sectionId: string, sessionSubpage?: SessionSubpage) => {
     if (sessionSubpage) {
       setActiveSessionSubpage(sessionSubpage);
@@ -2613,7 +2784,7 @@ export function App() {
         </div>
         <nav className="side-nav__menu" aria-label="Primary navigation">
           <button type="button" className={`side-nav__item ${activeMainPage === 'sessions' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('sessions'); jumpToSection('session-list'); }}>Sessions</button>
-          <button type="button" className={`side-nav__item ${activeMainPage === 'upload' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('upload'); jumpToSection('upload-flow'); }}>Upload area</button>
+          <button type="button" className={`side-nav__item ${activeMainPage === 'upload' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('upload'); setActiveSessionSubpage('analysis'); jumpToSection('upload-flow'); }}>Upload area</button>
           <button type="button" className={`side-nav__item ${activeMainPage === 'profile' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('profile'); jumpToSection('profile-settings'); }}>Profile</button>
         </nav>
         {selectedSession && activeMainPage === "session" && isSessionMenuVisible && (
@@ -2636,9 +2807,13 @@ export function App() {
           <option value="de">{t.languageGerman}</option>
         </select>
       </div>
-      <h1>{t.title}</h1>
-      <p className="subtitle">{t.subtitle}</p>
-      <p className="subtitle">{t.maxFileSize}</p>
+      {activeMainPage === 'upload' && (
+        <>
+          <h1>{t.title}</h1>
+          <p className="subtitle">{t.subtitle}</p>
+          <p className="subtitle">{t.maxFileSize}</p>
+        </>
+      )}
 
       <section className={`profile-settings ${activeMainPage === "profile" ? "" : "is-hidden"}`} id="profile-settings">
         <h2>{t.profileSettingsTitle}</h2>
@@ -3006,6 +3181,7 @@ export function App() {
                         setCompareMode('smoothed');
                         setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
                         setSessionContextForm(record.sessionContext);
+                        setShowUploadQualityStep(false);
                         setActiveSessionSubpage('analysis');
                         setActiveSessionIdFromRoute(record.id);
                         setActiveMainPage('session');
@@ -3093,14 +3269,44 @@ export function App() {
         </div>
       </aside>
 
+      <div className={`history-filter-overlay ${isQualityDetailsSidebarOpen ? 'is-open' : ''}`} onClick={() => setIsQualityDetailsSidebarOpen(false)} />
+      <aside data-testid="quality-details-sidebar" className={`history-filter-sidebar ${isQualityDetailsSidebarOpen ? 'is-open' : ''}`} aria-label={t.qualityDetailsSidebarTitle}>
+        <div className="history-filter-sidebar__header">
+          <h3>{t.qualityDetailsSidebarTitle}</h3>
+          <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(false)}>{t.historyFilterClose}</button>
+        </div>
+        <div className="history-controls history-controls--sidebar metric-info-sidebar-content">
+          {renderQualityDetailsContent()}
+        </div>
+      </aside>
+
       {selectedSession && (
         <section className={`session-details ${activeMainPage === "session" ? "" : "is-hidden"}`} aria-live="polite" id="session-analysis">
-          <h2>{t.summaryTitle}</h2>
-          <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
-          <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
-          <h3>{t.sessionRecalculateHistoryTitle}</h3>
-          {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className={`metrics-list ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
-          <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
+          {isQualityDetailsPageVisible ? (
+            <section data-testid="upload-quality-step" className="upload-quality-step">
+              <h3>{t.qualityDetailsSidebarTitle}</h3>
+              <p>{t.uploadQualityStepIntro}</p>
+              {renderQualityDetailsContent()}
+              <div className="upload-quality-step__actions">
+                <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
+              </div>
+            </section>
+          ) : (
+            <>
+              <h2>{t.summaryTitle}</h2>
+              <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
+              <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
+              <h3>{t.sessionRecalculateHistoryTitle}</h3>
+              {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className={`metrics-list ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
+              <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
+              <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
+              <p><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</p>
+              <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
+            </>
+          )}
+
+          {!isQualityDetailsPageVisible && (
+          <>
           <div className="session-context">
             <h3>{t.sessionContextTitle}</h3>
             <label htmlFor="session-type-selector">{t.sessionTypeLabel}</label>
@@ -3207,6 +3413,17 @@ export function App() {
             )}
           </div>
 
+          <section className={`session-processing-settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+            <h3>{t.sessionProcessingTitle}</h3>
+            <label htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
+            <select id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
+              <option value="km/h">km/h</option>
+              <option value="m/s">m/s</option>
+              <option value="min/km">min/km</option>
+            </select>
+            <p><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</p>
+          </section>
+
           <div className={`comparison-controls ${activeSessionSubpage === "compare" ? "" : "is-hidden"}`}>
             <h3>{t.compareTitle}</h3>
             <label htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
@@ -3239,30 +3456,6 @@ export function App() {
             </select>
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
-          <ul className="metrics-list">
-            <MetricListItem label={t.metricStartTime} value={selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable} helpText={`${metricHelp.startTime} ${t.metricHelpStartTime}`} />
-            <MetricListItem label={t.metricTrackpoints} value={selectedSession.summary.trackpointCount} helpText={`${metricHelp.trackpoints} ${t.metricHelpTrackpoints}`} />
-            <MetricListItem label={t.metricDistance} value={`${formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — ${distanceSourceText(selectedSession.summary.distanceSource)}`} helpText={`${metricHelp.distance} ${t.metricHelpDistance}`} />
-            <MetricListItem label={t.metricGps} value={selectedSession.summary.hasGpsData ? t.yes : t.no} helpText={`${metricHelp.gps} ${t.metricHelpGps}`} />
-            <MetricListItem label={t.metricQualityStatus} value={qualityStatusText(selectedSession.summary.qualityStatus, t)} helpText={metricHelp.qualityStatus} />
-            <MetricListItem label={t.metricQualityReasons} value={selectedSession.summary.qualityReasons.join(' | ')} helpText={metricHelp.qualityReasons} />
-            <MetricListItem label={t.metricGpsChannelQualityStatus} value={qualityStatusText((resolveDataAvailability(selectedSession.summary).gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)} helpText={metricHelp.qualityStatus} />
-            <MetricListItem label={t.metricGpsChannelQualityReasons} value={(resolveDataAvailability(selectedSession.summary).gpsQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')} helpText={metricHelp.qualityReasons} />
-            <MetricListItem label={t.metricHeartRateChannelQualityStatus} value={qualityStatusText((resolveDataAvailability(selectedSession.summary).heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)} helpText={metricHelp.qualityStatus} />
-            <MetricListItem label={t.metricHeartRateChannelQualityReasons} value={(resolveDataAvailability(selectedSession.summary).heartRateQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')} helpText={metricHelp.qualityReasons} />
-            <MetricListItem label={t.metricDataMode} value={dataAvailabilitySummaryText(selectedSession.summary, t)} helpText={t.metricDataMode} />
-            <MetricListItem label={t.metricDataChange} value={dataChangeMetric} helpText={metricHelp.dataChange} />
-            <MetricListItem label={t.filterSourceLabel} value={selectedSession.selectedSmoothingFilterSource === 'ManualOverride' ? t.filterSourceManualOverride : selectedSession.selectedSmoothingFilterSource === 'ProfileRecalculation' ? t.filterSourceProfileRecalculation : t.filterSourceProfileDefault} />
-            <label htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
-            <select id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
-              <option value="km/h">km/h</option>
-              <option value="m/s">m/s</option>
-              <option value="min/km">min/km</option>
-            </select>
-            <MetricListItem label={t.sessionSpeedUnitSourceLabel} value={selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault} />
-            <MetricListItem label={t.metricSmoothingStrategy} value={selectedSession.summary.smoothing.selectedStrategy} helpText={metricHelp.smoothingStrategy} />
-            <MetricListItem label={t.metricSmoothingOutlier} value={`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`} helpText={metricHelp.smoothingOutlier} />
-          </ul>
           <div className="core-metrics-section">
             <h3>{t.coreMetricsTitle}</h3>
             {!selectedSession.summary.coreMetrics.isAvailable && (
@@ -3453,6 +3646,14 @@ export function App() {
               {showMissingDistanceHint && <p>{t.detailMissingDistanceHint}</p>}
               {showMissingGpsHint && <p>{t.detailMissingGpsHint}</p>}
             </div>
+          )}
+
+          <div className="session-danger-zone">
+            <h3>{t.sessionDangerZoneTitle}</h3>
+            <p>{t.sessionDeleteWarning}</p>
+            <button type="button" className="danger-button" onClick={onDeleteSession}>{t.sessionDeleteButton}</button>
+          </div>
+          </>
           )}
         </section>
       )}

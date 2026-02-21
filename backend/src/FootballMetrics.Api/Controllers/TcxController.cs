@@ -84,6 +84,19 @@ public class TcxController : ControllerBase
         return Ok(uploads.Select(ToResponse).ToList());
     }
 
+
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult> DeleteUpload(Guid id, CancellationToken cancellationToken)
+    {
+        var deleted = await _tcxSessionUseCase.DeleteSessionAsync(id, cancellationToken);
+        if (!deleted)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
+        }
+
+        return NoContent();
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<TcxUploadResponseDto>> GetUpload(Guid id, CancellationToken cancellationToken)
     {
