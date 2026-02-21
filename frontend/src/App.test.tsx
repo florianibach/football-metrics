@@ -2380,10 +2380,10 @@ describe('App', () => {
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
-    await waitFor(() => expect(window.location.pathname).toBe('/upload'));
+    await waitFor(() => expect(window.location.pathname).toBe('/uploads'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Profile' }));
-    await waitFor(() => expect(window.location.pathname).toBe('/profile'));
+    await waitFor(() => expect(window.location.pathname).toBe('/profiles'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions'));
@@ -2391,7 +2391,7 @@ describe('App', () => {
     window.history.back();
     window.dispatchEvent(new PopStateEvent('popstate'));
     await waitFor(() => {
-      expect(window.location.pathname).toBe('/profile');
+      expect(window.location.pathname).toBe('/profiles');
       expect(screen.getByText('Profile settings')).toBeInTheDocument();
     });
   });
@@ -2410,7 +2410,7 @@ describe('App', () => {
       return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
     });
 
-    window.history.pushState({}, '', '/profile');
+    window.history.pushState({}, '', '/profiles');
 
     render(<App />);
 

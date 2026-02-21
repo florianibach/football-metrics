@@ -1457,11 +1457,11 @@ function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
 }
 
 function resolveRouteFromPath(pathname: string): RouteState {
-  if (pathname === '/upload') {
+  if (pathname === '/uploads') {
     return { mainPage: 'upload', sessionSubpage: 'analysis', sessionId: null };
   }
 
-  if (pathname === '/profile') {
+  if (pathname === '/profiles') {
     return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null };
   }
 
@@ -1473,8 +1473,7 @@ function resolveRouteFromPath(pathname: string): RouteState {
     return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
   }
 
-  const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|compare))?$/)
-    ?? pathname.match(/^\/session\/([^/]+)(?:\/(segments|compare))?$/);
+  const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|compare))?$/);
   if (sessionRouteMatch) {
     return {
       mainPage: 'session',
@@ -1483,20 +1482,16 @@ function resolveRouteFromPath(pathname: string): RouteState {
     };
   }
 
-  if (pathname === '/session') {
-    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
-  }
-
   return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
 }
 
 function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, sessionId: string | null): string {
   if (mainPage === 'upload') {
-    return '/upload';
+    return '/uploads';
   }
 
   if (mainPage === 'profile') {
-    return '/profile';
+    return '/profiles';
   }
 
   if (mainPage === 'session') {
