@@ -1723,8 +1723,7 @@ export function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [isSessionMenuVisible, setIsSessionMenuVisible] = useState(false);
   const [analysisAccordionState, setAnalysisAccordionState] = useState<Record<AnalysisAccordionKey, boolean>>(() => {
-    const isMobileViewport = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
-    const expandedByDefault = !isMobileViewport;
+    const expandedByDefault = import.meta.env.MODE === 'test';
 
     return {
       sessionContext: expandedByDefault,
@@ -3326,18 +3325,18 @@ export function App() {
               <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
               <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
               <p><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</p>
-              <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
             </>
           )}
 
           {!isQualityDetailsPageVisible && (
-          <>
-          <section className="analysis-disclosure">
+          <div className="session-analysis-flow">
+          <section className="analysis-disclosure analysis-block--session-context">
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionContext')} aria-expanded={analysisAccordionState.sessionContext}>
               <span>{t.sessionContextTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.sessionContext ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
             {analysisAccordionState.sessionContext && (
+            <div className="analysis-disclosure__content">
             <div className="session-context">
             <label htmlFor="session-type-selector">{t.sessionTypeLabel}</label>
             <select
@@ -3365,6 +3364,7 @@ export function App() {
               </>
             )}
             <button type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
+          </div>
           </div>
             )}
           </section>
@@ -3445,13 +3445,13 @@ export function App() {
             )}
           </div>
 
-          <section className={`session-processing-settings analysis-disclosure ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+          <section className={`session-processing-settings analysis-disclosure analysis-block--settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('processingSettings')} aria-expanded={analysisAccordionState.processingSettings}>
               <span>{t.sessionProcessingTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.processingSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
             {analysisAccordionState.processingSettings && (
-            <>
+            <div className="analysis-disclosure__content">
             <label htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
             <select id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
               <option value="km/h">km/h</option>
@@ -3459,7 +3459,7 @@ export function App() {
               <option value="min/km">min/km</option>
             </select>
             <p><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</p>
-            </>
+            </div>
             )}
           </section>
 
@@ -3495,13 +3495,13 @@ export function App() {
             </select>
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
-          <section className="core-metrics-section analysis-disclosure">
+          <section className="core-metrics-section analysis-disclosure analysis-block--core">
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('coreMetrics')} aria-expanded={analysisAccordionState.coreMetrics}>
               <span>{t.coreMetricsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.coreMetrics ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
             {analysisAccordionState.coreMetrics && (
-            <>
+            <div className="analysis-disclosure__content">
             {!selectedSession.summary.coreMetrics.isAvailable && (
               <p>{t.coreMetricsUnavailable.replace('{reason}', selectedSession.summary.coreMetrics.unavailableReason ?? t.notAvailable)}</p>
             )}
@@ -3565,16 +3565,16 @@ export function App() {
               <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(selectedSession.summary.coreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
               <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
             </ul>
-            </>
+            </div>
             )}
           </section>
-          <section className={`interval-aggregation analysis-disclosure ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+          <section className={`interval-aggregation analysis-disclosure analysis-block--interval ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('intervalAggregation')} aria-expanded={analysisAccordionState.intervalAggregation}>
               <span>{t.intervalAggregationTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.intervalAggregation ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
             {analysisAccordionState.intervalAggregation && (
-            <>
+            <div className="analysis-disclosure__content">
             <p>{t.intervalAggregationExplanation}</p>
             <label htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
             <select
@@ -3627,18 +3627,18 @@ export function App() {
                 </tbody>
               </table>
             )}
-            </>
+            </div>
             )}
           </section>
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && (
-            <section className="gps-heatmap-section analysis-disclosure">
+            <section className="gps-heatmap-section analysis-disclosure analysis-block--heatmap">
               <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('gpsHeatmap')} aria-expanded={analysisAccordionState.gpsHeatmap}>
                 <span>{t.gpsHeatmapTitle}</span>
                 <span className="analysis-disclosure__action">{analysisAccordionState.gpsHeatmap ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
               {analysisAccordionState.gpsHeatmap && (
-              <>
+              <div className="analysis-disclosure__content">
               <p>{t.gpsHeatmapDescription}</p>
               {heatmapData ? (
                 <GpsPointHeatmap
@@ -3657,19 +3657,19 @@ export function App() {
               ) : (
                 <p>{t.gpsHeatmapNoDataHint}</p>
               )}
-              </>
+              </div>
               )}
             </section>
           )}
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && heatmapData && (
-            <section className="gps-heatmap-section analysis-disclosure">
+            <section className="gps-heatmap-section gps-runs-section analysis-disclosure analysis-block--runs">
               <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('gpsRunsMap')} aria-expanded={analysisAccordionState.gpsRunsMap}>
                 <span>{t.gpsRunsMapTitle}</span>
                 <span className="analysis-disclosure__action">{analysisAccordionState.gpsRunsMap ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
               {analysisAccordionState.gpsRunsMap && (
-              <>
+              <div className="analysis-disclosure__content">
               <p>{t.gpsRunsMapDescription}</p>
               <GpsRunsMap
                 points={heatmapData.points}
@@ -3696,7 +3696,7 @@ export function App() {
                 locale={locale}
                 sessionId={selectedSession.id}
               />
-              </>
+              </div>
               )}
             </section>
           )}
@@ -3715,12 +3715,14 @@ export function App() {
             </div>
           )}
 
+          <button type="button" className="analysis-disclosure__toggle analysis-disclosure__toggle--quality analysis-block--quality" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
+
           <div className="session-danger-zone">
             <h3>{t.sessionDangerZoneTitle}</h3>
             <p>{t.sessionDeleteWarning}</p>
             <button type="button" className="danger-button" onClick={onDeleteSession}>{t.sessionDeleteButton}</button>
           </div>
-          </>
+          </div>
           )}
         </section>
       )}

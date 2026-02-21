@@ -153,6 +153,35 @@ button:disabled {
 }
 
 
+
+.session-analysis-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.analysis-block--core { order: 10; }
+.analysis-block--interval { order: 20; }
+.analysis-block--heatmap { order: 30; }
+.analysis-block--runs { order: 40; }
+.analysis-block--session-context { order: 50; }
+.session-analysis-flow .detail-hints { order: 60; }
+.analysis-block--settings { order: 70; }
+.analysis-block--quality { order: 90; }
+.session-analysis-flow .session-danger-zone { order: 100; }
+
+.analysis-disclosure__content {
+  margin-top: 0.55rem;
+  border: 1px solid #eaecf0;
+  border-radius: 10px;
+  background: #fcfcfd;
+  padding: 0.75rem;
+}
+
+.analysis-disclosure__toggle--quality {
+  justify-content: flex-start;
+}
+
 .analysis-disclosure {
   margin: 1rem 0;
 }
@@ -749,6 +778,11 @@ button:focus-visible {
 .app-shell[data-theme='dark'] .analysis-disclosure__toggle {
   background: #1f2937;
   color: #f2f4f7;
+  border-color: #344054;
+}
+
+.app-shell[data-theme='dark'] .analysis-disclosure__content {
+  background: #111827;
   border-color: #344054;
 }
 
