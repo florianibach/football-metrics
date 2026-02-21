@@ -311,8 +311,18 @@ type TranslationKey =
   | 'historySortLabel'
   | 'historySortNewest'
   | 'historySortOldest'
+  | 'historyFilterSessionType'
+  | 'historyFilterQualityStatus'
+  | 'historyFilterDateFrom'
+  | 'historyFilterDateTo'
+  | 'historyFilterReset'
+  | 'historyFilterQualityAll'
   | 'historyOpenDetails'
-  | 'historySelectForComparison'
+  | 'sessionCompareSelectionTitle'
+  | 'sessionCompareSelectionHint'
+  | 'sessionCompareSelectSession'
+  | 'sessionCompareActiveSessionBadge'
+  | 'sessionCompareOnlySameTypeHint'
   | 'sessionCompareTitle'
   | 'sessionCompareHint'
   | 'sessionCompareQualityWarning'
@@ -588,8 +598,18 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historySortLabel: 'Sort by upload time',
     historySortNewest: 'Newest first',
     historySortOldest: 'Oldest first',
+    historyFilterSessionType: 'Filter by session type',
+    historyFilterQualityStatus: 'Filter by quality status',
+    historyFilterDateFrom: 'Date from',
+    historyFilterDateTo: 'Date to',
+    historyFilterReset: 'Reset filters',
+    historyFilterQualityAll: 'All quality states',
     historyOpenDetails: 'Open details',
-    historySelectForComparison: 'Select for comparison',
+    sessionCompareSelectionTitle: 'Comparison sessions',
+    sessionCompareSelectionHint: 'Select up to 4 sessions of the same session type.',
+    sessionCompareSelectSession: 'Select session',
+    sessionCompareActiveSessionBadge: 'active session',
+    sessionCompareOnlySameTypeHint: 'Only sessions of type {sessionType} can be selected for comparison.',
     sessionCompareTitle: 'Session comparison',
     sessionCompareHint: 'Select at least 2 sessions to compare metrics and quality.',
     sessionCompareQualityWarning: 'Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.',
@@ -861,8 +881,18 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historySortLabel: 'Nach Upload-Zeit sortieren',
     historySortNewest: 'Neueste zuerst',
     historySortOldest: 'Älteste zuerst',
+    historyFilterSessionType: 'Nach Session-Typ filtern',
+    historyFilterQualityStatus: 'Nach Qualitätsstatus filtern',
+    historyFilterDateFrom: 'Datum von',
+    historyFilterDateTo: 'Datum bis',
+    historyFilterReset: 'Filter zurücksetzen',
+    historyFilterQualityAll: 'Alle Qualitätsstufen',
     historyOpenDetails: 'Details öffnen',
-    historySelectForComparison: 'Für Vergleich auswählen',
+    sessionCompareSelectionTitle: 'Vergleichs-Sessions',
+    sessionCompareSelectionHint: 'Wähle bis zu 4 Sessions mit identischem Session-Typ.',
+    sessionCompareSelectSession: 'Session auswählen',
+    sessionCompareActiveSessionBadge: 'aktive Session',
+    sessionCompareOnlySameTypeHint: 'Für den Vergleich sind nur Sessions vom Typ {sessionType} auswählbar.',
     sessionCompareTitle: 'Session-Vergleich',
     sessionCompareHint: 'Wähle mindestens 2 Sessions aus, um Metriken und Qualität zu vergleichen.',
     sessionCompareQualityWarning: 'Qualitätswarnung: Die ausgewählten Sessions haben unterschiedliche Datenqualität. Vergleiche die Ergebnisse mit Vorsicht, um Fehlinterpretationen zu vermeiden.',
@@ -1524,6 +1554,10 @@ export function App() {
   const [compareSelectedSessionIds, setCompareSelectedSessionIds] = useState<string[]>([]);
   const [compareBaselineSessionId, setCompareBaselineSessionId] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sessionTypeFilters, setSessionTypeFilters] = useState<SessionType[]>([]);
+  const [qualityStatusFilter, setQualityStatusFilter] = useState<'All' | ActivitySummary['qualityStatus']>('All');
+  const [dateFromFilter, setDateFromFilter] = useState('');
+  const [dateToFilter, setDateToFilter] = useState('');
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -1599,6 +1633,27 @@ export function App() {
     });
   }, [uploadHistory, sortDirection]);
 
+  const filteredHistory = useMemo(() => sortedHistory.filter((record) => {
+    const isSessionTypeMatch = sessionTypeFilters.length === 0 || sessionTypeFilters.includes(record.sessionContext.sessionType);
+    const isQualityMatch = qualityStatusFilter === 'All' || record.summary.qualityStatus === qualityStatusFilter;
+    const activityDate = record.summary.activityStartTimeUtc ? new Date(record.summary.activityStartTimeUtc) : new Date(record.uploadedAtUtc);
+
+    const isAfterDateFrom = dateFromFilter
+      ? activityDate >= new Date(`${dateFromFilter}T00:00:00`)
+      : true;
+    const isBeforeDateTo = dateToFilter
+      ? activityDate <= new Date(`${dateToFilter}T23:59:59.999`)
+      : true;
+
+    return isSessionTypeMatch && isQualityMatch && isAfterDateFrom && isBeforeDateTo;
+  }), [sortedHistory, sessionTypeFilters, qualityStatusFilter, dateFromFilter, dateToFilter]);
+
+  const availableSessionTypes = useMemo(() => {
+    const types = new Set<SessionType>();
+    uploadHistory.forEach((record) => types.add(record.sessionContext.sessionType));
+    return Array.from(types);
+  }, [uploadHistory]);
+
   useEffect(() => {
     const onPopState = () => {
       const route = resolveRouteFromPath(window.location.pathname);
@@ -1632,6 +1687,21 @@ export function App() {
       setActiveSessionIdFromRoute(selectedSession.id);
     }
   }, [selectedSession]);
+
+  useEffect(() => {
+    if (activeMainPage !== 'session' || activeSessionSubpage !== 'compare' || !selectedSession) {
+      return;
+    }
+
+    setCompareBaselineSessionId(selectedSession.id);
+    setCompareSelectedSessionIds((current) => {
+      const sameType = current.filter((id) => {
+        const match = uploadHistory.find((record) => record.id === id);
+        return match?.sessionContext.sessionType === selectedSession.sessionContext.sessionType && id !== selectedSession.id;
+      });
+      return [selectedSession.id, ...sameType].slice(0, 4);
+    });
+  }, [activeMainPage, activeSessionSubpage, selectedSession, uploadHistory]);
 
   useEffect(() => {
     if (activeMainPage !== 'session' || !activeSessionIdFromRoute || uploadHistory.length === 0) {
@@ -2229,8 +2299,12 @@ export function App() {
   const highIntensityThresholdMpsPreview = displayedMaxSpeedMps * (profileForm.metricThresholds.highIntensitySpeedPercentOfMaxSpeed / 100);
   const displayedMaxSpeedByPreferredUnit = convertSpeedFromMetersPerSecond(displayedMaxSpeedMps, profileForm.preferredSpeedUnit);
 
-  const compareCandidates = sortedHistory.filter((record) => compareSelectedSessionIds.includes(record.id));
+  const compareCandidates = uploadHistory.filter((record) => compareSelectedSessionIds.includes(record.id));
   const compareSessions = compareCandidates.slice(0, 4);
+  const activeSessionType = selectedSession?.sessionContext.sessionType ?? null;
+  const compareSelectableSessions = activeSessionType
+    ? sortedHistory.filter((record) => record.sessionContext.sessionType === activeSessionType)
+    : [];
   const compareBaseline = compareSessions.find((session) => session.id === compareBaselineSessionId) ?? compareSessions[0] ?? null;
   const showCompareQualityWarning = compareSessions.length >= 2
     ? new Set(compareSessions.map((record) => record.summary.qualityStatus)).size > 1
@@ -2689,9 +2763,54 @@ export function App() {
             <option value="desc">{t.historySortNewest}</option>
             <option value="asc">{t.historySortOldest}</option>
           </select>
+
+          <label htmlFor="history-quality-filter">{t.historyFilterQualityStatus}</label>
+          <select id="history-quality-filter" value={qualityStatusFilter} onChange={(event) => setQualityStatusFilter(event.target.value as 'All' | ActivitySummary['qualityStatus'])}>
+            <option value="All">{t.historyFilterQualityAll}</option>
+            <option value="High">{qualityStatusText('High', t)}</option>
+            <option value="Medium">{qualityStatusText('Medium', t)}</option>
+            <option value="Low">{qualityStatusText('Low', t)}</option>
+          </select>
+
+          <fieldset>
+            <legend>{t.historyFilterSessionType}</legend>
+            {availableSessionTypes.map((sessionType) => (
+              <label key={sessionType}>
+                <input
+                  type="checkbox"
+                  checked={sessionTypeFilters.includes(sessionType)}
+                  onChange={(event) => {
+                    setSessionTypeFilters((current) => event.target.checked
+                      ? [...current, sessionType]
+                      : current.filter((item) => item !== sessionType));
+                  }}
+                />
+                {sessionTypeText(sessionType, t)}
+              </label>
+            ))}
+          </fieldset>
+
+          <label htmlFor="history-date-from">{t.historyFilterDateFrom}</label>
+          <input id="history-date-from" type="date" value={dateFromFilter} onChange={(event) => setDateFromFilter(event.target.value)} />
+
+          <label htmlFor="history-date-to">{t.historyFilterDateTo}</label>
+          <input id="history-date-to" type="date" value={dateToFilter} onChange={(event) => setDateToFilter(event.target.value)} />
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => {
+              setSessionTypeFilters([]);
+              setQualityStatusFilter('All');
+              setDateFromFilter('');
+              setDateToFilter('');
+            }}
+          >
+            {t.historyFilterReset}
+          </button>
         </div>
 
-        {sortedHistory.length === 0 ? (
+        {filteredHistory.length === 0 ? (
           <p>{t.historyEmpty}</p>
         ) : (
           <table className="history-table">
@@ -2703,12 +2822,11 @@ export function App() {
                 <th>{t.historyColumnQuality}</th>
                 <th>{t.historyColumnSessionType}</th>
                 <th>{t.historyColumnDataMode}</th>
-                <th>{t.historySelectForComparison}</th>
                 <th>{t.historyOpenDetails}</th>
               </tr>
             </thead>
             <tbody>
-              {sortedHistory.map((record) => (
+              {filteredHistory.map((record) => (
                 <tr key={record.id}>
                   <td>{record.fileName}</td>
                   <td>{formatLocalDateTime(record.uploadedAtUtc)}</td>
@@ -2716,22 +2834,6 @@ export function App() {
                   <td>{qualityStatusText(record.summary.qualityStatus, t)}</td>
                   <td>{sessionTypeText(record.sessionContext.sessionType, t)}</td>
                   <td>{dataModeText(resolveDataAvailability(record.summary).mode, t)}</td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      aria-label={`${t.historySelectForComparison}: ${record.fileName}`}
-                      checked={compareSelectedSessionIds.includes(record.id)}
-                      onChange={(event) => {
-                        setCompareSelectedSessionIds((current) => {
-                          if (event.target.checked) {
-                            return [...current, record.id].slice(-4);
-                          }
-
-                          return current.filter((item) => item !== record.id);
-                        });
-                      }}
-                    />
-                  </td>
                   <td>
                     <button
                       type="button"
@@ -2760,6 +2862,41 @@ export function App() {
       <section className={`session-compare ${activeMainPage === "session" && activeSessionSubpage === "compare" ? "" : "is-hidden"}`} aria-live="polite" id="session-compare">
         <h2>{t.sessionCompareTitle}</h2>
         <p>{t.sessionCompareHint}</p>
+        {activeSessionType && (
+          <>
+            <h3>{t.sessionCompareSelectionTitle}</h3>
+            <p>{t.sessionCompareSelectionHint}</p>
+            <p>{interpolate(t.sessionCompareOnlySameTypeHint, { sessionType: sessionTypeText(activeSessionType, t) })}</p>
+            <ul className="metrics-list">
+              {compareSelectableSessions.map((record) => {
+                const isActiveSession = selectedSession?.id === record.id;
+                const isSelected = compareSelectedSessionIds.includes(record.id);
+                return (
+                  <li key={record.id}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        aria-label={`${t.sessionCompareSelectSession}: ${record.fileName}`}
+                        checked={isSelected}
+                        disabled={isActiveSession}
+                        onChange={(event) => {
+                          setCompareSelectedSessionIds((current) => {
+                            if (event.target.checked) {
+                              return [...current, record.id].slice(0, 4);
+                            }
+
+                            return current.filter((item) => item !== record.id);
+                          });
+                        }}
+                      />
+                      {record.fileName} {isActiveSession ? `(${t.sessionCompareActiveSessionBadge})` : ''}
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
         {compareSessions.length >= 2 && (
           <div className="baseline-selector">
             <label htmlFor="comparison-baseline-selector">{t.sessionCompareBaselineLabel}</label>

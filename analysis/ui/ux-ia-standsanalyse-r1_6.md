@@ -103,6 +103,8 @@ Diese Analyse bewertet den aktuellen App-Stand aus UX/UI/IA-Sicht und gleicht ih
 **Ziel:** Finden & Starten beschleunigen, IA-Vorschlag sauber erfüllen.
 
 ### User Story 1.1
+**Status: ✅ Done**
+
 Als Spieler möchte ich Sessions nach **Typ**, **Datum** und **Qualitätsstatus** filtern, damit ich schnell die relevanten Einheiten finde.
 
 **Acceptance Criteria**
@@ -114,6 +116,8 @@ Als Spieler möchte ich Sessions nach **Typ**, **Datum** und **Qualitätsstatus*
 - „Filter zurücksetzen“-Aktion vorhanden.
 
 ### User Story 1.2
+**Status: ✅ Done**
+
 Als Spieler möchte ich die Session-Liste rein zum **Finden/Öffnen** nutzen und den Vergleich erst aus einer geöffneten Session starten, damit der Hauptflow klar bleibt.
 
 **Acceptance Criteria**

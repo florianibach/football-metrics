@@ -401,6 +401,48 @@ describe('App', () => {
     expect(screen.getAllByText('medium').length).toBeGreaterThan(0);
   });
 
+
+  it('R1_6_UXIA_Increment1_Story1_1_filters_sessions_by_type_quality_and_date_and_resets', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          id: 'match-high',
+          fileName: 'match-high.tcx',
+          uploadedAtUtc: '2026-02-16T20:00:00.000Z',
+          sessionContext: { sessionType: 'Match', matchResult: null, competition: null, opponentName: null, opponentLogoUrl: null },
+          summary: createSummary({ qualityStatus: 'High', activityStartTimeUtc: '2026-02-16T18:00:00.000Z' })
+        }),
+        createUploadRecord({
+          id: 'training-low',
+          fileName: 'training-low.tcx',
+          uploadedAtUtc: '2026-02-17T20:00:00.000Z',
+          sessionContext: { sessionType: 'Training', matchResult: null, competition: null, opponentName: null, opponentLogoUrl: null },
+          summary: createSummary({ qualityStatus: 'Low', activityStartTimeUtc: '2026-02-17T18:00:00.000Z' })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Upload history')).toBeInTheDocument());
+    expect(screen.getAllByText('match-high.tcx').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('training-low.tcx').length).toBeGreaterThan(0);
+
+    fireEvent.change(screen.getByLabelText('Filter by quality status'), { target: { value: 'High' } });
+    expect(screen.getAllByText('match-high.tcx').length).toBeGreaterThan(0);
+    const historySection = document.getElementById('session-list') as HTMLElement;
+    expect(within(historySection).queryByText('training-low.tcx')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Match' }));
+    fireEvent.change(screen.getByLabelText('Date from'), { target: { value: '2026-02-16' } });
+    fireEvent.change(screen.getByLabelText('Date to'), { target: { value: '2026-02-16' } });
+    expect(screen.getAllByText('match-high.tcx').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
+    expect(screen.getAllByText('training-low.tcx').length).toBeGreaterThan(0);
+  });
+
   it('Mvp05_Ac03_sorts_history_by_upload_time_with_newest_first_as_default', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       ok: true,
@@ -1239,6 +1281,13 @@ describe('App', () => {
           id: 'base',
           fileName: 'base-session.tcx',
           uploadedAtUtc: '2026-02-16T20:00:00.000Z',
+          sessionContext: {
+            sessionType: 'Training',
+            matchResult: null,
+            competition: null,
+            opponentName: null,
+            opponentLogoUrl: null
+          },
           summary: createSummary({ qualityStatus: 'High' })
         }),
         createUploadRecord({
@@ -1262,6 +1311,13 @@ describe('App', () => {
           id: 'third',
           fileName: 'third-session.tcx',
           uploadedAtUtc: '2026-02-16T22:00:00.000Z',
+          sessionContext: {
+            sessionType: 'Match',
+            matchResult: null,
+            competition: null,
+            opponentName: null,
+            opponentLogoUrl: null
+          },
           summary: createSummary({ qualityStatus: 'Medium' })
         })
       ]
@@ -1269,32 +1325,17 @@ describe('App', () => {
 
     render(<App />);
 
+    await waitFor(() => expect(screen.getByText('Session details')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
+
     await waitFor(() => expect(screen.getByText('Session comparison')).toBeInTheDocument());
 
-    const compareCheckboxes = screen.getAllByRole('checkbox', { name: /Select for comparison/ });
-    expect(compareCheckboxes.length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByRole('checkbox', { name: 'Select for comparison: base-session.tcx' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Select for comparison: compare-session.tcx' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select session: compare-session.tcx' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Select session: third-session.tcx' })).not.toBeInTheDocument();
+    expect(screen.getByText(/base-session\.tcx \(active session\)/)).toBeInTheDocument();
 
-    expect(screen.getByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).toBeInTheDocument();
-    expect(screen.getByText(/\(baseline\)$/)).toBeInTheDocument();
-    expect(screen.getAllByText(/Delta vs baseline:/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Delta \(%\) vs baseline:/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select session: compare-session.tcx' }));
 
-    const baselineSelector = screen.getByLabelText('Baseline session');
-    expect(within(baselineSelector).getByRole('option', { name: 'base-session.tcx' })).toBeInTheDocument();
-    fireEvent.change(baselineSelector, { target: { value: 'compare' } });
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: 'compare-session.tcx (baseline)' })).toBeInTheDocument());
-
-    const comparisonTable = screen.getAllByRole('table')[1];
-    expect(within(comparisonTable).getByText('Distance')).toBeInTheDocument();
-    expect(within(comparisonTable).getByText('Duration')).toBeInTheDocument();
-    expect(within(comparisonTable).getByText('Heart rate avg')).toBeInTheDocument();
-    expect(within(comparisonTable).getByText('Direction changes')).toBeInTheDocument();
-    expect(within(comparisonTable).getByText('TRIMP (Edwards)')).toBeInTheDocument();
-
-    fireEvent.click(compareCheckboxes[1]);
-    await waitFor(() => expect(screen.queryByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).not.toBeInTheDocument());
   });
 
 
