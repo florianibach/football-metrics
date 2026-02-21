@@ -321,6 +321,7 @@ type TranslationKey =
   | 'historyFilterSidebarTitle'
   | 'historyFilterApply'
   | 'historyFilterClose'
+  | 'historyFilterDefaultsHint'
   | 'historyOpenDetails'
   | 'sessionCompareSelectionTitle'
   | 'sessionCompareSelectionHint'
@@ -615,6 +616,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterSidebarTitle: 'Filter & sort',
     historyFilterApply: 'Search',
     historyFilterClose: 'Close',
+    historyFilterDefaultsHint: 'Defaults: Newest first, all quality states, all session types, full date range.',
     historyOpenDetails: 'Open details',
     sessionCompareSelectionTitle: 'Comparison sessions',
     sessionCompareSelectionHint: 'Select exactly 1 comparison session of the same session type.',
@@ -905,6 +907,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterSidebarTitle: 'Filtern & Sortieren',
     historyFilterApply: 'Suchen',
     historyFilterClose: 'Schließen',
+    historyFilterDefaultsHint: 'Standard: Neueste zuerst, alle Qualitätsstufen, alle Session-Typen, voller Datumsbereich.',
     historyOpenDetails: 'Details öffnen',
     sessionCompareSelectionTitle: 'Vergleichs-Sessions',
     sessionCompareSelectionHint: 'Wähle genau 1 Vergleichs-Session mit identischem Session-Typ.',
@@ -1204,6 +1207,10 @@ function resolveInitialLocale(): Locale {
 
 function formatLocalDateTime(dateText: string): string {
   return new Date(dateText).toLocaleString();
+}
+
+function toDateInputValue(date: Date): string {
+  return date.toISOString().slice(0, 10);
 }
 
 function formatDuration(durationSeconds: number | null, locale: Locale, notAvailable: string): string {
@@ -1671,6 +1678,20 @@ export function App() {
     });
   }, [uploadHistory, sortDirection]);
 
+  const defaultDateBounds = useMemo(() => {
+    if (uploadHistory.length === 0) {
+      return { from: '', to: '' };
+    }
+
+    const timestamps = uploadHistory.map((record) => new Date(record.summary.activityStartTimeUtc ?? record.uploadedAtUtc).getTime());
+    const minTimestamp = Math.min(...timestamps);
+    const maxTimestamp = Math.max(...timestamps);
+    return {
+      from: toDateInputValue(new Date(minTimestamp)),
+      to: toDateInputValue(new Date(maxTimestamp))
+    };
+  }, [uploadHistory]);
+
   const filteredHistory = useMemo(() => sortedHistory.filter((record) => {
     const isSessionTypeMatch = sessionTypeFilters.length === 0 || sessionTypeFilters.includes(record.sessionContext.sessionType);
     const isQualityMatch = qualityStatusFilter === 'All' || record.summary.qualityStatus === qualityStatusFilter;
@@ -1695,8 +1716,8 @@ export function App() {
   const activeHistoryFilterCount =
     (sessionTypeFilters.length > 0 ? 1 : 0)
     + (qualityStatusFilter !== 'All' ? 1 : 0)
-    + (dateFromFilter ? 1 : 0)
-    + (dateToFilter ? 1 : 0)
+    + (dateFromFilter && dateFromFilter !== defaultDateBounds.from ? 1 : 0)
+    + (dateToFilter && dateToFilter !== defaultDateBounds.to ? 1 : 0)
     + (sortDirection !== 'desc' ? 1 : 0);
 
   useEffect(() => {
@@ -1722,6 +1743,17 @@ export function App() {
     setDraftDateFromFilter(dateFromFilter);
     setDraftDateToFilter(dateToFilter);
   }, [isHistoryFilterSidebarOpen, sortDirection, sessionTypeFilters, qualityStatusFilter, dateFromFilter, dateToFilter]);
+
+  useEffect(() => {
+    if (!defaultDateBounds.from || !defaultDateBounds.to) {
+      return;
+    }
+
+    setDateFromFilter((current) => current || defaultDateBounds.from);
+    setDateToFilter((current) => current || defaultDateBounds.to);
+    setDraftDateFromFilter((current) => current || defaultDateBounds.from);
+    setDraftDateToFilter((current) => current || defaultDateBounds.to);
+  }, [defaultDateBounds]);
 
   useEffect(() => {
     const onOpenMetricHelp = (event: Event) => {
@@ -2831,6 +2863,7 @@ export function App() {
           </div>
 
           <div className="history-controls history-controls--filters history-controls--sidebar">
+            <p className="history-filter-defaults">{t.historyFilterDefaultsHint}</p>
             <div className="history-filter-group">
               <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
               <select id="history-sort-selector" value={draftSortDirection} onChange={(event) => setDraftSortDirection(event.target.value as SortDirection)}>
@@ -2871,12 +2904,12 @@ export function App() {
 
             <div className="history-filter-group history-filter-group--date">
               <label htmlFor="history-date-from">{t.historyFilterDateFrom}</label>
-              <input id="history-date-from" type="date" value={draftDateFromFilter} onChange={(event) => setDraftDateFromFilter(event.target.value)} />
+              <input id="history-date-from" type="date" value={draftDateFromFilter} onFocus={(event) => event.currentTarget.showPicker?.()} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setDraftDateFromFilter(event.target.value)} />
             </div>
 
             <div className="history-filter-group history-filter-group--date">
               <label htmlFor="history-date-to">{t.historyFilterDateTo}</label>
-              <input id="history-date-to" type="date" value={draftDateToFilter} onChange={(event) => setDraftDateToFilter(event.target.value)} />
+              <input id="history-date-to" type="date" value={draftDateToFilter} onFocus={(event) => event.currentTarget.showPicker?.()} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setDraftDateToFilter(event.target.value)} />
             </div>
 
             <div className="history-filter-group history-filter-group--action">
@@ -2887,13 +2920,13 @@ export function App() {
                   setDraftSortDirection('desc');
                   setDraftSessionTypeFilters([]);
                   setDraftQualityStatusFilter('All');
-                  setDraftDateFromFilter('');
-                  setDraftDateToFilter('');
+                  setDraftDateFromFilter(defaultDateBounds.from);
+                  setDraftDateToFilter(defaultDateBounds.to);
                   setSortDirection('desc');
                   setSessionTypeFilters([]);
                   setQualityStatusFilter('All');
-                  setDateFromFilter('');
-                  setDateToFilter('');
+                  setDateFromFilter(defaultDateBounds.from);
+                  setDateToFilter(defaultDateBounds.to);
                   setIsHistoryFilterSidebarOpen(false);
                 }}
               >
@@ -2978,9 +3011,10 @@ export function App() {
             <select
               id="comparison-session-selector"
               value={compareOpponentSessionId ?? ''}
-              onChange={(event) => setCompareOpponentSessionId(event.target.value || null)}
+              onChange={(event) => setCompareOpponentSessionId(event.target.value && event.target.value !== selectedSession.id ? event.target.value : null)}
             >
               <option value="">{t.sessionCompareSelectSession}</option>
+              <option value={selectedSession.id} disabled>{selectedSession.fileName} ({t.sessionCompareActiveSessionBadge})</option>
               {compareSelectableSessions.map((record) => (
                 <option key={record.id} value={record.id}>{record.fileName}</option>
               ))}
@@ -3031,7 +3065,7 @@ export function App() {
           <h3>{activeMetricInfo?.label ?? t.metricInfoSidebarTitle}</h3>
           <button type="button" className="secondary-button" onClick={() => setIsMetricInfoSidebarOpen(false)}>{t.metricInfoSidebarClose}</button>
         </div>
-        <div className="history-controls history-controls--sidebar">
+        <div className="history-controls history-controls--sidebar metric-info-sidebar-content">
           <p>{activeMetricInfo?.helpText ?? t.notAvailable}</p>
         </div>
       </aside>

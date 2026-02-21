@@ -430,6 +430,8 @@ describe('App', () => {
     expect(screen.getAllByText('training-low.tcx').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: /Filter & sort/ }));
+    expect((screen.getByLabelText('Date from') as HTMLInputElement).value).not.toBe('');
+    expect((screen.getByLabelText('Date to') as HTMLInputElement).value).not.toBe('');
     fireEvent.change(screen.getByLabelText('Filter by quality status'), { target: { value: 'High' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     expect(screen.getAllByText('match-high.tcx').length).toBeGreaterThan(0);
@@ -1333,6 +1335,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Session comparison')).toBeInTheDocument());
 
     const selector = screen.getByLabelText('Comparison session');
+    expect(within(selector).getByRole('option', { name: /base-session\.tcx \(active session\)/ })).toBeDisabled();
     expect(within(selector).getByRole('option', { name: 'compare-session.tcx' })).toBeInTheDocument();
     expect(within(selector).queryByRole('option', { name: 'third-session.tcx' })).not.toBeInTheDocument();
 

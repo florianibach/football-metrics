@@ -1725,3 +1725,17 @@ input[type='checkbox']::before {
     width: 100vw;
   }
 }
+
+.history-filter-defaults {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.metric-info-sidebar-content {
+  align-content: start;
+}
+
+.metric-info-sidebar-content p {
+  margin-top: 0;
+}
