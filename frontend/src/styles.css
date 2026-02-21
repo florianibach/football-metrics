@@ -1776,6 +1776,13 @@ input[type='checkbox']::before {
 }
 
 
+.upload-quality-step__actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+
 .session-danger-zone {
   margin-top: 1.5rem;
   padding: 1rem;

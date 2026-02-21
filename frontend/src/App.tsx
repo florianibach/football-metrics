@@ -2749,9 +2749,13 @@ export function App() {
           <option value="de">{t.languageGerman}</option>
         </select>
       </div>
-      <h1>{t.title}</h1>
-      <p className="subtitle">{t.subtitle}</p>
-      <p className="subtitle">{t.maxFileSize}</p>
+      {activeMainPage === 'upload' && (
+        <>
+          <h1>{t.title}</h1>
+          <p className="subtitle">{t.subtitle}</p>
+          <p className="subtitle">{t.maxFileSize}</p>
+        </>
+      )}
 
       <section className={`profile-settings ${activeMainPage === "profile" ? "" : "is-hidden"}`} id="profile-settings">
         <h2>{t.profileSettingsTitle}</h2>
@@ -3240,21 +3244,16 @@ export function App() {
           <h3>{t.sessionRecalculateHistoryTitle}</h3>
           {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className={`metrics-list ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
           <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
+          <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
           <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
 
           <section data-testid="upload-quality-step" className={`upload-quality-step ${showUploadQualityStep && activeSessionSubpage === 'analysis' ? '' : 'is-hidden'}`}>
             <h3>{t.uploadQualityStepTitle}</h3>
             <p>{t.uploadQualityStepIntro}</p>
-            <ul className="metrics-list">
-              <li><strong>{t.uploadQualityOverall}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
-              <li><strong>{t.uploadQualityGps}:</strong> {qualityStatusText(((qualityDetails?.gpsQualityStatus) ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
-              <li><strong>{t.uploadQualityHeartRate}:</strong> {qualityStatusText(((qualityDetails?.heartRateQualityStatus) ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
-            </ul>
-            <h4>{t.uploadQualityImpacts}</h4>
-            <ul className="metrics-list">
-              {qualityImpactItems.map((impact) => <li key={`upload-impact-${impact}`}>{impact}</li>)}
-            </ul>
-            <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
+            <div className="upload-quality-step__actions">
+              <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
+              <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
+            </div>
           </section>
 
           <div className="session-context">
@@ -3400,12 +3399,6 @@ export function App() {
             <MetricListItem label={t.metricTrackpoints} value={selectedSession.summary.trackpointCount} helpText={`${metricHelp.trackpoints} ${t.metricHelpTrackpoints}`} />
             <MetricListItem label={t.metricDistance} value={`${formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — ${distanceSourceText(selectedSession.summary.distanceSource)}`} helpText={`${metricHelp.distance} ${t.metricHelpDistance}`} />
             <MetricListItem label={t.metricGps} value={selectedSession.summary.hasGpsData ? t.yes : t.no} helpText={`${metricHelp.gps} ${t.metricHelpGps}`} />
-            <MetricListItem label={t.metricQualityStatus} value={qualityStatusText(selectedSession.summary.qualityStatus, t)} helpText={metricHelp.qualityStatus} />
-            <MetricListItem label={t.metricQualityReasons} value={selectedSession.summary.qualityReasons.join(' | ')} helpText={metricHelp.qualityReasons} />
-            <MetricListItem label={t.metricGpsChannelQualityStatus} value={qualityStatusText((resolveDataAvailability(selectedSession.summary).gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)} helpText={metricHelp.qualityStatus} />
-            <MetricListItem label={t.metricGpsChannelQualityReasons} value={(resolveDataAvailability(selectedSession.summary).gpsQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')} helpText={metricHelp.qualityReasons} />
-            <MetricListItem label={t.metricHeartRateChannelQualityStatus} value={qualityStatusText((resolveDataAvailability(selectedSession.summary).heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)} helpText={metricHelp.qualityStatus} />
-            <MetricListItem label={t.metricHeartRateChannelQualityReasons} value={(resolveDataAvailability(selectedSession.summary).heartRateQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')} helpText={metricHelp.qualityReasons} />
             <MetricListItem label={t.metricDataMode} value={dataAvailabilitySummaryText(selectedSession.summary, t)} helpText={t.metricDataMode} />
             <MetricListItem label={t.metricDataChange} value={dataChangeMetric} helpText={metricHelp.dataChange} />
             <MetricListItem label={t.filterSourceLabel} value={selectedSession.selectedSmoothingFilterSource === 'ManualOverride' ? t.filterSourceManualOverride : selectedSession.selectedSmoothingFilterSource === 'ProfileRecalculation' ? t.filterSourceProfileRecalculation : t.filterSourceProfileDefault} />

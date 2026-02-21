@@ -322,6 +322,7 @@ describe('App', () => {
 
     render(<App />);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
     expect(screen.getByText('Football Metrics – TCX Upload')).toBeInTheDocument();
     expect(screen.getByText('Maximum file size: 20 MB.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
@@ -1080,7 +1081,7 @@ describe('App', () => {
 
     expect(screen.getByText('Sort by upload time')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
-    expect(screen.getByText(/Data quality:/)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Quality info' }).length).toBeGreaterThan(0);
   });
 
 
@@ -2022,7 +2023,7 @@ describe('App', () => {
     fireEvent.change(await screen.findByLabelText('Language'), { target: { value: 'en' } });
 
     fireEvent.click((await screen.findAllByRole('button', { name: 'Open details' }))[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Quality info' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Quality info' })[0]);
     expect((await screen.findAllByText(/GPS unusable because quality is Low\. Required: High\./)).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Heart-rate data not present in this session\./).length).toBeGreaterThan(0);
   });
@@ -2528,8 +2529,11 @@ describe('App', () => {
 
     const qualityStep = await screen.findByTestId('upload-quality-step');
     expect(within(qualityStep).getByText('Quality check')).toBeInTheDocument();
-    expect(within(qualityStep).getAllByText('Overall quality:').length).toBeGreaterThan(0);
-    expect(within(qualityStep).getByText('Key interpretation impacts')).toBeInTheDocument();
+    expect(within(qualityStep).getByRole('button', { name: 'Quality info' })).toBeInTheDocument();
+
+    fireEvent.click(within(qualityStep).getByRole('button', { name: 'Quality info' }));
+    const qualitySidebar = await screen.findByTestId('quality-details-sidebar');
+    expect(within(qualitySidebar).getByText('Overall quality:')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'To session analysis' }));
     await waitFor(() => {
@@ -2562,7 +2566,7 @@ describe('App', () => {
     render(<App />);
 
     await screen.findByText('Session details');
-    fireEvent.click(screen.getByRole('button', { name: 'Quality info' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Quality info' })[0]);
 
     const qualitySidebar = await screen.findByTestId('quality-details-sidebar');
     expect(within(qualitySidebar).getByRole('heading', { name: 'Quality details' })).toBeInTheDocument();
