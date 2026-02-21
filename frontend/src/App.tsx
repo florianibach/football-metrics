@@ -113,6 +113,8 @@ type MetricThresholdProfile = {
 };
 
 type SpeedUnit = 'km/h' | 'm/s' | 'min/km';
+type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
+type SessionSubpage = 'analysis' | 'segments' | 'compare';
 
 
 type ProfileRecalculationJob = {
@@ -1453,7 +1455,49 @@ function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
   }
 }
 
+function resolveRouteFromPath(pathname: string): { mainPage: MainPage; sessionSubpage: SessionSubpage } {
+  switch (pathname) {
+    case '/upload':
+      return { mainPage: 'upload', sessionSubpage: 'analysis' };
+    case '/profile':
+      return { mainPage: 'profile', sessionSubpage: 'analysis' };
+    case '/session/segments':
+      return { mainPage: 'session', sessionSubpage: 'segments' };
+    case '/session/compare':
+      return { mainPage: 'session', sessionSubpage: 'compare' };
+    case '/session':
+      return { mainPage: 'session', sessionSubpage: 'analysis' };
+    default:
+      return { mainPage: 'sessions', sessionSubpage: 'analysis' };
+  }
+}
+
+function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage): string {
+  if (mainPage === 'upload') {
+    return '/upload';
+  }
+
+  if (mainPage === 'profile') {
+    return '/profile';
+  }
+
+  if (mainPage === 'session') {
+    if (sessionSubpage === 'segments') {
+      return '/session/segments';
+    }
+
+    if (sessionSubpage === 'compare') {
+      return '/session/compare';
+    }
+
+    return '/session';
+  }
+
+  return '/';
+}
+
 export function App() {
+  const initialRoute = resolveRouteFromPath(window.location.pathname);
   const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
@@ -1504,8 +1548,8 @@ export function App() {
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [activeSessionSubpage, setActiveSessionSubpage] = useState<'analysis' | 'segments' | 'compare'>('analysis');
-  const [activeMainPage, setActiveMainPage] = useState<'sessions' | 'upload' | 'profile' | 'session'>('sessions');
+  const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
+  const [activeMainPage, setActiveMainPage] = useState<MainPage>(initialRoute.mainPage);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [isSessionMenuVisible, setIsSessionMenuVisible] = useState(false);
 
@@ -1534,6 +1578,32 @@ export function App() {
       return (aTime - bTime) * directionFactor;
     });
   }, [uploadHistory, sortDirection]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const route = resolveRouteFromPath(window.location.pathname);
+      setActiveMainPage(route.mainPage);
+      setActiveSessionSubpage(route.sessionSubpage);
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    const nextPath = getPathForRoute(activeMainPage, activeSessionSubpage);
+    const currentPath = window.location.pathname;
+
+    if (currentPath !== nextPath) {
+      window.history.pushState({}, '', nextPath);
+    }
+  }, [activeMainPage, activeSessionSubpage]);
+
+  useEffect(() => {
+    if (activeMainPage === 'session' && !selectedSession) {
+      setActiveMainPage('sessions');
+    }
+  }, [activeMainPage, selectedSession]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2269,7 +2339,7 @@ export function App() {
       .sort((a, b) => a.windowIndex - b.windowIndex);
   }, [selectedSession, aggregationWindowMinutes]);
 
-  const jumpToSection = useCallback((sectionId: string, sessionSubpage?: 'analysis' | 'segments' | 'compare') => {
+  const jumpToSection = useCallback((sectionId: string, sessionSubpage?: SessionSubpage) => {
     if (sessionSubpage) {
       setActiveSessionSubpage(sessionSubpage);
     }
@@ -2287,7 +2357,16 @@ export function App() {
     <div className={`app-shell ${isMobileNavOpen ? 'app-shell--menu-open' : ''}`} data-theme={theme}>
       <aside className={`side-nav ${isMobileNavOpen ? 'side-nav--open' : ''}`}>
         <div className="side-nav__header">
-          <strong className="side-nav__brand">Football Metrics</strong>
+          <button
+            type="button"
+            className="side-nav__brand"
+            onClick={() => {
+              setActiveMainPage('sessions');
+              jumpToSection('session-list');
+            }}
+          >
+            Football Metrics
+          </button>
           <button type="button" className="side-nav__close" onClick={() => setIsMobileNavOpen(false)} aria-label="Close navigation">×</button>
         </div>
         <nav className="side-nav__menu" aria-label="Primary navigation">

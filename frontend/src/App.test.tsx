@@ -4,6 +4,7 @@ import { App } from './App';
 describe('App', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.history.pushState({}, '', '/');
   });
 
   function baseCoreMetrics() {
@@ -2347,5 +2348,70 @@ describe('App', () => {
     await screen.findByText('No GPS coordinates were detected in this file.');
     expect(screen.queryByText('GPS point heatmap')).not.toBeInTheDocument();
   });
+
+  it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    window.history.pushState({}, '', '/');
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/upload'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Profile' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/profile'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sessions' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/'));
+
+    window.history.back();
+    window.dispatchEvent(new PopStateEvent('popstate'));
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/profile');
+      expect(screen.getByText('Profile settings')).toBeInTheDocument();
+    });
+  });
+
+  it('R1_6_14_Ac02_clicking_brand_navigates_to_start_page', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    window.history.pushState({}, '', '/profile');
+
+    render(<App />);
+
+    await screen.findByText('Profile settings');
+    fireEvent.click(screen.getByRole('button', { name: 'Football Metrics' }));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/');
+      expect(screen.getByText('Upload history')).toBeInTheDocument();
+    });
+  });
+
 
 });
