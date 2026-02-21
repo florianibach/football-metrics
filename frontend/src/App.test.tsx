@@ -1094,13 +1094,17 @@ describe('App', () => {
       expect(screen.getByText('Session details')).toBeInTheDocument();
     });
 
-    const distanceInfo = screen.getAllByRole('note', { name: 'Distance explanation' })[0];
+    const distanceInfo = screen.getAllByRole('button', { name: 'Distance explanation' })[0];
     expect(distanceInfo).toBeInTheDocument();
-    expect(distanceInfo).toHaveAttribute('title', expect.stringContaining('Purpose: quantifies covered ground'));
-    expect(distanceInfo).toHaveAttribute('title', expect.stringContaining('Unit: km and m'));
 
-    const sprintDistanceInfo = screen.getByRole('note', { name: 'Sprint distance explanation' });
-    expect(sprintDistanceInfo).toHaveAttribute('title', expect.stringContaining('Very low values usually mean little sprint exposure'));
+    fireEvent.click(distanceInfo);
+    expect(screen.getByText(/Purpose: quantifies covered ground/)).toBeInTheDocument();
+    expect(screen.getByText(/Unit: km and m/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
+    const sprintDistanceInfo = screen.getByRole('button', { name: 'Sprint distance explanation' });
+    fireEvent.click(sprintDistanceInfo);
+    expect(screen.getByText(/Very low values usually mean little sprint exposure/)).toBeInTheDocument();
   });
 
   it('R1_06_Ac03_Ac04_localizes_and_explains_quality_gated_unavailable_metrics', async () => {
@@ -1149,14 +1153,16 @@ describe('App', () => {
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
 
-    const sprintDistanceInfoDe = screen.getByRole('note', { name: 'Anzahl Sprints explanation' });
-    expect(sprintDistanceInfoDe).toHaveAttribute('title', expect.stringContaining('0-2 niedrig, 3-6 mittel, >6 hoch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Anzahl Sprints explanation' }));
+    expect(screen.getByText(/0-2 niedrig, 3-6 mittel, >6 hoch/)).toBeInTheDocument();
 
-    const trimpInfoDe = screen.getByRole('note', { name: 'TRIMP (Edwards) explanation' });
-    expect(trimpInfoDe).toHaveAttribute('title', expect.stringContaining('40-80 mittel'));
+    fireEvent.click(screen.getByRole('button', { name: 'Details schließen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'TRIMP (Edwards) explanation' }));
+    expect(screen.getByText(/40-80 mittel/)).toBeInTheDocument();
 
-    const recoveryInfoDe = screen.getByRole('note', { name: 'HF-Erholung nach 60s explanation' });
-    expect(recoveryInfoDe).toHaveAttribute('title', expect.stringContaining('12-20 mittel, >20 gut'));
+    fireEvent.click(screen.getByRole('button', { name: 'Details schließen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'HF-Erholung nach 60s explanation' }));
+    expect(screen.getByText(/12-20 mittel, >20 gut/)).toBeInTheDocument();
   });
 
 
@@ -1301,18 +1307,7 @@ describe('App', () => {
           id: 'compare',
           fileName: 'compare-session.tcx',
           uploadedAtUtc: '2026-02-16T21:00:00.000Z',
-          summary: createSummary({
-            qualityStatus: 'Low',
-            durationSeconds: 2100,
-            coreMetrics: {
-              ...baseCoreMetrics(),
-              distanceMeters: 6200,
-              sprintDistanceMeters: 1200,
-              sprintCount: 6,
-              highIntensityTimeSeconds: 420,
-              trainingImpulseEdwards: 95.0
-            }
-          })
+          summary: createSummary({ qualityStatus: 'Low' })
         }),
         createUploadRecord({
           id: 'third',
@@ -1337,12 +1332,12 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Session comparison')).toBeInTheDocument());
 
-    expect(screen.getByRole('checkbox', { name: 'Select session: compare-session.tcx' })).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: 'Select session: third-session.tcx' })).not.toBeInTheDocument();
-    expect(screen.getByText(/base-session\.tcx \(active session\)/)).toBeInTheDocument();
+    const selector = screen.getByLabelText('Comparison session');
+    expect(within(selector).getByRole('option', { name: 'compare-session.tcx' })).toBeInTheDocument();
+    expect(within(selector).queryByRole('option', { name: 'third-session.tcx' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select session: compare-session.tcx' }));
-
+    fireEvent.change(selector, { target: { value: 'compare' } });
+    expect(screen.getByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).toBeInTheDocument();
   });
 
 
@@ -1926,12 +1921,14 @@ describe('App', () => {
     expect(screen.getByText(/TRIMP\/min/)).toBeInTheDocument();
     expect(screen.getAllByText(/GPS coordinates were not recorded for this session\./).length).toBeGreaterThan(0);
 
-    const compareCheckboxes = await screen.findAllByRole('checkbox');
-    fireEvent.click(compareCheckboxes[0]);
-    fireEvent.click(compareCheckboxes[1]);
+    fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
+    await screen.findByText('Session comparison');
+    const comparisonSelector = await screen.findByLabelText('Comparison session');
+    fireEvent.change(comparisonSelector, { target: { value: 'upload-dual-2' } });
 
-    expect(await screen.findByText('Data mode')).toBeInTheDocument();
-    expect(screen.getByText('Heart-rate only')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('columnheader', { name: /dual-2\.tcx/ })).toBeInTheDocument());
+    expect(screen.getAllByText('Data mode').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Heart-rate only').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Dual (GPS + heart rate)').length).toBeGreaterThan(0);
   });
 

@@ -325,6 +325,7 @@ type TranslationKey =
   | 'sessionCompareSelectionTitle'
   | 'sessionCompareSelectionHint'
   | 'sessionCompareSelectSession'
+  | 'sessionCompareDropdownLabel'
   | 'sessionCompareActiveSessionBadge'
   | 'sessionCompareOnlySameTypeHint'
   | 'sessionCompareTitle'
@@ -343,6 +344,8 @@ type TranslationKey =
   | 'sessionCompareMetricDataMode'
   | 'sessionCompareBaselineLabel'
   | 'sessionCompareBaselineHint'
+  | 'metricInfoSidebarTitle'
+  | 'metricInfoSidebarClose'
   | 'detailMissingHeartRateHint'
   | 'detailMissingDistanceHint'
   | 'detailMissingGpsHint'
@@ -614,8 +617,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterClose: 'Close',
     historyOpenDetails: 'Open details',
     sessionCompareSelectionTitle: 'Comparison sessions',
-    sessionCompareSelectionHint: 'Select up to 4 sessions of the same session type.',
+    sessionCompareSelectionHint: 'Select exactly 1 comparison session of the same session type.',
     sessionCompareSelectSession: 'Select session',
+    sessionCompareDropdownLabel: 'Comparison session',
     sessionCompareActiveSessionBadge: 'active session',
     sessionCompareOnlySameTypeHint: 'Only sessions of type {sessionType} can be selected for comparison.',
     sessionCompareTitle: 'Session comparison',
@@ -634,6 +638,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionCompareMetricDataMode: 'Data mode',
     sessionCompareBaselineLabel: 'Baseline session',
     sessionCompareBaselineHint: 'Choose the baseline that all deltas should reference.',
+    metricInfoSidebarTitle: 'Metric details',
+    metricInfoSidebarClose: 'Close details',
     detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
     detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
     detailMissingGpsHint: 'No GPS coordinates were detected in this file.',
@@ -901,8 +907,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterClose: 'Schließen',
     historyOpenDetails: 'Details öffnen',
     sessionCompareSelectionTitle: 'Vergleichs-Sessions',
-    sessionCompareSelectionHint: 'Wähle bis zu 4 Sessions mit identischem Session-Typ.',
+    sessionCompareSelectionHint: 'Wähle genau 1 Vergleichs-Session mit identischem Session-Typ.',
     sessionCompareSelectSession: 'Session auswählen',
+    sessionCompareDropdownLabel: 'Vergleichs-Session',
     sessionCompareActiveSessionBadge: 'aktive Session',
     sessionCompareOnlySameTypeHint: 'Für den Vergleich sind nur Sessions vom Typ {sessionType} auswählbar.',
     sessionCompareTitle: 'Session-Vergleich',
@@ -921,6 +928,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionCompareMetricDataMode: 'Datenmodus',
     sessionCompareBaselineLabel: 'Basis-Session',
     sessionCompareBaselineHint: 'Wähle die Basis, auf die sich alle Deltas beziehen sollen.',
+    metricInfoSidebarTitle: 'Metrik-Details',
+    metricInfoSidebarClose: 'Details schließen',
     detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
     detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
     detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.',
@@ -1170,7 +1179,17 @@ type MetricListItemProps = {
 function MetricListItem({ label, value, helpText }: MetricListItemProps) {
   return (
     <li>
-      <strong>{label}:</strong> {value} <span className="metric-help" role="note" aria-label={`${label} explanation`} title={helpText}>ⓘ</span>
+      <strong>{label}:</strong> {value} {' '}
+      <button
+        type="button"
+        className="metric-help"
+        aria-label={`${label} explanation`}
+        onClick={() => {
+          window.dispatchEvent(new CustomEvent('metric-help-open', { detail: { label, helpText } }));
+        }}
+      >
+        ⓘ
+      </button>
     </li>
   );
 }
@@ -1563,8 +1582,7 @@ export function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
   const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
-  const [compareSelectedSessionIds, setCompareSelectedSessionIds] = useState<string[]>([]);
-  const [compareBaselineSessionId, setCompareBaselineSessionId] = useState<string | null>(null);
+  const [compareOpponentSessionId, setCompareOpponentSessionId] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [sessionTypeFilters, setSessionTypeFilters] = useState<SessionType[]>([]);
   const [qualityStatusFilter, setQualityStatusFilter] = useState<'All' | ActivitySummary['qualityStatus']>('All');
@@ -1576,6 +1594,8 @@ export function App() {
   const [draftQualityStatusFilter, setDraftQualityStatusFilter] = useState<'All' | ActivitySummary['qualityStatus']>('All');
   const [draftDateFromFilter, setDraftDateFromFilter] = useState('');
   const [draftDateToFilter, setDraftDateToFilter] = useState('');
+  const [isMetricInfoSidebarOpen, setIsMetricInfoSidebarOpen] = useState(false);
+  const [activeMetricInfo, setActiveMetricInfo] = useState<{ label: string; helpText: string } | null>(null);
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -1704,6 +1724,28 @@ export function App() {
   }, [isHistoryFilterSidebarOpen, sortDirection, sessionTypeFilters, qualityStatusFilter, dateFromFilter, dateToFilter]);
 
   useEffect(() => {
+    const onOpenMetricHelp = (event: Event) => {
+      const customEvent = event as CustomEvent<{ label: string; helpText: string }>;
+      setActiveMetricInfo(customEvent.detail);
+      setIsMetricInfoSidebarOpen(true);
+    };
+
+    window.addEventListener('metric-help-open', onOpenMetricHelp as EventListener);
+    return () => window.removeEventListener('metric-help-open', onOpenMetricHelp as EventListener);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSession || !compareOpponentSessionId) {
+      return;
+    }
+
+    const stillValid = sortedHistory.some((record) => record.id === compareOpponentSessionId && record.sessionContext.sessionType === selectedSession.sessionContext.sessionType && record.id !== selectedSession.id);
+    if (!stillValid) {
+      setCompareOpponentSessionId(null);
+    }
+  }, [selectedSession, compareOpponentSessionId, sortedHistory]);
+
+  useEffect(() => {
     const nextPath = getPathForRoute(activeMainPage, activeSessionSubpage, activeSessionIdFromRoute ?? selectedSession?.id ?? null);
     const currentPath = window.location.pathname;
 
@@ -1725,20 +1767,6 @@ export function App() {
     }
   }, [selectedSession]);
 
-  useEffect(() => {
-    if (activeMainPage !== 'session' || activeSessionSubpage !== 'compare' || !selectedSession) {
-      return;
-    }
-
-    setCompareBaselineSessionId(selectedSession.id);
-    setCompareSelectedSessionIds((current) => {
-      const sameType = current.filter((id) => {
-        const match = uploadHistory.find((record) => record.id === id);
-        return match?.sessionContext.sessionType === selectedSession.sessionContext.sessionType && id !== selectedSession.id;
-      });
-      return [selectedSession.id, ...sameType].slice(0, 4);
-    });
-  }, [activeMainPage, activeSessionSubpage, selectedSession, uploadHistory]);
 
   useEffect(() => {
     if (activeMainPage !== 'session' || !activeSessionIdFromRoute || uploadHistory.length === 0) {
@@ -1808,9 +1836,7 @@ export function App() {
             setActiveMainPage('session');
             setIsSessionMenuVisible(true);
             setActiveSessionIdFromRoute(initialSession.id);
-            const initialCompareSelection = normalizedPayload.slice(0, 2).map((item) => item.id);
-            setCompareSelectedSessionIds(initialCompareSelection);
-            setCompareBaselineSessionId(initialCompareSelection[0] ?? null);
+            setCompareOpponentSessionId(normalizedPayload[1]?.id ?? null);
           }
         }
       } catch {
@@ -2150,8 +2176,7 @@ export function App() {
       setIsSessionMenuVisible(true);
       setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
-      setCompareSelectedSessionIds((current) => [payload.id, ...current.filter((item) => item !== payload.id)].slice(0, 4));
-      setCompareBaselineSessionId(payload.id);
+      setCompareOpponentSessionId(null);
       setSelectedFile(null);
     } catch {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
@@ -2336,88 +2361,82 @@ export function App() {
   const highIntensityThresholdMpsPreview = displayedMaxSpeedMps * (profileForm.metricThresholds.highIntensitySpeedPercentOfMaxSpeed / 100);
   const displayedMaxSpeedByPreferredUnit = convertSpeedFromMetersPerSecond(displayedMaxSpeedMps, profileForm.preferredSpeedUnit);
 
-  const compareCandidates = uploadHistory.filter((record) => compareSelectedSessionIds.includes(record.id));
-  const compareSessions = compareCandidates.slice(0, 4);
   const activeSessionType = selectedSession?.sessionContext.sessionType ?? null;
-  const compareSelectableSessions = activeSessionType
-    ? sortedHistory.filter((record) => record.sessionContext.sessionType === activeSessionType)
+  const compareSelectableSessions = activeSessionType && selectedSession
+    ? sortedHistory.filter((record) => record.sessionContext.sessionType === activeSessionType && record.id !== selectedSession.id)
     : [];
-  const compareBaseline = compareSessions.find((session) => session.id === compareBaselineSessionId) ?? compareSessions[0] ?? null;
+
+  const compareOpponentSession = compareOpponentSessionId
+    ? compareSelectableSessions.find((record) => record.id === compareOpponentSessionId) ?? null
+    : null;
+
+  const compareSessions = selectedSession && compareOpponentSession
+    ? [selectedSession, compareOpponentSession]
+    : selectedSession
+      ? [selectedSession]
+      : [];
+
+  const compareBaseline = selectedSession;
   const showCompareQualityWarning = compareSessions.length >= 2
     ? new Set(compareSessions.map((record) => record.summary.qualityStatus)).size > 1
     : false;
 
-  useEffect(() => {
-    if (compareSessions.length === 0) {
-      if (compareBaselineSessionId !== null) {
-        setCompareBaselineSessionId(null);
-      }
-      return;
-    }
 
-    const isCurrentBaselineAvailable = compareBaselineSessionId !== null
-      && compareSessions.some((session) => session.id === compareBaselineSessionId);
-
-    if (!isCurrentBaselineAvailable) {
-      setCompareBaselineSessionId(compareSessions[0].id);
-    }
-  }, [compareSessions, compareBaselineSessionId]);
-
-  const compareMetrics: CompareMetricDefinition[] = [
+  const compareMetrics = [
     {
       key: 'distance',
       label: t.sessionCompareMetricDistance,
-      getter: (record) => record.summary.coreMetrics.distanceMeters,
-      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatDistanceComparison(value, currentLocale, notAvailable) : notAvailable
+      getter: (session: UploadRecord) => session.summary.distanceMeters ?? null,
+      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatDistance(value, currentLocale, notAvailable)
     },
     {
       key: 'duration',
       label: t.sessionCompareMetricDuration,
-      getter: (record) => record.summary.durationSeconds,
-      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatDuration(value, currentLocale, notAvailable) : notAvailable
+      getter: (session: UploadRecord) => session.summary.durationSeconds ?? null,
+      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatDuration(value, currentLocale, notAvailable)
     },
     {
       key: 'heartRateAverage',
       label: t.sessionCompareMetricHeartRateAverage,
-      getter: (record) => record.summary.heartRateAverageBpm,
-      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatHeartRateAverage(value, currentLocale, notAvailable) : notAvailable
+      getter: (session: UploadRecord) => session.summary.heartRateAverageBpm ?? null,
+      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatNumber(value, currentLocale, notAvailable, 1)
     },
     {
       key: 'directionChanges',
       label: t.sessionCompareMetricDirectionChanges,
-      getter: (record) => record.summary.smoothing.smoothedDirectionChanges,
-      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatNumber(value, currentLocale, notAvailable, 0) : notAvailable
+      getter: (session: UploadRecord) => session.summary.directionChangeCount ?? null,
+      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatNumber(value, currentLocale, notAvailable, 1)
     },
     {
       key: 'sprintDistance',
       label: t.sessionCompareMetricSprintDistance,
-      getter: (record) => record.summary.coreMetrics.sprintDistanceMeters,
-      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatDistanceComparison(value, currentLocale, notAvailable) : notAvailable
+      getter: (session: UploadRecord) => session.summary.coreMetrics.sprintDistanceMeters ?? null,
+      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatDistanceComparison(value, currentLocale, notAvailable)
     },
     {
       key: 'sprintCount',
       label: t.sessionCompareMetricSprintCount,
-      getter: (record) => record.summary.coreMetrics.sprintCount,
-      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatNumber(value, currentLocale, notAvailable, 0) : notAvailable
+      getter: (session: UploadRecord) => session.summary.coreMetrics.sprintCount ?? null,
+      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatNumber(value, currentLocale, notAvailable, 0)
     },
     {
       key: 'highIntensityTime',
       label: t.sessionCompareMetricHighIntensityTime,
-      getter: (record) => record.summary.coreMetrics.highIntensityTimeSeconds,
-      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatDuration(value, currentLocale, notAvailable) : notAvailable
+      getter: (session: UploadRecord) => session.summary.coreMetrics.highIntensityTimeSeconds ?? null,
+      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatDuration(value, currentLocale, notAvailable)
     },
     {
       key: 'trainingLoad',
       label: t.sessionCompareMetricTrainingLoad,
-      getter: (record) => record.summary.coreMetrics.trainingImpulseEdwards,
-      formatter: (value, currentLocale, notAvailable) => typeof value === 'number' ? formatNumber(value, currentLocale, notAvailable, 1) : notAvailable
+      getter: (session: UploadRecord) => session.summary.coreMetrics.trainingImpulseEdwards ?? null,
+      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatNumber(value, currentLocale, notAvailable, 1)
     },
     {
       key: 'dataMode',
       label: t.sessionCompareMetricDataMode,
-      getter: (record) => resolveDataAvailability(record.summary).mode,
-      formatter: (value) => typeof value === 'string' ? dataModeText(value as DataAvailability['mode'], t) : t.notAvailable
-    },
+      getter: (session: UploadRecord) => dataModeText(resolveDataAvailability(session.summary).mode, t),
+      formatter: (value: string | null, _currentLocale: Locale, notAvailable: string) => value ?? notAvailable
+    }
   ];
 
   const comparisonRows = compareMetrics.map((metric) => {
@@ -2875,6 +2894,7 @@ export function App() {
                   setQualityStatusFilter('All');
                   setDateFromFilter('');
                   setDateToFilter('');
+                  setIsHistoryFilterSidebarOpen(false);
                 }}
               >
                 {t.historyFilterReset}
@@ -2949,55 +2969,24 @@ export function App() {
       <section className={`session-compare ${activeMainPage === "session" && activeSessionSubpage === "compare" ? "" : "is-hidden"}`} aria-live="polite" id="session-compare">
         <h2>{t.sessionCompareTitle}</h2>
         <p>{t.sessionCompareHint}</p>
-        {activeSessionType && (
+        {activeSessionType && selectedSession && (
           <>
             <h3>{t.sessionCompareSelectionTitle}</h3>
             <p>{t.sessionCompareSelectionHint}</p>
             <p>{interpolate(t.sessionCompareOnlySameTypeHint, { sessionType: sessionTypeText(activeSessionType, t) })}</p>
-            <ul className="metrics-list">
-              {compareSelectableSessions.map((record) => {
-                const isActiveSession = selectedSession?.id === record.id;
-                const isSelected = compareSelectedSessionIds.includes(record.id);
-                return (
-                  <li key={record.id}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        aria-label={`${t.sessionCompareSelectSession}: ${record.fileName}`}
-                        checked={isSelected}
-                        disabled={isActiveSession}
-                        onChange={(event) => {
-                          setCompareSelectedSessionIds((current) => {
-                            if (event.target.checked) {
-                              return [...current, record.id].slice(0, 4);
-                            }
-
-                            return current.filter((item) => item !== record.id);
-                          });
-                        }}
-                      />
-                      {record.fileName} {isActiveSession ? `(${t.sessionCompareActiveSessionBadge})` : ''}
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
-        {compareSessions.length >= 2 && (
-          <div className="baseline-selector">
-            <label htmlFor="comparison-baseline-selector">{t.sessionCompareBaselineLabel}</label>
+            <label htmlFor="comparison-session-selector">{t.sessionCompareDropdownLabel}</label>
             <select
-              id="comparison-baseline-selector"
-              value={compareBaseline?.id ?? ''}
-              onChange={(event) => setCompareBaselineSessionId(event.target.value)}
+              id="comparison-session-selector"
+              value={compareOpponentSessionId ?? ''}
+              onChange={(event) => setCompareOpponentSessionId(event.target.value || null)}
             >
-              {compareSessions.map((session) => (
-                <option key={session.id} value={session.id}>{session.fileName}</option>
+              <option value="">{t.sessionCompareSelectSession}</option>
+              {compareSelectableSessions.map((record) => (
+                <option key={record.id} value={record.id}>{record.fileName}</option>
               ))}
             </select>
-            <p>{t.sessionCompareBaselineHint}</p>
-          </div>
+            <p>{selectedSession.fileName} ({t.sessionCompareActiveSessionBadge})</p>
+          </>
         )}
         {showCompareQualityWarning && <p className="quality-warning">{t.sessionCompareQualityWarning}</p>}
         {compareSessions.length < 2 ? (
@@ -3035,6 +3024,17 @@ export function App() {
           </table>
         )}
       </section>
+
+      <div className={`history-filter-overlay ${isMetricInfoSidebarOpen ? 'is-open' : ''}`} onClick={() => setIsMetricInfoSidebarOpen(false)} />
+      <aside className={`history-filter-sidebar ${isMetricInfoSidebarOpen ? 'is-open' : ''}`} aria-label={t.metricInfoSidebarTitle}>
+        <div className="history-filter-sidebar__header">
+          <h3>{activeMetricInfo?.label ?? t.metricInfoSidebarTitle}</h3>
+          <button type="button" className="secondary-button" onClick={() => setIsMetricInfoSidebarOpen(false)}>{t.metricInfoSidebarClose}</button>
+        </div>
+        <div className="history-controls history-controls--sidebar">
+          <p>{activeMetricInfo?.helpText ?? t.notAvailable}</p>
+        </div>
+      </aside>
 
       {selectedSession && (
         <section className={`session-details ${activeMainPage === "session" ? "" : "is-hidden"}`} aria-live="polite" id="session-analysis">

@@ -249,7 +249,9 @@ button:disabled {
   color: #a7cd33;
   font-size: 0.75rem;
   font-weight: 700;
-  cursor: help;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
 }
 
 .metrics-list {
@@ -1638,7 +1640,7 @@ input[type='checkbox']::before {
 /* Sidebar-style history filters */
 .history-toolbar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   margin-bottom: 0.8rem;
 }
 
