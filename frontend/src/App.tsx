@@ -509,11 +509,12 @@ type TranslationKey =
   | 'profileRecalculationStatusCompleted'
   | 'profileRecalculationStatusFailed'
   | 'sessionProcessingTitle'
+  | 'sessionSettingsTitle'
   | 'analysisSectionExpand'
   | 'analysisSectionCollapse'
   | 'qualityDetailsWarning';
 
-type AnalysisAccordionKey = 'sessionContext' | 'processingSettings' | 'coreMetrics' | 'intervalAggregation' | 'gpsHeatmap' | 'gpsRunsMap';
+type AnalysisAccordionKey = 'sessionSettings' | 'coreMetrics' | 'intervalAggregation' | 'gpsHeatmap' | 'gpsRunsMap' | 'sessionContext' | 'processingSettings' | 'recalculationHistory' | 'dangerZone';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
 const normalizedApiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, '');
@@ -709,6 +710,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics',
     sessionProcessingTitle: 'Processing settings',
+    sessionSettingsTitle: 'Session settings',
     analysisSectionExpand: 'Show section',
     analysisSectionCollapse: 'Hide section',
     qualityDetailsWarning: 'Warning: Quality is reduced in at least one channel. Interpret impacted metrics with caution.',
@@ -1022,6 +1024,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken',
     sessionProcessingTitle: 'Verarbeitungseinstellungen',
+    sessionSettingsTitle: 'Session-Einstellungen',
     analysisSectionExpand: 'Bereich anzeigen',
     analysisSectionCollapse: 'Bereich ausblenden',
     qualityDetailsWarning: 'Warnung: Die Qualität ist in mindestens einem Kanal reduziert. Betroffene Metriken bitte vorsichtig interpretieren.',
@@ -1726,12 +1729,15 @@ export function App() {
     const expandedByDefault = import.meta.env.MODE === 'test';
 
     return {
-      sessionContext: expandedByDefault,
-      processingSettings: expandedByDefault,
+      sessionSettings: expandedByDefault,
       coreMetrics: expandedByDefault,
       intervalAggregation: expandedByDefault,
       gpsHeatmap: expandedByDefault,
-      gpsRunsMap: expandedByDefault
+      gpsRunsMap: expandedByDefault,
+      sessionContext: expandedByDefault,
+      processingSettings: expandedByDefault,
+      recalculationHistory: expandedByDefault,
+      dangerZone: expandedByDefault
     };
   });
 
@@ -3318,10 +3324,6 @@ export function App() {
           ) : (
             <>
               <h2>{t.summaryTitle}</h2>
-              <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
-              <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
-              <h3>{t.sessionRecalculateHistoryTitle}</h3>
-              {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className={`metrics-list ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
               <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
               <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
               <p><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</p>
@@ -3330,6 +3332,18 @@ export function App() {
 
           {!isQualityDetailsPageVisible && (
           <div className="session-analysis-flow">
+          <section className="analysis-disclosure analysis-block--session-settings">
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionSettings')} aria-expanded={analysisAccordionState.sessionSettings}>
+              <span>{t.sessionSettingsTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.sessionSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+            </button>
+            {analysisAccordionState.sessionSettings && (
+            <div className="analysis-disclosure__content">
+              <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
+              <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
+            </div>
+            )}
+          </section>
           <section className="analysis-disclosure analysis-block--session-context">
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionContext')} aria-expanded={analysisAccordionState.sessionContext}>
               <span>{t.sessionContextTitle}</span>
@@ -3459,6 +3473,18 @@ export function App() {
               <option value="min/km">min/km</option>
             </select>
             <p><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</p>
+            </div>
+            )}
+          </section>
+
+          <section className={`analysis-disclosure analysis-block--recalculation-history ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('recalculationHistory')} aria-expanded={analysisAccordionState.recalculationHistory}>
+              <span>{t.sessionRecalculateHistoryTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.recalculationHistory ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+            </button>
+            {analysisAccordionState.recalculationHistory && (
+            <div className="analysis-disclosure__content">
+              {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className="metrics-list">{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
             </div>
             )}
           </section>
@@ -3717,11 +3743,18 @@ export function App() {
 
           <button type="button" className="analysis-disclosure__toggle analysis-disclosure__toggle--quality analysis-block--quality" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
 
-          <div className="session-danger-zone">
-            <h3>{t.sessionDangerZoneTitle}</h3>
-            <p>{t.sessionDeleteWarning}</p>
-            <button type="button" className="danger-button" onClick={onDeleteSession}>{t.sessionDeleteButton}</button>
-          </div>
+          <section className="analysis-disclosure analysis-block--danger-zone">
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('dangerZone')} aria-expanded={analysisAccordionState.dangerZone}>
+              <span>{t.sessionDangerZoneTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.dangerZone ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+            </button>
+            {analysisAccordionState.dangerZone && (
+            <div className="analysis-disclosure__content session-danger-zone">
+              <p>{t.sessionDeleteWarning}</p>
+              <button type="button" className="danger-button" onClick={onDeleteSession}>{t.sessionDeleteButton}</button>
+            </div>
+            )}
+          </section>
           </div>
           )}
         </section>
