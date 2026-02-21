@@ -1571,17 +1571,25 @@ input[type='checkbox']::before {
   padding: 0.45rem 0.6rem 0.55rem;
 }
 
-.history-filter-checkbox-list {
+.history-filter-pill-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem 0.85rem;
+  gap: 0.5rem;
 }
 
-.history-filter-checkbox {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.88rem;
+.history-filter-pill {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.86rem;
+}
+
+.history-filter-pill.is-active {
+  border-color: var(--bs-primary);
+  background: color-mix(in srgb, var(--bs-primary) 20%, transparent);
+  color: var(--bs-primary);
 }
 
 .history-filter-group--date {
@@ -1696,6 +1704,9 @@ input[type='checkbox']::before {
 }
 
 .history-controls--sidebar {
+  display: grid;
+  align-items: start;
+  align-content: start;
   padding: 1rem;
   overflow: auto;
   grid-template-columns: 1fr;
@@ -1733,7 +1744,9 @@ input[type='checkbox']::before {
 }
 
 .metric-info-sidebar-content {
+  display: block;
   align-content: start;
+  padding-top: 0.5rem;
 }
 
 .metric-info-sidebar-content p {

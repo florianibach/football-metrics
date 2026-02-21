@@ -439,7 +439,7 @@ describe('App', () => {
     expect(within(historySection).queryByText('training-low.tcx')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Filter & sort/ }));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Match' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Match' }));
     fireEvent.change(screen.getByLabelText('Date from'), { target: { value: '2026-02-16' } });
     fireEvent.change(screen.getByLabelText('Date to'), { target: { value: '2026-02-16' } });
     fireEvent.click(screen.getByRole('button', { name: 'Search' }));

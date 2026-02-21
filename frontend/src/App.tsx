@@ -1693,7 +1693,7 @@ export function App() {
   }, [uploadHistory]);
 
   const filteredHistory = useMemo(() => sortedHistory.filter((record) => {
-    const isSessionTypeMatch = sessionTypeFilters.length === 0 || sessionTypeFilters.includes(record.sessionContext.sessionType);
+    const isSessionTypeMatch = sessionTypeFilters.includes(record.sessionContext.sessionType);
     const isQualityMatch = qualityStatusFilter === 'All' || record.summary.qualityStatus === qualityStatusFilter;
     const activityDate = record.summary.activityStartTimeUtc ? new Date(record.summary.activityStartTimeUtc) : new Date(record.uploadedAtUtc);
 
@@ -1714,7 +1714,7 @@ export function App() {
   }, [uploadHistory]);
 
   const activeHistoryFilterCount =
-    (sessionTypeFilters.length > 0 ? 1 : 0)
+    (availableSessionTypes.length > 0 && sessionTypeFilters.length !== availableSessionTypes.length ? 1 : 0)
     + (qualityStatusFilter !== 'All' ? 1 : 0)
     + (dateFromFilter && dateFromFilter !== defaultDateBounds.from ? 1 : 0)
     + (dateToFilter && dateToFilter !== defaultDateBounds.to ? 1 : 0)
@@ -1753,7 +1753,11 @@ export function App() {
     setDateToFilter((current) => current || defaultDateBounds.to);
     setDraftDateFromFilter((current) => current || defaultDateBounds.from);
     setDraftDateToFilter((current) => current || defaultDateBounds.to);
-  }, [defaultDateBounds]);
+    if (availableSessionTypes.length > 0) {
+      setSessionTypeFilters((current) => current.length === 0 ? availableSessionTypes : current);
+      setDraftSessionTypeFilters((current) => current.length === 0 ? availableSessionTypes : current);
+    }
+  }, [defaultDateBounds, availableSessionTypes]);
 
   useEffect(() => {
     const onOpenMetricHelp = (event: Event) => {
@@ -2884,21 +2888,28 @@ export function App() {
 
             <fieldset className="history-filter-group history-filter-group--types">
               <legend>{t.historyFilterSessionType}</legend>
-              <div className="history-filter-checkbox-list">
-                {availableSessionTypes.map((sessionType) => (
-                  <label key={sessionType} className="history-filter-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={draftSessionTypeFilters.includes(sessionType)}
-                      onChange={(event) => {
-                        setDraftSessionTypeFilters((current) => event.target.checked
-                          ? [...current, sessionType]
-                          : current.filter((item) => item !== sessionType));
+              <div className="history-filter-pill-list">
+                {availableSessionTypes.map((sessionType) => {
+                  const isActive = draftSessionTypeFilters.includes(sessionType);
+                  return (
+                    <button
+                      key={sessionType}
+                      type="button"
+                      className={`history-filter-pill ${isActive ? 'is-active' : ''}`}
+                      aria-pressed={isActive}
+                      onClick={() => {
+                        setDraftSessionTypeFilters((current) => {
+                          if (isActive) {
+                            return current.filter((item) => item !== sessionType);
+                          }
+                          return [...current, sessionType];
+                        });
                       }}
-                    />
-                    <span>{sessionTypeText(sessionType, t)}</span>
-                  </label>
-                ))}
+                    >
+                      {sessionTypeText(sessionType, t)}
+                    </button>
+                  );
+                })}
               </div>
             </fieldset>
 
@@ -2918,12 +2929,12 @@ export function App() {
                 className="secondary-button history-filter-reset"
                 onClick={() => {
                   setDraftSortDirection('desc');
-                  setDraftSessionTypeFilters([]);
+                  setDraftSessionTypeFilters(availableSessionTypes);
                   setDraftQualityStatusFilter('All');
                   setDraftDateFromFilter(defaultDateBounds.from);
                   setDraftDateToFilter(defaultDateBounds.to);
                   setSortDirection('desc');
-                  setSessionTypeFilters([]);
+                  setSessionTypeFilters(availableSessionTypes);
                   setQualityStatusFilter('All');
                   setDateFromFilter(defaultDateBounds.from);
                   setDateToFilter(defaultDateBounds.to);
