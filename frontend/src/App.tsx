@@ -113,6 +113,9 @@ type MetricThresholdProfile = {
 };
 
 type SpeedUnit = 'km/h' | 'm/s' | 'min/km';
+type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
+type SessionSubpage = 'analysis' | 'segments' | 'compare';
+type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null };
 
 
 type ProfileRecalculationJob = {
@@ -1453,7 +1456,67 @@ function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
   }
 }
 
+function resolveRouteFromPath(pathname: string): RouteState {
+  if (pathname === '/uploads') {
+    return { mainPage: 'upload', sessionSubpage: 'analysis', sessionId: null };
+  }
+
+  if (pathname === '/profiles') {
+    return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null };
+  }
+
+  if (pathname === '/') {
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+  }
+
+  if (pathname === '/sessions') {
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+  }
+
+  const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|compare))?$/);
+  if (sessionRouteMatch) {
+    return {
+      mainPage: 'session',
+      sessionSubpage: (sessionRouteMatch[2] as SessionSubpage | undefined) ?? 'analysis',
+      sessionId: decodeURIComponent(sessionRouteMatch[1])
+    };
+  }
+
+  return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+}
+
+function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, sessionId: string | null): string {
+  if (mainPage === 'upload') {
+    return '/uploads';
+  }
+
+  if (mainPage === 'profile') {
+    return '/profiles';
+  }
+
+  if (mainPage === 'session') {
+    if (!sessionId) {
+      return '/sessions';
+    }
+
+    const encodedSessionId = encodeURIComponent(sessionId);
+
+    if (sessionSubpage === 'segments') {
+      return `/sessions/${encodedSessionId}/segments`;
+    }
+
+    if (sessionSubpage === 'compare') {
+      return `/sessions/${encodedSessionId}/compare`;
+    }
+
+    return `/sessions/${encodedSessionId}`;
+  }
+
+  return '/sessions';
+}
+
 export function App() {
+  const initialRoute = resolveRouteFromPath(window.location.pathname);
   const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
@@ -1504,8 +1567,9 @@ export function App() {
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [activeSessionSubpage, setActiveSessionSubpage] = useState<'analysis' | 'segments' | 'compare'>('analysis');
-  const [activeMainPage, setActiveMainPage] = useState<'sessions' | 'upload' | 'profile' | 'session'>('sessions');
+  const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
+  const [activeMainPage, setActiveMainPage] = useState<MainPage>(initialRoute.mainPage);
+  const [activeSessionIdFromRoute, setActiveSessionIdFromRoute] = useState<string | null>(initialRoute.sessionId);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [isSessionMenuVisible, setIsSessionMenuVisible] = useState(false);
 
@@ -1534,6 +1598,61 @@ export function App() {
       return (aTime - bTime) * directionFactor;
     });
   }, [uploadHistory, sortDirection]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const route = resolveRouteFromPath(window.location.pathname);
+      setActiveMainPage(route.mainPage);
+      setActiveSessionSubpage(route.sessionSubpage);
+      setActiveSessionIdFromRoute(route.sessionId);
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    const nextPath = getPathForRoute(activeMainPage, activeSessionSubpage, activeSessionIdFromRoute ?? selectedSession?.id ?? null);
+    const currentPath = window.location.pathname;
+
+    if (currentPath !== nextPath) {
+      window.history.pushState({}, '', nextPath);
+    }
+  }, [activeMainPage, activeSessionSubpage, activeSessionIdFromRoute, selectedSession?.id]);
+
+  useEffect(() => {
+    if (activeMainPage === 'session' && !selectedSession) {
+      setActiveMainPage('sessions');
+    }
+  }, [activeMainPage, selectedSession]);
+
+
+  useEffect(() => {
+    if (selectedSession) {
+      setActiveSessionIdFromRoute(selectedSession.id);
+    }
+  }, [selectedSession]);
+
+  useEffect(() => {
+    if (activeMainPage !== 'session' || !activeSessionIdFromRoute || uploadHistory.length === 0) {
+      return;
+    }
+
+    if (selectedSession?.id === activeSessionIdFromRoute) {
+      return;
+    }
+
+    const matchedSession = uploadHistory.find((item) => item.id === activeSessionIdFromRoute);
+    if (!matchedSession) {
+      setActiveMainPage('sessions');
+      return;
+    }
+
+    setSelectedSession(matchedSession);
+    setSelectedFilter(matchedSession.summary.smoothing.selectedStrategy as SmoothingFilter);
+    setSessionContextForm(matchedSession.sessionContext);
+    setIsSessionMenuVisible(true);
+  }, [activeMainPage, activeSessionIdFromRoute, selectedSession?.id, uploadHistory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1572,10 +1691,16 @@ export function App() {
           const normalizedPayload = payload.map(normalizeUploadRecord);
           setUploadHistory(normalizedPayload);
           if (normalizedPayload.length > 0) {
-            setSelectedSession(normalizedPayload[0]);
-            setSelectedFilter(normalizedPayload[0].summary.smoothing.selectedStrategy as SmoothingFilter);
-            setSessionContextForm(normalizedPayload[0].sessionContext);
+            const initialSession = activeSessionIdFromRoute
+              ? normalizedPayload.find((item) => item.id === activeSessionIdFromRoute) ?? normalizedPayload[0]
+              : normalizedPayload[0];
+
+            setSelectedSession(initialSession);
+            setSelectedFilter(initialSession.summary.smoothing.selectedStrategy as SmoothingFilter);
+            setSessionContextForm(initialSession.sessionContext);
             setActiveMainPage('session');
+            setIsSessionMenuVisible(true);
+            setActiveSessionIdFromRoute(initialSession.id);
             const initialCompareSelection = normalizedPayload.slice(0, 2).map((item) => item.id);
             setCompareSelectedSessionIds(initialCompareSelection);
             setCompareBaselineSessionId(initialCompareSelection[0] ?? null);
@@ -1747,6 +1872,7 @@ export function App() {
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
       setSessionContextForm(payload.sessionContext);
+      setActiveSessionIdFromRoute(payload.id);
       setActiveMainPage('session');
       setIsSessionMenuVisible(true);
     setMessage(t.sessionContextSaveSuccess);
@@ -2269,7 +2395,7 @@ export function App() {
       .sort((a, b) => a.windowIndex - b.windowIndex);
   }, [selectedSession, aggregationWindowMinutes]);
 
-  const jumpToSection = useCallback((sectionId: string, sessionSubpage?: 'analysis' | 'segments' | 'compare') => {
+  const jumpToSection = useCallback((sectionId: string, sessionSubpage?: SessionSubpage) => {
     if (sessionSubpage) {
       setActiveSessionSubpage(sessionSubpage);
     }
@@ -2287,12 +2413,29 @@ export function App() {
     <div className={`app-shell ${isMobileNavOpen ? 'app-shell--menu-open' : ''}`} data-theme={theme}>
       <aside className={`side-nav ${isMobileNavOpen ? 'side-nav--open' : ''}`}>
         <div className="side-nav__header">
-          <strong className="side-nav__brand">Football Metrics</strong>
+          <strong
+            className="side-nav__brand"
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              setActiveMainPage('sessions');
+              jumpToSection('session-list');
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setActiveMainPage('sessions');
+                jumpToSection('session-list');
+              }
+            }}
+          >
+            Football Metrics
+          </strong>
           <button type="button" className="side-nav__close" onClick={() => setIsMobileNavOpen(false)} aria-label="Close navigation">×</button>
         </div>
         <nav className="side-nav__menu" aria-label="Primary navigation">
-          <button type="button" className={`side-nav__item ${activeMainPage === 'upload' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('upload'); jumpToSection('upload-flow'); }}>Upload area</button>
           <button type="button" className={`side-nav__item ${activeMainPage === 'sessions' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('sessions'); jumpToSection('session-list'); }}>Sessions</button>
+          <button type="button" className={`side-nav__item ${activeMainPage === 'upload' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('upload'); jumpToSection('upload-flow'); }}>Upload area</button>
           <button type="button" className={`side-nav__item ${activeMainPage === 'profile' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveMainPage('profile'); jumpToSection('profile-settings'); }}>Profile</button>
         </nav>
         {selectedSession && activeMainPage === "session" && isSessionMenuVisible && (
@@ -2599,6 +2742,7 @@ export function App() {
                         setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
                         setSessionContextForm(record.sessionContext);
                         setActiveSessionSubpage('analysis');
+                        setActiveSessionIdFromRoute(record.id);
                         setActiveMainPage('session');
                         setIsSessionMenuVisible(true);
                       }}

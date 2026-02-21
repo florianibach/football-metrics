@@ -1212,6 +1212,7 @@ input[type='checkbox']:checked::before {
 
 .side-nav__brand {
   color: inherit;
+  cursor: pointer;
 }
 
 .upload-form {
