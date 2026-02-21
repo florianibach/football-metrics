@@ -2417,10 +2417,14 @@ describe('App', () => {
   });
 
   it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
+    const withSegment = createUploadRecord({
+      segments: [{ id: 'seg-1', label: 'Segment A', startSecond: 0, endSecond: 300, category: 'Other', notes: 'Segment note' }]
+    });
+
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
       if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
-        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+        return Promise.resolve({ ok: true, json: async () => [withSegment] } as Response);
       }
 
       if (url.endsWith('/profile') && (!init || init.method === undefined)) {
@@ -2445,6 +2449,13 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Analysis|Analyse/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze segment' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments/seg-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to segment list' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
     await waitFor(() => expect(window.location.pathname).toBe('/uploads'));

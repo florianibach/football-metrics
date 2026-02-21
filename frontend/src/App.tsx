@@ -115,7 +115,7 @@ type MetricThresholdProfile = {
 type SpeedUnit = 'km/h' | 'm/s' | 'min/km';
 type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
 type SessionSubpage = 'analysis' | 'segments' | 'segmentEdit' | 'compare';
-type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null };
+type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null; segmentId: string | null };
 
 
 type ProfileRecalculationJob = {
@@ -523,6 +523,7 @@ type TranslationKey =
   | 'segmentScopeHint'
   | 'segmentDerivedMetricsTitle'
   | 'segmentBackToSessionMetrics'
+  | 'segmentBackToSegmentList'
   | 'sessionRecalculateButton'
   | 'sessionRecalculateSuccess'
   | 'sessionRecalculateProfileInfo'
@@ -890,7 +891,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentCategoryCooldown: 'Cooldown',
     segmentScopeHint: 'Segment-focused analysis is active.',
     segmentDerivedMetricsTitle: 'Segment metrics (time-window based)',
-    segmentBackToSessionMetrics: 'Back to full-session metrics'
+    segmentBackToSessionMetrics: 'Back to full-session metrics',
+    segmentBackToSegmentList: 'Back to segment list'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -1229,7 +1231,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentCategoryCooldown: 'Cooldown',
     segmentScopeHint: 'Segment-fokussierte Analyse ist aktiv.',
     segmentDerivedMetricsTitle: 'Segment-Metriken (zeitfensterbasiert)',
-    segmentBackToSessionMetrics: 'Zurück zu Session-Metriken'
+    segmentBackToSessionMetrics: 'Zurück zu Session-Metriken',
+    segmentBackToSegmentList: 'Zurück zur Segmentliste'
   }
 };
 
@@ -1696,19 +1699,29 @@ function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
 
 function resolveRouteFromPath(pathname: string): RouteState {
   if (pathname === '/uploads') {
-    return { mainPage: 'upload', sessionSubpage: 'analysis', sessionId: null };
+    return { mainPage: 'upload', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
   }
 
   if (pathname === '/profiles') {
-    return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null };
+    return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
   }
 
   if (pathname === '/') {
-    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
   }
 
   if (pathname === '/sessions') {
-    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+  }
+
+  const segmentAnalysisRouteMatch = pathname.match(/^\/sessions\/([^/]+)\/segments\/([^/]+)$/);
+  if (segmentAnalysisRouteMatch) {
+    return {
+      mainPage: 'session',
+      sessionSubpage: 'analysis',
+      sessionId: decodeURIComponent(segmentAnalysisRouteMatch[1]),
+      segmentId: decodeURIComponent(segmentAnalysisRouteMatch[2])
+    };
   }
 
   const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|segments-edit|compare))?$/);
@@ -1720,14 +1733,15 @@ function resolveRouteFromPath(pathname: string): RouteState {
     return {
       mainPage: 'session',
       sessionSubpage: subpage ?? 'analysis',
-      sessionId: decodeURIComponent(sessionRouteMatch[1])
+      sessionId: decodeURIComponent(sessionRouteMatch[1]),
+      segmentId: null
     };
   }
 
-  return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+  return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
 }
 
-function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, sessionId: string | null): string {
+function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, sessionId: string | null, segmentId: string | null): string {
   if (mainPage === 'upload') {
     return '/uploads';
   }
@@ -1753,6 +1767,10 @@ function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, ses
 
     if (sessionSubpage === 'compare') {
       return `/sessions/${encodedSessionId}/compare`;
+    }
+
+    if (sessionSubpage === 'analysis' && segmentId) {
+      return `/sessions/${encodedSessionId}/segments/${encodeURIComponent(segmentId)}`;
     }
 
     return `/sessions/${encodedSessionId}`;
@@ -1834,6 +1852,7 @@ export function App() {
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
   const [activeMainPage, setActiveMainPage] = useState<MainPage>(initialRoute.mainPage);
   const [activeSessionIdFromRoute, setActiveSessionIdFromRoute] = useState<string | null>(initialRoute.sessionId);
+  const [activeSegmentIdFromRoute, setActiveSegmentIdFromRoute] = useState<string | null>(initialRoute.segmentId);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [isSessionMenuVisible, setIsSessionMenuVisible] = useState(false);
   const [analysisAccordionState, setAnalysisAccordionState] = useState<Record<AnalysisAccordionKey, boolean>>(() => {
@@ -1926,6 +1945,7 @@ export function App() {
       setActiveMainPage(route.mainPage);
       setActiveSessionSubpage(route.sessionSubpage);
       setActiveSessionIdFromRoute(route.sessionId);
+      setActiveSegmentIdFromRoute(route.segmentId);
     };
 
     window.addEventListener('popstate', onPopState);
@@ -1983,13 +2003,18 @@ export function App() {
   }, [selectedSession, compareOpponentSessionId, sortedHistory]);
 
   useEffect(() => {
-    const nextPath = getPathForRoute(activeMainPage, activeSessionSubpage, activeSessionIdFromRoute ?? selectedSession?.id ?? null);
+    const nextPath = getPathForRoute(
+      activeMainPage,
+      activeSessionSubpage,
+      activeSessionIdFromRoute ?? selectedSession?.id ?? null,
+      activeMainPage === 'session' && activeSessionSubpage === 'analysis' && analysisScope === 'segment' ? selectedSegmentId : null
+    );
     const currentPath = window.location.pathname;
 
     if (currentPath !== nextPath) {
       window.history.pushState({}, '', nextPath);
     }
-  }, [activeMainPage, activeSessionSubpage, activeSessionIdFromRoute, selectedSession?.id]);
+  }, [activeMainPage, activeSessionSubpage, activeSessionIdFromRoute, analysisScope, selectedSegmentId, selectedSession?.id]);
 
   useEffect(() => {
     if (activeMainPage === 'session' && !selectedSession) {
@@ -2003,6 +2028,27 @@ export function App() {
       setActiveSessionIdFromRoute(selectedSession.id);
     }
   }, [selectedSession]);
+
+  useEffect(() => {
+    if (!selectedSession) {
+      return;
+    }
+
+    if (!activeSegmentIdFromRoute) {
+      setAnalysisScope('session');
+      return;
+    }
+
+    const segmentExists = selectedSession.segments.some((segment) => segment.id === activeSegmentIdFromRoute);
+    if (!segmentExists) {
+      setAnalysisScope('session');
+      return;
+    }
+
+    setSelectedSegmentId(activeSegmentIdFromRoute);
+    setAnalysisScope('segment');
+    setActiveSessionSubpage('analysis');
+  }, [activeSegmentIdFromRoute, selectedSession]);
 
   useEffect(() => {
     if (!selectedSession) {
@@ -2698,6 +2744,24 @@ export function App() {
       : selectedSession.summary.smoothing.smoothedDirectionChanges
     : null;
 
+  const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
+  const isSegmentScopeActive = analysisScope === 'segment' && selectedSegment !== null;
+
+  const selectedGpsTrackpoints = useMemo(() => {
+    if (!selectedSession) {
+      return [] as GpsTrackpoint[];
+    }
+
+    const points = selectedSession.summary.gpsTrackpoints ?? [];
+    if (!isSegmentScopeActive || !selectedSegment) {
+      return points;
+    }
+
+    return points.filter((point) => point.elapsedSeconds !== null
+      && point.elapsedSeconds >= selectedSegment.startSecond
+      && point.elapsedSeconds <= selectedSegment.endSecond);
+  }, [selectedSession, isSegmentScopeActive, selectedSegment]);
+
   const dataChangeMetric = selectedSession
     ? (() => {
       const correctedShare = selectedSession.summary.trackpointCount > 0
@@ -2859,7 +2923,7 @@ export function App() {
       return null;
     }
 
-    const points = selectedSession.summary.gpsTrackpoints ?? [];
+    const points = selectedGpsTrackpoints;
     if (points.length === 0) {
       return null;
     }
@@ -2876,7 +2940,7 @@ export function App() {
       minLongitude,
       maxLongitude
     };
-  }, [selectedSession]);
+  }, [selectedSession, selectedGpsTrackpoints]);
 
 
   const runTrackThresholds = useMemo(() => {
@@ -2903,8 +2967,6 @@ export function App() {
     setAnalysisAccordionState((current) => ({ ...current, [key]: !current[key] }));
   }, []);
 
-  const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
-
   const selectedSessionAggregates = useMemo(() => {
     if (!selectedSession) {
       return [];
@@ -2914,8 +2976,6 @@ export function App() {
       .filter((aggregate) => aggregate.windowMinutes === aggregationWindowMinutes)
       .sort((a, b) => a.windowIndex - b.windowIndex);
   }, [selectedSession, aggregationWindowMinutes]);
-
-  const isSegmentScopeActive = analysisScope === 'segment' && selectedSegment !== null;
 
   const selectedAnalysisAggregates = useMemo(() => {
     if (!isSegmentScopeActive || !selectedSegment) {
@@ -2935,27 +2995,36 @@ export function App() {
     });
   }, [isSegmentScopeActive, selectedSegment, selectedSessionAggregates, selectedSession?.summary.activityStartTimeUtc]);
 
-  const segmentDerivedMetrics = useMemo(() => {
-    if (!isSegmentScopeActive || !selectedSegment) {
+  const displayedCoreMetrics = useMemo(() => {
+    if (!selectedSession) {
       return null;
+    }
+
+    if (!isSegmentScopeActive || selectedAnalysisAggregates.length === 0) {
+      return selectedSession.summary.coreMetrics;
     }
 
     const source = selectedAnalysisAggregates;
-    if (source.length === 0) {
-      return null;
-    }
-
+    const durationSeconds = selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : 1;
     return {
-      durationSeconds: selectedSegment.endSecond - selectedSegment.startSecond,
+      ...selectedSession.summary.coreMetrics,
       distanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.distanceMeters ?? 0), 0),
       sprintDistanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.sprintDistanceMeters ?? 0), 0),
       sprintCount: source.reduce((sum, item) => sum + (item.coreMetrics.sprintCount ?? 0), 0),
+      maxSpeedMetersPerSecond: Math.max(...source.map((item) => item.coreMetrics.maxSpeedMetersPerSecond ?? 0)),
       highIntensityTimeSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.highIntensityTimeSeconds ?? 0), 0),
       highIntensityRunCount: source.reduce((sum, item) => sum + (item.coreMetrics.highIntensityRunCount ?? 0), 0),
-      maxSpeedMetersPerSecond: Math.max(...source.map((item) => item.coreMetrics.maxSpeedMetersPerSecond ?? 0))
-    };
-  }, [isSegmentScopeActive, selectedSegment, selectedAnalysisAggregates]);
-
+      highSpeedDistanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.highSpeedDistanceMeters ?? 0), 0),
+      runningDensityMetersPerMinute: (source.reduce((sum, item) => sum + (item.coreMetrics.distanceMeters ?? 0), 0) / durationSeconds) * 60,
+      accelerationCount: source.reduce((sum, item) => sum + (item.coreMetrics.accelerationCount ?? 0), 0),
+      decelerationCount: source.reduce((sum, item) => sum + (item.coreMetrics.decelerationCount ?? 0), 0),
+      heartRateZoneLowSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.heartRateZoneLowSeconds ?? 0), 0),
+      heartRateZoneMediumSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.heartRateZoneMediumSeconds ?? 0), 0),
+      heartRateZoneHighSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.heartRateZoneHighSeconds ?? 0), 0),
+      trainingImpulseEdwards: source.reduce((sum, item) => sum + (item.coreMetrics.trainingImpulseEdwards ?? 0), 0),
+      heartRateRecoveryAfter60Seconds: source[source.length - 1]?.coreMetrics.heartRateRecoveryAfter60Seconds ?? null
+    } satisfies FootballCoreMetrics;
+  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedSegment]);
 
   const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
 
@@ -3564,19 +3633,20 @@ export function App() {
               <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
               <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
               <p><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</p>
-              {selectedSegment && <p><strong>{t.segmentsTitle}:</strong> {segmentCategoryLabel(selectedSegment.category ?? 'Other', t)} · {selectedSegment.label} ({selectedSegment.startSecond}s-{selectedSegment.endSecond}s)</p>}
-              {isSegmentScopeActive && <p><strong>{t.segmentScopeHint}</strong> <button type="button" className="secondary-button" onClick={() => setAnalysisScope('session')}>{t.segmentBackToSessionMetrics}</button></p>}
-              {isSegmentScopeActive && segmentDerivedMetrics && (
+              {isSegmentScopeActive && selectedSegment && <p><strong>{t.segmentsTitle}:</strong> {segmentCategoryLabel(selectedSegment.category ?? 'Other', t)} · {selectedSegment.label} ({selectedSegment.startSecond}s-{selectedSegment.endSecond}s)</p>}
+              {isSegmentScopeActive && <p><strong>{t.segmentScopeHint}</strong> <button type="button" className="secondary-button" onClick={() => { setAnalysisScope('session'); setActiveSessionSubpage('segments'); }}>{t.segmentBackToSegmentList}</button></p>}
+              {isSegmentScopeActive && selectedSegment?.notes && <p><strong>{t.segmentNotes}:</strong> {selectedSegment.notes}</p>}
+              {isSegmentScopeActive && selectedSegment && (
                 <div className="analysis-disclosure__content">
                   <h3>{t.segmentDerivedMetricsTitle}</h3>
                   <ul className="metrics-list">
-                    <li><strong>{t.metricDuration}:</strong> {formatDuration(segmentDerivedMetrics.durationSeconds, locale, t.notAvailable)}</li>
-                    <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(segmentDerivedMetrics.distanceMeters, locale, t.notAvailable)}</li>
-                    <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(segmentDerivedMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                    <li><strong>{t.metricSprintCount}:</strong> {segmentDerivedMetrics.sprintCount}</li>
-                    <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(segmentDerivedMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
-                    <li><strong>{t.metricHighIntensityRunCount}:</strong> {segmentDerivedMetrics.highIntensityRunCount}</li>
-                    <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(segmentDerivedMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
+                    <li><strong>{t.metricDuration}:</strong> {formatDuration(selectedSegment.endSecond - selectedSegment.startSecond, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricSprintCount}:</strong> {selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}</li>
+                    <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricHighIntensityRunCount}:</strong> {selectedSession.summary.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
+                    <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
                   </ul>
                 </div>
               )}
@@ -3688,11 +3758,11 @@ export function App() {
                     <td>{segment.label}</td>
                     <td>{segment.startSecond}</td>
                     <td>{segment.endSecond}</td>
-                    <td>
+                    <td className="segment-table__actions">
                       <button type="button" className="secondary-button" onClick={() => onEditSegment(segment)}>{t.segmentEdit}</button>
                       <button type="button" className="secondary-button" onClick={() => { setMergeForm((current) => ({ ...current, sourceSegmentId: segment.id, targetSegmentId: selectedSession.segments.find((candidate) => candidate.id !== segment.id)?.id ?? '' })); setSegmentEditorsOpen({ edit: false, merge: true, split: false }); }}>{t.segmentMergeAction}</button>
                       <button type="button" className="secondary-button" onClick={() => { const midpoint = Math.floor((segment.startSecond + segment.endSecond) / 2); setSplitForm({ segmentId: segment.id, splitSecond: String(midpoint), leftLabel: '', rightLabel: '', notes: segment.notes ?? '' }); setSegmentEditorsOpen({ edit: false, merge: false, split: true }); }}>{t.segmentSplitAction}</button>
-                      <button type="button" onClick={() => onDeleteSegment(segment.id)}>{t.segmentDelete}</button>
+                      <button type="button" className="secondary-button danger-button" onClick={() => onDeleteSegment(segment.id)}>{t.segmentDelete}</button>
                     </td>
                   </tr>
                 ))}
@@ -3844,15 +3914,15 @@ export function App() {
             </select>
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
-          <section className={`core-metrics-section analysis-disclosure analysis-block--core ${activeSessionSubpage === "analysis" && !isSegmentScopeActive ? "" : "is-hidden"}`}>
+          <section className={`core-metrics-section analysis-disclosure analysis-block--core ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('coreMetrics')} aria-expanded={analysisAccordionState.coreMetrics}>
               <span>{t.coreMetricsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.coreMetrics ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
-            {analysisAccordionState.coreMetrics && (
+            {analysisAccordionState.coreMetrics && displayedCoreMetrics && (
             <div className="analysis-disclosure__content">
-            {!selectedSession.summary.coreMetrics.isAvailable && (
-              <p>{t.coreMetricsUnavailable.replace('{reason}', selectedSession.summary.coreMetrics.unavailableReason ?? t.notAvailable)}</p>
+            {!displayedCoreMetrics.isAvailable && !isSegmentScopeActive && (
+              <p>{t.coreMetricsUnavailable.replace('{reason}', displayedCoreMetrics.unavailableReason ?? t.notAvailable)}</p>
             )}
             <div className="core-metrics-filter" role="tablist" aria-label={t.coreMetricsCategoryTitle}>
               <button type="button" role="tab" aria-selected={coreMetricsCategoryFilter === 'all'} className={coreMetricsCategoryFilter === 'all' ? 'tab-button tab-button--active' : 'tab-button'} onClick={() => setCoreMetricsCategoryFilter('all')}>
@@ -3871,7 +3941,7 @@ export function App() {
                 'distanceMeters', 'sprintDistanceMeters', 'sprintCount', 'maxSpeedMetersPerSecond', 'highIntensityTimeSeconds', 'highIntensityRunCount',
                 'highSpeedDistanceMeters', 'runningDensityMetersPerMinute', 'accelerationCount', 'decelerationCount'
               ];
-              const showExternalWarning = hasAvailableWithWarning(selectedSession.summary.coreMetrics, externalMetricKeys);
+              const showExternalWarning = !isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, externalMetricKeys);
 
               return (
               <div>
@@ -3879,18 +3949,18 @@ export function App() {
                 <p>{t.coreMetricsCategoryExternalHelp}</p>
                 {showExternalWarning && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
                 <ul className="metrics-list">
-                  <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.distance} />
-                  <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', selectedSession.summary.coreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
-                  <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.directionChanges} />
-                  <MetricListItem label={t.metricSprintDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.sprintDistance} />
-                  <MetricListItem label={t.metricSprintCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.sprintCount} />
-                  <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.maxSpeed} />
-                  <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highIntensityTime} />
-                  <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
-                  <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
-                  <MetricListItem label={t.metricRunningDensity} value={withMetricStatus(formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.runningDensity} />
-                  <MetricListItem label={t.metricAccelerationCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.accelerationCount} />
-                  <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.decelerationCount} />
+                  <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />
+                  <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
+                  <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
+                  <MetricListItem label={t.metricSprintDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.sprintDistance} />
+                  <MetricListItem label={t.metricSprintCount} value={withMetricStatus(String(displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)} helpText={metricHelp.sprintCount} />
+                  <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)} helpText={metricHelp.maxSpeed} />
+                  <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityTime} />
+                  <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
+                  <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
+                  <MetricListItem label={t.metricRunningDensity} value={withMetricStatus(formatNumber(displayedCoreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', displayedCoreMetrics, t)} helpText={metricHelp.runningDensity} />
+                  <MetricListItem label={t.metricAccelerationCount} value={withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
+                  <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
                 </ul>
               </div>
               );
@@ -3900,19 +3970,19 @@ export function App() {
                 <h4>{t.coreMetricsCategoryInternalTitle}</h4>
                 <p>{t.coreMetricsCategoryInternalHelp}</p>
                 <ul className="metrics-list">
-                  <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', selectedSession.summary.coreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
-                  <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneLow} />
-                  <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
-                  <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
-                  <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.trimpEdwards} />
-                  <MetricListItem label={t.metricTrimpPerMinute} value={formatNumber(trimpPerMinute(selectedSession.summary), locale, t.notAvailable, 2)} helpText={metricHelp.trimpEdwards} />
-                  <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrRecovery60} />
+                  <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', displayedCoreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
+                  <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneLow} />
+                  <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
+                  <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
+                  <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(displayedCoreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', displayedCoreMetrics, t)} helpText={metricHelp.trimpEdwards} />
+                  <MetricListItem label={t.metricTrimpPerMinute} value={formatNumber(displayedCoreMetrics.trainingImpulseEdwards !== null ? displayedCoreMetrics.trainingImpulseEdwards / ((isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : Math.max(1, selectedSession.summary.durationSeconds ?? 0)) / 60) : null, locale, t.notAvailable, 2)} helpText={metricHelp.trimpEdwards} />
+                  <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(displayedCoreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)} helpText={metricHelp.hrRecovery60} />
                 </ul>
               </div>
             )}
             <ul className="metrics-list">
-              <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(selectedSession.summary.coreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
-              <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
+              <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(displayedCoreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
+              <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (displayedCoreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (displayedCoreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (displayedCoreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (displayedCoreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (displayedCoreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (displayedCoreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
             </ul>
             </div>
             )}

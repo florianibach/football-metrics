@@ -448,6 +448,16 @@ button:disabled {
   margin-right: 0.4rem;
 }
 
+.segment-table__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.segment-table__actions button {
+  margin-right: 0;
+}
+
 .segment-error {
   margin: 0;
   border-left: 4px solid #d92d20;
@@ -847,6 +857,16 @@ button:focus-visible {
   }
 
   .segment-actions button {
+    width: 100%;
+  }
+
+  .segment-table__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+  }
+
+  .segment-table__actions button {
     width: 100%;
   }
 }
