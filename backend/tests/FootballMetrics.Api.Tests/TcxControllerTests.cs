@@ -196,6 +196,30 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
 
+
+    [Fact]
+    public async Task R1_6_UXIA_Increment2_DeleteSession_ShouldRemoveSessionAndReturnNoContent()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "delete-session.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var createResponse = await client.PostAsync("/api/v1/tcx/upload", form);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await createResponse.Content.ReadFromJsonAsync<TcxUploadResponseDto>();
+        created.Should().NotBeNull();
+
+        var deleteResponse = await client.DeleteAsync($"/api/v1/tcx/{created!.Id}");
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var listResponse = await client.GetAsync("/api/v1/tcx");
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var listPayload = await listResponse.Content.ReadFromJsonAsync<IReadOnlyList<TcxUploadResponseDto>>();
+        listPayload.Should().NotBeNull();
+        listPayload!.Should().NotContain(item => item.Id == created.Id);
+    }
+
     [Fact]
     public async Task R1_6_03_Ac01_Ac04_CreateSegment_ShouldPersistSegmentWithVersionedHistory()
     {
@@ -919,6 +943,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         public Task<TcxUpload?> GetByContentHashAsync(string contentHashSha256, CancellationToken cancellationToken = default)
             => Task.FromResult<TcxUpload?>(null);
 
+        public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
         public Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
@@ -1003,6 +1030,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
 
         public Task<TcxUpload?> GetByContentHashAsync(string contentHashSha256, CancellationToken cancellationToken = default)
             => Task.FromResult<TcxUpload?>(null);
+
+        public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
 
         public Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default)
             => Task.FromResult(false);

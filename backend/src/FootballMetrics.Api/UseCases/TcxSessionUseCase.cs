@@ -209,6 +209,12 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
+
+    public async Task<bool> DeleteSessionAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return await _repository.DeleteAsync(id, cancellationToken);
+    }
+
     public async Task<TcxUpload?> RecalculateWithCurrentProfileAsync(Guid id, CancellationToken cancellationToken)
     {
         var upload = await _repository.GetByIdAsync(id, cancellationToken);

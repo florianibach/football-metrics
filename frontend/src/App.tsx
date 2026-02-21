@@ -307,6 +307,12 @@ type TranslationKey =
   | 'sessionContextOpponentLogoUrl'
   | 'sessionContextSave'
   | 'sessionContextSaveSuccess'
+  | 'sessionDangerZoneTitle'
+  | 'sessionDeleteWarning'
+  | 'sessionDeleteButton'
+  | 'sessionDeleteConfirm'
+  | 'sessionDeleteSuccess'
+  | 'sessionDeleteFailed'
   | 'sessionContextOnlyForMatches'
   | 'historySortLabel'
   | 'historySortNewest'
@@ -614,6 +620,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionContextOpponentLogoUrl: 'Opponent logo URL (optional)',
     sessionContextSave: 'Save context',
     sessionContextSaveSuccess: 'Session context saved.',
+    sessionDangerZoneTitle: 'Danger zone',
+    sessionDeleteWarning: 'Deleting a session removes all related analysis data and cannot be undone.',
+    sessionDeleteButton: 'Delete session',
+    sessionDeleteConfirm: 'Do you really want to delete this session? This action cannot be undone.',
+    sessionDeleteSuccess: 'Session deleted successfully.',
+    sessionDeleteFailed: 'Deleting the session failed.',
     sessionContextOnlyForMatches: 'Game context fields are only used for sessions of type Match.',
     historySortLabel: 'Sort by upload time',
     historySortNewest: 'Newest first',
@@ -917,6 +929,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionContextOpponentLogoUrl: 'Gegner-Logo-URL (optional)',
     sessionContextSave: 'Kontext speichern',
     sessionContextSaveSuccess: 'Session-Kontext gespeichert.',
+    sessionDangerZoneTitle: 'Danger Zone',
+    sessionDeleteWarning: 'Das Löschen einer Session entfernt alle zugehörigen Analysedaten und kann nicht rückgängig gemacht werden.',
+    sessionDeleteButton: 'Session löschen',
+    sessionDeleteConfirm: 'Möchtest du diese Session wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
+    sessionDeleteSuccess: 'Session erfolgreich gelöscht.',
+    sessionDeleteFailed: 'Session konnte nicht gelöscht werden.',
     sessionContextOnlyForMatches: 'Spielkontext-Felder werden nur für Sessions vom Typ Spiel verwendet.',
     historySortLabel: 'Nach Upload-Zeit sortieren',
     historySortNewest: 'Neueste zuerst',
@@ -2265,6 +2283,36 @@ export function App() {
   }
 
 
+
+  async function onDeleteSession() {
+    if (!selectedSession) {
+      return;
+    }
+
+    if (!window.confirm(t.sessionDeleteConfirm)) {
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}`, {
+      method: 'DELETE'
+    });
+
+    if (!response.ok) {
+      setMessage(t.sessionDeleteFailed);
+      return;
+    }
+
+    const remainingSessions = uploadHistory.filter((item) => item.id !== selectedSession.id);
+    setUploadHistory(remainingSessions);
+    setSelectedSession(remainingSessions[0] ?? null);
+    setCompareOpponentSessionId(null);
+    setShowUploadQualityStep(false);
+    setActiveSessionSubpage('analysis');
+    setActiveSessionIdFromRoute(remainingSessions[0]?.id ?? null);
+    setActiveMainPage(remainingSessions.length > 0 ? 'session' : 'sessions');
+    setMessage(t.sessionDeleteSuccess);
+  }
+
   async function onThemeSelect(nextTheme: 'light' | 'dark') {
     setTheme(nextTheme);
     setProfileForm((current) => ({ ...current, preferredTheme: nextTheme }));
@@ -3539,6 +3587,12 @@ export function App() {
               {showMissingGpsHint && <p>{t.detailMissingGpsHint}</p>}
             </div>
           )}
+
+          <div className="session-danger-zone">
+            <h3>{t.sessionDangerZoneTitle}</h3>
+            <p>{t.sessionDeleteWarning}</p>
+            <button type="button" className="danger-button" onClick={onDeleteSession}>{t.sessionDeleteButton}</button>
+          </div>
         </section>
       )}
     </main>

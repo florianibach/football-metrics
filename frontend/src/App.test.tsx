@@ -2568,4 +2568,39 @@ describe('App', () => {
     expect(within(qualitySidebar).getByText(/Heart-rate signal has dropouts/)).toBeInTheDocument();
   });
 
+
+  it('R1_6_UXIA_Increment2_allows_deleting_a_session_from_danger_zone', async () => {
+    const first = createUploadRecord({ id: 'delete-me', fileName: 'delete-me.tcx' });
+    const second = createUploadRecord({ id: 'keep-me', fileName: 'keep-me.tcx', uploadedAtUtc: '2026-02-16T23:00:00.000Z' });
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [first, second] } as Response);
+      }
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: false, json: async () => ({}) } as Response);
+      }
+      if (url.endsWith('/tcx/delete-me') && init?.method === 'DELETE') {
+        return Promise.resolve({ ok: true, status: 204, text: async () => '' } as Response);
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    const sessionList = document.getElementById('session-list') as HTMLElement;
+    const deleteMeRow = within(sessionList).getByText('delete-me.tcx').closest('tr') as HTMLElement;
+    fireEvent.click(within(deleteMeRow).getByRole('button', { name: 'Open details' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete session' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Session deleted successfully.')).toBeInTheDocument();
+    });
+    expect(screen.getAllByText('keep-me.tcx').length).toBeGreaterThan(0);
+  });
+
 });

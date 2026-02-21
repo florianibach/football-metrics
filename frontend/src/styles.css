@@ -1774,3 +1774,26 @@ input[type='checkbox']::before {
 .upload-quality-step h4 {
   margin: 0 0 0.5rem;
 }
+
+
+.session-danger-zone {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #ef4444;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface-color) 82%, #ef4444 18%);
+}
+
+.danger-button {
+  background: #dc2626;
+  color: #fff;
+  border: 1px solid #b91c1c;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  font-weight: 600;
+}
+
+.danger-button:hover,
+.danger-button:focus-visible {
+  background: #b91c1c;
+}
