@@ -170,7 +170,7 @@ button:disabled {
 .session-analysis-flow .detail-hints { order: 85; }
 .analysis-block--quality { order: 90; }
 .analysis-block--danger-zone { order: 100; }
-.analysis-block--session-settings { order: 10; }
+.analysis-block--session-settings { order: 75; }
 
 .analysis-disclosure__content {
   margin-top: 0.55rem;
@@ -182,7 +182,7 @@ button:disabled {
 
 .analysis-disclosure__toggle--quality {
   justify-content: flex-start;
-  margin-bottom: 0;
+  margin: 1rem 0;
 }
 
 .analysis-disclosure {
@@ -194,12 +194,22 @@ button:disabled {
   width: 100%;
   justify-content: space-between;
   align-items: center;
+  text-align: left;
   border: 1px solid #d0d5dd;
   border-radius: 8px;
   background: #f8fafc;
   color: #101828;
   padding: 0.6rem 0.8rem;
   font-weight: 600;
+}
+
+.analysis-disclosure__toggle > span:first-child {
+  text-align: left;
+}
+
+.analysis-disclosure__toggle > .analysis-disclosure__action {
+  margin-left: 0.75rem;
+  text-align: right;
 }
 
 .analysis-disclosure__action {
