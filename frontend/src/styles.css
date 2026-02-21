@@ -1587,9 +1587,10 @@ input[type='checkbox']::before {
 }
 
 .history-filter-pill.is-active {
-  border-color: var(--bs-primary);
-  background: color-mix(in srgb, var(--bs-primary) 20%, transparent);
-  color: var(--bs-primary);
+  border-color: var(--bs-primary) !important;
+  background: color-mix(in srgb, var(--bs-primary) 28%, transparent) !important;
+  color: var(--bs-primary) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bs-primary) 35%, transparent);
 }
 
 .history-filter-group--date {
@@ -1750,5 +1751,12 @@ input[type='checkbox']::before {
 }
 
 .metric-info-sidebar-content p {
-  margin-top: 0;
+  margin: 0;
+}
+
+.session-compare select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }

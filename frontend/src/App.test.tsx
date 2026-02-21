@@ -1335,7 +1335,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Session comparison')).toBeInTheDocument());
 
     const selector = screen.getByLabelText('Comparison session');
-    expect(within(selector).getByRole('option', { name: /base-session\.tcx \(active session\)/ })).toBeDisabled();
+    expect(within(selector).getByRole('option', { name: /base-session\.tcx \(active session\)/ })).toBeInTheDocument();
     expect(within(selector).getByRole('option', { name: 'compare-session.tcx' })).toBeInTheDocument();
     expect(within(selector).queryByRole('option', { name: 'third-session.tcx' })).not.toBeInTheDocument();
 
@@ -2418,13 +2418,13 @@ describe('App', () => {
     await screen.findByText('Session details');
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Segmente' }));
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Vergleich' }));
+    fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/compare'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Analyse' }));
+    fireEvent.click(screen.getByRole('button', { name: /Analysis|Analyse/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));

@@ -347,6 +347,9 @@ type TranslationKey =
   | 'sessionCompareBaselineHint'
   | 'metricInfoSidebarTitle'
   | 'metricInfoSidebarClose'
+  | 'sessionSubpageAnalysis'
+  | 'sessionSubpageSegments'
+  | 'sessionSubpageCompare'
   | 'detailMissingHeartRateHint'
   | 'detailMissingDistanceHint'
   | 'detailMissingGpsHint'
@@ -642,6 +645,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionCompareBaselineHint: 'Choose the baseline that all deltas should reference.',
     metricInfoSidebarTitle: 'Metric details',
     metricInfoSidebarClose: 'Close details',
+    sessionSubpageAnalysis: 'Analysis',
+    sessionSubpageSegments: 'Segments',
+    sessionSubpageCompare: 'Compare',
     detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
     detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
     detailMissingGpsHint: 'No GPS coordinates were detected in this file.',
@@ -933,6 +939,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     sessionCompareBaselineHint: 'Wähle die Basis, auf die sich alle Deltas beziehen sollen.',
     metricInfoSidebarTitle: 'Metrik-Details',
     metricInfoSidebarClose: 'Details schließen',
+    sessionSubpageAnalysis: 'Analyse',
+    sessionSubpageSegments: 'Segmente',
+    sessionSubpageCompare: 'Vergleich',
     detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
     detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
     detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.',
@@ -1693,7 +1702,7 @@ export function App() {
   }, [uploadHistory]);
 
   const filteredHistory = useMemo(() => sortedHistory.filter((record) => {
-    const isSessionTypeMatch = sessionTypeFilters.includes(record.sessionContext.sessionType);
+    const isSessionTypeMatch = sessionTypeFilters.length === 0 || sessionTypeFilters.includes(record.sessionContext.sessionType);
     const isQualityMatch = qualityStatusFilter === 'All' || record.summary.qualityStatus === qualityStatusFilter;
     const activityDate = record.summary.activityStartTimeUtc ? new Date(record.summary.activityStartTimeUtc) : new Date(record.uploadedAtUtc);
 
@@ -2607,9 +2616,9 @@ export function App() {
         {selectedSession && activeMainPage === "session" && isSessionMenuVisible && (
           <div className="side-nav__session-subpages">
             <p>Session</p>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-analysis', 'analysis')}>Analyse</button>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segments' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segments', 'segments')}>Segmente</button>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'compare' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-compare', 'compare')}>Vergleich</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-analysis', 'analysis')}>{t.sessionSubpageAnalysis}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segments' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segments', 'segments')}>{t.sessionSubpageSegments}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'compare' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-compare', 'compare')}>{t.sessionSubpageCompare}</button>
           </div>
         )}
       </aside>
@@ -3022,10 +3031,10 @@ export function App() {
             <select
               id="comparison-session-selector"
               value={compareOpponentSessionId ?? ''}
-              onChange={(event) => setCompareOpponentSessionId(event.target.value && event.target.value !== selectedSession.id ? event.target.value : null)}
+              onChange={(event) => setCompareOpponentSessionId(event.target.value || null)}
             >
               <option value="">{t.sessionCompareSelectSession}</option>
-              <option value={selectedSession.id} disabled>{selectedSession.fileName} ({t.sessionCompareActiveSessionBadge})</option>
+              <option value={selectedSession.id}>{selectedSession.fileName} ({t.sessionCompareActiveSessionBadge})</option>
               {compareSelectableSessions.map((record) => (
                 <option key={record.id} value={record.id}>{record.fileName}</option>
               ))}
