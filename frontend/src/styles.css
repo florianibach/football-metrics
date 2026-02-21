@@ -195,10 +195,10 @@ button:disabled {
   justify-content: space-between;
   align-items: center;
   text-align: left;
-  border: 1px solid #3a3f47;
+  border: 1px solid #dde1e7;
   border-radius: 18px;
-  background: #1f2024;
-  color: #f5f7fa;
+  background: #f2f4f7;
+  color: #0f1728;
   padding: 0.85rem 1.1rem;
   font-weight: 600;
 }
@@ -215,7 +215,7 @@ button:disabled {
 .analysis-disclosure__action {
   font-size: 0.85rem;
   font-weight: 500;
-  color: #d0d5dd;
+  color: #98a2b3;
 }
 
 .session-details {
@@ -800,8 +800,7 @@ button:focus-visible {
 .app-shell[data-theme='dark'] .segment-form input,
 .app-shell[data-theme='dark'] .segment-form select,
 .app-shell[data-theme='dark'] .baseline-selector select,
-.app-shell[data-theme='dark'] .comparison-controls select,
-.app-shell[data-theme='dark'] .analysis-disclosure__toggle {
+.app-shell[data-theme='dark'] .comparison-controls select {
   background: #1f2937;
   color: #f2f4f7;
   border-color: #344054;
