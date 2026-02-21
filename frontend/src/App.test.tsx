@@ -1926,7 +1926,7 @@ describe('App', () => {
 
     expect((await screen.findAllByText('Heart-rate only')).length).toBeGreaterThan(0);
 
-    fireEvent.click((await screen.findAllByRole('button', { name: /Details|Open details/ }))[0]);
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Open details' }))[0]);
 
     expect(await screen.findByText(/HF-only interpretation aid/)).toBeInTheDocument();
     expect(screen.getByText(/TRIMP\/min/)).toBeInTheDocument();
@@ -2021,10 +2021,10 @@ describe('App', () => {
     render(<App />);
     fireEvent.change(await screen.findByLabelText('Language'), { target: { value: 'en' } });
 
-    fireEvent.click((await screen.findAllByRole('button', { name: /Details|Open details/ }))[0]);
-    expect(await screen.findByText(/GPS unusable because quality is Low\. Required: High\./)).toBeInTheDocument();
-    expect(screen.getByText(/measurement unusable \(GPS unusable because quality is Low/)).toBeInTheDocument();
-    expect(screen.getByText(/not measured \(Heart-rate data not present/)).toBeInTheDocument();
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Open details' }))[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Quality info' }));
+    expect((await screen.findAllByText(/GPS unusable because quality is Low\. Required: High\./)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Heart-rate data not present in this session\./).length).toBeGreaterThan(0);
   });
 
   it('R1_6_03_Ac01_Ac02_ui_allows_segment_creation_and_editing', async () => {
@@ -2479,5 +2479,93 @@ describe('App', () => {
     });
   });
 
+
+
+  it('R1_6_UXIA_Increment2_Story2_1_shows_quality_check_step_after_upload_and_allows_continue_to_analysis', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      const url = String(input);
+      if (url.endsWith('/tcx/upload')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => createUploadRecord({
+            summary: createSummary({
+              qualityStatus: 'Medium',
+              qualityReasons: ['GPS quality is moderate; interpret speed peaks carefully.'],
+              dataAvailability: {
+                mode: 'Dual',
+                gpsStatus: 'AvailableWithWarning',
+                gpsReason: 'GPS jitter detected in parts of the session.',
+                heartRateStatus: 'Available',
+                heartRateReason: null,
+                gpsQualityStatus: 'Medium',
+                heartRateQualityStatus: 'High'
+              }
+            })
+          })
+        } as Response);
+      }
+
+      if (url.endsWith('/tcx')) {
+        return Promise.resolve({ ok: true, json: async () => [] } as Response);
+      }
+
+      if (url.endsWith('/profile')) {
+        return Promise.resolve({ ok: false, json: async () => ({}) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: { files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'increment2.tcx', { type: 'application/xml' })] }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    const qualityStep = await screen.findByTestId('upload-quality-step');
+    expect(within(qualityStep).getByText('Quality check')).toBeInTheDocument();
+    expect(within(qualityStep).getAllByText('Overall quality:').length).toBeGreaterThan(0);
+    expect(within(qualityStep).getByText('Key interpretation impacts')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'To session analysis' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('upload-quality-step')).toHaveClass('is-hidden');
+    });
+  });
+
+  it('R1_6_UXIA_Increment2_Story2_2_opens_persistent_quality_details_sidebar_in_session_analysis', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        createUploadRecord({
+          summary: createSummary({
+            qualityStatus: 'Low',
+            qualityReasons: ['Heart-rate signal has dropouts; intensity interpretation is limited.'],
+            dataAvailability: {
+              mode: 'Dual',
+              gpsStatus: 'Available',
+              gpsReason: null,
+              heartRateStatus: 'NotUsable',
+              heartRateReason: 'Heart-rate channel unusable in second half.',
+              gpsQualityStatus: 'High',
+              heartRateQualityStatus: 'Low'
+            }
+          })
+        })
+      ]
+    } as Response);
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Quality info' }));
+
+    const qualitySidebar = await screen.findByTestId('quality-details-sidebar');
+    expect(within(qualitySidebar).getByRole('heading', { name: 'Quality details' })).toBeInTheDocument();
+    expect(within(qualitySidebar).getByText('Key interpretation impacts')).toBeInTheDocument();
+    expect(within(qualitySidebar).getByText(/Heart-rate signal has dropouts/)).toBeInTheDocument();
+  });
 
 });

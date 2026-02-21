@@ -1760,3 +1760,17 @@ input[type='checkbox']::before {
   min-width: 0;
   box-sizing: border-box;
 }
+
+
+.upload-quality-step {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--surface-color) 88%, #2f7cf6 12%);
+}
+
+.upload-quality-step h3,
+.upload-quality-step h4 {
+  margin: 0 0 0.5rem;
+}

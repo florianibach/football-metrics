@@ -133,6 +133,8 @@ Als Spieler möchte ich die Session-Liste rein zum **Finden/Öffnen** nutzen und
 **Ziel:** Vertrauen stärken und den vorgeschlagenen 3-Schritt-Flow herstellen.
 
 ### User Story 2.1
+**Status: ✅ Done**
+
 Als Spieler möchte ich nach Upload zuerst eine **kompakte Qualitätsübersicht** sehen, damit ich die Belastbarkeit der Kennzahlen sofort verstehe.
 
 **Acceptance Criteria**
@@ -141,6 +143,8 @@ Als Spieler möchte ich nach Upload zuerst eine **kompakte Qualitätsübersicht*
 - Primärer CTA: „Zur Session-Analyse“.
 
 ### User Story 2.2
+**Status: ✅ Done**
+
 Als Spieler möchte ich Qualitätsdetails später jederzeit wieder öffnen können, damit ich bei Unsicherheit nachprüfen kann.
 
 **Acceptance Criteria**

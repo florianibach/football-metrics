@@ -323,6 +323,15 @@ type TranslationKey =
   | 'historyFilterClose'
   | 'historyFilterDefaultsHint'
   | 'historyOpenDetails'
+  | 'uploadQualityStepTitle'
+  | 'uploadQualityStepIntro'
+  | 'uploadQualityOverall'
+  | 'uploadQualityGps'
+  | 'uploadQualityHeartRate'
+  | 'uploadQualityImpacts'
+  | 'uploadQualityProceedToAnalysis'
+  | 'sessionQualityDetailsButton'
+  | 'qualityDetailsSidebarTitle'
   | 'sessionCompareSelectionTitle'
   | 'sessionCompareSelectionHint'
   | 'sessionCompareSelectSession'
@@ -621,6 +630,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterClose: 'Close',
     historyFilterDefaultsHint: 'Defaults: Newest first, all quality states, all session types, full date range.',
     historyOpenDetails: 'Open details',
+    uploadQualityStepTitle: 'Quality check',
+    uploadQualityStepIntro: 'Review this compact quality summary before jumping into session analysis.',
+    uploadQualityOverall: 'Overall quality',
+    uploadQualityGps: 'GPS channel',
+    uploadQualityHeartRate: 'Heart-rate channel',
+    uploadQualityImpacts: 'Key interpretation impacts',
+    uploadQualityProceedToAnalysis: 'To session analysis',
+    sessionQualityDetailsButton: 'Quality info',
+    qualityDetailsSidebarTitle: 'Quality details',
     sessionCompareSelectionTitle: 'Comparison sessions',
     sessionCompareSelectionHint: 'Select exactly 1 comparison session of the same session type.',
     sessionCompareSelectSession: 'Select session',
@@ -915,6 +933,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterClose: 'Schließen',
     historyFilterDefaultsHint: 'Standard: Neueste zuerst, alle Qualitätsstufen, alle Session-Typen, voller Datumsbereich.',
     historyOpenDetails: 'Details öffnen',
+    uploadQualityStepTitle: 'Qualitätscheck',
+    uploadQualityStepIntro: 'Prüfe diese kompakte Qualitätsübersicht, bevor du in die Session-Analyse wechselst.',
+    uploadQualityOverall: 'Gesamtqualität',
+    uploadQualityGps: 'GPS-Kanal',
+    uploadQualityHeartRate: 'Herzfrequenz-Kanal',
+    uploadQualityImpacts: 'Kernauswirkungen auf die Interpretation',
+    uploadQualityProceedToAnalysis: 'Zur Session-Analyse',
+    sessionQualityDetailsButton: 'Qualitätsdetails',
+    qualityDetailsSidebarTitle: 'Qualitätsdetails',
     sessionCompareSelectionTitle: 'Vergleichs-Sessions',
     sessionCompareSelectionHint: 'Wähle genau 1 Vergleichs-Session mit identischem Session-Typ.',
     sessionCompareSelectSession: 'Session auswählen',
@@ -1612,6 +1639,8 @@ export function App() {
   const [draftDateToFilter, setDraftDateToFilter] = useState('');
   const [isMetricInfoSidebarOpen, setIsMetricInfoSidebarOpen] = useState(false);
   const [activeMetricInfo, setActiveMetricInfo] = useState<{ label: string; helpText: string } | null>(null);
+  const [isQualityDetailsSidebarOpen, setIsQualityDetailsSidebarOpen] = useState(false);
+  const [showUploadQualityStep, setShowUploadQualityStep] = useState(false);
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -1833,6 +1862,7 @@ export function App() {
     setSelectedFilter(matchedSession.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(matchedSession.sessionContext);
     setIsSessionMenuVisible(true);
+    setShowUploadQualityStep(false);
   }, [activeMainPage, activeSessionIdFromRoute, selectedSession?.id, uploadHistory]);
 
   useEffect(() => {
@@ -1879,6 +1909,7 @@ export function App() {
             setSelectedSession(initialSession);
             setSelectedFilter(initialSession.summary.smoothing.selectedStrategy as SmoothingFilter);
             setSessionContextForm(initialSession.sessionContext);
+            setShowUploadQualityStep(false);
             setActiveMainPage('session');
             setIsSessionMenuVisible(true);
             setActiveSessionIdFromRoute(initialSession.id);
@@ -1944,6 +1975,7 @@ export function App() {
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
     setActiveMainPage('session');
+    setShowUploadQualityStep(false);
     setIsSessionMenuVisible(true);
   }
 
@@ -2219,6 +2251,7 @@ export function App() {
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setSessionContextForm(payload.sessionContext);
       setActiveMainPage('session');
+      setShowUploadQualityStep(true);
       setIsSessionMenuVisible(true);
       setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
@@ -2394,6 +2427,15 @@ export function App() {
     : '';
 
   const selectedFilterDescription = t[getFilterDescriptionKey(selectedFilter)];
+
+  const qualityDetails = selectedSession ? resolveDataAvailability(selectedSession.summary) : null;
+  const qualityImpactItems = selectedSession
+    ? [
+      ...selectedSession.summary.qualityReasons,
+      qualityDetails?.gpsReason,
+      qualityDetails?.heartRateReason
+    ].filter((reason, index, items): reason is string => Boolean(reason) && items.indexOf(reason) === index).slice(0, 4)
+    : [];
 
   const displayedMaxSpeedMps = profileForm.metricThresholds.maxSpeedMode === 'Adaptive'
     ? profileForm.metricThresholds.effectiveMaxSpeedMps
@@ -3006,6 +3048,7 @@ export function App() {
                         setCompareMode('smoothed');
                         setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
                         setSessionContextForm(record.sessionContext);
+                        setShowUploadQualityStep(false);
                         setActiveSessionSubpage('analysis');
                         setActiveSessionIdFromRoute(record.id);
                         setActiveMainPage('session');
@@ -3093,6 +3136,31 @@ export function App() {
         </div>
       </aside>
 
+      <div className={`history-filter-overlay ${isQualityDetailsSidebarOpen ? 'is-open' : ''}`} onClick={() => setIsQualityDetailsSidebarOpen(false)} />
+      <aside data-testid="quality-details-sidebar" className={`history-filter-sidebar ${isQualityDetailsSidebarOpen ? 'is-open' : ''}`} aria-label={t.qualityDetailsSidebarTitle}>
+        <div className="history-filter-sidebar__header">
+          <h3>{t.qualityDetailsSidebarTitle}</h3>
+          <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(false)}>{t.historyFilterClose}</button>
+        </div>
+        <div className="history-controls history-controls--sidebar metric-info-sidebar-content">
+          {selectedSession && qualityDetails ? (
+            <ul className="metrics-list">
+              <li><strong>{t.uploadQualityOverall}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
+              <li><strong>{t.uploadQualityGps}:</strong> {qualityStatusText((qualityDetails.gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+              <li><strong>{t.uploadQualityHeartRate}:</strong> {qualityStatusText((qualityDetails.heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+            </ul>
+          ) : (
+            <p>{t.notAvailable}</p>
+          )}
+          <h4>{t.uploadQualityImpacts}</h4>
+          {qualityImpactItems.length === 0 ? <p>{t.notAvailable}</p> : (
+            <ul className="metrics-list">
+              {qualityImpactItems.map((impact) => <li key={impact}>{impact}</li>)}
+            </ul>
+          )}
+        </div>
+      </aside>
+
       {selectedSession && (
         <section className={`session-details ${activeMainPage === "session" ? "" : "is-hidden"}`} aria-live="polite" id="session-analysis">
           <h2>{t.summaryTitle}</h2>
@@ -3101,6 +3169,23 @@ export function App() {
           <h3>{t.sessionRecalculateHistoryTitle}</h3>
           {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className={`metrics-list ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
           <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
+          <button type="button" className="secondary-button" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
+
+          <section data-testid="upload-quality-step" className={`upload-quality-step ${showUploadQualityStep && activeSessionSubpage === 'analysis' ? '' : 'is-hidden'}`}>
+            <h3>{t.uploadQualityStepTitle}</h3>
+            <p>{t.uploadQualityStepIntro}</p>
+            <ul className="metrics-list">
+              <li><strong>{t.uploadQualityOverall}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
+              <li><strong>{t.uploadQualityGps}:</strong> {qualityStatusText(((qualityDetails?.gpsQualityStatus) ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+              <li><strong>{t.uploadQualityHeartRate}:</strong> {qualityStatusText(((qualityDetails?.heartRateQualityStatus) ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+            </ul>
+            <h4>{t.uploadQualityImpacts}</h4>
+            <ul className="metrics-list">
+              {qualityImpactItems.map((impact) => <li key={`upload-impact-${impact}`}>{impact}</li>)}
+            </ul>
+            <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
+          </section>
+
           <div className="session-context">
             <h3>{t.sessionContextTitle}</h3>
             <label htmlFor="session-type-selector">{t.sessionTypeLabel}</label>
