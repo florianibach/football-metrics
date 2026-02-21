@@ -1212,12 +1212,6 @@ input[type='checkbox']:checked::before {
 
 .side-nav__brand {
   color: inherit;
-  background: none;
-  border: 0;
-  padding: 0;
-  font: inherit;
-  font-weight: 700;
-  text-align: left;
   cursor: pointer;
 }
 

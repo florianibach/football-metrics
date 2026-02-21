@@ -2368,6 +2368,16 @@ describe('App', () => {
     render(<App />);
 
     await screen.findByText('Session details');
+    await waitFor(() => expect(window.location.pathname).toBe('/session/upload-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Segmente' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/session/upload-1/segments'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vergleich' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/session/upload-1/compare'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Analyse' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/session/upload-1'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
     await waitFor(() => expect(window.location.pathname).toBe('/upload'));
@@ -2390,7 +2400,7 @@ describe('App', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
       if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
-        return Promise.resolve({ ok: true, json: async () => [] } as Response);
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
       }
 
       if (url.endsWith('/profile') && (!init || init.method === undefined)) {
@@ -2405,7 +2415,7 @@ describe('App', () => {
     render(<App />);
 
     await screen.findByText('Profile settings');
-    fireEvent.click(screen.getByRole('button', { name: 'Football Metrics' }));
+    fireEvent.click(screen.getByText('Football Metrics'));
 
     await waitFor(() => {
       expect(window.location.pathname).toBe('/');
