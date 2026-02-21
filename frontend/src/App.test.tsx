@@ -494,7 +494,7 @@ describe('App', () => {
       expect(screen.getAllByRole('button', { name: 'Open details' }).length).toBe(2);
     });
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
 
     expect(screen.getByText(/File name:/)).toBeInTheDocument();
     expect(screen.getAllByText('second.tcx').length).toBeGreaterThan(0);
@@ -526,8 +526,8 @@ describe('App', () => {
 
     expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/61 min 1 s/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
-    expect(screen.getByText(/110\/142\/178 bpm/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Heart rate \(min\/avg\/max\):/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/110\/142\/178 bpm/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Trackpoints:/)).toBeInTheDocument();
     expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
     expect(screen.getByText(/Yes/)).toBeInTheDocument();
@@ -562,7 +562,7 @@ describe('App', () => {
     expect(screen.getByText(/Heart-rate values are missing in this session/)).toBeInTheDocument();
     expect(screen.getByText(/Distance cannot be calculated because GPS points are missing/)).toBeInTheDocument();
     expect(screen.getByText(/No GPS coordinates were detected in this file/)).toBeInTheDocument();
-    expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Heart rate \(min\/avg\/max\):/).length).toBeGreaterThan(0);
     expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
   });
 
@@ -1627,7 +1627,7 @@ describe('App', () => {
     expect(screen.getByText(/Effective max speed: 29.9 km\/h \(Adaptive\)/)).toBeInTheDocument();
     expect(screen.getByText(/Effective max heartrate: 197 bpm \(Adaptive\)/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
     await waitFor(() => expect(screen.getByText(/Session threshold transparency/)).toBeInTheDocument());
     expect(screen.getByText(/MaxSpeedBase=8.0 m\/s \(Fixed\)/)).toBeInTheDocument();
     expect(screen.getByText(/Sprint=90.0% → 7.2 m\/s/)).toBeInTheDocument();
@@ -2074,7 +2074,7 @@ describe('App', () => {
     render(<App />);
     await screen.findByText('Upload history');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
     await screen.findByText('Session segments');
     fireEvent.click(screen.getByRole('button', { name: 'Edit segments' }));
     const editPanelToggle = document.querySelector('#session-segment-edit .analysis-disclosure__toggle') as HTMLButtonElement;
@@ -2129,7 +2129,7 @@ describe('App', () => {
 
     render(<App />);
     await screen.findByText('Upload history');
-    fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
     await screen.findByText('Session segments');
     fireEvent.click(screen.getByRole('button', { name: 'Edit segments' }));
     const editPanelToggle = document.querySelector('#session-segment-edit .analysis-disclosure__toggle') as HTMLButtonElement;
@@ -2416,7 +2416,90 @@ describe('App', () => {
     expect(screen.queryByText('GPS point heatmap')).not.toBeInTheDocument();
   });
 
-  it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
+
+  it('R1_6_13_Ac05_overview_hides_gps_metrics_in_hr_only_mode', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              id: 'hr-only-overview',
+              summary: createSummary({
+                hasGpsData: false,
+                gpsTrackpoints: [],
+                dataAvailability: {
+                  mode: 'HeartRateOnly',
+                  gpsStatus: 'NotMeasured',
+                  gpsReason: 'GPS not present in this session.',
+                  heartRateStatus: 'Available',
+                  heartRateReason: null
+                }
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    await screen.findByText('Session details');
+
+    const hrOnlyOverview = screen.getByRole('heading', { name: 'Overview' }).closest('.analysis-disclosure__content') as HTMLElement;
+    expect(within(hrOnlyOverview).queryByText(/Distance:/)).not.toBeInTheDocument();
+    expect(within(hrOnlyOverview).getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
+  });
+
+  it('R1_6_13_Ac06_overview_hides_hr_metrics_in_gps_only_mode', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              id: 'gps-only-overview',
+              fileName: 'gps-only.tcx',
+              summary: createSummary({
+                heartRateMinBpm: null,
+                heartRateAverageBpm: null,
+                heartRateMaxBpm: null,
+                dataAvailability: {
+                  mode: 'GpsOnly',
+                  gpsStatus: 'Available',
+                  gpsReason: null,
+                  heartRateStatus: 'NotMeasured',
+                  heartRateReason: 'No heart-rate stream in file.'
+                }
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    await screen.findByText('Session details');
+
+    const gpsOnlyOverview = screen.getByRole('heading', { name: 'Overview' }).closest('.analysis-disclosure__content') as HTMLElement;
+    expect(within(gpsOnlyOverview).getByText(/Distance:/)).toBeInTheDocument();
+    expect(within(gpsOnlyOverview).queryByText(/Heart rate \(min\/avg\/max\):/)).not.toBeInTheDocument();
+  });
+
+    it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
     const withSegment = createUploadRecord({
       segments: [{ id: 'seg-1', label: 'Segment A', startSecond: 0, endSecond: 300, category: 'Other', notes: 'Segment note' }]
     });
