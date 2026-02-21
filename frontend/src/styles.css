@@ -924,6 +924,11 @@ button:focus-visible {
   color: #e9eef7;
 }
 
+.app-shell[data-theme='light'] .side-nav__header,
+.app-shell[data-theme='light'] .side-nav__brand {
+  color: var(--text) !important;
+}
+
 .app-shell[data-theme='light'] .side-nav__item {
   background: #242938;
   border-color: #30374a;
@@ -1204,16 +1209,90 @@ input[type='checkbox']:checked::before {
   }
 }
 
+
+.side-nav__brand {
+  color: inherit;
+}
+
+.upload-form {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface) 96%, var(--bs-secondary));
+}
+
+.upload-form .dropzone {
+  border-color: color-mix(in srgb, var(--bs-secondary) 62%, var(--surface));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--surface) 95%, var(--bs-secondary)) 0%, color-mix(in srgb, var(--surface) 85%, var(--bs-secondary)) 100%);
+  color: var(--muted);
+  padding: 1.25rem;
+  position: relative;
+}
+
+.upload-form .dropzone--active {
+  border-color: var(--bs-primary);
+  background: color-mix(in srgb, var(--bs-primary) 12%, var(--surface));
+  color: var(--text);
+}
+
+.upload-form__drop-content {
+  display: grid;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.upload-form__drop-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.upload-form__drop-action {
+  color: var(--bs-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.16rem;
+}
+
+.upload-form__file-name {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.upload-form__file-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.upload-form__submit {
+  align-self: flex-start;
+  background: var(--bs-primary) !important;
+  border-color: var(--bs-primary) !important;
+  color: #fff !important;
+}
+
+.upload-form__submit:hover,
+.upload-form__submit:focus-visible {
+  background: color-mix(in srgb, var(--bs-primary) 82%, black) !important;
+  border-color: color-mix(in srgb, var(--bs-primary) 82%, black) !important;
+  color: #fff !important;
+}
+
 /* ===== Final palette enforcement (single source of truth) ===== */
 :root {
   --brand-primary: #2c8b69;
   --brand-accent: #eb862a;
   --brand-info: #abbdd3;
   --brand-neutral: #97a3b6;
+  --brand-neutral-dark-text: rgb(33, 33, 33);
   --brand-dark: #1a1a1a;
 
   --bs-primary: var(--brand-primary);
   --bs-secondary: var(--brand-neutral);
+  --bs-secondary-text: #fff;
   --bs-success: var(--brand-primary);
   --bs-info: var(--brand-info);
   --bs-warning: var(--brand-accent);
@@ -1229,6 +1308,8 @@ input[type='checkbox']:checked::before {
 }
 
 .app-shell[data-theme='dark'] {
+  --bs-secondary: rgb(255, 255, 255);
+  --bs-secondary-text: var(--brand-neutral-dark-text);
   --bg: color-mix(in srgb, black 92%, var(--bs-dark));
   --surface: color-mix(in srgb, black 84%, var(--bs-dark));
   --text: color-mix(in srgb, white 94%, var(--bs-secondary));
@@ -1262,6 +1343,7 @@ input[type='checkbox']:checked::before {
 .side-nav__header {
   border-bottom: 0 !important;
   margin-bottom: 0.6rem;
+  color: var(--text) !important;
 }
 
 .side-nav__session-subpages p {
@@ -1344,7 +1426,7 @@ button,
 .gps-heatmap-controls button {
   background: var(--bs-secondary) !important;
   border-color: var(--bs-secondary) !important;
-  color: white !important;
+  color: var(--bs-secondary-text) !important;
 }
 
 /* active/primary actions */
@@ -1356,7 +1438,7 @@ button,
 .gps-heatmap-view-toggle button.is-active {
   background: var(--bs-primary) !important;
   border-color: var(--bs-primary) !important;
-  color: white !important;
+  color: #fff !important;
 }
 
 button:hover,
@@ -1372,7 +1454,7 @@ button:focus-visible,
 .gps-heatmap-controls button:hover {
   background: var(--bs-primary) !important;
   border-color: var(--bs-primary) !important;
-  color: white !important;
+  color: #fff !important;
 }
 
 .btn-primary:hover,
