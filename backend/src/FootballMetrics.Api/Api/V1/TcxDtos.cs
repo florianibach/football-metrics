@@ -8,6 +8,6 @@ public record UpdateSmoothingFilterRequestDto(string Filter);
 public record UpdateSpeedUnitRequestDto(string SpeedUnit);
 public record UpdateSessionContextRequestDto(string SessionType, string? MatchResult, string? Competition, string? OpponentName, string? OpponentLogoUrl);
 
-public record CreateSegmentRequestDto(string Label, int StartSecond, int EndSecond, string? Reason);
-public record UpdateSegmentRequestDto(string? Label, int? StartSecond, int? EndSecond, string? Reason);
+public record CreateSegmentRequestDto(string Label, int StartSecond, int EndSecond, string? Reason, string? Category);
+public record UpdateSegmentRequestDto(string? Label, int? StartSecond, int? EndSecond, string? Reason, string? Category);
 public record MergeSegmentsRequestDto(Guid SourceSegmentId, Guid TargetSegmentId, string? Label, string? Reason);

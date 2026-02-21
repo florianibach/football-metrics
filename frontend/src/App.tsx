@@ -114,7 +114,7 @@ type MetricThresholdProfile = {
 
 type SpeedUnit = 'km/h' | 'm/s' | 'min/km';
 type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
-type SessionSubpage = 'analysis' | 'segments' | 'compare';
+type SessionSubpage = 'analysis' | 'segments' | 'segmentEdit' | 'compare';
 type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null };
 
 
@@ -158,6 +158,7 @@ type SessionRecalculationEntry = {
 type SessionSegment = {
   id: string;
   label: string;
+  category?: string;
   startSecond: number;
   endSecond: number;
 };
@@ -364,6 +365,7 @@ type TranslationKey =
   | 'metricInfoSidebarClose'
   | 'sessionSubpageAnalysis'
   | 'sessionSubpageSegments'
+  | 'sessionSubpageSegmentEdit'
   | 'sessionSubpageCompare'
   | 'detailMissingHeartRateHint'
   | 'detailMissingDistanceHint'
@@ -473,6 +475,7 @@ type TranslationKey =
   | 'coreMetricsCategoryInternalHelp'
   | 'segmentsTitle'
   | 'segmentsEmpty'
+  | 'segmentCategory'
   | 'segmentLabel'
   | 'segmentStartSecond'
   | 'segmentEndSecond'
@@ -496,6 +499,12 @@ type TranslationKey =
   | 'segmentValidationRequired'
   | 'segmentValidationRange'
   | 'segmentValidationMergeSelection'
+  | 'segmentDefaultLabel'
+  | 'segmentDefaultDescription'
+  | 'segmentSelectionHint'
+  | 'segmentAnalyzeAction'
+  | 'segmentEditTitle'
+  | 'segmentEditEntryAfterUpload'
   | 'sessionRecalculateButton'
   | 'sessionRecalculateSuccess'
   | 'sessionRecalculateProfileInfo'
@@ -684,6 +693,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricInfoSidebarClose: 'Close details',
     sessionSubpageAnalysis: 'Analysis',
     sessionSubpageSegments: 'Segments',
+    sessionSubpageSegmentEdit: 'Edit segments',
     sessionSubpageCompare: 'Compare',
     detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
     detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
@@ -816,6 +826,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     coreMetricsCategoryInternalHelp: 'Internal metrics describe your physiological response and answer: How hard did this session feel for my body? They are derived from heart-rate intensity and recovery behavior, for example time in heart-rate zones, TRIMP load, and heart-rate recovery. In simple terms, these values show your cardiovascular strain and recovery quality, even when movement output is similar. If internal load is unusually high compared with external load, this can indicate fatigue, stress, heat effects, or incomplete recovery.',
     segmentsTitle: 'Session segments',
     segmentsEmpty: 'No segments yet. Add your first phase to structure this session.',
+    segmentCategory: 'Category',
     segmentLabel: 'Label',
     segmentStartSecond: 'Start (s)',
     segmentEndSecond: 'End (s)',
@@ -838,7 +849,13 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentErrorPrefix: 'Segment action failed:',
     segmentValidationRequired: 'Please enter label, start and end for the segment.',
     segmentValidationRange: 'End must be greater than start and both values must be non-negative.',
-    segmentValidationMergeSelection: 'Please select both source and target segments for merge.'
+    segmentValidationMergeSelection: 'Please select both source and target segments for merge.',
+    segmentDefaultLabel: 'Full session',
+    segmentDefaultDescription: 'Automatically available because no manual segments exist yet.',
+    segmentSelectionHint: 'Select a segment to jump into focused analysis.',
+    segmentAnalyzeAction: 'Analyze segment',
+    segmentEditTitle: 'Edit segments',
+    segmentEditEntryAfterUpload: 'Edit segments now (optional)'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -998,6 +1015,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricInfoSidebarClose: 'Details schließen',
     sessionSubpageAnalysis: 'Analyse',
     sessionSubpageSegments: 'Segmente',
+    sessionSubpageSegmentEdit: 'Segmente bearbeiten',
     sessionSubpageCompare: 'Vergleich',
     detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
     detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
@@ -1130,6 +1148,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     coreMetricsCategoryInternalHelp: 'Interne Metriken beschreiben deine physiologische Reaktion und beantworten: Wie anstrengend war die Einheit für meinen Körper? Sie werden aus Herzfrequenzintensität und Erholungsverhalten abgeleitet, zum Beispiel Zeit in HF-Zonen, TRIMP-Belastung und Herzfrequenz-Erholung. Vereinfacht zeigen diese Werte die innere Herz-Kreislauf-Belastung und die Erholungsqualität – auch dann, wenn die äußere Laufleistung ähnlich war. Ist die interne Last im Verhältnis zur externen Last ungewöhnlich hoch, kann das auf Müdigkeit, Stress, Hitzeeinfluss oder unvollständige Regeneration hindeuten.',
     segmentsTitle: 'Session-Segmente',
     segmentsEmpty: 'Noch keine Segmente vorhanden. Füge die erste Phase hinzu, um die Session zu strukturieren.',
+    segmentCategory: 'Kategorie',
     segmentLabel: 'Label',
     segmentStartSecond: 'Start (s)',
     segmentEndSecond: 'Ende (s)',
@@ -1152,7 +1171,13 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentErrorPrefix: 'Segment-Aktion fehlgeschlagen:',
     segmentValidationRequired: 'Bitte Label, Start und Ende für das Segment eingeben.',
     segmentValidationRange: 'Ende muss größer als Start sein und beide Werte müssen >= 0 sein.',
-    segmentValidationMergeSelection: 'Bitte Quell- und Zielsegment für den Merge auswählen.'
+    segmentValidationMergeSelection: 'Bitte Quell- und Zielsegment für den Merge auswählen.',
+    segmentDefaultLabel: 'Gesamte Session',
+    segmentDefaultDescription: 'Automatisch verfügbar, da noch keine manuelle Segmentierung vorliegt.',
+    segmentSelectionHint: 'Wähle ein Segment, um in die fokussierte Analyse zu springen.',
+    segmentAnalyzeAction: 'Segment analysieren',
+    segmentEditTitle: 'Segmente bearbeiten',
+    segmentEditEntryAfterUpload: 'Segmente jetzt bearbeiten (optional)'
   }
 };
 
@@ -1491,9 +1516,24 @@ function resolveDataAvailability(summary: ActivitySummary): DataAvailability {
 }
 
 function normalizeUploadRecord(record: UploadRecord): UploadRecord {
+  const normalizedSegments = (record.segments ?? []).map((segment) => ({
+    ...segment,
+    category: segment.category?.trim() || 'General'
+  }));
+
+  const segments = normalizedSegments.length > 0
+    ? normalizedSegments
+    : [{
+      id: `default-${record.id}`,
+      label: 'Gesamte Session',
+      category: 'Default',
+      startSecond: 0,
+      endSecond: Math.max(1, Math.round(record.summary.durationSeconds))
+    }];
+
   return {
     ...record,
-    segments: record.segments ?? [],
+    segments,
     segmentChangeHistory: record.segmentChangeHistory ?? [],
     summary: {
       ...record.summary,
@@ -1612,11 +1652,15 @@ function resolveRouteFromPath(pathname: string): RouteState {
     return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
   }
 
-  const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|compare))?$/);
+  const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|segments-edit|compare))?$/);
   if (sessionRouteMatch) {
+    const subpage = sessionRouteMatch[2] === 'segments-edit'
+      ? 'segmentEdit'
+      : (sessionRouteMatch[2] as SessionSubpage | undefined);
+
     return {
       mainPage: 'session',
-      sessionSubpage: (sessionRouteMatch[2] as SessionSubpage | undefined) ?? 'analysis',
+      sessionSubpage: subpage ?? 'analysis',
       sessionId: decodeURIComponent(sessionRouteMatch[1])
     };
   }
@@ -1642,6 +1686,10 @@ function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, ses
 
     if (sessionSubpage === 'segments') {
       return `/sessions/${encodedSessionId}/segments`;
+    }
+
+    if (sessionSubpage === 'segmentEdit') {
+      return `/sessions/${encodedSessionId}/segments-edit`;
     }
 
     if (sessionSubpage === 'compare') {
@@ -1691,10 +1739,11 @@ export function App() {
     opponentName: null,
     opponentLogoUrl: null
   });
-  const [segmentForm, setSegmentForm] = useState({ label: '', startSecond: '0', endSecond: '300', reason: '' });
+  const [segmentForm, setSegmentForm] = useState({ category: 'General', label: '', startSecond: '0', endSecond: '300', reason: '' });
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
   const [mergeForm, setMergeForm] = useState({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
   const [segmentActionError, setSegmentActionError] = useState<string | null>(null);
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [profileForm, setProfileForm] = useState<UserProfile>({
     primaryPosition: 'CentralMidfielder',
     secondaryPosition: null,
@@ -1893,6 +1942,21 @@ export function App() {
     }
   }, [selectedSession]);
 
+  useEffect(() => {
+    if (!selectedSession) {
+      setSelectedSegmentId(null);
+      return;
+    }
+
+    setSelectedSegmentId((current) => {
+      if (current && selectedSession.segments.some((segment) => segment.id === current)) {
+        return current;
+      }
+
+      return selectedSession.segments[0]?.id ?? null;
+    });
+  }, [selectedSession]);
+
 
   useEffect(() => {
     if (activeMainPage !== 'session' || !activeSessionIdFromRoute || uploadHistory.length === 0) {
@@ -2045,10 +2109,17 @@ export function App() {
     setActiveMainPage('session');
     setShowUploadQualityStep(false);
     setIsSessionMenuVisible(true);
+    setSelectedSegmentId((current) => {
+      if (current && payload.segments.some((segment) => segment.id === current)) {
+        return current;
+      }
+
+      return payload.segments[0]?.id ?? null;
+    });
   }
 
   function resetSegmentForms() {
-    setSegmentForm({ label: '', startSecond: '0', endSecond: '300', reason: '' });
+    setSegmentForm({ category: 'General', label: '', startSecond: '0', endSecond: '300', reason: '' });
     setEditingSegmentId(null);
     setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
     setSegmentActionError(null);
@@ -2167,7 +2238,7 @@ export function App() {
 
     setSegmentActionError(null);
 
-    if (!segmentForm.label.trim() || segmentForm.startSecond.trim() === '' || segmentForm.endSecond.trim() === '') {
+    if (!segmentForm.category.trim() || !segmentForm.label.trim() || segmentForm.startSecond.trim() === '' || segmentForm.endSecond.trim() === '') {
       setSegmentActionError(t.segmentValidationRequired);
       return;
     }
@@ -2185,12 +2256,14 @@ export function App() {
 
     const body = editingSegmentId
       ? {
+        category: segmentForm.category.trim(),
         label: segmentForm.label.trim(),
         startSecond,
         endSecond,
         reason: segmentForm.reason.trim() || null
       }
       : {
+        category: segmentForm.category.trim(),
         label: segmentForm.label.trim(),
         startSecond,
         endSecond,
@@ -2220,6 +2293,7 @@ export function App() {
   function onEditSegment(segment: SessionSegment) {
     setEditingSegmentId(segment.id);
     setSegmentForm({
+      category: segment.category ?? 'General',
       label: segment.label,
       startSecond: String(segment.startSecond),
       endSecond: String(segment.endSecond),
@@ -2788,6 +2862,8 @@ export function App() {
   }, []);
 
 
+  const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
+
   return (
     <div className={`app-shell ${isMobileNavOpen ? 'app-shell--menu-open' : ''}`} data-theme={theme}>
       <aside className={`side-nav ${isMobileNavOpen ? 'side-nav--open' : ''}`}>
@@ -2822,6 +2898,7 @@ export function App() {
             <p>Session</p>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-analysis', 'analysis')}>{t.sessionSubpageAnalysis}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segments' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segments', 'segments')}>{t.sessionSubpageSegments}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segmentEdit' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segment-edit', 'segmentEdit')}>{t.sessionSubpageSegmentEdit}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'compare' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-compare', 'compare')}>{t.sessionSubpageCompare}</button>
           </div>
         )}
@@ -3319,6 +3396,7 @@ export function App() {
               {renderQualityDetailsContent()}
               <div className="upload-quality-step__actions">
                 <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
+                <button type="button" className="secondary-button" onClick={() => { setShowUploadQualityStep(false); setActiveSessionSubpage('segmentEdit'); }}>{t.segmentEditEntryAfterUpload}</button>
               </div>
             </section>
           ) : (
@@ -3327,6 +3405,7 @@ export function App() {
               <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
               <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
               <p><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</p>
+              {selectedSegment && <p><strong>{t.segmentsTitle}:</strong> {selectedSegment.category ?? 'General'} · {selectedSegment.label} ({selectedSegment.startSecond}s-{selectedSegment.endSecond}s)</p>}
             </>
           )}
 
@@ -3384,6 +3463,7 @@ export function App() {
           </section>
           <div className={`segment-management ${activeSessionSubpage === "segments" ? "" : "is-hidden"}`} id="session-segments">
             <h3>{t.segmentsTitle}</h3>
+            <p>{t.segmentSelectionHint}</p>
             {segmentActionError && <p className="segment-error" role="alert">{segmentActionError}</p>}
             {selectedSession.segments.length === 0 ? (
               <p>{t.segmentsEmpty}</p>
@@ -3391,6 +3471,7 @@ export function App() {
               <table className="history-table segment-table">
                 <thead>
                   <tr>
+                    <th>{t.segmentCategory}</th>
                     <th>{t.segmentLabel}</th>
                     <th>{t.segmentStartSecond}</th>
                     <th>{t.segmentEndSecond}</th>
@@ -3400,20 +3481,50 @@ export function App() {
                 <tbody>
                   {selectedSession.segments.map((segment) => (
                     <tr key={segment.id}>
+                      <td>{segment.category ?? 'General'}</td>
                       <td>{segment.label}</td>
                       <td>{segment.startSecond}</td>
                       <td>{segment.endSecond}</td>
                       <td>
-                        <button type="button" className="secondary-button" onClick={() => onEditSegment(segment)}>{t.segmentEdit}</button>
-                        <button type="button" onClick={() => onDeleteSegment(segment.id)}>{t.segmentDelete}</button>
+                        <button type="button" className="secondary-button" onClick={() => { setSelectedSegmentId(segment.id); setActiveSessionSubpage('analysis'); }}>{t.segmentAnalyzeAction}</button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
+          </div>
 
+          <div className={`segment-management ${activeSessionSubpage === "segmentEdit" ? "" : "is-hidden"}`} id="session-segment-edit">
+            <h3>{t.segmentEditTitle}</h3>
+            <table className="history-table segment-table">
+              <thead>
+                <tr>
+                  <th>{t.segmentCategory}</th>
+                  <th>{t.segmentLabel}</th>
+                  <th>{t.segmentStartSecond}</th>
+                  <th>{t.segmentEndSecond}</th>
+                  <th>{t.historyOpenDetails}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedSession.segments.map((segment) => (
+                  <tr key={`edit-${segment.id}`}>
+                    <td>{segment.category ?? 'General'}</td>
+                    <td>{segment.label}</td>
+                    <td>{segment.startSecond}</td>
+                    <td>{segment.endSecond}</td>
+                    <td>
+                      <button type="button" className="secondary-button" onClick={() => onEditSegment(segment)}>{t.segmentEdit}</button>
+                      <button type="button" onClick={() => onDeleteSegment(segment.id)}>{t.segmentDelete}</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
             <div className="segment-form">
+              <label htmlFor="segment-category">{t.segmentCategory}</label>
+              <input id="segment-category" value={segmentForm.category} onChange={(event) => setSegmentForm((current) => ({ ...current, category: event.target.value }))} />
               <label htmlFor="segment-label">{t.segmentLabel}</label>
               <input id="segment-label" value={segmentForm.label} onChange={(event) => setSegmentForm((current) => ({ ...current, label: event.target.value }))} />
               <label htmlFor="segment-start">{t.segmentStartSecond}</label>
@@ -3762,7 +3873,9 @@ export function App() {
     </main>
     </div>
   );
-}function formatUtcDateTime(value: string | null | undefined, locale: Locale, fallback: string): string {
+}
+
+function formatUtcDateTime(value: string | null | undefined, locale: Locale, fallback: string): string {
   if (!value) {
     return fallback;
   }

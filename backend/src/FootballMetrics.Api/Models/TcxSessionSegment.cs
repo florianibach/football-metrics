@@ -4,7 +4,8 @@ public sealed record TcxSessionSegment(
     Guid Id,
     string Label,
     int StartSecond,
-    int EndSecond);
+    int EndSecond,
+    string Category);
 
 public sealed record TcxSegmentChangeEntry(
     int Version,

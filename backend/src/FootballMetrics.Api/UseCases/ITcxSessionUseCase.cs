@@ -12,8 +12,8 @@ public interface ITcxSessionUseCase
     Task<TcxUpload?> UpdateSessionSpeedUnitAsync(Guid id, string speedUnit, CancellationToken cancellationToken);
     Task<TcxUpload?> RecalculateWithCurrentProfileAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> DeleteSessionAsync(Guid id, CancellationToken cancellationToken);
-    Task<TcxUpload?> AddSegmentAsync(Guid id, string label, int startSecond, int endSecond, string? reason, CancellationToken cancellationToken);
-    Task<TcxUpload?> UpdateSegmentAsync(Guid id, Guid segmentId, string? label, int? startSecond, int? endSecond, string? reason, CancellationToken cancellationToken);
+    Task<TcxUpload?> AddSegmentAsync(Guid id, string label, int startSecond, int endSecond, string? reason, string? category, CancellationToken cancellationToken);
+    Task<TcxUpload?> UpdateSegmentAsync(Guid id, Guid segmentId, string? label, int? startSecond, int? endSecond, string? reason, string? category, CancellationToken cancellationToken);
     Task<TcxUpload?> DeleteSegmentAsync(Guid id, Guid segmentId, string? reason, CancellationToken cancellationToken);
     Task<TcxUpload?> MergeSegmentsAsync(Guid id, Guid sourceSegmentId, Guid targetSegmentId, string? label, string? reason, CancellationToken cancellationToken);
     TcxActivitySummary CreateSummaryFromRawContent(byte[] rawFileContent, string selectedSmoothingFilter, string? metricThresholdSnapshotJson);

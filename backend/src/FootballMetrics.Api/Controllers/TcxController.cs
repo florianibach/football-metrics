@@ -184,7 +184,7 @@ public class TcxController : ControllerBase
 
         try
         {
-            var upload = await _tcxSessionUseCase.AddSegmentAsync(id, request.Label, request.StartSecond, request.EndSecond, request.Reason, cancellationToken);
+            var upload = await _tcxSessionUseCase.AddSegmentAsync(id, request.Label, request.StartSecond, request.EndSecond, request.Reason, request.Category, cancellationToken);
             if (upload is null)
             {
                 return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
@@ -208,7 +208,7 @@ public class TcxController : ControllerBase
 
         try
         {
-            var upload = await _tcxSessionUseCase.UpdateSegmentAsync(id, segmentId, request.Label, request.StartSecond, request.EndSecond, request.Reason, cancellationToken);
+            var upload = await _tcxSessionUseCase.UpdateSegmentAsync(id, segmentId, request.Label, request.StartSecond, request.EndSecond, request.Reason, request.Category, cancellationToken);
             if (upload is null)
             {
                 return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);

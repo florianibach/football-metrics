@@ -262,7 +262,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         return refreshedUpload;
     }
 
-    public async Task<TcxUpload?> AddSegmentAsync(Guid id, string label, int startSecond, int endSecond, string? reason, CancellationToken cancellationToken)
+    public async Task<TcxUpload?> AddSegmentAsync(Guid id, string label, int startSecond, int endSecond, string? reason, string? category, CancellationToken cancellationToken)
     {
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
@@ -276,14 +276,14 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         var segments = ResolveSegments(upload).ToList();
         EnsureNoInvalidOverlap(segments, startSecond, endSecond, null);
 
-        segments.Add(new TcxSessionSegment(Guid.NewGuid(), normalizedLabel, startSecond, endSecond));
+        segments.Add(new TcxSessionSegment(Guid.NewGuid(), normalizedLabel, startSecond, endSecond, NormalizeSegmentCategory(category)));
         var nextHistory = AppendSegmentHistory(upload, "Created", reason, segments);
 
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
         return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
     }
 
-    public async Task<TcxUpload?> UpdateSegmentAsync(Guid id, Guid segmentId, string? label, int? startSecond, int? endSecond, string? reason, CancellationToken cancellationToken)
+    public async Task<TcxUpload?> UpdateSegmentAsync(Guid id, Guid segmentId, string? label, int? startSecond, int? endSecond, string? reason, string? category, CancellationToken cancellationToken)
     {
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
@@ -306,7 +306,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         ValidateSegmentRange(nextStart, nextEnd);
         EnsureNoInvalidOverlap(segments, nextStart, nextEnd, segmentId);
 
-        segments[index] = existing with { Label = nextLabel, StartSecond = nextStart, EndSecond = nextEnd };
+        segments[index] = existing with { Label = nextLabel, StartSecond = nextStart, EndSecond = nextEnd, Category = NormalizeSegmentCategory(category ?? existing.Category) };
         var nextHistory = AppendSegmentHistory(upload, "Updated", reason, segments);
 
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
@@ -358,7 +358,8 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             target.Id,
             string.IsNullOrWhiteSpace(label) ? target.Label : NormalizeSegmentLabel(label),
             Math.Min(source.StartSecond, target.StartSecond),
-            Math.Max(source.EndSecond, target.EndSecond));
+            Math.Max(source.EndSecond, target.EndSecond),
+            target.Category);
 
         segments.RemoveAll(segment => segment.Id == sourceSegmentId || segment.Id == targetSegmentId);
         EnsureNoInvalidOverlap(segments, merged.StartSecond, merged.EndSecond, null);
@@ -504,8 +505,10 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return Array.Empty<TcxSessionSegment>();
         }
 
-        return JsonSerializer.Deserialize<List<TcxSessionSegment>>(upload.SegmentsSnapshotJson)
-            ?? new List<TcxSessionSegment>();
+        return (JsonSerializer.Deserialize<List<TcxSessionSegment>>(upload.SegmentsSnapshotJson)
+            ?? new List<TcxSessionSegment>())
+            .Select(segment => segment with { Category = NormalizeSegmentCategory(segment.Category) })
+            .ToList();
     }
 
     public IReadOnlyList<TcxSegmentChangeEntry> ResolveSegmentChangeHistory(TcxUpload upload)
@@ -565,6 +568,9 @@ public class TcxSessionUseCase : ITcxSessionUseCase
 
     private static string NormalizeSegmentLabel(string value)
         => value.Trim();
+
+    private static string NormalizeSegmentCategory(string? value)
+        => string.IsNullOrWhiteSpace(value) ? "General" : value.Trim();
 
     private static void ValidateSegmentRange(int startSecond, int endSecond)
     {
