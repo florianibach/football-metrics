@@ -1784,7 +1784,8 @@ export function App() {
       return;
     }
 
-    const stillValid = sortedHistory.some((record) => record.id === compareOpponentSessionId && record.sessionContext.sessionType === selectedSession.sessionContext.sessionType && record.id !== selectedSession.id);
+    const stillValid = compareOpponentSessionId === selectedSession.id
+      || sortedHistory.some((record) => record.id === compareOpponentSessionId && record.sessionContext.sessionType === selectedSession.sessionContext.sessionType);
     if (!stillValid) {
       setCompareOpponentSessionId(null);
     }
@@ -2411,8 +2412,10 @@ export function App() {
     ? sortedHistory.filter((record) => record.sessionContext.sessionType === activeSessionType && record.id !== selectedSession.id)
     : [];
 
-  const compareOpponentSession = compareOpponentSessionId
-    ? compareSelectableSessions.find((record) => record.id === compareOpponentSessionId) ?? null
+  const compareOpponentSession = compareOpponentSessionId && selectedSession
+    ? compareOpponentSessionId === selectedSession.id
+      ? selectedSession
+      : compareSelectableSessions.find((record) => record.id === compareOpponentSessionId) ?? null
     : null;
 
   const compareSessions = selectedSession && compareOpponentSession
@@ -3050,23 +3053,23 @@ export function App() {
             <thead>
               <tr>
                 <th>{t.compareTitle}</th>
-                {compareSessions.map((session) => (
-                  <th key={session.id}>{session.fileName}{compareBaseline?.id === session.id ? ' (baseline)' : ''}</th>
+                {compareSessions.map((session, index) => (
+                  <th key={`${session.id}-${index}`}>{session.fileName}{compareBaseline?.id === session.id && index === 0 ? ' (baseline)' : ''}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td>{t.metricQualityStatus}</td>
-                {compareSessions.map((session) => (
-                  <td key={`${session.id}-quality`}>{qualityStatusText(session.summary.qualityStatus, t)}</td>
+                {compareSessions.map((session, index) => (
+                  <td key={`${session.id}-quality-${index}`}>{qualityStatusText(session.summary.qualityStatus, t)}</td>
                 ))}
               </tr>
               {comparisonRows.map((row) => (
                 <tr key={row.key}>
                   <td>{row.label}</td>
                   {row.cells.map((cell, index) => (
-                    <td key={`${row.key}-${compareSessions[index].id}`}>
+                    <td key={`${row.key}-${compareSessions[index].id}-${index}`}>
                       <div>{cell.formattedValue}</div>
                       <div>{t.sessionCompareDelta}: {cell.deltaText}</div>
                       <div>{t.sessionCompareDeltaPercent}: {cell.deltaPercentText}</div>

@@ -1341,6 +1341,14 @@ describe('App', () => {
 
     fireEvent.change(selector, { target: { value: 'compare' } });
     expect(screen.getByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).toBeInTheDocument();
+    fireEvent.change(selector, { target: { value: 'base' } });
+
+    await waitFor(() => {
+      expect(screen.getByRole('columnheader', { name: /base-session\.tcx \(baseline\)/ })).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: 'base-session.tcx' })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Quality warning: selected sessions have different data quality. Compare with caution to avoid misinterpretation.')).not.toBeInTheDocument();
   });
 
 
