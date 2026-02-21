@@ -522,6 +522,7 @@ type TranslationKey =
   | 'segmentCategoryCooldown'
   | 'segmentScopeHint'
   | 'segmentDerivedMetricsTitle'
+  | 'analysisOverviewTitle'
   | 'segmentBackToSessionMetrics'
   | 'segmentBackToSegmentList'
   | 'sessionRecalculateButton'
@@ -890,7 +891,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentCategoryAthletics: 'Athletics',
     segmentCategoryCooldown: 'Cooldown',
     segmentScopeHint: 'Segment-focused analysis is active.',
-    segmentDerivedMetricsTitle: 'Segment metrics (time-window based)',
+    segmentDerivedMetricsTitle: 'Segment Overview',
+    analysisOverviewTitle: 'Overview',
     segmentBackToSessionMetrics: 'Back to full-session metrics',
     segmentBackToSegmentList: 'Back to segment list'
   },
@@ -1230,7 +1232,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentCategoryAthletics: 'Athletik',
     segmentCategoryCooldown: 'Cooldown',
     segmentScopeHint: 'Segment-fokussierte Analyse ist aktiv.',
-    segmentDerivedMetricsTitle: 'Segment-Metriken (zeitfensterbasiert)',
+    segmentDerivedMetricsTitle: 'Segment-Übersicht',
+    analysisOverviewTitle: 'Übersicht',
     segmentBackToSessionMetrics: 'Zurück zu Session-Metriken',
     segmentBackToSegmentList: 'Zurück zur Segmentliste'
   }
@@ -2521,7 +2524,7 @@ export function App() {
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setSplitForm({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
-    setMessage(t.segmentSplitSuccess);
+    setMessage(translations[locale].defaultMessage);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -3636,17 +3639,17 @@ export function App() {
               {isSegmentScopeActive && selectedSegment && <p><strong>{t.segmentsTitle}:</strong> {segmentCategoryLabel(selectedSegment.category ?? 'Other', t)} · {selectedSegment.label} ({selectedSegment.startSecond}s-{selectedSegment.endSecond}s)</p>}
               {isSegmentScopeActive && <p><strong>{t.segmentScopeHint}</strong> <button type="button" className="secondary-button" onClick={() => { setAnalysisScope('session'); setActiveSessionSubpage('segments'); }}>{t.segmentBackToSegmentList}</button></p>}
               {isSegmentScopeActive && selectedSegment?.notes && <p><strong>{t.segmentNotes}:</strong> {selectedSegment.notes}</p>}
-              {isSegmentScopeActive && selectedSegment && (
+              {displayedCoreMetrics && (
                 <div className="analysis-disclosure__content">
-                  <h3>{t.segmentDerivedMetricsTitle}</h3>
+                  <h3>{isSegmentScopeActive ? t.segmentDerivedMetricsTitle : t.analysisOverviewTitle}</h3>
                   <ul className="metrics-list">
-                    <li><strong>{t.metricDuration}:</strong> {formatDuration(selectedSegment.endSecond - selectedSegment.startSecond, locale, t.notAvailable)}</li>
-                    <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
-                    <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                    <li><strong>{t.metricSprintCount}:</strong> {selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable}</li>
-                    <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
-                    <li><strong>{t.metricHighIntensityRunCount}:</strong> {selectedSession.summary.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
-                    <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
+                    <li><strong>{t.metricDuration}:</strong> {formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricSprintCount}:</strong> {displayedCoreMetrics.sprintCount ?? t.notAvailable}</li>
+                    <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                    <li><strong>{t.metricHighIntensityRunCount}:</strong> {displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
+                    <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
                   </ul>
                 </div>
               )}

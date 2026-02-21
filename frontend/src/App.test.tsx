@@ -524,8 +524,8 @@ describe('App', () => {
       expect(screen.getByText('Session details')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Duration:/)).toBeInTheDocument();
-    expect(screen.getByText(/61 min 1 s/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/61 min 1 s/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
     expect(screen.getByText(/110\/142\/178 bpm/)).toBeInTheDocument();
     expect(screen.getByText(/Trackpoints:/)).toBeInTheDocument();
@@ -2440,6 +2440,7 @@ describe('App', () => {
 
     await screen.findByText('Session details');
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
+    expect(screen.getByText('Overview')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments'));
@@ -2453,6 +2454,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Analyze segment' }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments/seg-1'));
+    expect(screen.getByText('Segment Overview')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to segment list' }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments'));
