@@ -429,16 +429,21 @@ describe('App', () => {
     expect(screen.getAllByText('match-high.tcx').length).toBeGreaterThan(0);
     expect(screen.getAllByText('training-low.tcx').length).toBeGreaterThan(0);
 
+    fireEvent.click(screen.getByRole('button', { name: /Filter & sort/ }));
     fireEvent.change(screen.getByLabelText('Filter by quality status'), { target: { value: 'High' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     expect(screen.getAllByText('match-high.tcx').length).toBeGreaterThan(0);
     const historySection = document.getElementById('session-list') as HTMLElement;
     expect(within(historySection).queryByText('training-low.tcx')).not.toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: /Filter & sort/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Match' }));
     fireEvent.change(screen.getByLabelText('Date from'), { target: { value: '2026-02-16' } });
     fireEvent.change(screen.getByLabelText('Date to'), { target: { value: '2026-02-16' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
     expect(screen.getAllByText('match-high.tcx').length).toBeGreaterThan(0);
 
+    fireEvent.click(screen.getByRole('button', { name: /Filter & sort/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Reset filters' }));
     expect(screen.getAllByText('training-low.tcx').length).toBeGreaterThan(0);
   });
@@ -461,7 +466,9 @@ describe('App', () => {
     const rowsNewestFirst = screen.getAllByRole('row');
     expect(rowsNewestFirst[1]).toHaveTextContent('new.tcx');
 
+    fireEvent.click(screen.getByRole('button', { name: /Filter & sort/ }));
     fireEvent.change(screen.getByLabelText('Sort by upload time'), { target: { value: 'asc' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
 
     const rowsOldestFirst = screen.getAllByRole('row');
     expect(rowsOldestFirst[1]).toHaveTextContent('old.tcx');

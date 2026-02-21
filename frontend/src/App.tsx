@@ -317,6 +317,10 @@ type TranslationKey =
   | 'historyFilterDateTo'
   | 'historyFilterReset'
   | 'historyFilterQualityAll'
+  | 'historyFilterOpen'
+  | 'historyFilterSidebarTitle'
+  | 'historyFilterApply'
+  | 'historyFilterClose'
   | 'historyOpenDetails'
   | 'sessionCompareSelectionTitle'
   | 'sessionCompareSelectionHint'
@@ -604,6 +608,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterDateTo: 'Date to',
     historyFilterReset: 'Reset filters',
     historyFilterQualityAll: 'All quality states',
+    historyFilterOpen: 'Filter & sort',
+    historyFilterSidebarTitle: 'Filter & sort',
+    historyFilterApply: 'Search',
+    historyFilterClose: 'Close',
     historyOpenDetails: 'Open details',
     sessionCompareSelectionTitle: 'Comparison sessions',
     sessionCompareSelectionHint: 'Select up to 4 sessions of the same session type.',
@@ -887,6 +895,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterDateTo: 'Datum bis',
     historyFilterReset: 'Filter zurücksetzen',
     historyFilterQualityAll: 'Alle Qualitätsstufen',
+    historyFilterOpen: 'Filtern & Sortieren',
+    historyFilterSidebarTitle: 'Filtern & Sortieren',
+    historyFilterApply: 'Suchen',
+    historyFilterClose: 'Schließen',
     historyOpenDetails: 'Details öffnen',
     sessionCompareSelectionTitle: 'Vergleichs-Sessions',
     sessionCompareSelectionHint: 'Wähle bis zu 4 Sessions mit identischem Session-Typ.',
@@ -1558,6 +1570,12 @@ export function App() {
   const [qualityStatusFilter, setQualityStatusFilter] = useState<'All' | ActivitySummary['qualityStatus']>('All');
   const [dateFromFilter, setDateFromFilter] = useState('');
   const [dateToFilter, setDateToFilter] = useState('');
+  const [isHistoryFilterSidebarOpen, setIsHistoryFilterSidebarOpen] = useState(false);
+  const [draftSortDirection, setDraftSortDirection] = useState<SortDirection>('desc');
+  const [draftSessionTypeFilters, setDraftSessionTypeFilters] = useState<SessionType[]>([]);
+  const [draftQualityStatusFilter, setDraftQualityStatusFilter] = useState<'All' | ActivitySummary['qualityStatus']>('All');
+  const [draftDateFromFilter, setDraftDateFromFilter] = useState('');
+  const [draftDateToFilter, setDraftDateToFilter] = useState('');
   const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -1654,6 +1672,13 @@ export function App() {
     return Array.from(types);
   }, [uploadHistory]);
 
+  const activeHistoryFilterCount =
+    (sessionTypeFilters.length > 0 ? 1 : 0)
+    + (qualityStatusFilter !== 'All' ? 1 : 0)
+    + (dateFromFilter ? 1 : 0)
+    + (dateToFilter ? 1 : 0)
+    + (sortDirection !== 'desc' ? 1 : 0);
+
   useEffect(() => {
     const onPopState = () => {
       const route = resolveRouteFromPath(window.location.pathname);
@@ -1665,6 +1690,18 @@ export function App() {
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
+
+  useEffect(() => {
+    if (!isHistoryFilterSidebarOpen) {
+      return;
+    }
+
+    setDraftSortDirection(sortDirection);
+    setDraftSessionTypeFilters(sessionTypeFilters);
+    setDraftQualityStatusFilter(qualityStatusFilter);
+    setDraftDateFromFilter(dateFromFilter);
+    setDraftDateToFilter(dateToFilter);
+  }, [isHistoryFilterSidebarOpen, sortDirection, sessionTypeFilters, qualityStatusFilter, dateFromFilter, dateToFilter]);
 
   useEffect(() => {
     const nextPath = getPathForRoute(activeMainPage, activeSessionSubpage, activeSessionIdFromRoute ?? selectedSession?.id ?? null);
@@ -2757,70 +2794,108 @@ export function App() {
 
       <section id="session-list" className={activeMainPage === "sessions" ? "" : "is-hidden"}>
         <h2>{t.historyTitle}</h2>
-        <div className="history-controls history-controls--filters">
-          <div className="history-filter-group">
-            <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
-            <select id="history-sort-selector" value={sortDirection} onChange={(event) => setSortDirection(event.target.value as SortDirection)}>
-              <option value="desc">{t.historySortNewest}</option>
-              <option value="asc">{t.historySortOldest}</option>
-            </select>
-          </div>
-
-          <div className="history-filter-group">
-            <label htmlFor="history-quality-filter">{t.historyFilterQualityStatus}</label>
-            <select id="history-quality-filter" value={qualityStatusFilter} onChange={(event) => setQualityStatusFilter(event.target.value as 'All' | ActivitySummary['qualityStatus'])}>
-              <option value="All">{t.historyFilterQualityAll}</option>
-              <option value="High">{qualityStatusText('High', t)}</option>
-              <option value="Medium">{qualityStatusText('Medium', t)}</option>
-              <option value="Low">{qualityStatusText('Low', t)}</option>
-            </select>
-          </div>
-
-          <fieldset className="history-filter-group history-filter-group--types">
-            <legend>{t.historyFilterSessionType}</legend>
-            <div className="history-filter-checkbox-list">
-              {availableSessionTypes.map((sessionType) => (
-                <label key={sessionType} className="history-filter-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={sessionTypeFilters.includes(sessionType)}
-                    onChange={(event) => {
-                      setSessionTypeFilters((current) => event.target.checked
-                        ? [...current, sessionType]
-                        : current.filter((item) => item !== sessionType));
-                    }}
-                  />
-                  <span>{sessionTypeText(sessionType, t)}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          <div className="history-filter-group history-filter-group--date">
-            <label htmlFor="history-date-from">{t.historyFilterDateFrom}</label>
-            <input id="history-date-from" type="date" value={dateFromFilter} onChange={(event) => setDateFromFilter(event.target.value)} />
-          </div>
-
-          <div className="history-filter-group history-filter-group--date">
-            <label htmlFor="history-date-to">{t.historyFilterDateTo}</label>
-            <input id="history-date-to" type="date" value={dateToFilter} onChange={(event) => setDateToFilter(event.target.value)} />
-          </div>
-
-          <div className="history-filter-group history-filter-group--action">
-            <button
-              type="button"
-              className="secondary-button history-filter-reset"
-              onClick={() => {
-                setSessionTypeFilters([]);
-                setQualityStatusFilter('All');
-                setDateFromFilter('');
-                setDateToFilter('');
-              }}
-            >
-              {t.historyFilterReset}
-            </button>
-          </div>
+        <div className="history-toolbar">
+          <button
+            type="button"
+            className="secondary-button history-filter-open-button"
+            onClick={() => setIsHistoryFilterSidebarOpen(true)}
+          >
+            {t.historyFilterOpen}{activeHistoryFilterCount > 0 ? ` (${activeHistoryFilterCount})` : ''}
+          </button>
         </div>
+
+        <div className={`history-filter-overlay ${isHistoryFilterSidebarOpen ? 'is-open' : ''}`} onClick={() => setIsHistoryFilterSidebarOpen(false)} />
+        <aside className={`history-filter-sidebar ${isHistoryFilterSidebarOpen ? 'is-open' : ''}`} aria-label={t.historyFilterSidebarTitle}>
+          <div className="history-filter-sidebar__header">
+            <h3>{t.historyFilterSidebarTitle}</h3>
+            <button type="button" className="secondary-button" onClick={() => setIsHistoryFilterSidebarOpen(false)}>{t.historyFilterClose}</button>
+          </div>
+
+          <div className="history-controls history-controls--filters history-controls--sidebar">
+            <div className="history-filter-group">
+              <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
+              <select id="history-sort-selector" value={draftSortDirection} onChange={(event) => setDraftSortDirection(event.target.value as SortDirection)}>
+                <option value="desc">{t.historySortNewest}</option>
+                <option value="asc">{t.historySortOldest}</option>
+              </select>
+            </div>
+
+            <div className="history-filter-group">
+              <label htmlFor="history-quality-filter">{t.historyFilterQualityStatus}</label>
+              <select id="history-quality-filter" value={draftQualityStatusFilter} onChange={(event) => setDraftQualityStatusFilter(event.target.value as 'All' | ActivitySummary['qualityStatus'])}>
+                <option value="All">{t.historyFilterQualityAll}</option>
+                <option value="High">{qualityStatusText('High', t)}</option>
+                <option value="Medium">{qualityStatusText('Medium', t)}</option>
+                <option value="Low">{qualityStatusText('Low', t)}</option>
+              </select>
+            </div>
+
+            <fieldset className="history-filter-group history-filter-group--types">
+              <legend>{t.historyFilterSessionType}</legend>
+              <div className="history-filter-checkbox-list">
+                {availableSessionTypes.map((sessionType) => (
+                  <label key={sessionType} className="history-filter-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={draftSessionTypeFilters.includes(sessionType)}
+                      onChange={(event) => {
+                        setDraftSessionTypeFilters((current) => event.target.checked
+                          ? [...current, sessionType]
+                          : current.filter((item) => item !== sessionType));
+                      }}
+                    />
+                    <span>{sessionTypeText(sessionType, t)}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <div className="history-filter-group history-filter-group--date">
+              <label htmlFor="history-date-from">{t.historyFilterDateFrom}</label>
+              <input id="history-date-from" type="date" value={draftDateFromFilter} onChange={(event) => setDraftDateFromFilter(event.target.value)} />
+            </div>
+
+            <div className="history-filter-group history-filter-group--date">
+              <label htmlFor="history-date-to">{t.historyFilterDateTo}</label>
+              <input id="history-date-to" type="date" value={draftDateToFilter} onChange={(event) => setDraftDateToFilter(event.target.value)} />
+            </div>
+
+            <div className="history-filter-group history-filter-group--action">
+              <button
+                type="button"
+                className="secondary-button history-filter-reset"
+                onClick={() => {
+                  setDraftSortDirection('desc');
+                  setDraftSessionTypeFilters([]);
+                  setDraftQualityStatusFilter('All');
+                  setDraftDateFromFilter('');
+                  setDraftDateToFilter('');
+                  setSortDirection('desc');
+                  setSessionTypeFilters([]);
+                  setQualityStatusFilter('All');
+                  setDateFromFilter('');
+                  setDateToFilter('');
+                }}
+              >
+                {t.historyFilterReset}
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  setSortDirection(draftSortDirection);
+                  setSessionTypeFilters(draftSessionTypeFilters);
+                  setQualityStatusFilter(draftQualityStatusFilter);
+                  setDateFromFilter(draftDateFromFilter);
+                  setDateToFilter(draftDateToFilter);
+                  setIsHistoryFilterSidebarOpen(false);
+                }}
+              >
+                {t.historyFilterApply}
+              </button>
+            </div>
+          </div>
+        </aside>
 
         {filteredHistory.length === 0 ? (
           <p>{t.historyEmpty}</p>
