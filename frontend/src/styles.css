@@ -152,6 +152,71 @@ button:disabled {
   border-radius: 6px;
 }
 
+
+
+.session-analysis-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.analysis-block--core { order: 20; }
+.analysis-block--interval { order: 30; }
+.analysis-block--heatmap { order: 40; }
+.analysis-block--runs { order: 50; }
+.analysis-block--session-context { order: 60; }
+.analysis-block--settings { order: 70; }
+.analysis-block--recalculation-history { order: 80; }
+.session-analysis-flow .detail-hints { order: 85; }
+.analysis-block--quality { order: 90; }
+.analysis-block--danger-zone { order: 100; }
+.analysis-block--session-settings { order: 75; }
+
+.analysis-disclosure__content {
+  margin-top: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgb(40, 40, 40);
+  padding: 0.75rem;
+}
+
+.analysis-disclosure__toggle--quality {
+  justify-content: flex-start;
+  margin: 1rem 0;
+}
+
+.analysis-disclosure {
+  margin: 1rem 0;
+}
+
+.analysis-disclosure__toggle {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #101828;
+  padding: 0.6rem 0.8rem;
+  font-weight: 600;
+}
+
+.analysis-disclosure__toggle > span:first-child {
+  text-align: left;
+}
+
+.analysis-disclosure__toggle > .analysis-disclosure__action {
+  margin-left: 0.75rem;
+  text-align: right;
+}
+
+.analysis-disclosure__action {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
 .session-details {
   margin-top: 1.5rem;
 }
@@ -723,6 +788,13 @@ button:focus-visible {
 .app-shell[data-theme='dark'] .segment-form select,
 .app-shell[data-theme='dark'] .baseline-selector select,
 .app-shell[data-theme='dark'] .comparison-controls select,
+.app-shell[data-theme='dark'] .analysis-disclosure__toggle {
+  background: #1f2937;
+  color: #f2f4f7;
+  border-color: #344054;
+}
+
+
 .app-shell[data-theme='dark'] .interval-aggregation select {
   background: var(--surface);
   color: var(--text);

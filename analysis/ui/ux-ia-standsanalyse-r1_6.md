@@ -165,6 +165,8 @@ Als Spieler möchte ich zuerst eine **Kernaussage-Karte** sehen, damit ich in <1
 - Darunter erst detaillierte Metrikblöcke.
 
 ### User Story 3.2
+**Status: ✅ Done**
+
 Als Spieler möchte ich Analyseblöcke standardmäßig eingeklappt sehen, damit die Ansicht auf Mobile übersichtlich bleibt.
 
 **Acceptance Criteria**
