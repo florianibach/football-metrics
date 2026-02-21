@@ -1525,11 +1525,13 @@ input[type='checkbox']::before {
   border-radius: 12px;
   background: var(--surface);
   margin-bottom: 1rem;
+  overflow-x: clip;
 }
 
 .history-filter-group {
   display: grid;
   gap: 0.35rem;
+  min-width: 0;
 }
 
 .history-filter-group label,
@@ -1543,6 +1545,10 @@ input[type='checkbox']::before {
 .history-filter-group select,
 .history-filter-group input[type='date'] {
   min-height: 38px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -1557,6 +1563,7 @@ input[type='checkbox']::before {
 
 .history-filter-group--types {
   grid-column: span 4;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.45rem 0.6rem 0.55rem;
