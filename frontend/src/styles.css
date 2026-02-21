@@ -176,7 +176,7 @@ button:disabled {
   margin-top: 0.55rem;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: rgb(40, 40, 40);
+  background: var(--surface);
   padding: 0.75rem;
 }
 
@@ -195,10 +195,10 @@ button:disabled {
   justify-content: space-between;
   align-items: center;
   text-align: left;
-  border: 1px solid #dde1e7;
+  border: 1px solid var(--border);
   border-radius: 18px;
-  background: #f2f4f7;
-  color: #0f1728;
+  background: var(--bs-secondary);
+  color: var(--bs-secondary-text);
   padding: 0.85rem 1.1rem;
   font-weight: 600;
 }
@@ -215,7 +215,7 @@ button:disabled {
 .analysis-disclosure__action {
   font-size: 0.85rem;
   font-weight: 500;
-  color: #98a2b3;
+  color: color-mix(in srgb, var(--bs-secondary-text) 70%, var(--bs-secondary));
 }
 
 .session-details {
@@ -1898,4 +1898,32 @@ input[type='checkbox']::before {
 .danger-button:hover,
 .danger-button:focus-visible {
   background: #b91c1c;
+}
+
+
+/* Disclosure styles: follow normal button style in light mode, dark override only in dark mode */
+.app-shell[data-theme='light'] .analysis-disclosure__toggle {
+  background: var(--bs-secondary) !important;
+  color: var(--bs-secondary-text) !important;
+  border-color: var(--bs-secondary) !important;
+}
+
+.app-shell[data-theme='dark'] .analysis-disclosure__toggle {
+  background: #212121 !important;
+  color: #fff !important;
+  border-color: var(--border) !important;
+}
+
+.app-shell[data-theme='dark'] .analysis-disclosure__action {
+  color: color-mix(in srgb, #fff 72%, #212121) !important;
+}
+
+/* Analysis content should be light gray in light mode (lighter than secondary button color) */
+.app-shell[data-theme='light'] .analysis-disclosure__content {
+  background: color-mix(in srgb, var(--bs-secondary) 18%, white) !important;
+  border-color: color-mix(in srgb, var(--bs-secondary) 40%, white) !important;
+}
+
+.app-shell[data-theme='dark'] .analysis-disclosure__content {
+  background: color-mix(in srgb, #212121 90%, white) !important;
 }
