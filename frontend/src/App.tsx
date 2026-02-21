@@ -1639,6 +1639,7 @@ function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, ses
 
 export function App() {
   const initialRoute = resolveRouteFromPath(window.location.pathname);
+  const shouldAutoOpenFirstSession = window.location.pathname === '/';
   const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
@@ -1919,19 +1920,35 @@ export function App() {
           }
           const normalizedPayload = payload.map(normalizeUploadRecord);
           setUploadHistory(normalizedPayload);
-          if (normalizedPayload.length > 0) {
-            const initialSession = activeSessionIdFromRoute
-              ? normalizedPayload.find((item) => item.id === activeSessionIdFromRoute) ?? normalizedPayload[0]
-              : normalizedPayload[0];
 
-            setSelectedSession(initialSession);
-            setSelectedFilter(initialSession.summary.smoothing.selectedStrategy as SmoothingFilter);
-            setSessionContextForm(initialSession.sessionContext);
-            setShowUploadQualityStep(false);
-            setActiveMainPage('session');
+          if (normalizedPayload.length === 0) {
+            if (initialRoute.mainPage === 'session') {
+              setActiveMainPage('sessions');
+            }
+            return;
+          }
+
+          const routeSession = activeSessionIdFromRoute
+            ? normalizedPayload.find((item) => item.id === activeSessionIdFromRoute) ?? null
+            : null;
+
+          const preferredSession = routeSession ?? normalizedPayload[0];
+          setSelectedSession(preferredSession);
+          setSelectedFilter(preferredSession.summary.smoothing.selectedStrategy as SmoothingFilter);
+          setSessionContextForm(preferredSession.sessionContext);
+          setShowUploadQualityStep(false);
+          setCompareOpponentSessionId(normalizedPayload.find((item) => item.id !== preferredSession.id)?.id ?? null);
+
+          if (initialRoute.mainPage === 'session') {
             setIsSessionMenuVisible(true);
-            setActiveSessionIdFromRoute(initialSession.id);
-            setCompareOpponentSessionId(normalizedPayload[1]?.id ?? null);
+            setActiveMainPage('session');
+            setActiveSessionIdFromRoute(preferredSession.id);
+          } else if (initialRoute.mainPage === 'sessions' && shouldAutoOpenFirstSession) {
+            setIsSessionMenuVisible(true);
+            setActiveMainPage('session');
+            setActiveSessionIdFromRoute(preferredSession.id);
+          } else {
+            setIsSessionMenuVisible(false);
           }
         }
       } catch {
@@ -1992,6 +2009,7 @@ export function App() {
     setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
+    setActiveSessionIdFromRoute(payload.id);
     setActiveMainPage('session');
     setShowUploadQualityStep(false);
     setIsSessionMenuVisible(true);
@@ -2077,6 +2095,7 @@ export function App() {
     applyUpdatedSession(payload);
     setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
     setSessionContextForm(payload.sessionContext);
+    setActiveSessionIdFromRoute(payload.id);
     setActiveMainPage('session');
     setAggregationWindowMinutes(profileForm.preferredAggregationWindowMinutes);
     setMessage(t.sessionRecalculateSuccess);
@@ -2268,6 +2287,7 @@ export function App() {
       setCompareMode('smoothed');
       setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
       setSessionContextForm(payload.sessionContext);
+      setActiveSessionIdFromRoute(payload.id);
       setActiveMainPage('session');
       setShowUploadQualityStep(true);
       setIsSessionMenuVisible(true);
@@ -2304,12 +2324,13 @@ export function App() {
 
     const remainingSessions = uploadHistory.filter((item) => item.id !== selectedSession.id);
     setUploadHistory(remainingSessions);
-    setSelectedSession(remainingSessions[0] ?? null);
+    setSelectedSession(null);
     setCompareOpponentSessionId(null);
     setShowUploadQualityStep(false);
     setActiveSessionSubpage('analysis');
-    setActiveSessionIdFromRoute(remainingSessions[0]?.id ?? null);
-    setActiveMainPage(remainingSessions.length > 0 ? 'session' : 'sessions');
+    setActiveSessionIdFromRoute(null);
+    setActiveMainPage('sessions');
+    setIsSessionMenuVisible(false);
     setMessage(t.sessionDeleteSuccess);
   }
 
