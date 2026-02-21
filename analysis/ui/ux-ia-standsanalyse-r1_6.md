@@ -179,7 +179,7 @@ Als Spieler möchte ich Analyseblöcke standardmäßig eingeklappt sehen, damit 
 
 **Ziel:** Segmentanalyse nutzbar machen und Segmentpflege aus dem Analyseflow auslagern.
 
-### User Story 4.1
+### User Story 4.1 ✅ done
 Als Spieler möchte ich eine Segmentliste sehen und ein Segment auswählen können, damit ich direkt in die Analyse dieses Segments springen kann.
 
 **Acceptance Criteria**
@@ -187,7 +187,7 @@ Als Spieler möchte ich eine Segmentliste sehen und ein Segment auswählen könn
 - Tap/Click auf Segment öffnet Segment-Analyse.
 - Segment-Analyse nutzt dieselbe Analysegrammatik wie Session-Analyse (Kernaussage → Drill-down → Heatmap/Deep-Dive, soweit datenabhängig möglich).
 
-### User Story 4.2
+### User Story 4.2 ✅ done
 Als Spieler möchte ich, dass bei Sessions ohne manuelle Segmentierung automatisch ein Default-Segment „gesamte Session“ existiert, damit ich sofort segmentbasiert analysieren kann.
 
 **Acceptance Criteria**
@@ -195,14 +195,14 @@ Als Spieler möchte ich, dass bei Sessions ohne manuelle Segmentierung automatis
 - Dieses Default-Segment ist in Analyse- und Vergleichslogik wie ein normales Segment nutzbar.
 - Umsetzung kann Frontend- oder Backend-seitig erfolgen, sollte aber API-seitig eindeutig und konsistent sein.
 
-### User Story 4.3
+### User Story 4.3 ✅ done
 Als Spieler möchte ich Segmente in Kategorien einordnen (z. B. Warm-up, Spielform), damit segmentübergreifende Vergleiche sinnvoll sind.
 
 **Acceptance Criteria**
 - Segmentformular: Kategorie (Taxonomie) + freies Label.
 - Mehrfach vorkommende Kategorien erlaubt.
 
-### User Story 4.4
+### User Story 4.4 ✅ done
 Als Spieler möchte ich Segment-Bearbeitung (teilen/mergen/Metadaten) auf einer separaten Unterseite durchführen, damit Analyse und einmalige Strukturpflege klar getrennt sind.
 
 **Acceptance Criteria**

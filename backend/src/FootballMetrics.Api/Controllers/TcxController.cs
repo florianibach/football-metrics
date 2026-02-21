@@ -97,6 +97,32 @@ public class TcxController : ControllerBase
         return NoContent();
     }
 
+
+
+    [HttpPost("{id:guid}/segments/split")]
+    public async Task<ActionResult<TcxUploadResponseDto>> SplitSegment(Guid id, [FromBody] SplitSegmentRequestDto request, CancellationToken cancellationToken)
+    {
+        if (request is null)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid segment split", "Request body is required.", ApiErrorCodes.ValidationError);
+        }
+
+        try
+        {
+            var upload = await _tcxSessionUseCase.SplitSegmentAsync(id, request.SegmentId, request.SplitSecond, request.LeftLabel, request.RightLabel, request.Notes, cancellationToken);
+            if (upload is null)
+            {
+                return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);
+            }
+
+            return Ok(ToResponse(upload));
+        }
+        catch (InvalidDataException ex)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Invalid segment split", ex.Message, ApiErrorCodes.ValidationError);
+        }
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<TcxUploadResponseDto>> GetUpload(Guid id, CancellationToken cancellationToken)
     {
@@ -184,7 +210,7 @@ public class TcxController : ControllerBase
 
         try
         {
-            var upload = await _tcxSessionUseCase.AddSegmentAsync(id, request.Label, request.StartSecond, request.EndSecond, request.Reason, cancellationToken);
+            var upload = await _tcxSessionUseCase.AddSegmentAsync(id, request.Label, request.StartSecond, request.EndSecond, request.Notes, request.Category, cancellationToken);
             if (upload is null)
             {
                 return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
@@ -208,7 +234,7 @@ public class TcxController : ControllerBase
 
         try
         {
-            var upload = await _tcxSessionUseCase.UpdateSegmentAsync(id, segmentId, request.Label, request.StartSecond, request.EndSecond, request.Reason, cancellationToken);
+            var upload = await _tcxSessionUseCase.UpdateSegmentAsync(id, segmentId, request.Label, request.StartSecond, request.EndSecond, request.Notes, request.Category, cancellationToken);
             if (upload is null)
             {
                 return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);
@@ -223,9 +249,9 @@ public class TcxController : ControllerBase
     }
 
     [HttpDelete("{id:guid}/segments/{segmentId:guid}")]
-    public async Task<ActionResult<TcxUploadResponseDto>> DeleteSegment(Guid id, Guid segmentId, [FromQuery] string? reason, CancellationToken cancellationToken)
+    public async Task<ActionResult<TcxUploadResponseDto>> DeleteSegment(Guid id, Guid segmentId, [FromQuery] string? notes, CancellationToken cancellationToken)
     {
-        var upload = await _tcxSessionUseCase.DeleteSegmentAsync(id, segmentId, reason, cancellationToken);
+        var upload = await _tcxSessionUseCase.DeleteSegmentAsync(id, segmentId, notes, cancellationToken);
         if (upload is null)
         {
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);
@@ -244,7 +270,7 @@ public class TcxController : ControllerBase
 
         try
         {
-            var upload = await _tcxSessionUseCase.MergeSegmentsAsync(id, request.SourceSegmentId, request.TargetSegmentId, request.Label, request.Reason, cancellationToken);
+            var upload = await _tcxSessionUseCase.MergeSegmentsAsync(id, request.SourceSegmentId, request.TargetSegmentId, request.Label, request.Notes, cancellationToken);
             if (upload is null)
             {
                 return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);

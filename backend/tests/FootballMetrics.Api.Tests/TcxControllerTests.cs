@@ -232,7 +232,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         createUpload.StatusCode.Should().Be(HttpStatusCode.Created);
         var upload = await createUpload.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
 
-        var segmentResponse = await client.PostAsJsonAsync($"/api/v1/tcx/{upload!.Id}/segments", new CreateSegmentRequestDto("Warm-up", 0, 600, "initial split"));
+        var segmentResponse = await client.PostAsJsonAsync($"/api/v1/tcx/{upload!.Id}/segments", new CreateSegmentRequestDto("Warm-up", 0, 600, "initial split", "Warm-up"));
         segmentResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var updated = await segmentResponse.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
@@ -255,12 +255,12 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var createUpload = await client.PostAsync("/api/v1/tcx/upload", form);
         var upload = await createUpload.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
 
-        var first = await client.PostAsJsonAsync($"/api/v1/tcx/{upload!.Id}/segments", new CreateSegmentRequestDto("Warm-up", 0, 300, null));
+        var first = await client.PostAsJsonAsync($"/api/v1/tcx/{upload!.Id}/segments", new CreateSegmentRequestDto("Warm-up", 0, 300, null, "Warm-up"));
         var withFirst = await first.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
-        var second = await client.PostAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments", new CreateSegmentRequestDto("Main", 300, 900, null));
+        var second = await client.PostAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments", new CreateSegmentRequestDto("Main", 300, 900, null, "Game"));
         var withSecond = await second.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
 
-        var edit = await client.PutAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments/{withFirst!.Segments[0].Id}", new UpdateSegmentRequestDto("Activation", 0, 240, "rename+trim"));
+        var edit = await client.PutAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments/{withFirst!.Segments[0].Id}", new UpdateSegmentRequestDto("Activation", 0, 240, "rename+trim", "Warm-up"));
         edit.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var merge = await client.PostAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments/merge", new MergeSegmentsRequestDto(withFirst.Segments[0].Id, withSecond!.Segments[1].Id, "Game block", "combine"));
@@ -269,6 +269,32 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         merged!.Segments.Should().ContainSingle();
         merged.Segments[0].Label.Should().Be("Game block");
         merged.SegmentChangeHistory.Last().Action.Should().Be("Merged");
+    }
+
+    [Fact]
+    public async Task R1_6_UXIA_Increment4_SplitSegment_ShouldCreateTwoContiguousSegments()
+    {
+        var client = _factory.CreateClient();
+        using var form = CreateUploadForm(
+            "segment-split.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track><Trackpoint /></Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var createUpload = await client.PostAsync("/api/v1/tcx/upload", form);
+        createUpload.StatusCode.Should().Be(HttpStatusCode.Created);
+        var upload = await createUpload.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+
+        var initial = await client.GetFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>($"/api/v1/tcx/{upload!.Id}");
+        initial.Should().NotBeNull();
+        initial!.Segments.Should().ContainSingle();
+
+        var splitResponse = await client.PostAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments/split", new SplitSegmentRequestDto(initial.Segments[0].Id, 1, "Part A", "Part B", "initial split"));
+        splitResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var splitPayload = await splitResponse.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
+        splitPayload.Should().NotBeNull();
+        splitPayload!.Segments.Should().HaveCount(2);
+        splitPayload.Segments.Select(segment => segment.StartSecond).Should().BeEquivalentTo(new[] { 0, 1 });
+        splitPayload.SegmentChangeHistory.Last().Action.Should().Be("Split");
     }
 
     [Fact]
@@ -282,10 +308,10 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var createUpload = await client.PostAsync("/api/v1/tcx/upload", form);
         var upload = await createUpload.Content.ReadFromJsonAsync<FootballMetrics.Api.Api.V1.TcxUploadResponseDto>();
 
-        var first = await client.PostAsJsonAsync($"/api/v1/tcx/{upload!.Id}/segments", new CreateSegmentRequestDto("Warm-up", 0, 300, null));
+        var first = await client.PostAsJsonAsync($"/api/v1/tcx/{upload!.Id}/segments", new CreateSegmentRequestDto("Warm-up", 0, 300, null, "Warm-up"));
         first.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var overlap = await client.PostAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments", new CreateSegmentRequestDto("Overlap", 250, 500, null));
+        var overlap = await client.PostAsJsonAsync($"/api/v1/tcx/{upload.Id}/segments", new CreateSegmentRequestDto("Overlap", 250, 500, null, "Warm-up"));
         overlap.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var problem = await overlap.Content.ReadFromJsonAsync<ProblemDetails>();
         problem.Should().NotBeNull();

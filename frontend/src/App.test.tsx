@@ -494,7 +494,7 @@ describe('App', () => {
       expect(screen.getAllByRole('button', { name: 'Open details' }).length).toBe(2);
     });
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[1]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
 
     expect(screen.getByText(/File name:/)).toBeInTheDocument();
     expect(screen.getAllByText('second.tcx').length).toBeGreaterThan(0);
@@ -524,10 +524,10 @@ describe('App', () => {
       expect(screen.getByText('Session details')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Duration:/)).toBeInTheDocument();
-    expect(screen.getByText(/61 min 1 s/)).toBeInTheDocument();
-    expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
-    expect(screen.getByText(/110\/142\/178 bpm/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/61 min 1 s/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Heart rate \(min\/avg\/max\):/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/110\/142\/178 bpm/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Trackpoints:/)).toBeInTheDocument();
     expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
     expect(screen.getByText(/Yes/)).toBeInTheDocument();
@@ -562,7 +562,7 @@ describe('App', () => {
     expect(screen.getByText(/Heart-rate values are missing in this session/)).toBeInTheDocument();
     expect(screen.getByText(/Distance cannot be calculated because GPS points are missing/)).toBeInTheDocument();
     expect(screen.getByText(/No GPS coordinates were detected in this file/)).toBeInTheDocument();
-    expect(screen.getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Heart rate \(min\/avg\/max\):/).length).toBeGreaterThan(0);
     expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
   });
 
@@ -1627,7 +1627,7 @@ describe('App', () => {
     expect(screen.getByText(/Effective max speed: 29.9 km\/h \(Adaptive\)/)).toBeInTheDocument();
     expect(screen.getByText(/Effective max heartrate: 197 bpm \(Adaptive\)/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
     await waitFor(() => expect(screen.getByText(/Session threshold transparency/)).toBeInTheDocument());
     expect(screen.getByText(/MaxSpeedBase=8.0 m\/s \(Fixed\)/)).toBeInTheDocument();
     expect(screen.getByText(/Sprint=90.0% → 7.2 m\/s/)).toBeInTheDocument();
@@ -2040,13 +2040,13 @@ describe('App', () => {
     const createdResponse = createUploadRecord({
       id: 'upload-segment',
       segments: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }],
-      segmentChangeHistory: [{ version: 1, changedAtUtc: '2026-02-16T22:10:00.000Z', action: 'Created', reason: 'Initial', segmentsSnapshot: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }] }]
+      segmentChangeHistory: [{ version: 1, changedAtUtc: '2026-02-16T22:10:00.000Z', action: 'Created', notes: 'Initial', segmentsSnapshot: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }] }]
     });
 
     const updatedResponse = createUploadRecord({
       id: 'upload-segment',
       segments: [{ id: 'seg-1', label: 'Activation', startSecond: 0, endSecond: 240 }],
-      segmentChangeHistory: [{ version: 1, changedAtUtc: '2026-02-16T22:10:00.000Z', action: 'Created', reason: 'Initial', segmentsSnapshot: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }] }, { version: 2, changedAtUtc: '2026-02-16T22:20:00.000Z', action: 'Updated', reason: 'Trimmed', segmentsSnapshot: [{ id: 'seg-1', label: 'Activation', startSecond: 0, endSecond: 240 }] }]
+      segmentChangeHistory: [{ version: 1, changedAtUtc: '2026-02-16T22:10:00.000Z', action: 'Created', notes: 'Initial', segmentsSnapshot: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300 }] }, { version: 2, changedAtUtc: '2026-02-16T22:20:00.000Z', action: 'Updated', notes: 'Trimmed', segmentsSnapshot: [{ id: 'seg-1', label: 'Activation', startSecond: 0, endSecond: 240 }] }]
     });
 
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
@@ -2074,8 +2074,11 @@ describe('App', () => {
     render(<App />);
     await screen.findByText('Upload history');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
     await screen.findByText('Session segments');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit segments' }));
+    const editPanelToggle = document.querySelector('#session-segment-edit .analysis-disclosure__toggle') as HTMLButtonElement;
+    fireEvent.click(editPanelToggle);
 
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Warm-up' } });
     fireEvent.change(screen.getByLabelText('Start (s)'), { target: { value: '0' } });
@@ -2126,8 +2129,11 @@ describe('App', () => {
 
     render(<App />);
     await screen.findByText('Upload history');
-    fireEvent.click(screen.getByRole('button', { name: 'Open details' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
     await screen.findByText('Session segments');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit segments' }));
+    const editPanelToggle = document.querySelector('#session-segment-edit .analysis-disclosure__toggle') as HTMLButtonElement;
+    fireEvent.click(editPanelToggle);
 
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Overlap' } });
     fireEvent.change(screen.getByLabelText('Start (s)'), { target: { value: '100' } });
@@ -2136,9 +2142,11 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Segments must not overlap.'));
 
+    const mergePanelToggle = document.querySelectorAll('#session-segment-edit .analysis-disclosure__toggle')[1] as HTMLButtonElement;
+    fireEvent.click(mergePanelToggle);
     fireEvent.change(screen.getByLabelText('Source segment'), { target: { value: 'seg-a' } });
     fireEvent.change(screen.getByLabelText('Target segment'), { target: { value: 'seg-b' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Merge' }).at(-1)!);
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Only adjacent segments can be merged.'));
 
@@ -2408,11 +2416,98 @@ describe('App', () => {
     expect(screen.queryByText('GPS point heatmap')).not.toBeInTheDocument();
   });
 
-  it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
+
+  it('R1_6_13_Ac05_overview_hides_gps_metrics_in_hr_only_mode', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
       if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
-        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              id: 'hr-only-overview',
+              summary: createSummary({
+                hasGpsData: false,
+                gpsTrackpoints: [],
+                dataAvailability: {
+                  mode: 'HeartRateOnly',
+                  gpsStatus: 'NotMeasured',
+                  gpsReason: 'GPS not present in this session.',
+                  heartRateStatus: 'Available',
+                  heartRateReason: null
+                }
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    await screen.findByText('Session details');
+
+    const hrOnlyOverview = screen.getByRole('heading', { name: 'Overview' }).closest('.analysis-disclosure__content') as HTMLElement;
+    expect(within(hrOnlyOverview).queryByText(/Distance:/)).not.toBeInTheDocument();
+    expect(within(hrOnlyOverview).getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
+  });
+
+  it('R1_6_13_Ac06_overview_hides_hr_metrics_in_gps_only_mode', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              id: 'gps-only-overview',
+              fileName: 'gps-only.tcx',
+              summary: createSummary({
+                heartRateMinBpm: null,
+                heartRateAverageBpm: null,
+                heartRateMaxBpm: null,
+                dataAvailability: {
+                  mode: 'GpsOnly',
+                  gpsStatus: 'Available',
+                  gpsReason: null,
+                  heartRateStatus: 'NotMeasured',
+                  heartRateReason: 'No heart-rate stream in file.'
+                }
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    await screen.findByText('Session details');
+
+    const gpsOnlyOverview = screen.getByRole('heading', { name: 'Overview' }).closest('.analysis-disclosure__content') as HTMLElement;
+    expect(within(gpsOnlyOverview).getByText(/Distance:/)).toBeInTheDocument();
+    expect(within(gpsOnlyOverview).queryByText(/Heart rate \(min\/avg\/max\):/)).not.toBeInTheDocument();
+  });
+
+    it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
+    const withSegment = createUploadRecord({
+      segments: [{ id: 'seg-1', label: 'Segment A', startSecond: 0, endSecond: 300, category: 'Other', notes: 'Segment note' }]
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [withSegment] } as Response);
       }
 
       if (url.endsWith('/profile') && (!init || init.method === undefined)) {
@@ -2428,6 +2523,7 @@ describe('App', () => {
 
     await screen.findByText('Session details');
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
+    expect(screen.getByText('Overview')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments'));
@@ -2437,6 +2533,14 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Analysis|Analyse/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze segment' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments/seg-1'));
+    expect(screen.getByText('Segment Overview')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to segment list' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
     await waitFor(() => expect(window.location.pathname).toBe('/uploads'));

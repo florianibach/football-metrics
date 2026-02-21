@@ -262,7 +262,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         return refreshedUpload;
     }
 
-    public async Task<TcxUpload?> AddSegmentAsync(Guid id, string label, int startSecond, int endSecond, string? reason, CancellationToken cancellationToken)
+    public async Task<TcxUpload?> AddSegmentAsync(Guid id, string label, int startSecond, int endSecond, string? notes, string? category, CancellationToken cancellationToken)
     {
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
@@ -274,16 +274,21 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         ValidateSegmentRange(startSecond, endSecond);
 
         var segments = ResolveSegments(upload).ToList();
+        if (IsSyntheticDefaultOnly(segments, upload.Id))
+        {
+            segments.Clear();
+        }
+
         EnsureNoInvalidOverlap(segments, startSecond, endSecond, null);
 
-        segments.Add(new TcxSessionSegment(Guid.NewGuid(), normalizedLabel, startSecond, endSecond));
-        var nextHistory = AppendSegmentHistory(upload, "Created", reason, segments);
+        segments.Add(new TcxSessionSegment(Guid.NewGuid(), normalizedLabel, startSecond, endSecond, NormalizeSegmentCategory(category), NormalizeOptionalNotes(notes)));
+        var nextHistory = AppendSegmentHistory(upload, "Created", notes, segments);
 
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
         return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
     }
 
-    public async Task<TcxUpload?> UpdateSegmentAsync(Guid id, Guid segmentId, string? label, int? startSecond, int? endSecond, string? reason, CancellationToken cancellationToken)
+    public async Task<TcxUpload?> UpdateSegmentAsync(Guid id, Guid segmentId, string? label, int? startSecond, int? endSecond, string? notes, string? category, CancellationToken cancellationToken)
     {
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
@@ -306,14 +311,14 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         ValidateSegmentRange(nextStart, nextEnd);
         EnsureNoInvalidOverlap(segments, nextStart, nextEnd, segmentId);
 
-        segments[index] = existing with { Label = nextLabel, StartSecond = nextStart, EndSecond = nextEnd };
-        var nextHistory = AppendSegmentHistory(upload, "Updated", reason, segments);
+        segments[index] = existing with { Label = nextLabel, StartSecond = nextStart, EndSecond = nextEnd, Category = NormalizeSegmentCategory(category ?? existing.Category), Notes = string.IsNullOrWhiteSpace(notes) ? existing.Notes : NormalizeOptionalNotes(notes) };
+        var nextHistory = AppendSegmentHistory(upload, "Updated", notes, segments);
 
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
         return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
     }
 
-    public async Task<TcxUpload?> DeleteSegmentAsync(Guid id, Guid segmentId, string? reason, CancellationToken cancellationToken)
+    public async Task<TcxUpload?> DeleteSegmentAsync(Guid id, Guid segmentId, string? notes, CancellationToken cancellationToken)
     {
         var upload = await _repository.GetByIdAsync(id, cancellationToken);
         if (upload is null)
@@ -328,12 +333,12 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
-        var nextHistory = AppendSegmentHistory(upload, "Deleted", reason, segments);
+        var nextHistory = AppendSegmentHistory(upload, "Deleted", notes, segments);
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
         return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
     }
 
-    public async Task<TcxUpload?> MergeSegmentsAsync(Guid id, Guid sourceSegmentId, Guid targetSegmentId, string? label, string? reason, CancellationToken cancellationToken)
+    public async Task<TcxUpload?> MergeSegmentsAsync(Guid id, Guid sourceSegmentId, Guid targetSegmentId, string? label, string? notes, CancellationToken cancellationToken)
     {
         if (sourceSegmentId == targetSegmentId)
         {
@@ -358,13 +363,44 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             target.Id,
             string.IsNullOrWhiteSpace(label) ? target.Label : NormalizeSegmentLabel(label),
             Math.Min(source.StartSecond, target.StartSecond),
-            Math.Max(source.EndSecond, target.EndSecond));
+            Math.Max(source.EndSecond, target.EndSecond),
+            target.Category,
+            NormalizeOptionalNotes(notes) ?? target.Notes);
 
         segments.RemoveAll(segment => segment.Id == sourceSegmentId || segment.Id == targetSegmentId);
         EnsureNoInvalidOverlap(segments, merged.StartSecond, merged.EndSecond, null);
         segments.Add(merged);
 
-        var nextHistory = AppendSegmentHistory(upload, "Merged", reason, segments);
+        var nextHistory = AppendSegmentHistory(upload, "Merged", notes, segments);
+        var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
+        return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
+    }
+
+    public async Task<TcxUpload?> SplitSegmentAsync(Guid id, Guid segmentId, int splitSecond, string? leftLabel, string? rightLabel, string? notes, CancellationToken cancellationToken)
+    {
+        var upload = await _repository.GetByIdAsync(id, cancellationToken);
+        if (upload is null)
+        {
+            return null;
+        }
+
+        var segments = ResolveSegments(upload).OrderBy(segment => segment.StartSecond).ToList();
+        var segmentToSplit = segments.SingleOrDefault(segment => segment.Id == segmentId);
+        if (segmentToSplit is null)
+        {
+            return null;
+        }
+
+        if (splitSecond <= segmentToSplit.StartSecond || splitSecond >= segmentToSplit.EndSecond)
+        {
+            throw new InvalidDataException("Split second must be inside the selected segment boundaries.");
+        }
+
+        segments.RemoveAll(segment => segment.Id == segmentId);
+        segments.Add(new TcxSessionSegment(Guid.NewGuid(), string.IsNullOrWhiteSpace(leftLabel) ? $"{segmentToSplit.Label} A" : NormalizeSegmentLabel(leftLabel), segmentToSplit.StartSecond, splitSecond, segmentToSplit.Category, NormalizeOptionalNotes(notes) ?? segmentToSplit.Notes));
+        segments.Add(new TcxSessionSegment(Guid.NewGuid(), string.IsNullOrWhiteSpace(rightLabel) ? $"{segmentToSplit.Label} B" : NormalizeSegmentLabel(rightLabel), splitSecond, segmentToSplit.EndSecond, segmentToSplit.Category, NormalizeOptionalNotes(notes) ?? segmentToSplit.Notes));
+
+        var nextHistory = AppendSegmentHistory(upload, "Split", notes, segments);
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
         return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
     }
@@ -499,13 +535,23 @@ public class TcxSessionUseCase : ITcxSessionUseCase
 
     public IReadOnlyList<TcxSessionSegment> ResolveSegments(TcxUpload upload)
     {
-        if (string.IsNullOrWhiteSpace(upload.SegmentsSnapshotJson))
+        var parsed = string.IsNullOrWhiteSpace(upload.SegmentsSnapshotJson)
+            ? new List<TcxSessionSegment>()
+            : (JsonSerializer.Deserialize<List<TcxSessionSegment>>(upload.SegmentsSnapshotJson) ?? new List<TcxSessionSegment>())
+                .Select(segment => segment with { Category = NormalizeSegmentCategory(segment.Category), Notes = NormalizeOptionalNotes(segment.Notes) })
+                .ToList();
+
+        if (parsed.Count > 0)
         {
-            return Array.Empty<TcxSessionSegment>();
+            return parsed;
         }
 
-        return JsonSerializer.Deserialize<List<TcxSessionSegment>>(upload.SegmentsSnapshotJson)
-            ?? new List<TcxSessionSegment>();
+        var summary = ResolveSummary(upload);
+        var defaultEnd = Math.Max(2, (int)Math.Round(summary.DurationSeconds ?? 0d));
+        return new[]
+        {
+            new TcxSessionSegment(CreateDefaultSegmentId(upload.Id), "Gesamte Session", 0, defaultEnd, "Other", null)
+        };
     }
 
     public IReadOnlyList<TcxSegmentChangeEntry> ResolveSegmentChangeHistory(TcxUpload upload)
@@ -566,6 +612,41 @@ public class TcxSessionUseCase : ITcxSessionUseCase
     private static string NormalizeSegmentLabel(string value)
         => value.Trim();
 
+    private static readonly HashSet<string> AllowedSegmentCategories = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Other",
+        "Aufwärmen",
+        "Spielform",
+        "Torschuss",
+        "Athletik",
+        "Cooldown"
+    };
+
+    private static string? NormalizeOptionalNotes(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string NormalizeSegmentCategory(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Other";
+        }
+
+        var normalized = value.Trim();
+        return AllowedSegmentCategories.FirstOrDefault(category => string.Equals(category, normalized, StringComparison.OrdinalIgnoreCase)) ?? "Other";
+    }
+
+    private static Guid CreateDefaultSegmentId(Guid uploadId)
+    {
+        var bytes = uploadId.ToByteArray();
+        bytes[0] ^= 0x5A;
+        bytes[15] ^= 0xA5;
+        return new Guid(bytes);
+    }
+
+    private static bool IsSyntheticDefaultOnly(IReadOnlyList<TcxSessionSegment> segments, Guid uploadId)
+        => segments.Count == 1 && segments[0].Id == CreateDefaultSegmentId(uploadId);
+
     private static void ValidateSegmentRange(int startSecond, int endSecond)
     {
         if (startSecond < 0 || endSecond < 0 || endSecond <= startSecond)
@@ -587,11 +668,11 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         }
     }
 
-    private IReadOnlyList<TcxSegmentChangeEntry> AppendSegmentHistory(TcxUpload upload, string action, string? reason, IReadOnlyList<TcxSessionSegment> segmentsSnapshot)
+    private IReadOnlyList<TcxSegmentChangeEntry> AppendSegmentHistory(TcxUpload upload, string action, string? notes, IReadOnlyList<TcxSessionSegment> segmentsSnapshot)
     {
         var history = ResolveSegmentChangeHistory(upload).ToList();
         var nextVersion = history.Count == 0 ? 1 : history[^1].Version + 1;
-        history.Add(new TcxSegmentChangeEntry(nextVersion, DateTime.UtcNow, action, string.IsNullOrWhiteSpace(reason) ? null : reason.Trim(), segmentsSnapshot.ToArray()));
+        history.Add(new TcxSegmentChangeEntry(nextVersion, DateTime.UtcNow, action, string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(), segmentsSnapshot.ToArray()));
         return history;
     }
 

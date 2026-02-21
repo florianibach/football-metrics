@@ -114,8 +114,8 @@ type MetricThresholdProfile = {
 
 type SpeedUnit = 'km/h' | 'm/s' | 'min/km';
 type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
-type SessionSubpage = 'analysis' | 'segments' | 'compare';
-type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null };
+type SessionSubpage = 'analysis' | 'segments' | 'segmentEdit' | 'compare';
+type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null; segmentId: string | null };
 
 
 type ProfileRecalculationJob = {
@@ -158,15 +158,17 @@ type SessionRecalculationEntry = {
 type SessionSegment = {
   id: string;
   label: string;
+  category?: SegmentCategory;
   startSecond: number;
   endSecond: number;
+  notes?: string | null;
 };
 
 type SegmentChangeEntry = {
   version: number;
   changedAtUtc: string;
   action: string;
-  reason: string | null;
+  notes: string | null;
   segmentsSnapshot: SessionSegment[];
 };
 
@@ -364,6 +366,7 @@ type TranslationKey =
   | 'metricInfoSidebarClose'
   | 'sessionSubpageAnalysis'
   | 'sessionSubpageSegments'
+  | 'sessionSubpageSegmentEdit'
   | 'sessionSubpageCompare'
   | 'detailMissingHeartRateHint'
   | 'detailMissingDistanceHint'
@@ -473,10 +476,11 @@ type TranslationKey =
   | 'coreMetricsCategoryInternalHelp'
   | 'segmentsTitle'
   | 'segmentsEmpty'
+  | 'segmentCategory'
   | 'segmentLabel'
   | 'segmentStartSecond'
   | 'segmentEndSecond'
-  | 'segmentReason'
+  | 'segmentNotes'
   | 'segmentAdd'
   | 'segmentUpdate'
   | 'segmentEdit'
@@ -496,6 +500,31 @@ type TranslationKey =
   | 'segmentValidationRequired'
   | 'segmentValidationRange'
   | 'segmentValidationMergeSelection'
+  | 'segmentDefaultLabel'
+  | 'segmentDefaultDescription'
+  | 'segmentSelectionHint'
+  | 'segmentAnalyzeAction'
+  | 'segmentEditTitle'
+  | 'segmentEditEntryAfterUpload'
+  | 'segmentSplitTitle'
+  | 'segmentSplitSegment'
+  | 'segmentSplitSecond'
+  | 'segmentSplitLeftLabel'
+  | 'segmentSplitRightLabel'
+  | 'segmentSplitAction'
+  | 'segmentSplitSuccess'
+  | 'segmentValidationSplitSecond'
+  | 'segmentCategoryOther'
+  | 'segmentCategoryWarmup'
+  | 'segmentCategoryGameForm'
+  | 'segmentCategoryFinishing'
+  | 'segmentCategoryAthletics'
+  | 'segmentCategoryCooldown'
+  | 'segmentScopeHint'
+  | 'segmentDerivedMetricsTitle'
+  | 'analysisOverviewTitle'
+  | 'segmentBackToSessionMetrics'
+  | 'segmentBackToSegmentList'
   | 'sessionRecalculateButton'
   | 'sessionRecalculateSuccess'
   | 'sessionRecalculateProfileInfo'
@@ -684,6 +713,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricInfoSidebarClose: 'Close details',
     sessionSubpageAnalysis: 'Analysis',
     sessionSubpageSegments: 'Segments',
+    sessionSubpageSegmentEdit: 'Edit segments',
     sessionSubpageCompare: 'Compare',
     detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
     detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
@@ -816,10 +846,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     coreMetricsCategoryInternalHelp: 'Internal metrics describe your physiological response and answer: How hard did this session feel for my body? They are derived from heart-rate intensity and recovery behavior, for example time in heart-rate zones, TRIMP load, and heart-rate recovery. In simple terms, these values show your cardiovascular strain and recovery quality, even when movement output is similar. If internal load is unusually high compared with external load, this can indicate fatigue, stress, heat effects, or incomplete recovery.',
     segmentsTitle: 'Session segments',
     segmentsEmpty: 'No segments yet. Add your first phase to structure this session.',
+    segmentCategory: 'Category',
     segmentLabel: 'Label',
     segmentStartSecond: 'Start (s)',
     segmentEndSecond: 'End (s)',
-    segmentReason: 'Reason (optional)',
+    segmentNotes: 'Notes (optional)',
     segmentAdd: 'Add segment',
     segmentUpdate: 'Save segment changes',
     segmentEdit: 'Edit',
@@ -838,7 +869,32 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentErrorPrefix: 'Segment action failed:',
     segmentValidationRequired: 'Please enter label, start and end for the segment.',
     segmentValidationRange: 'End must be greater than start and both values must be non-negative.',
-    segmentValidationMergeSelection: 'Please select both source and target segments for merge.'
+    segmentValidationMergeSelection: 'Please select both source and target segments for merge.',
+    segmentDefaultLabel: 'Full session',
+    segmentDefaultDescription: 'Automatically available because no manual segments exist yet.',
+    segmentSelectionHint: 'Select a segment to jump into focused analysis.',
+    segmentAnalyzeAction: 'Analyze segment',
+    segmentEditTitle: 'Edit segments',
+    segmentEditEntryAfterUpload: 'Edit segments now (optional)',
+    segmentSplitTitle: 'Split segment',
+    segmentSplitSegment: 'Segment',
+    segmentSplitSecond: 'Split at second',
+    segmentSplitLeftLabel: 'Left label (optional)',
+    segmentSplitRightLabel: 'Right label (optional)',
+    segmentSplitAction: 'Split',
+    segmentSplitSuccess: 'Segment split.',
+    segmentValidationSplitSecond: 'Split second must be inside the selected segment.',
+    segmentCategoryOther: 'Other',
+    segmentCategoryWarmup: 'Warm-up',
+    segmentCategoryGameForm: 'Game form',
+    segmentCategoryFinishing: 'Finishing',
+    segmentCategoryAthletics: 'Athletics',
+    segmentCategoryCooldown: 'Cooldown',
+    segmentScopeHint: 'Segment-focused analysis is active.',
+    segmentDerivedMetricsTitle: 'Segment Overview',
+    analysisOverviewTitle: 'Overview',
+    segmentBackToSessionMetrics: 'Back to full-session metrics',
+    segmentBackToSegmentList: 'Back to segment list'
   },
   de: {
     title: 'Football Metrics – TCX Upload',
@@ -998,6 +1054,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricInfoSidebarClose: 'Details schließen',
     sessionSubpageAnalysis: 'Analyse',
     sessionSubpageSegments: 'Segmente',
+    sessionSubpageSegmentEdit: 'Segmente bearbeiten',
     sessionSubpageCompare: 'Vergleich',
     detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
     detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
@@ -1130,10 +1187,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     coreMetricsCategoryInternalHelp: 'Interne Metriken beschreiben deine physiologische Reaktion und beantworten: Wie anstrengend war die Einheit für meinen Körper? Sie werden aus Herzfrequenzintensität und Erholungsverhalten abgeleitet, zum Beispiel Zeit in HF-Zonen, TRIMP-Belastung und Herzfrequenz-Erholung. Vereinfacht zeigen diese Werte die innere Herz-Kreislauf-Belastung und die Erholungsqualität – auch dann, wenn die äußere Laufleistung ähnlich war. Ist die interne Last im Verhältnis zur externen Last ungewöhnlich hoch, kann das auf Müdigkeit, Stress, Hitzeeinfluss oder unvollständige Regeneration hindeuten.',
     segmentsTitle: 'Session-Segmente',
     segmentsEmpty: 'Noch keine Segmente vorhanden. Füge die erste Phase hinzu, um die Session zu strukturieren.',
+    segmentCategory: 'Kategorie',
     segmentLabel: 'Label',
     segmentStartSecond: 'Start (s)',
     segmentEndSecond: 'Ende (s)',
-    segmentReason: 'Grund (optional)',
+    segmentNotes: 'Notizen (optional)',
     segmentAdd: 'Segment hinzufügen',
     segmentUpdate: 'Segment speichern',
     segmentEdit: 'Bearbeiten',
@@ -1152,7 +1210,32 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentErrorPrefix: 'Segment-Aktion fehlgeschlagen:',
     segmentValidationRequired: 'Bitte Label, Start und Ende für das Segment eingeben.',
     segmentValidationRange: 'Ende muss größer als Start sein und beide Werte müssen >= 0 sein.',
-    segmentValidationMergeSelection: 'Bitte Quell- und Zielsegment für den Merge auswählen.'
+    segmentValidationMergeSelection: 'Bitte Quell- und Zielsegment für den Merge auswählen.',
+    segmentDefaultLabel: 'Gesamte Session',
+    segmentDefaultDescription: 'Automatisch verfügbar, da noch keine manuelle Segmentierung vorliegt.',
+    segmentSelectionHint: 'Wähle ein Segment, um in die fokussierte Analyse zu springen.',
+    segmentAnalyzeAction: 'Segment analysieren',
+    segmentEditTitle: 'Segmente bearbeiten',
+    segmentEditEntryAfterUpload: 'Segmente jetzt bearbeiten (optional)',
+    segmentSplitTitle: 'Segment teilen',
+    segmentSplitSegment: 'Segment',
+    segmentSplitSecond: 'Teilen bei Sekunde',
+    segmentSplitLeftLabel: 'Linkes Label (optional)',
+    segmentSplitRightLabel: 'Rechtes Label (optional)',
+    segmentSplitAction: 'Teilen',
+    segmentSplitSuccess: 'Segment geteilt.',
+    segmentValidationSplitSecond: 'Die Teilungssekunde muss innerhalb des Segments liegen.',
+    segmentCategoryOther: 'Other',
+    segmentCategoryWarmup: 'Aufwärmen',
+    segmentCategoryGameForm: 'Spielform',
+    segmentCategoryFinishing: 'Torschuss',
+    segmentCategoryAthletics: 'Athletik',
+    segmentCategoryCooldown: 'Cooldown',
+    segmentScopeHint: 'Segment-fokussierte Analyse ist aktiv.',
+    segmentDerivedMetricsTitle: 'Segment-Übersicht',
+    analysisOverviewTitle: 'Übersicht',
+    segmentBackToSessionMetrics: 'Zurück zu Session-Metriken',
+    segmentBackToSegmentList: 'Zurück zur Segmentliste'
   }
 };
 
@@ -1491,9 +1574,17 @@ function resolveDataAvailability(summary: ActivitySummary): DataAvailability {
 }
 
 function normalizeUploadRecord(record: UploadRecord): UploadRecord {
+  const normalizedSegments = (record.segments ?? []).map((segment) => ({
+    ...segment,
+    category: (segmentCategoryOptions.find((option) => option === segment.category) ?? 'Other'),
+    notes: segment.notes ?? null
+  }));
+
+  const segments = normalizedSegments;
+
   return {
     ...record,
-    segments: record.segments ?? [],
+    segments,
     segmentChangeHistory: record.segmentChangeHistory ?? [],
     summary: {
       ...record.summary,
@@ -1568,6 +1659,20 @@ function getFileValidationMessage(file: File | null, locale: Locale): string | n
 }
 
 const smoothingFilterOptions: SmoothingFilter[] = ['Raw', 'AdaptiveMedian', 'Savitzky-Golay', 'Butterworth'];
+const segmentCategoryOptions = ['Other', 'Aufwärmen', 'Spielform', 'Torschuss', 'Athletik', 'Cooldown'] as const;
+
+type SegmentCategory = typeof segmentCategoryOptions[number];
+
+function segmentCategoryLabel(category: SegmentCategory, t: Record<TranslationKey, string>): string {
+  switch (category) {
+    case 'Aufwärmen': return t.segmentCategoryWarmup;
+    case 'Spielform': return t.segmentCategoryGameForm;
+    case 'Torschuss': return t.segmentCategoryFinishing;
+    case 'Athletik': return t.segmentCategoryAthletics;
+    case 'Cooldown': return t.segmentCategoryCooldown;
+    default: return t.segmentCategoryOther;
+  }
+}
 
 function getFilterLabel(filter: SmoothingFilter, t: Record<TranslationKey, string>): string {
   switch (filter) {
@@ -1597,34 +1702,49 @@ function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
 
 function resolveRouteFromPath(pathname: string): RouteState {
   if (pathname === '/uploads') {
-    return { mainPage: 'upload', sessionSubpage: 'analysis', sessionId: null };
+    return { mainPage: 'upload', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
   }
 
   if (pathname === '/profiles') {
-    return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null };
+    return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
   }
 
   if (pathname === '/') {
-    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
   }
 
   if (pathname === '/sessions') {
-    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
   }
 
-  const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|compare))?$/);
-  if (sessionRouteMatch) {
+  const segmentAnalysisRouteMatch = pathname.match(/^\/sessions\/([^/]+)\/segments\/([^/]+)$/);
+  if (segmentAnalysisRouteMatch) {
     return {
       mainPage: 'session',
-      sessionSubpage: (sessionRouteMatch[2] as SessionSubpage | undefined) ?? 'analysis',
-      sessionId: decodeURIComponent(sessionRouteMatch[1])
+      sessionSubpage: 'analysis',
+      sessionId: decodeURIComponent(segmentAnalysisRouteMatch[1]),
+      segmentId: decodeURIComponent(segmentAnalysisRouteMatch[2])
     };
   }
 
-  return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null };
+  const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|segments-edit|compare))?$/);
+  if (sessionRouteMatch) {
+    const subpage = sessionRouteMatch[2] === 'segments-edit'
+      ? 'segmentEdit'
+      : (sessionRouteMatch[2] as SessionSubpage | undefined);
+
+    return {
+      mainPage: 'session',
+      sessionSubpage: subpage ?? 'analysis',
+      sessionId: decodeURIComponent(sessionRouteMatch[1]),
+      segmentId: null
+    };
+  }
+
+  return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
 }
 
-function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, sessionId: string | null): string {
+function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, sessionId: string | null, segmentId: string | null): string {
   if (mainPage === 'upload') {
     return '/uploads';
   }
@@ -1644,8 +1764,16 @@ function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, ses
       return `/sessions/${encodedSessionId}/segments`;
     }
 
+    if (sessionSubpage === 'segmentEdit') {
+      return `/sessions/${encodedSessionId}/segments-edit`;
+    }
+
     if (sessionSubpage === 'compare') {
       return `/sessions/${encodedSessionId}/compare`;
+    }
+
+    if (sessionSubpage === 'analysis' && segmentId) {
+      return `/sessions/${encodedSessionId}/segments/${encodeURIComponent(segmentId)}`;
     }
 
     return `/sessions/${encodedSessionId}`;
@@ -1691,10 +1819,14 @@ export function App() {
     opponentName: null,
     opponentLogoUrl: null
   });
-  const [segmentForm, setSegmentForm] = useState({ label: '', startSecond: '0', endSecond: '300', reason: '' });
+  const [segmentForm, setSegmentForm] = useState({ category: 'Other', label: '', startSecond: '0', endSecond: '300', notes: '' });
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null);
-  const [mergeForm, setMergeForm] = useState({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
+  const [mergeForm, setMergeForm] = useState({ sourceSegmentId: '', targetSegmentId: '', label: '', notes: '' });
+  const [splitForm, setSplitForm] = useState({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
+  const [segmentEditorsOpen, setSegmentEditorsOpen] = useState({ edit: false, merge: false, split: false });
   const [segmentActionError, setSegmentActionError] = useState<string | null>(null);
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
+  const [analysisScope, setAnalysisScope] = useState<'session' | 'segment'>('session');
   const [profileForm, setProfileForm] = useState<UserProfile>({
     primaryPosition: 'CentralMidfielder',
     secondaryPosition: null,
@@ -1723,6 +1855,7 @@ export function App() {
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
   const [activeMainPage, setActiveMainPage] = useState<MainPage>(initialRoute.mainPage);
   const [activeSessionIdFromRoute, setActiveSessionIdFromRoute] = useState<string | null>(initialRoute.sessionId);
+  const [activeSegmentIdFromRoute, setActiveSegmentIdFromRoute] = useState<string | null>(initialRoute.segmentId);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [isSessionMenuVisible, setIsSessionMenuVisible] = useState(false);
   const [analysisAccordionState, setAnalysisAccordionState] = useState<Record<AnalysisAccordionKey, boolean>>(() => {
@@ -1815,6 +1948,7 @@ export function App() {
       setActiveMainPage(route.mainPage);
       setActiveSessionSubpage(route.sessionSubpage);
       setActiveSessionIdFromRoute(route.sessionId);
+      setActiveSegmentIdFromRoute(route.segmentId);
     };
 
     window.addEventListener('popstate', onPopState);
@@ -1872,13 +2006,18 @@ export function App() {
   }, [selectedSession, compareOpponentSessionId, sortedHistory]);
 
   useEffect(() => {
-    const nextPath = getPathForRoute(activeMainPage, activeSessionSubpage, activeSessionIdFromRoute ?? selectedSession?.id ?? null);
+    const nextPath = getPathForRoute(
+      activeMainPage,
+      activeSessionSubpage,
+      activeSessionIdFromRoute ?? selectedSession?.id ?? null,
+      activeMainPage === 'session' && activeSessionSubpage === 'analysis' && analysisScope === 'segment' ? selectedSegmentId : null
+    );
     const currentPath = window.location.pathname;
 
     if (currentPath !== nextPath) {
       window.history.pushState({}, '', nextPath);
     }
-  }, [activeMainPage, activeSessionSubpage, activeSessionIdFromRoute, selectedSession?.id]);
+  }, [activeMainPage, activeSessionSubpage, activeSessionIdFromRoute, analysisScope, selectedSegmentId, selectedSession?.id]);
 
   useEffect(() => {
     if (activeMainPage === 'session' && !selectedSession) {
@@ -1891,6 +2030,42 @@ export function App() {
     if (selectedSession) {
       setActiveSessionIdFromRoute(selectedSession.id);
     }
+  }, [selectedSession]);
+
+  useEffect(() => {
+    if (!selectedSession) {
+      return;
+    }
+
+    if (!activeSegmentIdFromRoute) {
+      setAnalysisScope('session');
+      return;
+    }
+
+    const segmentExists = selectedSession.segments.some((segment) => segment.id === activeSegmentIdFromRoute);
+    if (!segmentExists) {
+      setAnalysisScope('session');
+      return;
+    }
+
+    setSelectedSegmentId(activeSegmentIdFromRoute);
+    setAnalysisScope('segment');
+    setActiveSessionSubpage('analysis');
+  }, [activeSegmentIdFromRoute, selectedSession]);
+
+  useEffect(() => {
+    if (!selectedSession) {
+      setSelectedSegmentId(null);
+      return;
+    }
+
+    setSelectedSegmentId((current) => {
+      if (current && selectedSession.segments.some((segment) => segment.id === current)) {
+        return current;
+      }
+
+      return selectedSession.segments[0]?.id ?? null;
+    });
   }, [selectedSession]);
 
 
@@ -2045,13 +2220,22 @@ export function App() {
     setActiveMainPage('session');
     setShowUploadQualityStep(false);
     setIsSessionMenuVisible(true);
+    setSelectedSegmentId((current) => {
+      if (current && payload.segments.some((segment) => segment.id === current)) {
+        return current;
+      }
+
+      return payload.segments[0]?.id ?? null;
+    });
   }
 
   function resetSegmentForms() {
-    setSegmentForm({ label: '', startSecond: '0', endSecond: '300', reason: '' });
+    setSegmentForm({ category: 'Other', label: '', startSecond: '0', endSecond: '300', notes: '' });
     setEditingSegmentId(null);
-    setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
+    setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', notes: '' });
+    setSplitForm({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
   }
 
 
@@ -2166,8 +2350,9 @@ export function App() {
     }
 
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
 
-    if (!segmentForm.label.trim() || segmentForm.startSecond.trim() === '' || segmentForm.endSecond.trim() === '') {
+    if (!segmentForm.category.trim() || !segmentForm.label.trim() || segmentForm.startSecond.trim() === '' || segmentForm.endSecond.trim() === '') {
       setSegmentActionError(t.segmentValidationRequired);
       return;
     }
@@ -2185,16 +2370,18 @@ export function App() {
 
     const body = editingSegmentId
       ? {
+        category: segmentForm.category.trim(),
         label: segmentForm.label.trim(),
         startSecond,
         endSecond,
-        reason: segmentForm.reason.trim() || null
+        notes: segmentForm.notes.trim() || null
       }
       : {
+        category: segmentForm.category.trim(),
         label: segmentForm.label.trim(),
         startSecond,
         endSecond,
-        reason: segmentForm.reason.trim() || null
+        notes: segmentForm.notes.trim() || null
       };
 
     const response = await fetch(endpoint, {
@@ -2214,17 +2401,21 @@ export function App() {
     applyUpdatedSession(payload);
     resetSegmentForms();
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setMessage(editingSegmentId ? t.segmentUpdateSuccess : t.segmentCreateSuccess);
   }
 
   function onEditSegment(segment: SessionSegment) {
     setEditingSegmentId(segment.id);
     setSegmentForm({
+      category: segment.category ?? 'Other',
       label: segment.label,
       startSecond: String(segment.startSecond),
       endSecond: String(segment.endSecond),
-      reason: ''
+      notes: segment.notes ?? ''
     });
+    setSegmentEditorsOpen({ edit: true, merge: false, split: false });
+    setSplitForm((current) => ({ ...current, segmentId: segment.id }));
   }
 
   async function onDeleteSegment(segmentId: string) {
@@ -2232,7 +2423,7 @@ export function App() {
       return;
     }
 
-    const reasonQuery = segmentForm.reason.trim() ? `?reason=${encodeURIComponent(segmentForm.reason.trim())}` : '';
+    const reasonQuery = segmentForm.notes.trim() ? `?notes=${encodeURIComponent(segmentForm.notes.trim())}` : '';
     const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}/segments/${segmentId}${reasonQuery}`, {
       method: 'DELETE'
     });
@@ -2247,6 +2438,7 @@ export function App() {
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setMessage(t.segmentDeleteSuccess);
   }
 
@@ -2256,6 +2448,7 @@ export function App() {
     }
 
     setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
 
     if (!mergeForm.sourceSegmentId || !mergeForm.targetSegmentId) {
       setSegmentActionError(t.segmentValidationMergeSelection);
@@ -2269,7 +2462,7 @@ export function App() {
         sourceSegmentId: mergeForm.sourceSegmentId,
         targetSegmentId: mergeForm.targetSegmentId,
         label: mergeForm.label.trim() || null,
-        reason: mergeForm.reason.trim() || null
+        notes: mergeForm.notes.trim() || null
       })
     });
 
@@ -2283,8 +2476,55 @@ export function App() {
     const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
     applyUpdatedSession(payload);
     setSegmentActionError(null);
-    setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', reason: '' });
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
+    setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', notes: '' });
     setMessage(t.segmentMergeSuccess);
+  }
+
+  async function onSplitSegment() {
+    if (!selectedSession) {
+      return;
+    }
+
+    setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
+
+    if (!splitForm.segmentId || splitForm.splitSecond.trim() === '') {
+      setSegmentActionError(t.segmentValidationSplitSecond);
+      return;
+    }
+
+    const splitSecond = Number(splitForm.splitSecond);
+    if (Number.isNaN(splitSecond)) {
+      setSegmentActionError(t.segmentValidationSplitSecond);
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}/segments/split`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        segmentId: splitForm.segmentId,
+        splitSecond,
+        leftLabel: splitForm.leftLabel.trim() || null,
+        rightLabel: splitForm.rightLabel.trim() || null,
+        notes: splitForm.notes.trim() || null
+      })
+    });
+
+    if (!response.ok) {
+      const detail = await extractApiError(response);
+      setSegmentActionError(`${t.segmentErrorPrefix} ${detail}`);
+      setMessage(`${t.segmentErrorPrefix} ${detail}`);
+      return;
+    }
+
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
+    applyUpdatedSession(payload);
+    setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
+    setSplitForm({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
+    setMessage(translations[locale].defaultMessage);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -2507,6 +2747,24 @@ export function App() {
       : selectedSession.summary.smoothing.smoothedDirectionChanges
     : null;
 
+  const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
+  const isSegmentScopeActive = analysisScope === 'segment' && selectedSegment !== null;
+
+  const selectedGpsTrackpoints = useMemo(() => {
+    if (!selectedSession) {
+      return [] as GpsTrackpoint[];
+    }
+
+    const points = selectedSession.summary.gpsTrackpoints ?? [];
+    if (!isSegmentScopeActive || !selectedSegment) {
+      return points;
+    }
+
+    return points.filter((point) => point.elapsedSeconds !== null
+      && point.elapsedSeconds >= selectedSegment.startSecond
+      && point.elapsedSeconds <= selectedSegment.endSecond);
+  }, [selectedSession, isSegmentScopeActive, selectedSegment]);
+
   const dataChangeMetric = selectedSession
     ? (() => {
       const correctedShare = selectedSession.summary.trackpointCount > 0
@@ -2668,7 +2926,7 @@ export function App() {
       return null;
     }
 
-    const points = selectedSession.summary.gpsTrackpoints ?? [];
+    const points = selectedGpsTrackpoints;
     if (points.length === 0) {
       return null;
     }
@@ -2685,7 +2943,7 @@ export function App() {
       minLongitude,
       maxLongitude
     };
-  }, [selectedSession]);
+  }, [selectedSession, selectedGpsTrackpoints]);
 
 
   const runTrackThresholds = useMemo(() => {
@@ -2722,8 +2980,58 @@ export function App() {
       .sort((a, b) => a.windowIndex - b.windowIndex);
   }, [selectedSession, aggregationWindowMinutes]);
 
+  const selectedAnalysisAggregates = useMemo(() => {
+    if (!isSegmentScopeActive || !selectedSegment) {
+      return selectedSessionAggregates;
+    }
+
+    return selectedSessionAggregates.filter((aggregate) => {
+      const windowStart = new Date(aggregate.windowStartUtc).getTime();
+      const activityStart = selectedSession?.summary.activityStartTimeUtc ? new Date(selectedSession.summary.activityStartTimeUtc).getTime() : Number.NaN;
+      if (!Number.isFinite(windowStart) || !Number.isFinite(activityStart)) {
+        return true;
+      }
+
+      const offsetSeconds = (windowStart - activityStart) / 1000;
+      const windowEnd = offsetSeconds + aggregate.windowDurationSeconds;
+      return offsetSeconds < selectedSegment.endSecond && windowEnd > selectedSegment.startSecond;
+    });
+  }, [isSegmentScopeActive, selectedSegment, selectedSessionAggregates, selectedSession?.summary.activityStartTimeUtc]);
+
+  const displayedCoreMetrics = useMemo(() => {
+    if (!selectedSession) {
+      return null;
+    }
+
+    if (!isSegmentScopeActive || selectedAnalysisAggregates.length === 0) {
+      return selectedSession.summary.coreMetrics;
+    }
+
+    const source = selectedAnalysisAggregates;
+    const durationSeconds = selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : 1;
+    return {
+      ...selectedSession.summary.coreMetrics,
+      distanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.distanceMeters ?? 0), 0),
+      sprintDistanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.sprintDistanceMeters ?? 0), 0),
+      sprintCount: source.reduce((sum, item) => sum + (item.coreMetrics.sprintCount ?? 0), 0),
+      maxSpeedMetersPerSecond: Math.max(...source.map((item) => item.coreMetrics.maxSpeedMetersPerSecond ?? 0)),
+      highIntensityTimeSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.highIntensityTimeSeconds ?? 0), 0),
+      highIntensityRunCount: source.reduce((sum, item) => sum + (item.coreMetrics.highIntensityRunCount ?? 0), 0),
+      highSpeedDistanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.highSpeedDistanceMeters ?? 0), 0),
+      runningDensityMetersPerMinute: (source.reduce((sum, item) => sum + (item.coreMetrics.distanceMeters ?? 0), 0) / durationSeconds) * 60,
+      accelerationCount: source.reduce((sum, item) => sum + (item.coreMetrics.accelerationCount ?? 0), 0),
+      decelerationCount: source.reduce((sum, item) => sum + (item.coreMetrics.decelerationCount ?? 0), 0),
+      heartRateZoneLowSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.heartRateZoneLowSeconds ?? 0), 0),
+      heartRateZoneMediumSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.heartRateZoneMediumSeconds ?? 0), 0),
+      heartRateZoneHighSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.heartRateZoneHighSeconds ?? 0), 0),
+      trainingImpulseEdwards: source.reduce((sum, item) => sum + (item.coreMetrics.trainingImpulseEdwards ?? 0), 0),
+      heartRateRecoveryAfter60Seconds: source[source.length - 1]?.coreMetrics.heartRateRecoveryAfter60Seconds ?? null
+    } satisfies FootballCoreMetrics;
+  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedSegment]);
 
   const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
+  const shouldShowSessionOverviewHeader = activeSessionSubpage === 'analysis' && !isQualityDetailsPageVisible;
+
 
   const renderQualityDetailsContent = () => {
     if (!selectedSession) {
@@ -2820,8 +3128,9 @@ export function App() {
         {selectedSession && activeMainPage === "session" && isSessionMenuVisible && (
           <div className="side-nav__session-subpages">
             <p>Session</p>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-analysis', 'analysis')}>{t.sessionSubpageAnalysis}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageAnalysis}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segments' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segments', 'segments')}>{t.sessionSubpageSegments}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segmentEdit' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segment-edit', 'segmentEdit')}>{t.sessionSubpageSegmentEdit}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'compare' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-compare', 'compare')}>{t.sessionSubpageCompare}</button>
           </div>
         )}
@@ -3062,7 +3371,7 @@ export function App() {
           {t.uploadButton}
         </button>
       </form>
-      <p>{validationMessage ?? message}</p>
+      {!(activeMainPage === 'session' && !validationMessage && message === t.defaultMessage) && <p>{validationMessage ?? message}</p>}
 
       <section id="session-list" className={activeMainPage === "sessions" ? "" : "is-hidden"}>
         <h2>{t.historyTitle}</h2>
@@ -3212,6 +3521,7 @@ export function App() {
                         setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
                         setSessionContextForm(record.sessionContext);
                         setShowUploadQualityStep(false);
+                        setAnalysisScope('session');
                         setActiveSessionSubpage('analysis');
                         setActiveSessionIdFromRoute(record.id);
                         setActiveMainPage('session');
@@ -3319,6 +3629,7 @@ export function App() {
               {renderQualityDetailsContent()}
               <div className="upload-quality-step__actions">
                 <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
+                <button type="button" className="secondary-button" onClick={() => { setShowUploadQualityStep(false); setActiveSessionSubpage('segmentEdit'); }}>{t.segmentEditEntryAfterUpload}</button>
               </div>
             </section>
           ) : (
@@ -3327,12 +3638,36 @@ export function App() {
               <p><strong>{t.historyColumnFileName}:</strong> {selectedSession.fileName}</p>
               <p><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</p>
               <p><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</p>
+              {shouldShowSessionOverviewHeader && isSegmentScopeActive && selectedSegment && <p><strong>{t.segmentsTitle}:</strong> {segmentCategoryLabel(selectedSegment.category ?? 'Other', t)} · {selectedSegment.label} ({selectedSegment.startSecond}s-{selectedSegment.endSecond}s)</p>}
+              {shouldShowSessionOverviewHeader && isSegmentScopeActive && <p><strong>{t.segmentScopeHint}</strong> <button type="button" className="secondary-button" onClick={() => { setAnalysisScope('session'); setActiveSessionSubpage('segments'); }}>{t.segmentBackToSegmentList}</button></p>}
+              {shouldShowSessionOverviewHeader && isSegmentScopeActive && selectedSegment?.notes && <p><strong>{t.segmentNotes}:</strong> {selectedSegment.notes}</p>}
+              {shouldShowSessionOverviewHeader && displayedCoreMetrics && (
+                <div className="analysis-disclosure__content">
+                  <h3>{isSegmentScopeActive ? t.segmentDerivedMetricsTitle : t.analysisOverviewTitle}</h3>
+                  <ul className="metrics-list">
+                    <li><strong>{t.metricDuration}:</strong> {formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable)}</li>
+                    {resolveDataAvailability(selectedSession.summary).mode !== 'HeartRateOnly' && (
+                      <>
+                        <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                        <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                        <li><strong>{t.metricSprintCount}:</strong> {displayedCoreMetrics.sprintCount ?? t.notAvailable}</li>
+                        <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                        <li><strong>{t.metricHighIntensityRunCount}:</strong> {displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
+                        <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
+                      </>
+                    )}
+                    {resolveDataAvailability(selectedSession.summary).mode !== 'GpsOnly' && (
+                      <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)}</li>
+                    )}
+                  </ul>
+                </div>
+              )}
             </>
           )}
 
           {!isQualityDetailsPageVisible && (
           <div className="session-analysis-flow">
-          <section className="analysis-disclosure analysis-block--session-settings">
+          <section className={`analysis-disclosure analysis-block--session-settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionSettings')} aria-expanded={analysisAccordionState.sessionSettings}>
               <span>{t.sessionSettingsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.sessionSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -3344,7 +3679,7 @@ export function App() {
             </div>
             )}
           </section>
-          <section className="analysis-disclosure analysis-block--session-context">
+          <section className={`analysis-disclosure analysis-block--session-context ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionContext')} aria-expanded={analysisAccordionState.sessionContext}>
               <span>{t.sessionContextTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.sessionContext ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -3384,6 +3719,7 @@ export function App() {
           </section>
           <div className={`segment-management ${activeSessionSubpage === "segments" ? "" : "is-hidden"}`} id="session-segments">
             <h3>{t.segmentsTitle}</h3>
+            <p>{t.segmentSelectionHint}</p>
             {segmentActionError && <p className="segment-error" role="alert">{segmentActionError}</p>}
             {selectedSession.segments.length === 0 ? (
               <p>{t.segmentsEmpty}</p>
@@ -3391,6 +3727,7 @@ export function App() {
               <table className="history-table segment-table">
                 <thead>
                   <tr>
+                    <th>{t.segmentCategory}</th>
                     <th>{t.segmentLabel}</th>
                     <th>{t.segmentStartSecond}</th>
                     <th>{t.segmentEndSecond}</th>
@@ -3400,35 +3737,78 @@ export function App() {
                 <tbody>
                   {selectedSession.segments.map((segment) => (
                     <tr key={segment.id}>
+                      <td>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
                       <td>{segment.label}</td>
                       <td>{segment.startSecond}</td>
                       <td>{segment.endSecond}</td>
                       <td>
-                        <button type="button" className="secondary-button" onClick={() => onEditSegment(segment)}>{t.segmentEdit}</button>
-                        <button type="button" onClick={() => onDeleteSegment(segment.id)}>{t.segmentDelete}</button>
+                        <button type="button" className="secondary-button" onClick={() => { setSelectedSegmentId(segment.id); setAnalysisScope('segment'); setActiveSessionSubpage('analysis'); }}>{t.segmentAnalyzeAction}</button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
+          </div>
 
-            <div className="segment-form">
+          <div className={`segment-management ${activeSessionSubpage === "segmentEdit" ? "" : "is-hidden"}`} id="session-segment-edit">
+            <h3>{t.segmentEditTitle}</h3>
+            <table className="history-table segment-table">
+              <thead>
+                <tr>
+                  <th>{t.segmentCategory}</th>
+                  <th>{t.segmentLabel}</th>
+                  <th>{t.segmentStartSecond}</th>
+                  <th>{t.segmentEndSecond}</th>
+                  <th>{t.historyOpenDetails}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedSession.segments.map((segment) => (
+                  <tr key={`edit-${segment.id}`}>
+                    <td>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
+                    <td>{segment.label}</td>
+                    <td>{segment.startSecond}</td>
+                    <td>{segment.endSecond}</td>
+                    <td className="segment-table__actions">
+                      <button type="button" className="secondary-button" onClick={() => onEditSegment(segment)}>{t.segmentEdit}</button>
+                      <button type="button" className="secondary-button" onClick={() => { setMergeForm((current) => ({ ...current, sourceSegmentId: segment.id, targetSegmentId: selectedSession.segments.find((candidate) => candidate.id !== segment.id)?.id ?? '' })); setSegmentEditorsOpen({ edit: false, merge: true, split: false }); }}>{t.segmentMergeAction}</button>
+                      <button type="button" className="secondary-button" onClick={() => { const midpoint = Math.floor((segment.startSecond + segment.endSecond) / 2); setSplitForm({ segmentId: segment.id, splitSecond: String(midpoint), leftLabel: '', rightLabel: '', notes: segment.notes ?? '' }); setSegmentEditorsOpen({ edit: false, merge: false, split: true }); }}>{t.segmentSplitAction}</button>
+                      <button type="button" className="secondary-button danger-button" onClick={() => onDeleteSegment(segment.id)}>{t.segmentDelete}</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <section className="analysis-disclosure">
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, edit: !current.edit }))} aria-expanded={segmentEditorsOpen.edit}>
+                <span>{t.segmentEdit}</span>
+                <span className="analysis-disclosure__action">{segmentEditorsOpen.edit ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+              </button>
+              {segmentEditorsOpen.edit && <div className="segment-form">
+              <label htmlFor="segment-category">{t.segmentCategory}</label>
+              <select id="segment-category" value={segmentForm.category} onChange={(event) => setSegmentForm((current) => ({ ...current, category: event.target.value as SegmentCategory }))}>{segmentCategoryOptions.map((option) => <option key={option} value={option}>{segmentCategoryLabel(option, t)}</option>)}</select>
               <label htmlFor="segment-label">{t.segmentLabel}</label>
               <input id="segment-label" value={segmentForm.label} onChange={(event) => setSegmentForm((current) => ({ ...current, label: event.target.value }))} />
               <label htmlFor="segment-start">{t.segmentStartSecond}</label>
               <input id="segment-start" type="number" min={0} value={segmentForm.startSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, startSecond: event.target.value }))} />
               <label htmlFor="segment-end">{t.segmentEndSecond}</label>
               <input id="segment-end" type="number" min={0} value={segmentForm.endSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, endSecond: event.target.value }))} />
-              <label htmlFor="segment-reason">{t.segmentReason}</label>
-              <input id="segment-reason" value={segmentForm.reason} onChange={(event) => setSegmentForm((current) => ({ ...current, reason: event.target.value }))} />
+              <label htmlFor="segment-reason">{t.segmentNotes}</label>
+              <input id="segment-reason" value={segmentForm.notes} onChange={(event) => setSegmentForm((current) => ({ ...current, notes: event.target.value }))} />
               <div className="segment-actions">
                 <button type="button" onClick={onSaveSegment}>{editingSegmentId ? t.segmentUpdate : t.segmentAdd}</button>
                 {editingSegmentId && <button type="button" className="secondary-button" onClick={resetSegmentForms}>{t.segmentCancelEdit}</button>}
               </div>
-            </div>
+            </div>}
+            </section>
 
-            <div className="segment-form">
+            <section className="analysis-disclosure">
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, merge: !current.merge }))} aria-expanded={segmentEditorsOpen.merge}>
+                <span>{t.segmentMergeTitle}</span>
+                <span className="analysis-disclosure__action">{segmentEditorsOpen.merge ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+              </button>
+              {segmentEditorsOpen.merge && <div className="segment-form">
               <h4>{t.segmentMergeTitle}</h4>
               <label htmlFor="merge-source">{t.segmentMergeSource}</label>
               <select id="merge-source" value={mergeForm.sourceSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, sourceSegmentId: event.target.value }))}>
@@ -3442,18 +3822,43 @@ export function App() {
               </select>
               <label htmlFor="merge-label">{t.segmentMergeLabel}</label>
               <input id="merge-label" value={mergeForm.label} onChange={(event) => setMergeForm((current) => ({ ...current, label: event.target.value }))} />
-              <label htmlFor="merge-reason">{t.segmentReason}</label>
-              <input id="merge-reason" value={mergeForm.reason} onChange={(event) => setMergeForm((current) => ({ ...current, reason: event.target.value }))} />
+              <label htmlFor="merge-reason">{t.segmentNotes}</label>
+              <input id="merge-reason" value={mergeForm.notes} onChange={(event) => setMergeForm((current) => ({ ...current, notes: event.target.value }))} />
               <button type="button" onClick={onMergeSegments}>{t.segmentMergeAction}</button>
-            </div>
+            </div>}
+            </section>
+
+            <section className="analysis-disclosure">
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, split: !current.split }))} aria-expanded={segmentEditorsOpen.split}>
+                <span>{t.segmentSplitTitle}</span>
+                <span className="analysis-disclosure__action">{segmentEditorsOpen.split ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+              </button>
+              {segmentEditorsOpen.split && <div className="segment-form">
+              <h4>{t.segmentSplitTitle}</h4>
+              <label htmlFor="split-segment">{t.segmentSplitSegment}</label>
+              <select id="split-segment" value={splitForm.segmentId} onChange={(event) => setSplitForm((current) => ({ ...current, segmentId: event.target.value }))}>
+                <option value="">--</option>
+                {selectedSession.segments.map((segment) => <option key={`split-${segment.id}`} value={segment.id}>{segment.label} ({segment.startSecond}s-{segment.endSecond}s)</option>)}
+              </select>
+              <label htmlFor="split-second">{t.segmentSplitSecond}</label>
+              <input id="split-second" type="number" min={1} value={splitForm.splitSecond} onChange={(event) => setSplitForm((current) => ({ ...current, splitSecond: event.target.value }))} />
+              <label htmlFor="split-left-label">{t.segmentSplitLeftLabel}</label>
+              <input id="split-left-label" value={splitForm.leftLabel} onChange={(event) => setSplitForm((current) => ({ ...current, leftLabel: event.target.value }))} />
+              <label htmlFor="split-right-label">{t.segmentSplitRightLabel}</label>
+              <input id="split-right-label" value={splitForm.rightLabel} onChange={(event) => setSplitForm((current) => ({ ...current, rightLabel: event.target.value }))} />
+              <label htmlFor="split-notes">{t.segmentNotes}</label>
+              <input id="split-notes" value={splitForm.notes} onChange={(event) => setSplitForm((current) => ({ ...current, notes: event.target.value }))} />
+              <button type="button" onClick={onSplitSegment}>{t.segmentSplitAction}</button>
+            </div>}
+            </section>
 
             <h4>{t.segmentHistoryTitle}</h4>
             {selectedSession.segmentChangeHistory.length === 0 ? (
               <p>{t.historyEmpty}</p>
             ) : (
               <ul className="metrics-list">
-                {selectedSession.segmentChangeHistory.map((entry) => (
-                  <li key={`${entry.version}-${entry.changedAtUtc}`}>v{entry.version} • {entry.action} • {formatLocalDateTime(entry.changedAtUtc)}{entry.reason ? ` • ${entry.reason}` : ''}</li>
+                {[...selectedSession.segmentChangeHistory].reverse().map((entry) => (
+                  <li key={`${entry.version}-${entry.changedAtUtc}`}>v{entry.version} • {entry.action} • {formatLocalDateTime(entry.changedAtUtc)}{entry.notes ? ` • ${entry.notes}` : ''}</li>
                 ))}
               </ul>
             )}
@@ -3521,15 +3926,15 @@ export function App() {
             </select>
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
-          <section className="core-metrics-section analysis-disclosure analysis-block--core">
+          <section className={`core-metrics-section analysis-disclosure analysis-block--core ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('coreMetrics')} aria-expanded={analysisAccordionState.coreMetrics}>
               <span>{t.coreMetricsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.coreMetrics ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
-            {analysisAccordionState.coreMetrics && (
+            {analysisAccordionState.coreMetrics && displayedCoreMetrics && (
             <div className="analysis-disclosure__content">
-            {!selectedSession.summary.coreMetrics.isAvailable && (
-              <p>{t.coreMetricsUnavailable.replace('{reason}', selectedSession.summary.coreMetrics.unavailableReason ?? t.notAvailable)}</p>
+            {!displayedCoreMetrics.isAvailable && !isSegmentScopeActive && (
+              <p>{t.coreMetricsUnavailable.replace('{reason}', displayedCoreMetrics.unavailableReason ?? t.notAvailable)}</p>
             )}
             <div className="core-metrics-filter" role="tablist" aria-label={t.coreMetricsCategoryTitle}>
               <button type="button" role="tab" aria-selected={coreMetricsCategoryFilter === 'all'} className={coreMetricsCategoryFilter === 'all' ? 'tab-button tab-button--active' : 'tab-button'} onClick={() => setCoreMetricsCategoryFilter('all')}>
@@ -3548,7 +3953,7 @@ export function App() {
                 'distanceMeters', 'sprintDistanceMeters', 'sprintCount', 'maxSpeedMetersPerSecond', 'highIntensityTimeSeconds', 'highIntensityRunCount',
                 'highSpeedDistanceMeters', 'runningDensityMetersPerMinute', 'accelerationCount', 'decelerationCount'
               ];
-              const showExternalWarning = hasAvailableWithWarning(selectedSession.summary.coreMetrics, externalMetricKeys);
+              const showExternalWarning = !isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, externalMetricKeys);
 
               return (
               <div>
@@ -3556,18 +3961,18 @@ export function App() {
                 <p>{t.coreMetricsCategoryExternalHelp}</p>
                 {showExternalWarning && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
                 <ul className="metrics-list">
-                  <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.distance} />
-                  <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', selectedSession.summary.coreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
-                  <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.directionChanges} />
-                  <MetricListItem label={t.metricSprintDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.sprintDistance} />
-                  <MetricListItem label={t.metricSprintCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.sprintCount} />
-                  <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.maxSpeed} />
-                  <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highIntensityTime} />
-                  <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
-                  <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(selectedSession.summary.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
-                  <MetricListItem label={t.metricRunningDensity} value={withMetricStatus(formatNumber(selectedSession.summary.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.runningDensity} />
-                  <MetricListItem label={t.metricAccelerationCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.accelerationCount} />
-                  <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(selectedSession.summary.coreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.decelerationCount} />
+                  <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />
+                  <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
+                  <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
+                  <MetricListItem label={t.metricSprintDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.sprintDistance} />
+                  <MetricListItem label={t.metricSprintCount} value={withMetricStatus(String(displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)} helpText={metricHelp.sprintCount} />
+                  <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)} helpText={metricHelp.maxSpeed} />
+                  <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityTime} />
+                  <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
+                  <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
+                  <MetricListItem label={t.metricRunningDensity} value={withMetricStatus(formatNumber(displayedCoreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', displayedCoreMetrics, t)} helpText={metricHelp.runningDensity} />
+                  <MetricListItem label={t.metricAccelerationCount} value={withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
+                  <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
                 </ul>
               </div>
               );
@@ -3577,19 +3982,19 @@ export function App() {
                 <h4>{t.coreMetricsCategoryInternalTitle}</h4>
                 <p>{t.coreMetricsCategoryInternalHelp}</p>
                 <ul className="metrics-list">
-                  <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', selectedSession.summary.coreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
-                  <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneLow} />
-                  <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
-                  <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(selectedSession.summary.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
-                  <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(selectedSession.summary.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.trimpEdwards} />
-                  <MetricListItem label={t.metricTrimpPerMinute} value={formatNumber(trimpPerMinute(selectedSession.summary), locale, t.notAvailable, 2)} helpText={metricHelp.trimpEdwards} />
-                  <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(selectedSession.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', selectedSession.summary.coreMetrics, t)} helpText={metricHelp.hrRecovery60} />
+                  <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', displayedCoreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
+                  <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneLow} />
+                  <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
+                  <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
+                  <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(displayedCoreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', displayedCoreMetrics, t)} helpText={metricHelp.trimpEdwards} />
+                  <MetricListItem label={t.metricTrimpPerMinute} value={formatNumber(displayedCoreMetrics.trainingImpulseEdwards !== null ? displayedCoreMetrics.trainingImpulseEdwards / ((isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : Math.max(1, selectedSession.summary.durationSeconds ?? 0)) / 60) : null, locale, t.notAvailable, 2)} helpText={metricHelp.trimpEdwards} />
+                  <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(displayedCoreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)} helpText={metricHelp.hrRecovery60} />
                 </ul>
               </div>
             )}
             <ul className="metrics-list">
-              <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(selectedSession.summary.coreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
-              <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (selectedSession.summary.coreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (selectedSession.summary.coreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
+              <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(displayedCoreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
+              <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (displayedCoreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (displayedCoreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (displayedCoreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (displayedCoreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (displayedCoreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (displayedCoreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
             </ul>
             </div>
             )}
@@ -3612,8 +4017,8 @@ export function App() {
               <option value={2}>{t.intervalAggregationWindow2}</option>
               <option value={5}>{t.intervalAggregationWindow5}</option>
             </select>
-            <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedSessionAggregates.length.toString() })}</p>
-            {selectedSessionAggregates.length === 0 ? (
+            <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedAnalysisAggregates.length.toString() })}</p>
+            {selectedAnalysisAggregates.length === 0 ? (
               <p>{t.intervalAggregationNoData}</p>
             ) : (
               <table className="history-table interval-table">
@@ -3625,7 +4030,7 @@ export function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedSessionAggregates.map((aggregate) => (
+                  {selectedAnalysisAggregates.map((aggregate) => (
                     <tr key={`${aggregate.windowMinutes}-${aggregate.windowIndex}`}>
                       <td>{formatLocalDateTime(aggregate.windowStartUtc)}</td>
                       <td>
@@ -3727,13 +4132,13 @@ export function App() {
             </section>
           )}
 
-          {resolveDataAvailability(selectedSession.summary).mode === 'HeartRateOnly' && (
+          {activeSessionSubpage === 'analysis' && resolveDataAvailability(selectedSession.summary).mode === 'HeartRateOnly' && (
             <div className="detail-hints" role="note" aria-label={t.hfOnlyInsightTitle}>
               <p><strong>{t.hfOnlyInsightTitle}:</strong> {t.hfOnlyInsightInterpretation}</p>
             </div>
           )}
 
-          {(showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
+          {activeSessionSubpage === "analysis" && (showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
             <div className="detail-hints" role="status">
               {showMissingHeartRateHint && <p>{t.detailMissingHeartRateHint}</p>}
               {showMissingDistanceHint && <p>{t.detailMissingDistanceHint}</p>}
@@ -3741,9 +4146,9 @@ export function App() {
             </div>
           )}
 
-          <button type="button" className="analysis-disclosure__toggle analysis-disclosure__toggle--quality analysis-block--quality" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>
+          {activeSessionSubpage === "analysis" && <button type="button" className="analysis-disclosure__toggle analysis-disclosure__toggle--quality analysis-block--quality" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>}
 
-          <section className="analysis-disclosure analysis-block--danger-zone">
+          <section className={`analysis-disclosure analysis-block--danger-zone ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('dangerZone')} aria-expanded={analysisAccordionState.dangerZone}>
               <span>{t.sessionDangerZoneTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.dangerZone ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -3762,7 +4167,9 @@ export function App() {
     </main>
     </div>
   );
-}function formatUtcDateTime(value: string | null | undefined, locale: Locale, fallback: string): string {
+}
+
+function formatUtcDateTime(value: string | null | undefined, locale: Locale, fallback: string): string {
   if (!value) {
     return fallback;
   }
