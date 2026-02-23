@@ -60,6 +60,7 @@ jobs:
           key: ${{ secrets.DEMO_SSH_PRIVATE_KEY }}
           port: ${{ secrets.DEMO_SSH_PORT || '22' }}
           script_stop: true
+          envs: ENVIRONMENT,TARGET_DIR,BRANCH,VERSION,ENV_FILE
           script: |
             set -euo pipefail
 
