@@ -89,6 +89,8 @@ jobs:
         if: always()
         continue-on-error: true
         shell: bash
+        env:
+          NTFY_URL: ${{ secrets.NTFY_URL }}
         run: |
           set -euo pipefail
 
@@ -96,21 +98,16 @@ jobs:
           TITLE="football-metrics deploy: ${ENVIRONMENT:-unknown} (${STATUS})"
 
           MSG="Branch: ${BRANCH:-n/a}
-Version: ${VERSION:-n/a}
-Run: ${RUN_URL:-n/a}"
+          Version: ${VERSION:-n/a}
+          Run: ${RUN_URL:-n/a}"
 
-          if [ -n "${FRONTEND_URL:-}" ]; then
-            MSG="${MSG}
-URL: ${FRONTEND_URL}"
-          fi
+              if [ -n "${FRONTEND_URL:-}" ]; then
+                MSG="${MSG}
+          URL: ${FRONTEND_URL}"
+              fi
 
-          # IMPORTANT: use env for NTFY_URL to avoid YAML parsing pitfalls
-          if [ -n "${NTFY_URL:-}" ]; then
-            curl -sS -X POST "$NTFY_URL" \
-              -H "Title: $TITLE" \
-              -d "$MSG" >/dev/null
-          else
-            echo "NTFY_URL not set; skipping."
-          fi
-        env:
-          NTFY_URL: ${{ secrets.NTFY_URL }}
+              if [ -n "${NTFY_URL:-}" ]; then
+                curl -sS -X POST "$NTFY_URL" -H "Title: $TITLE" -d "$MSG" >/dev/null
+              else
+                echo "NTFY_URL not set; skipping."
+              fi
