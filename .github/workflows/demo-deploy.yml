@@ -52,6 +52,7 @@ jobs:
           fi
 
       - name: Deploy via SSH
+        if: env.ENVIRONMENT != 'skip'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEMO_SSH_HOST }}
@@ -59,8 +60,6 @@ jobs:
           key: ${{ secrets.DEMO_SSH_PRIVATE_KEY }}
           port: ${{ secrets.DEMO_SSH_PORT || '22' }}
           script_stop: true
-          envs: ENVIRONMENT,BRANCH,VERSION,TARGET_DIR,ENV_FILE
-
           script: |
             set -euo pipefail
 
@@ -73,7 +72,7 @@ jobs:
             sudo chown -R "$USER":"$USER" "$TARGET_DIR"
 
             if [ ! -d "$TARGET_DIR/.git" ]; then
-              git clone git@github.com:florianibach/football-metrics.git "$TARGET_DIR"
+              git clone git@github.com:${{ github.repository }}.git "$TARGET_DIR"
             fi
 
             cd "$TARGET_DIR"
@@ -86,3 +85,30 @@ jobs:
               docker compose --env-file "$ENV_FILE" up -d --build --remove-orphans
 
             docker compose --env-file "$ENV_FILE" ps
+
+      - name: Notify via ntfy
+        if: always()
+        continue-on-error: true
+        shell: bash
+        env:
+          NTFY_URL: ${{ secrets.NTFY_URL }}
+        run: |
+          set -euo pipefail
+
+          STATUS="${{ job.status }}"
+          TITLE="football-metrics deploy: ${ENVIRONMENT:-unknown} (${STATUS})"
+
+          MSG="Branch: ${BRANCH:-n/a}
+          Version: ${VERSION:-n/a}
+          Run: ${RUN_URL:-n/a}"
+
+              if [ -n "${FRONTEND_URL:-}" ]; then
+                MSG="${MSG}
+          URL: ${FRONTEND_URL}"
+              fi
+
+              if [ -n "${NTFY_URL:-}" ]; then
+                curl -sS -X POST "$NTFY_URL" -H "Title: $TITLE" -d "$MSG" >/dev/null
+              else
+                echo "NTFY_URL not set; skipping."
+              fi
