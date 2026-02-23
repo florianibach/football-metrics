@@ -52,7 +52,6 @@ jobs:
           fi
 
       - name: Deploy via SSH
-        if: env.ENVIRONMENT != 'skip'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEMO_SSH_HOST }}
@@ -60,7 +59,8 @@ jobs:
           key: ${{ secrets.DEMO_SSH_PRIVATE_KEY }}
           port: ${{ secrets.DEMO_SSH_PORT || '22' }}
           script_stop: true
-          envs: ENVIRONMENT,TARGET_DIR,BRANCH,VERSION,ENV_FILE
+          envs: ENVIRONMENT,BRANCH,VERSION,TARGET_DIR,ENV_FILE
+
           script: |
             set -euo pipefail
 
@@ -73,7 +73,7 @@ jobs:
             sudo chown -R "$USER":"$USER" "$TARGET_DIR"
 
             if [ ! -d "$TARGET_DIR/.git" ]; then
-              git clone git@github.com:${{ github.repository }}.git "$TARGET_DIR"
+              git clone git@github.com:florianibach/football-metrics.git "$TARGET_DIR"
             fi
 
             cd "$TARGET_DIR"
