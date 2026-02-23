@@ -27,32 +27,31 @@ jobs:
           SHORT="${SHA:0:7}"
           VERSION="${BRANCH}@${SHORT}"
 
-          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
-          echo "SHA=$SHA" >> $GITHUB_ENV
-          echo "SHORT=$SHORT" >> $GITHUB_ENV
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_ENV"
 
-          # Decide PR vs master based on triggering event + branch
           if [ "${{ github.event.workflow_run.event }}" = "pull_request" ]; then
-            echo "ENVIRONMENT=pr" >> $GITHUB_ENV
-            echo "TARGET_DIR=/opt/football-metrics-pr" >> $GITHUB_ENV
-            echo "ENV_FILE=.env.demo.pr" >> $GITHUB_ENV
-            echo "FRONTEND_URL=${{ secrets.FRONTEND_URL_PR }}" >> $GITHUB_ENV
+            echo "ENVIRONMENT=pr" >> "$GITHUB_ENV"
+            echo "TARGET_DIR=/opt/football-metrics-pr" >> "$GITHUB_ENV"
+            echo "ENV_FILE=.env.demo.pr" >> "$GITHUB_ENV"
+            echo "FRONTEND_URL=${{ vars.FRONTEND_URL_PR }}" >> "$GITHUB_ENV"
           else
-            # push event: only deploy if branch is master or main
+            # push: only deploy main/master
             if [ "$BRANCH" != "master" ] && [ "$BRANCH" != "main" ]; then
-              echo "Not deploying push branch $BRANCH"
+              echo "Push branch '$BRANCH' is not main/master -> skip deploy."
+              echo "ENVIRONMENT=skip" >> "$GITHUB_ENV"
               exit 0
             fi
-            echo "ENVIRONMENT=master" >> $GITHUB_ENV
-            echo "TARGET_DIR=/opt/football-metrics-master" >> $GITHUB_ENV
-            echo "ENV_FILE=.env.demo.master" >> $GITHUB_ENV
-            echo "FRONTEND_URL=${{ secrets.FRONTEND_URL_MASTER }}" >> $GITHUB_ENV
+
+            echo "ENVIRONMENT=master" >> "$GITHUB_ENV"
+            echo "TARGET_DIR=/opt/football-metrics-master" >> "$GITHUB_ENV"
+            echo "ENV_FILE=.env.demo.master" >> "$GITHUB_ENV"
+            echo "FRONTEND_URL=${{ vars.FRONTEND_URL_MASTER }}" >> "$GITHUB_ENV"
           fi
 
-          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
-
       - name: Deploy via SSH
+        if: env.ENVIRONMENT != 'skip'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEMO_SSH_HOST }}
@@ -63,10 +62,10 @@ jobs:
           script: |
             set -euo pipefail
 
-            echo "ENV:      $ENVIRONMENT"
-            echo "BRANCH:   $BRANCH"
-            echo "VERSION:  $VERSION"
-            echo "DIR:      $TARGET_DIR"
+            echo "ENV:     $ENVIRONMENT"
+            echo "BRANCH:  $BRANCH"
+            echo "VERSION: $VERSION"
+            echo "DIR:     $TARGET_DIR"
 
             sudo mkdir -p "$TARGET_DIR"
             sudo chown -R "$USER":"$USER" "$TARGET_DIR"
@@ -81,7 +80,6 @@ jobs:
             git checkout "$BRANCH" || git checkout -b "$BRANCH" "origin/$BRANCH"
             git reset --hard "origin/$BRANCH"
 
-            # Build-time vars for Vite + backend
             VITE_APP_VERSION="$VERSION" APP_VERSION="$VERSION" \
               docker compose --env-file "$ENV_FILE" up -d --build --remove-orphans
 
@@ -95,20 +93,24 @@ jobs:
           set -euo pipefail
 
           STATUS="${{ job.status }}"
-          TITLE="football-metrics deploy: $ENVIRONMENT ($STATUS)"
-          MSG="Branch: $BRANCH
-Version: $VERSION
-Run: $RUN_URL"
+          TITLE="football-metrics deploy: ${ENVIRONMENT:-unknown} (${STATUS})"
+
+          MSG="Branch: ${BRANCH:-n/a}
+Version: ${VERSION:-n/a}
+Run: ${RUN_URL:-n/a}"
 
           if [ -n "${FRONTEND_URL:-}" ]; then
-            MSG="$MSG
-URL: $FRONTEND_URL"
+            MSG="${MSG}
+URL: ${FRONTEND_URL}"
           fi
 
-          if [ -n "${{ secrets.NTFY_URL }}" ]; then
-            curl -sS -X POST "${{ secrets.NTFY_URL }}" \
+          # IMPORTANT: use env for NTFY_URL to avoid YAML parsing pitfalls
+          if [ -n "${NTFY_URL:-}" ]; then
+            curl -sS -X POST "$NTFY_URL" \
               -H "Title: $TITLE" \
               -d "$MSG" >/dev/null
           else
-            echo "NTFY_URL secret not set; skipping notification."
+            echo "NTFY_URL not set; skipping."
           fi
+        env:
+          NTFY_URL: ${{ secrets.NTFY_URL }}
