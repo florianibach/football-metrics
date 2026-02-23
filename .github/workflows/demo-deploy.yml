@@ -1,0 +1,114 @@
+name: Demo Deploy (after CI-CD)
+
+on:
+  workflow_run:
+    workflows: ["CI-CD"]
+    types: [completed]
+
+concurrency:
+  group: demo-deploy-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      (github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Compute deploy target
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          SHORT="${SHA:0:7}"
+          VERSION="${BRANCH}@${SHORT}"
+
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          echo "SHA=$SHA" >> $GITHUB_ENV
+          echo "SHORT=$SHORT" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+          # Decide PR vs master based on triggering event + branch
+          if [ "${{ github.event.workflow_run.event }}" = "pull_request" ]; then
+            echo "ENVIRONMENT=pr" >> $GITHUB_ENV
+            echo "TARGET_DIR=/opt/football-metrics-pr" >> $GITHUB_ENV
+            echo "ENV_FILE=.env.demo.pr" >> $GITHUB_ENV
+            echo "FRONTEND_URL=${{ secrets.FRONTEND_URL_PR }}" >> $GITHUB_ENV
+          else
+            # push event: only deploy if branch is master or main
+            if [ "$BRANCH" != "master" ] && [ "$BRANCH" != "main" ]; then
+              echo "Not deploying push branch $BRANCH"
+              exit 0
+            fi
+            echo "ENVIRONMENT=master" >> $GITHUB_ENV
+            echo "TARGET_DIR=/opt/football-metrics-master" >> $GITHUB_ENV
+            echo "ENV_FILE=.env.demo.master" >> $GITHUB_ENV
+            echo "FRONTEND_URL=${{ secrets.FRONTEND_URL_MASTER }}" >> $GITHUB_ENV
+          fi
+
+          echo "RUN_URL=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_ENV
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEMO_SSH_HOST }}
+          username: ${{ secrets.DEMO_SSH_USER }}
+          key: ${{ secrets.DEMO_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.DEMO_SSH_PORT || '22' }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            echo "ENV:      $ENVIRONMENT"
+            echo "BRANCH:   $BRANCH"
+            echo "VERSION:  $VERSION"
+            echo "DIR:      $TARGET_DIR"
+
+            sudo mkdir -p "$TARGET_DIR"
+            sudo chown -R "$USER":"$USER" "$TARGET_DIR"
+
+            if [ ! -d "$TARGET_DIR/.git" ]; then
+              git clone git@github.com:${{ github.repository }}.git "$TARGET_DIR"
+            fi
+
+            cd "$TARGET_DIR"
+
+            git fetch origin
+            git checkout "$BRANCH" || git checkout -b "$BRANCH" "origin/$BRANCH"
+            git reset --hard "origin/$BRANCH"
+
+            # Build-time vars for Vite + backend
+            VITE_APP_VERSION="$VERSION" APP_VERSION="$VERSION" \
+              docker compose --env-file "$ENV_FILE" up -d --build --remove-orphans
+
+            docker compose --env-file "$ENV_FILE" ps
+
+      - name: Notify via ntfy
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          STATUS="${{ job.status }}"
+          TITLE="football-metrics deploy: $ENVIRONMENT ($STATUS)"
+          MSG="Branch: $BRANCH
+Version: $VERSION
+Run: $RUN_URL"
+
+          if [ -n "${FRONTEND_URL:-}" ]; then
+            MSG="$MSG
+URL: $FRONTEND_URL"
+          fi
+
+          if [ -n "${{ secrets.NTFY_URL }}" ]; then
+            curl -sS -X POST "${{ secrets.NTFY_URL }}" \
+              -H "Title: $TITLE" \
+              -d "$MSG" >/dev/null
+          else
+            echo "NTFY_URL secret not set; skipping notification."
+          fi

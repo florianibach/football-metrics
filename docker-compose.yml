@@ -2,11 +2,14 @@ services:
   api:
     build:
       context: ./backend/src/FootballMetrics.Api
+      args:
+        APP_VERSION: ${APP_VERSION:-local}
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Data Source=/app/data/footballmetrics.db
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__DefaultConnection: ${CONNECTIONSTRING_DEFAULT:-Data Source=/app/data/footballmetrics.db}
+      APP_VERSION: ${APP_VERSION:-local}
     ports:
-      - "8080:8080"
+      - "${API_PORT:-8080}:8080"
     volumes:
       - ./app/data:/app/data
       - ./app/uploads:/app/uploads
@@ -15,8 +18,9 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: /api
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_APP_VERSION: ${VITE_APP_VERSION:-local}
     ports:
-      - "3000:80"
+      - "${WEB_PORT:-3000}:80"
     depends_on:
       - api
