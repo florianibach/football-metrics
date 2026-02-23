@@ -24,3 +24,4 @@ services:
       - "${WEB_PORT:-3000}:80"
     depends_on:
       - api
+      
