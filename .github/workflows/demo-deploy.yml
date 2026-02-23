@@ -92,23 +92,28 @@ jobs:
         shell: bash
         env:
           NTFY_URL: ${{ secrets.NTFY_URL }}
+          BRANCH: ${{ env.BRANCH }}
+          VERSION: ${{ env.VERSION }}
+          RUN_URL: ${{ env.RUN_URL }}
+          FRONTEND_URL: ${{ env.FRONTEND_URL }}
         run: |
           set -euo pipefail
 
           STATUS="${{ job.status }}"
           TITLE="football-metrics deploy: ${ENVIRONMENT:-unknown} (${STATUS})"
 
+          # Build the message cleanly
           MSG="Branch: ${BRANCH:-n/a}
-          Version: ${VERSION:-n/a}
-          Run: ${RUN_URL:-n/a}"
+Version: ${VERSION:-n/a}
+Run: ${RUN_URL:-n/a}"
 
-              if [ -n "${FRONTEND_URL:-}" ]; then
-                MSG="${MSG}
-          URL: ${FRONTEND_URL}"
-              fi
+          if [ -n "${FRONTEND_URL:-}" ]; then
+            MSG="${MSG}
+URL: ${FRONTEND_URL}"
+          fi
 
-              if [ -n "${NTFY_URL:-}" ]; then
-                curl -sS -X POST "$NTFY_URL" -H "Title: $TITLE" -d "$MSG" >/dev/null
-              else
-                echo "NTFY_URL not set; skipping."
-              fi
+          if [ -n "${NTFY_URL:-}" ]; then
+            curl -sS -X POST "$NTFY_URL" -H "Title: $TITLE" -d "$MSG" >/dev/null
+          else
+            echo "NTFY_URL not set; skipping."
+          fi
