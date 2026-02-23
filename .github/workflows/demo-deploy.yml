@@ -4,6 +4,7 @@ on:
   workflow_run:
     workflows: ["CI-CD"]
     types: [completed]
+  workflow_dispatch:
 
 concurrency:
   group: demo-deploy-${{ github.event.workflow_run.head_branch }}
