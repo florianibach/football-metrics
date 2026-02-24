@@ -103,13 +103,11 @@ jobs:
           TITLE="football-metrics deploy: ${ENVIRONMENT:-unknown} (${STATUS})"
 
           # Build the message cleanly
-          MSG="Branch: ${BRANCH:-n/a}
-Version: ${VERSION:-n/a}
-Run: ${RUN_URL:-n/a}"
+          MSG=$(printf 'Branch: %s\nVersion: %s\nRun: %s' \
+            "${BRANCH:-n/a}" "${VERSION:-n/a}" "${RUN_URL:-n/a}")
 
           if [ -n "${FRONTEND_URL:-}" ]; then
-            MSG="${MSG}
-URL: ${FRONTEND_URL}"
+            MSG="${MSG}\nURL: ${FRONTEND_URL}"
           fi
 
           if [ -n "${NTFY_URL:-}" ]; then
