@@ -2966,9 +2966,28 @@ export function App() {
     ? ['Dual', 'GpsOnly'].includes(resolveDataAvailability(selectedSession.summary).mode)
     : false;
 
-  const toggleAnalysisSection = useCallback((key: AnalysisAccordionKey) => {
-    setAnalysisAccordionState((current) => ({ ...current, [key]: !current[key] }));
+  const preserveViewportScrollPosition = useCallback((toggleAction: () => void) => {
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+    toggleAction();
+    requestAnimationFrame(() => {
+      if (Math.abs(window.scrollY - scrollY) > 0.5) {
+        window.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' });
+      }
+    });
   }, []);
+
+  const toggleAnalysisSection = useCallback((key: AnalysisAccordionKey) => {
+    preserveViewportScrollPosition(() => {
+      setAnalysisAccordionState((current) => ({ ...current, [key]: !current[key] }));
+    });
+  }, [preserveViewportScrollPosition]);
+
+  const toggleSegmentEditor = useCallback((key: keyof typeof segmentEditorsOpen) => {
+    preserveViewportScrollPosition(() => {
+      setSegmentEditorsOpen((current) => ({ ...current, [key]: !current[key] }));
+    });
+  }, [preserveViewportScrollPosition]);
 
   const selectedSessionAggregates = useMemo(() => {
     if (!selectedSession) {
@@ -3784,7 +3803,7 @@ export function App() {
               </tbody>
             </table>
             <section className="analysis-disclosure">
-              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, edit: !current.edit }))} aria-expanded={segmentEditorsOpen.edit}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleSegmentEditor('edit')} aria-expanded={segmentEditorsOpen.edit}>
                 <span>{t.segmentEdit}</span>
                 <span className="analysis-disclosure__action">{segmentEditorsOpen.edit ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
@@ -3807,7 +3826,7 @@ export function App() {
             </section>
 
             <section className="analysis-disclosure">
-              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, merge: !current.merge }))} aria-expanded={segmentEditorsOpen.merge}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleSegmentEditor('merge')} aria-expanded={segmentEditorsOpen.merge}>
                 <span>{t.segmentMergeTitle}</span>
                 <span className="analysis-disclosure__action">{segmentEditorsOpen.merge ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
@@ -3832,7 +3851,7 @@ export function App() {
             </section>
 
             <section className="analysis-disclosure">
-              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, split: !current.split }))} aria-expanded={segmentEditorsOpen.split}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleSegmentEditor('split')} aria-expanded={segmentEditorsOpen.split}>
                 <span>{t.segmentSplitTitle}</span>
                 <span className="analysis-disclosure__action">{segmentEditorsOpen.split ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
