@@ -2966,30 +2966,9 @@ export function App() {
     ? ['Dual', 'GpsOnly'].includes(resolveDataAvailability(selectedSession.summary).mode)
     : false;
 
-  const preserveToggleButtonPosition = useCallback((button: HTMLElement, toggleAction: () => void) => {
-    const beforeTop = button.getBoundingClientRect().top;
-    toggleAction();
-    requestAnimationFrame(() => {
-      const afterTop = button.getBoundingClientRect().top;
-      const delta = afterTop - beforeTop;
-      if (Math.abs(delta) > 0.5) {
-        window.scrollBy({ top: delta });
-      }
-    });
+  const toggleAnalysisSection = useCallback((key: AnalysisAccordionKey) => {
+    setAnalysisAccordionState((current) => ({ ...current, [key]: !current[key] }));
   }, []);
-
-  const toggleAnalysisSection = useCallback((key: AnalysisAccordionKey, button?: HTMLElement) => {
-    const toggleAction = () => {
-      setAnalysisAccordionState((current) => ({ ...current, [key]: !current[key] }));
-    };
-
-    if (button) {
-      preserveToggleButtonPosition(button, toggleAction);
-      return;
-    }
-
-    toggleAction();
-  }, [preserveToggleButtonPosition]);
 
   const selectedSessionAggregates = useMemo(() => {
     if (!selectedSession) {
@@ -3692,7 +3671,7 @@ export function App() {
           {!isQualityDetailsPageVisible && (
           <div className="session-analysis-flow">
           <section className={`analysis-disclosure analysis-block--session-settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('sessionSettings', event.currentTarget)} aria-expanded={analysisAccordionState.sessionSettings}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionSettings')} aria-expanded={analysisAccordionState.sessionSettings}>
               <span>{t.sessionSettingsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.sessionSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
@@ -3704,7 +3683,7 @@ export function App() {
             )}
           </section>
           <section className={`analysis-disclosure analysis-block--session-context ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('sessionContext', event.currentTarget)} aria-expanded={analysisAccordionState.sessionContext}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionContext')} aria-expanded={analysisAccordionState.sessionContext}>
               <span>{t.sessionContextTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.sessionContext ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
@@ -3805,7 +3784,7 @@ export function App() {
               </tbody>
             </table>
             <section className="analysis-disclosure">
-              <button type="button" className="analysis-disclosure__toggle" onClick={(event) => preserveToggleButtonPosition(event.currentTarget, () => setSegmentEditorsOpen((current) => ({ ...current, edit: !current.edit })))} aria-expanded={segmentEditorsOpen.edit}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, edit: !current.edit }))} aria-expanded={segmentEditorsOpen.edit}>
                 <span>{t.segmentEdit}</span>
                 <span className="analysis-disclosure__action">{segmentEditorsOpen.edit ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
@@ -3828,7 +3807,7 @@ export function App() {
             </section>
 
             <section className="analysis-disclosure">
-              <button type="button" className="analysis-disclosure__toggle" onClick={(event) => preserveToggleButtonPosition(event.currentTarget, () => setSegmentEditorsOpen((current) => ({ ...current, merge: !current.merge })))} aria-expanded={segmentEditorsOpen.merge}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, merge: !current.merge }))} aria-expanded={segmentEditorsOpen.merge}>
                 <span>{t.segmentMergeTitle}</span>
                 <span className="analysis-disclosure__action">{segmentEditorsOpen.merge ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
@@ -3853,7 +3832,7 @@ export function App() {
             </section>
 
             <section className="analysis-disclosure">
-              <button type="button" className="analysis-disclosure__toggle" onClick={(event) => preserveToggleButtonPosition(event.currentTarget, () => setSegmentEditorsOpen((current) => ({ ...current, split: !current.split })))} aria-expanded={segmentEditorsOpen.split}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, split: !current.split }))} aria-expanded={segmentEditorsOpen.split}>
                 <span>{t.segmentSplitTitle}</span>
                 <span className="analysis-disclosure__action">{segmentEditorsOpen.split ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
@@ -3889,7 +3868,7 @@ export function App() {
           </div>
 
           <section className={`session-processing-settings analysis-disclosure analysis-block--settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('processingSettings', event.currentTarget)} aria-expanded={analysisAccordionState.processingSettings}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('processingSettings')} aria-expanded={analysisAccordionState.processingSettings}>
               <span>{t.sessionProcessingTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.processingSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
@@ -3907,7 +3886,7 @@ export function App() {
           </section>
 
           <section className={`analysis-disclosure analysis-block--recalculation-history ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('recalculationHistory', event.currentTarget)} aria-expanded={analysisAccordionState.recalculationHistory}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('recalculationHistory')} aria-expanded={analysisAccordionState.recalculationHistory}>
               <span>{t.sessionRecalculateHistoryTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.recalculationHistory ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
@@ -3951,7 +3930,7 @@ export function App() {
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
           <section className={`core-metrics-section analysis-disclosure analysis-block--core ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('coreMetrics', event.currentTarget)} aria-expanded={analysisAccordionState.coreMetrics}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('coreMetrics')} aria-expanded={analysisAccordionState.coreMetrics}>
               <span>{t.coreMetricsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.coreMetrics ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
@@ -4024,7 +4003,7 @@ export function App() {
             )}
           </section>
           <section className={`interval-aggregation analysis-disclosure analysis-block--interval ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('intervalAggregation', event.currentTarget)} aria-expanded={analysisAccordionState.intervalAggregation}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('intervalAggregation')} aria-expanded={analysisAccordionState.intervalAggregation}>
               <span>{t.intervalAggregationTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.intervalAggregation ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
@@ -4088,7 +4067,7 @@ export function App() {
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && (
             <section className="gps-heatmap-section analysis-disclosure analysis-block--heatmap">
-              <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('gpsHeatmap', event.currentTarget)} aria-expanded={analysisAccordionState.gpsHeatmap}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('gpsHeatmap')} aria-expanded={analysisAccordionState.gpsHeatmap}>
                 <span>{t.gpsHeatmapTitle}</span>
                 <span className="analysis-disclosure__action">{analysisAccordionState.gpsHeatmap ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
@@ -4119,7 +4098,7 @@ export function App() {
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && heatmapData && (
             <section className="gps-heatmap-section gps-runs-section analysis-disclosure analysis-block--runs">
-              <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('gpsRunsMap', event.currentTarget)} aria-expanded={analysisAccordionState.gpsRunsMap}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('gpsRunsMap')} aria-expanded={analysisAccordionState.gpsRunsMap}>
                 <span>{t.gpsRunsMapTitle}</span>
                 <span className="analysis-disclosure__action">{analysisAccordionState.gpsRunsMap ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
@@ -4173,7 +4152,7 @@ export function App() {
           {activeSessionSubpage === "analysis" && <button type="button" className="analysis-disclosure__toggle analysis-disclosure__toggle--quality analysis-block--quality" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>}
 
           <section className={`analysis-disclosure analysis-block--danger-zone ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('dangerZone', event.currentTarget)} aria-expanded={analysisAccordionState.dangerZone}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('dangerZone')} aria-expanded={analysisAccordionState.dangerZone}>
               <span>{t.sessionDangerZoneTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.dangerZone ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
