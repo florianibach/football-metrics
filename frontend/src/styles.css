@@ -1935,6 +1935,7 @@ input[type='checkbox']::before {
   border-color: var(--border) !important;
 }
 
+/* follow-up: prevent viewport overflow caused by app-shell padding + full-height sidenav */
 .app-shell {
   min-height: 100dvh;
   box-sizing: border-box;
@@ -1943,4 +1944,19 @@ input[type='checkbox']::before {
 .app-shell__main,
 .container {
   min-height: 0;
+}
+
+.side-nav {
+  height: calc(100dvh - 2rem);
+  top: 1rem;
+}
+
+.side-nav__meta {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  font-size: 0.72rem;
+  opacity: 0.65;
+  text-align: center;
+  color: var(--muted);
+  user-select: text;
 }

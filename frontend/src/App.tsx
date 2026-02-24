@@ -3103,6 +3103,8 @@ export function App() {
     );
   };
 
+  const appVersion = import.meta.env.VITE_APP_VERSION ?? 'local';
+
   const jumpToSection = useCallback((sectionId: string, sessionSubpage?: SessionSubpage) => {
     if (sessionSubpage) {
       setActiveSessionSubpage(sessionSubpage);
@@ -3155,6 +3157,7 @@ export function App() {
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'compare' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-compare', 'compare')}>{t.sessionSubpageCompare}</button>
           </div>
         )}
+        <div className="side-nav__meta" aria-label="Application version">v{appVersion}</div>
       </aside>
       <main className="container">
       <div className="mobile-topbar">
