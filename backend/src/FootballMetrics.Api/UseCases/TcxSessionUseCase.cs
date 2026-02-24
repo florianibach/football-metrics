@@ -66,9 +66,15 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         }
 
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
-        var metricThresholdSnapshot = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
         var defaultSmoothingFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
         var defaultSpeedUnit = NormalizeSpeedUnit(profile.PreferredSpeedUnit);
+
+        var preThresholdSummary = CreateSummaryFromRawContent(rawFileBytes, defaultSmoothingFilter, null);
+        var metricThresholdSnapshot = await _metricThresholdResolver.ResolveEffectiveAsync(
+            profile.MetricThresholds,
+            preThresholdSummary.CoreMetrics.MaxSpeedMetersPerSecond,
+            preThresholdSummary.HeartRateMaxBpm,
+            cancellationToken);
         var appliedProfileSnapshot = CreateAppliedProfileSnapshot(metricThresholdSnapshot, defaultSmoothingFilter);
 
         var summarySnapshot = CreateSummaryFromRawContent(rawFileBytes, defaultSmoothingFilter, JsonSerializer.Serialize(metricThresholdSnapshot));

@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using FootballMetrics.Api.Controllers;
 using FootballMetrics.Api.Api.V1;
 using FootballMetrics.Api.Models;
@@ -129,6 +130,53 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         reader.GetInt32(1).Should().Be(150);
     }
 
+
+
+
+    [Fact]
+    public async Task R2_05_FirstAdaptiveUpload_ShouldUseSessionExtremesForThresholdSnapshot()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"football-metrics-tests-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={databasePath}";
+        var client = CreateClientWithConnectionString(connectionString);
+
+        var profileResponse = await client.GetAsync("/api/v1/profile");
+        profileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var profile = await profileResponse.Content.ReadFromJsonAsync<UserProfileResponseDto>();
+        profile.Should().NotBeNull();
+
+        var adaptiveProfileRequest = new UpdateUserProfileRequestDto(
+            profile!.PrimaryPosition,
+            profile.SecondaryPosition,
+            profile.MetricThresholds with { MaxSpeedMode = MetricThresholdModes.Adaptive },
+            profile.DefaultSmoothingFilter,
+            profile.PreferredSpeedUnit,
+            profile.PreferredAggregationWindowMinutes,
+            profile.PreferredTheme);
+
+        var updateProfileResponse = await client.PutAsJsonAsync("/api/v1/profile", adaptiveProfileRequest);
+        updateProfileResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var form = CreateUploadForm(
+            "first-adaptive-upload.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track>" +
+            "<Trackpoint><Time>2026-02-16T10:00:00Z</Time><Position><LatitudeDegrees>50.0000</LatitudeDegrees><LongitudeDegrees>7.0000</LongitudeDegrees></Position><HeartRateBpm><Value>120</Value></HeartRateBpm></Trackpoint>" +
+            "<Trackpoint><Time>2026-02-16T10:00:10Z</Time><Position><LatitudeDegrees>50.0010</LatitudeDegrees><LongitudeDegrees>7.0000</LongitudeDegrees></Position><HeartRateBpm><Value>150</Value></HeartRateBpm></Trackpoint>" +
+            "</Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var uploadResponse = await client.PostAsync("/api/v1/tcx/upload", form);
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        using var payload = JsonDocument.Parse(await uploadResponse.Content.ReadAsStringAsync());
+        var root = payload.RootElement;
+        var maxSpeedMps = root.GetProperty("summary").GetProperty("coreMetrics").GetProperty("maxSpeedMetersPerSecond").GetDouble();
+        var appliedThresholdMps = double.Parse(
+            root.GetProperty("summary").GetProperty("coreMetrics").GetProperty("thresholds").GetProperty("MaxSpeedEffectiveMps").GetString()!,
+            System.Globalization.CultureInfo.InvariantCulture);
+
+        appliedThresholdMps.Should().BeGreaterThan(8.0);
+        appliedThresholdMps.Should().BeApproximately(Math.Round(maxSpeedMps, 1), 0.1);
+    }
 
     [Fact]
     public async Task R2_09_Upload_WithSameIdempotencyKeyAndPayload_ShouldReturnExistingSession()
