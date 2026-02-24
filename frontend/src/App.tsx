@@ -1335,7 +1335,7 @@ type MetricListItemProps = {
 
 function MetricListItem({ label, value, helpText }: MetricListItemProps) {
   return (
-    <li>
+    <li className="list-group-item">
       <strong>{label}:</strong> {value} {' '}
       <button
         type="button"
@@ -2966,9 +2966,30 @@ export function App() {
     ? ['Dual', 'GpsOnly'].includes(resolveDataAvailability(selectedSession.summary).mode)
     : false;
 
-  const toggleAnalysisSection = useCallback((key: AnalysisAccordionKey) => {
-    setAnalysisAccordionState((current) => ({ ...current, [key]: !current[key] }));
+  const preserveToggleButtonPosition = useCallback((button: HTMLElement, toggleAction: () => void) => {
+    const beforeTop = button.getBoundingClientRect().top;
+    toggleAction();
+    requestAnimationFrame(() => {
+      const afterTop = button.getBoundingClientRect().top;
+      const delta = afterTop - beforeTop;
+      if (Math.abs(delta) > 0.5) {
+        window.scrollBy({ top: delta });
+      }
+    });
   }, []);
+
+  const toggleAnalysisSection = useCallback((key: AnalysisAccordionKey, button?: HTMLElement) => {
+    const toggleAction = () => {
+      setAnalysisAccordionState((current) => ({ ...current, [key]: !current[key] }));
+    };
+
+    if (button) {
+      preserveToggleButtonPosition(button, toggleAction);
+      return;
+    }
+
+    toggleAction();
+  }, [preserveToggleButtonPosition]);
 
   const selectedSessionAggregates = useMemo(() => {
     if (!selectedSession) {
@@ -3048,39 +3069,41 @@ export function App() {
     return (
       <div className="quality-details-content">
         <h4>Session data</h4>
-        <ul className="metrics-list">
-          <li><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</li>
-          <li><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount}</li>
-          <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)}</li>
-          <li><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no}</li>
-          <li><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</li>
+        <ul className="metrics-list list-group">
+          <li className="list-group-item"><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</li>
+          <li className="list-group-item"><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount}</li>
+          <li className="list-group-item"><strong>{t.metricDistance}:</strong> {formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)}</li>
+          <li className="list-group-item"><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no}</li>
+          <li className="list-group-item"><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</li>
         </ul>
 
         <h4>{t.qualityDetailsSidebarTitle}</h4>
         {selectedSession.summary.qualityStatus !== 'High' || (selectedDataAvailability.gpsQualityStatus && selectedDataAvailability.gpsQualityStatus !== 'High') || (selectedDataAvailability.heartRateQualityStatus && selectedDataAvailability.heartRateQualityStatus !== 'High') ? (
           <p className="quality-warning">{t.qualityDetailsWarning}</p>
         ) : null}
-        <ul className="metrics-list">
-          <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
-          <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
-          <li><strong>{t.metricGpsChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
-          <li><strong>{t.metricGpsChannelQualityReasons}:</strong> {(selectedDataAvailability.gpsQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
-          <li><strong>{t.metricHeartRateChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
-          <li><strong>{t.metricHeartRateChannelQualityReasons}:</strong> {(selectedDataAvailability.heartRateQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
-          <li><strong>{t.uploadQualityImpacts}:</strong> {qualityImpactItems.length > 0 ? qualityImpactItems.join(' | ') : t.notAvailable}</li>
+        <ul className="metrics-list list-group">
+          <li className="list-group-item"><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
+          <li className="list-group-item"><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
+          <li className="list-group-item"><strong>{t.metricGpsChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+          <li className="list-group-item"><strong>{t.metricGpsChannelQualityReasons}:</strong> {(selectedDataAvailability.gpsQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
+          <li className="list-group-item"><strong>{t.metricHeartRateChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+          <li className="list-group-item"><strong>{t.metricHeartRateChannelQualityReasons}:</strong> {(selectedDataAvailability.heartRateQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
+          <li className="list-group-item"><strong>{t.uploadQualityImpacts}:</strong> {qualityImpactItems.length > 0 ? qualityImpactItems.join(' | ') : t.notAvailable}</li>
         </ul>
 
         <h4>Processing & profile</h4>
-        <ul className="metrics-list">
-          <li><strong>{t.metricDataChange}:</strong> {dataChangeMetric}</li>
-          <li><strong>{t.filterSourceLabel}:</strong> {selectedFilterSource}</li>
-          <li><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</li>
-          <li><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
-          <li><strong>{t.metricSmoothingOutlier}:</strong> {`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`}</li>
+        <ul className="metrics-list list-group">
+          <li className="list-group-item"><strong>{t.metricDataChange}:</strong> {dataChangeMetric}</li>
+          <li className="list-group-item"><strong>{t.filterSourceLabel}:</strong> {selectedFilterSource}</li>
+          <li className="list-group-item"><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</li>
+          <li className="list-group-item"><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
+          <li className="list-group-item"><strong>{t.metricSmoothingOutlier}:</strong> {`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`}</li>
         </ul>
       </div>
     );
   };
+
+  const appVersion = import.meta.env.VITE_APP_VERSION ?? 'local';
 
   const jumpToSection = useCallback((sectionId: string, sessionSubpage?: SessionSubpage) => {
     if (sessionSubpage) {
@@ -3134,14 +3157,15 @@ export function App() {
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'compare' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-compare', 'compare')}>{t.sessionSubpageCompare}</button>
           </div>
         )}
+        <div className="side-nav__meta" aria-label="Application version">v{appVersion}</div>
       </aside>
       <main className="container">
       <div className="mobile-topbar">
         <button type="button" className="burger-menu" onClick={() => setIsMobileNavOpen((current) => !current)} aria-label="Open navigation menu">☰</button>
       </div>
       <div className="language-switcher">
-        <label htmlFor="language-selector">{t.languageLabel}</label>
-        <select id="language-selector" value={locale} onChange={onLocaleChange}>
+        <label className="form-label" htmlFor="language-selector">{t.languageLabel}</label>
+        <select className="form-select" id="language-selector" value={locale} onChange={onLocaleChange}>
           <option value="en">{t.languageEnglish}</option>
           <option value="de">{t.languageGerman}</option>
         </select>
@@ -3163,9 +3187,9 @@ export function App() {
             <button type="button" className={theme === "dark" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => void onThemeSelect("dark")}>Dark</button>
           </div>
         </div>
-        <form onSubmit={onProfileSubmit}>
-          <label htmlFor="profile-primary-position">{t.profilePrimaryPosition}</label>
-          <select
+        <form onSubmit={onProfileSubmit} className="vstack gap-2">
+          <label className="form-label" htmlFor="profile-primary-position">{t.profilePrimaryPosition}</label>
+          <select className="form-select"
             id="profile-primary-position"
             value={profileForm.primaryPosition}
             onChange={(event) => setProfileForm((current) => ({ ...current, primaryPosition: event.target.value as PlayerPosition }))}
@@ -3175,8 +3199,8 @@ export function App() {
             ))}
           </select>
 
-          <label htmlFor="profile-secondary-position">{t.profileSecondaryPosition} ({t.profileSecondaryOptional})</label>
-          <select
+          <label className="form-label" htmlFor="profile-secondary-position">{t.profileSecondaryPosition} ({t.profileSecondaryOptional})</label>
+          <select className="form-select"
             id="profile-secondary-position"
             value={profileForm.secondaryPosition ?? ''}
             onChange={(event) => setProfileForm((current) => ({
@@ -3190,8 +3214,8 @@ export function App() {
             ))}
           </select>
 
-          <label htmlFor="profile-default-filter">{t.profileDefaultSmoothingFilter}</label>
-          <select
+          <label className="form-label" htmlFor="profile-default-filter">{t.profileDefaultSmoothingFilter}</label>
+          <select className="form-select"
             id="profile-default-filter"
             value={profileForm.defaultSmoothingFilter}
             onChange={(event) => setProfileForm((current) => ({ ...current, defaultSmoothingFilter: event.target.value as SmoothingFilter }))}
@@ -3204,8 +3228,8 @@ export function App() {
           </select>
           <p>{t.profileDefaultSmoothingFilterHelp}</p>
 
-          <label htmlFor="profile-preferred-speed-unit">{t.profilePreferredSpeedUnit}</label>
-          <select
+          <label className="form-label" htmlFor="profile-preferred-speed-unit">{t.profilePreferredSpeedUnit}</label>
+          <select className="form-select"
             id="profile-preferred-speed-unit"
             value={profileForm.preferredSpeedUnit}
             onChange={(event) => setProfileForm((current) => ({ ...current, preferredSpeedUnit: event.target.value as SpeedUnit }))}
@@ -3216,8 +3240,8 @@ export function App() {
           </select>
           <p>{t.profilePreferredSpeedUnitHelp}</p>
 
-          <label htmlFor="profile-preferred-aggregation-window">{t.profilePreferredAggregationWindow}</label>
-          <select
+          <label className="form-label" htmlFor="profile-preferred-aggregation-window">{t.profilePreferredAggregationWindow}</label>
+          <select className="form-select"
             id="profile-preferred-aggregation-window"
             value={profileForm.preferredAggregationWindowMinutes}
             onChange={(event) => setProfileForm((current) => ({ ...current, preferredAggregationWindowMinutes: Number(event.target.value) as 1 | 2 | 5 }))}
@@ -3229,8 +3253,8 @@ export function App() {
           <p>{t.profilePreferredAggregationWindowHelp}</p>
 
           <h3>{t.profileThresholdsTitle}</h3>
-          <label htmlFor="profile-threshold-max-speed">Max speed ({profileForm.preferredSpeedUnit})</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-max-speed">Max speed ({profileForm.preferredSpeedUnit})</label>
+          <input className="form-control"
             id="profile-threshold-max-speed"
             type="number"
             step={profileForm.preferredSpeedUnit === "min/km" ? "0.01" : "0.1"}
@@ -3241,8 +3265,8 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, maxSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit) }
             }))}
           />
-          <label htmlFor="profile-threshold-sprint-mode">{t.profileThresholdMaxSpeedMode}</label>
-          <select
+          <label className="form-label" htmlFor="profile-threshold-sprint-mode">{t.profileThresholdMaxSpeedMode}</label>
+          <select className="form-select"
             id="profile-threshold-sprint-mode"
             value={profileForm.metricThresholds.maxSpeedMode}
             onChange={(event) => setProfileForm((current) => ({
@@ -3254,8 +3278,8 @@ export function App() {
             <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
           </select>
 
-          <label htmlFor="profile-threshold-max-heartrate">Max heartrate (bpm)</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-max-heartrate">Max heartrate (bpm)</label>
+          <input className="form-control"
             id="profile-threshold-max-heartrate"
             type="number"
             step="1"
@@ -3266,8 +3290,8 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, maxHeartRateBpm: Number(event.target.value) }
             }))}
           />
-          <label htmlFor="profile-threshold-high-intensity-mode">{t.profileThresholdMaxHeartRateMode}</label>
-          <select
+          <label className="form-label" htmlFor="profile-threshold-high-intensity-mode">{t.profileThresholdMaxHeartRateMode}</label>
+          <select className="form-select"
             id="profile-threshold-high-intensity-mode"
             value={profileForm.metricThresholds.maxHeartRateMode}
             onChange={(event) => setProfileForm((current) => ({
@@ -3279,8 +3303,8 @@ export function App() {
             <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
           </select>
 
-          <label htmlFor="profile-threshold-sprint">{t.profileThresholdSprint}</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-sprint">{t.profileThresholdSprint}</label>
+          <input className="form-control"
             id="profile-threshold-sprint"
             type="number"
             step="0.1"
@@ -3291,8 +3315,8 @@ export function App() {
             }))}
           />
           <p>{t.profileDerivedSprintThreshold}: {formatSpeed(sprintThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
-          <label htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
+          <input className="form-control"
             id="profile-threshold-high-intensity"
             type="number"
             step="0.1"
@@ -3303,8 +3327,8 @@ export function App() {
             }))}
           />
           <p>{t.profileDerivedHighIntensityThreshold}: {formatSpeed(highIntensityThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
-          <label htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
+          <input className="form-control"
             id="profile-threshold-acceleration"
             type="number"
             step="0.1"
@@ -3314,8 +3338,8 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, accelerationThresholdMps2: Number(event.target.value) }
             }))}
           />
-          <label htmlFor="profile-threshold-deceleration">{t.profileThresholdDeceleration}</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-deceleration">{t.profileThresholdDeceleration}</label>
+          <input className="form-control"
             id="profile-threshold-deceleration"
             type="number"
             step="0.1"
@@ -3365,7 +3389,7 @@ export function App() {
             <span className="upload-form__drop-action">{t.uploadChooseFile}</span>
             <span className="upload-form__file-name">{selectedFile ? selectedFile.name : t.defaultMessage}</span>
           </div>
-          <input className="upload-form__file-input" type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} disabled={isUploading} />
+          <input className="upload-form__file-input form-control" type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} disabled={isUploading} />
         </label>
         <button type="submit" className="upload-form__submit btn-primary" disabled={!canSubmit}>
           {t.uploadButton}
@@ -3395,16 +3419,16 @@ export function App() {
           <div className="history-controls history-controls--filters history-controls--sidebar">
             <p className="history-filter-defaults">{t.historyFilterDefaultsHint}</p>
             <div className="history-filter-group">
-              <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
-              <select id="history-sort-selector" value={draftSortDirection} onChange={(event) => setDraftSortDirection(event.target.value as SortDirection)}>
+              <label className="form-label" htmlFor="history-sort-selector">{t.historySortLabel}</label>
+              <select className="form-select" id="history-sort-selector" value={draftSortDirection} onChange={(event) => setDraftSortDirection(event.target.value as SortDirection)}>
                 <option value="desc">{t.historySortNewest}</option>
                 <option value="asc">{t.historySortOldest}</option>
               </select>
             </div>
 
             <div className="history-filter-group">
-              <label htmlFor="history-quality-filter">{t.historyFilterQualityStatus}</label>
-              <select id="history-quality-filter" value={draftQualityStatusFilter} onChange={(event) => setDraftQualityStatusFilter(event.target.value as 'All' | ActivitySummary['qualityStatus'])}>
+              <label className="form-label" htmlFor="history-quality-filter">{t.historyFilterQualityStatus}</label>
+              <select className="form-select" id="history-quality-filter" value={draftQualityStatusFilter} onChange={(event) => setDraftQualityStatusFilter(event.target.value as 'All' | ActivitySummary['qualityStatus'])}>
                 <option value="All">{t.historyFilterQualityAll}</option>
                 <option value="High">{qualityStatusText('High', t)}</option>
                 <option value="Medium">{qualityStatusText('Medium', t)}</option>
@@ -3440,13 +3464,13 @@ export function App() {
             </fieldset>
 
             <div className="history-filter-group history-filter-group--date">
-              <label htmlFor="history-date-from">{t.historyFilterDateFrom}</label>
-              <input id="history-date-from" type="date" value={draftDateFromFilter} onFocus={(event) => event.currentTarget.showPicker?.()} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setDraftDateFromFilter(event.target.value)} />
+              <label className="form-label" htmlFor="history-date-from">{t.historyFilterDateFrom}</label>
+              <input className="form-control" id="history-date-from" type="date" value={draftDateFromFilter} onFocus={(event) => event.currentTarget.showPicker?.()} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setDraftDateFromFilter(event.target.value)} />
             </div>
 
             <div className="history-filter-group history-filter-group--date">
-              <label htmlFor="history-date-to">{t.historyFilterDateTo}</label>
-              <input id="history-date-to" type="date" value={draftDateToFilter} onFocus={(event) => event.currentTarget.showPicker?.()} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setDraftDateToFilter(event.target.value)} />
+              <label className="form-label" htmlFor="history-date-to">{t.historyFilterDateTo}</label>
+              <input className="form-control" id="history-date-to" type="date" value={draftDateToFilter} onFocus={(event) => event.currentTarget.showPicker?.()} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setDraftDateToFilter(event.target.value)} />
             </div>
 
             <div className="history-filter-group history-filter-group--action">
@@ -3490,7 +3514,7 @@ export function App() {
         {filteredHistory.length === 0 ? (
           <p>{t.historyEmpty}</p>
         ) : (
-          <table className="history-table">
+          <table className="history-table table table-sm">
             <thead>
               <tr>
                 <th>{t.historyColumnFileName}</th>
@@ -3546,8 +3570,8 @@ export function App() {
             <h3>{t.sessionCompareSelectionTitle}</h3>
             <p>{t.sessionCompareSelectionHint}</p>
             <p>{interpolate(t.sessionCompareOnlySameTypeHint, { sessionType: sessionTypeText(activeSessionType, t) })}</p>
-            <label htmlFor="comparison-session-selector">{t.sessionCompareDropdownLabel}</label>
-            <select
+            <label className="form-label" htmlFor="comparison-session-selector">{t.sessionCompareDropdownLabel}</label>
+            <select className="form-select"
               id="comparison-session-selector"
               value={compareOpponentSessionId ?? ''}
               onChange={(event) => setCompareOpponentSessionId(event.target.value || null)}
@@ -3644,20 +3668,20 @@ export function App() {
               {shouldShowSessionOverviewHeader && displayedCoreMetrics && (
                 <div className="analysis-disclosure__content">
                   <h3>{isSegmentScopeActive ? t.segmentDerivedMetricsTitle : t.analysisOverviewTitle}</h3>
-                  <ul className="metrics-list">
-                    <li><strong>{t.metricDuration}:</strong> {formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable)}</li>
+                  <ul className="metrics-list list-group">
+                    <li className="list-group-item"><strong>{t.metricDuration}:</strong> {formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable)}</li>
                     {resolveDataAvailability(selectedSession.summary).mode !== 'HeartRateOnly' && (
                       <>
-                        <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable)}</li>
-                        <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                        <li><strong>{t.metricSprintCount}:</strong> {displayedCoreMetrics.sprintCount ?? t.notAvailable}</li>
-                        <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
-                        <li><strong>{t.metricHighIntensityRunCount}:</strong> {displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
-                        <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
+                        <li className="list-group-item"><strong>{t.metricDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                        <li className="list-group-item"><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                        <li className="list-group-item"><strong>{t.metricSprintCount}:</strong> {displayedCoreMetrics.sprintCount ?? t.notAvailable}</li>
+                        <li className="list-group-item"><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                        <li className="list-group-item"><strong>{t.metricHighIntensityRunCount}:</strong> {displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
+                        <li className="list-group-item"><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
                       </>
                     )}
                     {resolveDataAvailability(selectedSession.summary).mode !== 'GpsOnly' && (
-                      <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)}</li>
+                      <li className="list-group-item"><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)}</li>
                     )}
                   </ul>
                 </div>
@@ -3668,27 +3692,27 @@ export function App() {
           {!isQualityDetailsPageVisible && (
           <div className="session-analysis-flow">
           <section className={`analysis-disclosure analysis-block--session-settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionSettings')} aria-expanded={analysisAccordionState.sessionSettings}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('sessionSettings', event.currentTarget)} aria-expanded={analysisAccordionState.sessionSettings}>
               <span>{t.sessionSettingsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.sessionSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
             {analysisAccordionState.sessionSettings && (
             <div className="analysis-disclosure__content">
-              <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
+              <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
               <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
             </div>
             )}
           </section>
           <section className={`analysis-disclosure analysis-block--session-context ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionContext')} aria-expanded={analysisAccordionState.sessionContext}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('sessionContext', event.currentTarget)} aria-expanded={analysisAccordionState.sessionContext}>
               <span>{t.sessionContextTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.sessionContext ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
             {analysisAccordionState.sessionContext && (
             <div className="analysis-disclosure__content">
             <div className="session-context">
-            <label htmlFor="session-type-selector">{t.sessionTypeLabel}</label>
-            <select
+            <label className="form-label" htmlFor="session-type-selector">{t.sessionTypeLabel}</label>
+            <select className="form-select"
               id="session-type-selector"
               value={sessionContextForm.sessionType}
               onChange={(event) => setSessionContextForm((current) => ({ ...current, sessionType: event.target.value as SessionType }))}
@@ -3702,17 +3726,17 @@ export function App() {
 
             {sessionContextForm.sessionType === 'Match' && (
               <>
-                <label htmlFor="session-match-result">{t.sessionContextMatchResult}</label>
-                <input id="session-match-result" value={sessionContextForm.matchResult ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, matchResult: event.target.value }))} />
-                <label htmlFor="session-competition">{t.sessionContextCompetition}</label>
-                <input id="session-competition" value={sessionContextForm.competition ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, competition: event.target.value }))} />
-                <label htmlFor="session-opponent">{t.sessionContextOpponentName}</label>
-                <input id="session-opponent" value={sessionContextForm.opponentName ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentName: event.target.value }))} />
-                <label htmlFor="session-opponent-logo">{t.sessionContextOpponentLogoUrl}</label>
-                <input id="session-opponent-logo" value={sessionContextForm.opponentLogoUrl ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentLogoUrl: event.target.value }))} />
+                <label className="form-label" htmlFor="session-match-result">{t.sessionContextMatchResult}</label>
+                <input className="form-control" id="session-match-result" value={sessionContextForm.matchResult ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, matchResult: event.target.value }))} />
+                <label className="form-label" htmlFor="session-competition">{t.sessionContextCompetition}</label>
+                <input className="form-control" id="session-competition" value={sessionContextForm.competition ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, competition: event.target.value }))} />
+                <label className="form-label" htmlFor="session-opponent">{t.sessionContextOpponentName}</label>
+                <input className="form-control" id="session-opponent" value={sessionContextForm.opponentName ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentName: event.target.value }))} />
+                <label className="form-label" htmlFor="session-opponent-logo">{t.sessionContextOpponentLogoUrl}</label>
+                <input className="form-control" id="session-opponent-logo" value={sessionContextForm.opponentLogoUrl ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentLogoUrl: event.target.value }))} />
               </>
             )}
-            <button type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
+            <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
           </div>
           </div>
             )}
@@ -3781,74 +3805,74 @@ export function App() {
               </tbody>
             </table>
             <section className="analysis-disclosure">
-              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, edit: !current.edit }))} aria-expanded={segmentEditorsOpen.edit}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={(event) => preserveToggleButtonPosition(event.currentTarget, () => setSegmentEditorsOpen((current) => ({ ...current, edit: !current.edit })))} aria-expanded={segmentEditorsOpen.edit}>
                 <span>{t.segmentEdit}</span>
                 <span className="analysis-disclosure__action">{segmentEditorsOpen.edit ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
               {segmentEditorsOpen.edit && <div className="segment-form">
-              <label htmlFor="segment-category">{t.segmentCategory}</label>
-              <select id="segment-category" value={segmentForm.category} onChange={(event) => setSegmentForm((current) => ({ ...current, category: event.target.value as SegmentCategory }))}>{segmentCategoryOptions.map((option) => <option key={option} value={option}>{segmentCategoryLabel(option, t)}</option>)}</select>
-              <label htmlFor="segment-label">{t.segmentLabel}</label>
-              <input id="segment-label" value={segmentForm.label} onChange={(event) => setSegmentForm((current) => ({ ...current, label: event.target.value }))} />
-              <label htmlFor="segment-start">{t.segmentStartSecond}</label>
-              <input id="segment-start" type="number" min={0} value={segmentForm.startSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, startSecond: event.target.value }))} />
-              <label htmlFor="segment-end">{t.segmentEndSecond}</label>
-              <input id="segment-end" type="number" min={0} value={segmentForm.endSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, endSecond: event.target.value }))} />
-              <label htmlFor="segment-reason">{t.segmentNotes}</label>
-              <input id="segment-reason" value={segmentForm.notes} onChange={(event) => setSegmentForm((current) => ({ ...current, notes: event.target.value }))} />
+              <label className="form-label" htmlFor="segment-category">{t.segmentCategory}</label>
+              <select className="form-select" id="segment-category" value={segmentForm.category} onChange={(event) => setSegmentForm((current) => ({ ...current, category: event.target.value as SegmentCategory }))}>{segmentCategoryOptions.map((option) => <option key={option} value={option}>{segmentCategoryLabel(option, t)}</option>)}</select>
+              <label className="form-label" htmlFor="segment-label">{t.segmentLabel}</label>
+              <input className="form-control" id="segment-label" value={segmentForm.label} onChange={(event) => setSegmentForm((current) => ({ ...current, label: event.target.value }))} />
+              <label className="form-label" htmlFor="segment-start">{t.segmentStartSecond}</label>
+              <input className="form-control" id="segment-start" type="number" min={0} value={segmentForm.startSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, startSecond: event.target.value }))} />
+              <label className="form-label" htmlFor="segment-end">{t.segmentEndSecond}</label>
+              <input className="form-control" id="segment-end" type="number" min={0} value={segmentForm.endSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, endSecond: event.target.value }))} />
+              <label className="form-label" htmlFor="segment-reason">{t.segmentNotes}</label>
+              <input className="form-control" id="segment-reason" value={segmentForm.notes} onChange={(event) => setSegmentForm((current) => ({ ...current, notes: event.target.value }))} />
               <div className="segment-actions">
-                <button type="button" onClick={onSaveSegment}>{editingSegmentId ? t.segmentUpdate : t.segmentAdd}</button>
+                <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onSaveSegment}>{editingSegmentId ? t.segmentUpdate : t.segmentAdd}</button>
                 {editingSegmentId && <button type="button" className="secondary-button" onClick={resetSegmentForms}>{t.segmentCancelEdit}</button>}
               </div>
             </div>}
             </section>
 
             <section className="analysis-disclosure">
-              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, merge: !current.merge }))} aria-expanded={segmentEditorsOpen.merge}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={(event) => preserveToggleButtonPosition(event.currentTarget, () => setSegmentEditorsOpen((current) => ({ ...current, merge: !current.merge })))} aria-expanded={segmentEditorsOpen.merge}>
                 <span>{t.segmentMergeTitle}</span>
                 <span className="analysis-disclosure__action">{segmentEditorsOpen.merge ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
               {segmentEditorsOpen.merge && <div className="segment-form">
               <h4>{t.segmentMergeTitle}</h4>
-              <label htmlFor="merge-source">{t.segmentMergeSource}</label>
-              <select id="merge-source" value={mergeForm.sourceSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, sourceSegmentId: event.target.value }))}>
+              <label className="form-label" htmlFor="merge-source">{t.segmentMergeSource}</label>
+              <select className="form-select" id="merge-source" value={mergeForm.sourceSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, sourceSegmentId: event.target.value }))}>
                 <option value="">--</option>
                 {selectedSession.segments.map((segment) => <option key={`source-${segment.id}`} value={segment.id}>{segment.label}</option>)}
               </select>
-              <label htmlFor="merge-target">{t.segmentMergeTarget}</label>
-              <select id="merge-target" value={mergeForm.targetSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, targetSegmentId: event.target.value }))}>
+              <label className="form-label" htmlFor="merge-target">{t.segmentMergeTarget}</label>
+              <select className="form-select" id="merge-target" value={mergeForm.targetSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, targetSegmentId: event.target.value }))}>
                 <option value="">--</option>
                 {selectedSession.segments.map((segment) => <option key={`target-${segment.id}`} value={segment.id}>{segment.label}</option>)}
               </select>
-              <label htmlFor="merge-label">{t.segmentMergeLabel}</label>
-              <input id="merge-label" value={mergeForm.label} onChange={(event) => setMergeForm((current) => ({ ...current, label: event.target.value }))} />
-              <label htmlFor="merge-reason">{t.segmentNotes}</label>
-              <input id="merge-reason" value={mergeForm.notes} onChange={(event) => setMergeForm((current) => ({ ...current, notes: event.target.value }))} />
-              <button type="button" onClick={onMergeSegments}>{t.segmentMergeAction}</button>
+              <label className="form-label" htmlFor="merge-label">{t.segmentMergeLabel}</label>
+              <input className="form-control" id="merge-label" value={mergeForm.label} onChange={(event) => setMergeForm((current) => ({ ...current, label: event.target.value }))} />
+              <label className="form-label" htmlFor="merge-reason">{t.segmentNotes}</label>
+              <input className="form-control" id="merge-reason" value={mergeForm.notes} onChange={(event) => setMergeForm((current) => ({ ...current, notes: event.target.value }))} />
+              <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onMergeSegments}>{t.segmentMergeAction}</button>
             </div>}
             </section>
 
             <section className="analysis-disclosure">
-              <button type="button" className="analysis-disclosure__toggle" onClick={() => setSegmentEditorsOpen((current) => ({ ...current, split: !current.split }))} aria-expanded={segmentEditorsOpen.split}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={(event) => preserveToggleButtonPosition(event.currentTarget, () => setSegmentEditorsOpen((current) => ({ ...current, split: !current.split })))} aria-expanded={segmentEditorsOpen.split}>
                 <span>{t.segmentSplitTitle}</span>
                 <span className="analysis-disclosure__action">{segmentEditorsOpen.split ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
               {segmentEditorsOpen.split && <div className="segment-form">
               <h4>{t.segmentSplitTitle}</h4>
-              <label htmlFor="split-segment">{t.segmentSplitSegment}</label>
-              <select id="split-segment" value={splitForm.segmentId} onChange={(event) => setSplitForm((current) => ({ ...current, segmentId: event.target.value }))}>
+              <label className="form-label" htmlFor="split-segment">{t.segmentSplitSegment}</label>
+              <select className="form-select" id="split-segment" value={splitForm.segmentId} onChange={(event) => setSplitForm((current) => ({ ...current, segmentId: event.target.value }))}>
                 <option value="">--</option>
                 {selectedSession.segments.map((segment) => <option key={`split-${segment.id}`} value={segment.id}>{segment.label} ({segment.startSecond}s-{segment.endSecond}s)</option>)}
               </select>
-              <label htmlFor="split-second">{t.segmentSplitSecond}</label>
-              <input id="split-second" type="number" min={1} value={splitForm.splitSecond} onChange={(event) => setSplitForm((current) => ({ ...current, splitSecond: event.target.value }))} />
-              <label htmlFor="split-left-label">{t.segmentSplitLeftLabel}</label>
-              <input id="split-left-label" value={splitForm.leftLabel} onChange={(event) => setSplitForm((current) => ({ ...current, leftLabel: event.target.value }))} />
-              <label htmlFor="split-right-label">{t.segmentSplitRightLabel}</label>
-              <input id="split-right-label" value={splitForm.rightLabel} onChange={(event) => setSplitForm((current) => ({ ...current, rightLabel: event.target.value }))} />
-              <label htmlFor="split-notes">{t.segmentNotes}</label>
-              <input id="split-notes" value={splitForm.notes} onChange={(event) => setSplitForm((current) => ({ ...current, notes: event.target.value }))} />
-              <button type="button" onClick={onSplitSegment}>{t.segmentSplitAction}</button>
+              <label className="form-label" htmlFor="split-second">{t.segmentSplitSecond}</label>
+              <input className="form-control" id="split-second" type="number" min={1} value={splitForm.splitSecond} onChange={(event) => setSplitForm((current) => ({ ...current, splitSecond: event.target.value }))} />
+              <label className="form-label" htmlFor="split-left-label">{t.segmentSplitLeftLabel}</label>
+              <input className="form-control" id="split-left-label" value={splitForm.leftLabel} onChange={(event) => setSplitForm((current) => ({ ...current, leftLabel: event.target.value }))} />
+              <label className="form-label" htmlFor="split-right-label">{t.segmentSplitRightLabel}</label>
+              <input className="form-control" id="split-right-label" value={splitForm.rightLabel} onChange={(event) => setSplitForm((current) => ({ ...current, rightLabel: event.target.value }))} />
+              <label className="form-label" htmlFor="split-notes">{t.segmentNotes}</label>
+              <input className="form-control" id="split-notes" value={splitForm.notes} onChange={(event) => setSplitForm((current) => ({ ...current, notes: event.target.value }))} />
+              <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onSplitSegment}>{t.segmentSplitAction}</button>
             </div>}
             </section>
 
@@ -3856,23 +3880,23 @@ export function App() {
             {selectedSession.segmentChangeHistory.length === 0 ? (
               <p>{t.historyEmpty}</p>
             ) : (
-              <ul className="metrics-list">
+              <ul className="metrics-list list-group">
                 {[...selectedSession.segmentChangeHistory].reverse().map((entry) => (
-                  <li key={`${entry.version}-${entry.changedAtUtc}`}>v{entry.version} • {entry.action} • {formatLocalDateTime(entry.changedAtUtc)}{entry.notes ? ` • ${entry.notes}` : ''}</li>
+                  <li className="list-group-item" key={`${entry.version}-${entry.changedAtUtc}`}>v{entry.version} • {entry.action} • {formatLocalDateTime(entry.changedAtUtc)}{entry.notes ? ` • ${entry.notes}` : ''}</li>
                 ))}
               </ul>
             )}
           </div>
 
           <section className={`session-processing-settings analysis-disclosure analysis-block--settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('processingSettings')} aria-expanded={analysisAccordionState.processingSettings}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('processingSettings', event.currentTarget)} aria-expanded={analysisAccordionState.processingSettings}>
               <span>{t.sessionProcessingTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.processingSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
             {analysisAccordionState.processingSettings && (
             <div className="analysis-disclosure__content">
-            <label htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
-            <select id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
+            <label className="form-label" htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
+            <select className="form-select" id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
               <option value="km/h">km/h</option>
               <option value="m/s">m/s</option>
               <option value="min/km">min/km</option>
@@ -3883,21 +3907,21 @@ export function App() {
           </section>
 
           <section className={`analysis-disclosure analysis-block--recalculation-history ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('recalculationHistory')} aria-expanded={analysisAccordionState.recalculationHistory}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('recalculationHistory', event.currentTarget)} aria-expanded={analysisAccordionState.recalculationHistory}>
               <span>{t.sessionRecalculateHistoryTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.recalculationHistory ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
             {analysisAccordionState.recalculationHistory && (
             <div className="analysis-disclosure__content">
-              {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className="metrics-list">{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
+              {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className="metrics-list list-group">{selectedSession.recalculationHistory.map((entry) => <li className="list-group-item" key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
             </div>
             )}
           </section>
 
           <div className={`comparison-controls ${activeSessionSubpage === "compare" ? "" : "is-hidden"}`}>
             <h3>{t.compareTitle}</h3>
-            <label htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
-            <select
+            <label className="form-label" htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
+            <select className="form-select"
               id="session-filter-selector"
               value={selectedFilter}
               disabled={!selectedSession.summary.hasGpsData}
@@ -3914,8 +3938,8 @@ export function App() {
               <p>{t.filterRecommendationImpact}</p>
               <p>{selectedFilterDescription}</p>
             </div>
-            <label htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
-            <select
+            <label className="form-label" htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
+            <select className="form-select"
               id="comparison-mode-selector"
               value={compareMode}
               disabled={!selectedSession.summary.hasGpsData}
@@ -3927,7 +3951,7 @@ export function App() {
             {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
           </div>
           <section className={`core-metrics-section analysis-disclosure analysis-block--core ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('coreMetrics')} aria-expanded={analysisAccordionState.coreMetrics}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('coreMetrics', event.currentTarget)} aria-expanded={analysisAccordionState.coreMetrics}>
               <span>{t.coreMetricsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.coreMetrics ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
@@ -3960,7 +3984,7 @@ export function App() {
                 <h4>{t.coreMetricsCategoryExternalTitle}</h4>
                 <p>{t.coreMetricsCategoryExternalHelp}</p>
                 {showExternalWarning && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
-                <ul className="metrics-list">
+                <ul className="metrics-list list-group">
                   <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />
                   <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
                   <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
@@ -3981,7 +4005,7 @@ export function App() {
               <div>
                 <h4>{t.coreMetricsCategoryInternalTitle}</h4>
                 <p>{t.coreMetricsCategoryInternalHelp}</p>
-                <ul className="metrics-list">
+                <ul className="metrics-list list-group">
                   <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', displayedCoreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
                   <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneLow} />
                   <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
@@ -3992,7 +4016,7 @@ export function App() {
                 </ul>
               </div>
             )}
-            <ul className="metrics-list">
+            <ul className="metrics-list list-group">
               <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(displayedCoreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
               <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (displayedCoreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (displayedCoreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (displayedCoreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (displayedCoreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (displayedCoreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (displayedCoreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
             </ul>
@@ -4000,15 +4024,15 @@ export function App() {
             )}
           </section>
           <section className={`interval-aggregation analysis-disclosure analysis-block--interval ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('intervalAggregation')} aria-expanded={analysisAccordionState.intervalAggregation}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('intervalAggregation', event.currentTarget)} aria-expanded={analysisAccordionState.intervalAggregation}>
               <span>{t.intervalAggregationTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.intervalAggregation ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
             {analysisAccordionState.intervalAggregation && (
             <div className="analysis-disclosure__content">
             <p>{t.intervalAggregationExplanation}</p>
-            <label htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
-            <select
+            <label className="form-label" htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
+            <select className="form-select"
               id="interval-window-selector"
               value={aggregationWindowMinutes}
               onChange={(event) => setAggregationWindowMinutes(Number(event.target.value) as 1 | 2 | 5)}
@@ -4021,7 +4045,7 @@ export function App() {
             {selectedAnalysisAggregates.length === 0 ? (
               <p>{t.intervalAggregationNoData}</p>
             ) : (
-              <table className="history-table interval-table">
+              <table className="history-table table table-sm interval-table">
                 <thead>
                   <tr>
                     <th>{t.intervalAggregationStart}</th>
@@ -4034,22 +4058,22 @@ export function App() {
                     <tr key={`${aggregate.windowMinutes}-${aggregate.windowIndex}`}>
                       <td>{formatLocalDateTime(aggregate.windowStartUtc)}</td>
                       <td>
-                        <ul className="metrics-list interval-core-metrics-list">
-                          <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricSprintCount}:</strong> {aggregate.coreMetrics.sprintCount ?? t.notAvailable}</li>
-                          <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(aggregate.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
-                          <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(aggregate.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricHighIntensityRunCount}:</strong> {aggregate.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
-                          <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricRunningDensity}:</strong> {formatNumber(aggregate.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
-                          <li><strong>{t.metricAccelerationCount}:</strong> {aggregate.coreMetrics.accelerationCount ?? t.notAvailable}</li>
-                          <li><strong>{t.metricDecelerationCount}:</strong> {aggregate.coreMetrics.decelerationCount ?? t.notAvailable}</li>
-                          <li><strong>{t.metricHrZoneLow}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(aggregate.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
-                          <li><strong>{t.metricHrRecovery60}:</strong> {aggregate.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
+                        <ul className="metrics-list list-group interval-core-metrics-list">
+                          <li className="list-group-item"><strong>{t.metricDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricSprintCount}:</strong> {aggregate.coreMetrics.sprintCount ?? t.notAvailable}</li>
+                          <li className="list-group-item"><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(aggregate.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(aggregate.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricHighIntensityRunCount}:</strong> {aggregate.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
+                          <li className="list-group-item"><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricRunningDensity}:</strong> {formatNumber(aggregate.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
+                          <li className="list-group-item"><strong>{t.metricAccelerationCount}:</strong> {aggregate.coreMetrics.accelerationCount ?? t.notAvailable}</li>
+                          <li className="list-group-item"><strong>{t.metricDecelerationCount}:</strong> {aggregate.coreMetrics.decelerationCount ?? t.notAvailable}</li>
+                          <li className="list-group-item"><strong>{t.metricHrZoneLow}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(aggregate.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
+                          <li className="list-group-item"><strong>{t.metricHrRecovery60}:</strong> {aggregate.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
                         </ul>
                       </td>
                       <td>{formatDuration(aggregate.windowDurationSeconds, locale, t.notAvailable)}</td>
@@ -4064,7 +4088,7 @@ export function App() {
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && (
             <section className="gps-heatmap-section analysis-disclosure analysis-block--heatmap">
-              <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('gpsHeatmap')} aria-expanded={analysisAccordionState.gpsHeatmap}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('gpsHeatmap', event.currentTarget)} aria-expanded={analysisAccordionState.gpsHeatmap}>
                 <span>{t.gpsHeatmapTitle}</span>
                 <span className="analysis-disclosure__action">{analysisAccordionState.gpsHeatmap ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
@@ -4095,7 +4119,7 @@ export function App() {
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && heatmapData && (
             <section className="gps-heatmap-section gps-runs-section analysis-disclosure analysis-block--runs">
-              <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('gpsRunsMap')} aria-expanded={analysisAccordionState.gpsRunsMap}>
+              <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('gpsRunsMap', event.currentTarget)} aria-expanded={analysisAccordionState.gpsRunsMap}>
                 <span>{t.gpsRunsMapTitle}</span>
                 <span className="analysis-disclosure__action">{analysisAccordionState.gpsRunsMap ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
@@ -4149,7 +4173,7 @@ export function App() {
           {activeSessionSubpage === "analysis" && <button type="button" className="analysis-disclosure__toggle analysis-disclosure__toggle--quality analysis-block--quality" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>}
 
           <section className={`analysis-disclosure analysis-block--danger-zone ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('dangerZone')} aria-expanded={analysisAccordionState.dangerZone}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={(event) => toggleAnalysisSection('dangerZone', event.currentTarget)} aria-expanded={analysisAccordionState.dangerZone}>
               <span>{t.sessionDangerZoneTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.dangerZone ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
@@ -4423,9 +4447,9 @@ function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, 
   return (
     <>
       <div className="gps-heatmap-controls" role="group" aria-label="Heatmap controls">
-        <button type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
-        <button type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
-        <button type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
+        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
+        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
+        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
       </div>
       <svg
         className={`gps-heatmap ${dragStart ? 'gps-heatmap--dragging' : ''}`}
@@ -4758,11 +4782,11 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
           {filteredRunSegments.length === 0 ? (
             <p>{listEmptyLabel}</p>
           ) : (
-            <ul>
+            <ul className="list-group">
               {filteredRunSegments.map((segment, index) => {
                 const label = segment.runType === 'sprint' ? sprintMetricLabel : highIntensityMetricLabel;
                 return (
-                  <li key={segment.id}>
+                  <li className="list-group-item" key={segment.id}>
                     <button
                       type="button"
                       className={selectedRunId === segment.id ? 'is-active' : ''}
