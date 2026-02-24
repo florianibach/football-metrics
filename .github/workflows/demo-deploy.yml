@@ -54,12 +54,19 @@ jobs:
       - name: Deploy via SSH
         if: env.ENVIRONMENT != 'skip'
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          ENVIRONMENT: ${{ env.ENVIRONMENT }}
+          BRANCH: ${{ env.BRANCH }}
+          VERSION: ${{ env.VERSION }}
+          TARGET_DIR: ${{ env.TARGET_DIR }}
+          ENV_FILE: ${{ env.ENV_FILE }}
         with:
           host: ${{ secrets.DEMO_SSH_HOST }}
           username: ${{ secrets.DEMO_SSH_USER }}
           key: ${{ secrets.DEMO_SSH_PRIVATE_KEY }}
           port: ${{ secrets.DEMO_SSH_PORT || '22' }}
           script_stop: true
+          envs: ENVIRONMENT,BRANCH,VERSION,TARGET_DIR,ENV_FILE
           script: |
             set -euo pipefail
 
@@ -107,7 +114,7 @@ jobs:
             "${BRANCH:-n/a}" "${VERSION:-n/a}" "${RUN_URL:-n/a}")
 
           if [ -n "${FRONTEND_URL:-}" ]; then
-            MSG="${MSG}\nURL: ${FRONTEND_URL}"
+            MSG=$(printf "%s\nURL: %s" "$MSG" "$FRONTEND_URL")
           fi
 
           if [ -n "${NTFY_URL:-}" ]; then
