@@ -1335,7 +1335,7 @@ type MetricListItemProps = {
 
 function MetricListItem({ label, value, helpText }: MetricListItemProps) {
   return (
-    <li>
+    <li className="list-group-item">
       <strong>{label}:</strong> {value} {' '}
       <button
         type="button"
@@ -3048,35 +3048,35 @@ export function App() {
     return (
       <div className="quality-details-content">
         <h4>Session data</h4>
-        <ul className="metrics-list">
-          <li><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</li>
-          <li><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount}</li>
-          <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)}</li>
-          <li><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no}</li>
-          <li><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</li>
+        <ul className="metrics-list list-group">
+          <li className="list-group-item"><strong>{t.metricStartTime}:</strong> {selectedSession.summary.activityStartTimeUtc ? formatLocalDateTime(selectedSession.summary.activityStartTimeUtc) : t.notAvailable}</li>
+          <li className="list-group-item"><strong>{t.metricTrackpoints}:</strong> {selectedSession.summary.trackpointCount}</li>
+          <li className="list-group-item"><strong>{t.metricDistance}:</strong> {formatDistanceComparison(activeDistanceMeters, locale, t.notAvailable)} — {distanceSourceText(selectedSession.summary.distanceSource)}</li>
+          <li className="list-group-item"><strong>{t.metricGps}:</strong> {selectedSession.summary.hasGpsData ? t.yes : t.no}</li>
+          <li className="list-group-item"><strong>{t.metricDataMode}:</strong> {dataAvailabilitySummaryText(selectedSession.summary, t)}</li>
         </ul>
 
         <h4>{t.qualityDetailsSidebarTitle}</h4>
         {selectedSession.summary.qualityStatus !== 'High' || (selectedDataAvailability.gpsQualityStatus && selectedDataAvailability.gpsQualityStatus !== 'High') || (selectedDataAvailability.heartRateQualityStatus && selectedDataAvailability.heartRateQualityStatus !== 'High') ? (
           <p className="quality-warning">{t.qualityDetailsWarning}</p>
         ) : null}
-        <ul className="metrics-list">
-          <li><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
-          <li><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
-          <li><strong>{t.metricGpsChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
-          <li><strong>{t.metricGpsChannelQualityReasons}:</strong> {(selectedDataAvailability.gpsQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
-          <li><strong>{t.metricHeartRateChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
-          <li><strong>{t.metricHeartRateChannelQualityReasons}:</strong> {(selectedDataAvailability.heartRateQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
-          <li><strong>{t.uploadQualityImpacts}:</strong> {qualityImpactItems.length > 0 ? qualityImpactItems.join(' | ') : t.notAvailable}</li>
+        <ul className="metrics-list list-group">
+          <li className="list-group-item"><strong>{t.metricQualityStatus}:</strong> {qualityStatusText(selectedSession.summary.qualityStatus, t)}</li>
+          <li className="list-group-item"><strong>{t.metricQualityReasons}:</strong> {selectedSession.summary.qualityReasons.join(' | ')}</li>
+          <li className="list-group-item"><strong>{t.metricGpsChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.gpsQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+          <li className="list-group-item"><strong>{t.metricGpsChannelQualityReasons}:</strong> {(selectedDataAvailability.gpsQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
+          <li className="list-group-item"><strong>{t.metricHeartRateChannelQualityStatus}:</strong> {qualityStatusText((selectedDataAvailability.heartRateQualityStatus ?? selectedSession.summary.qualityStatus) as ActivitySummary['qualityStatus'], t)}</li>
+          <li className="list-group-item"><strong>{t.metricHeartRateChannelQualityReasons}:</strong> {(selectedDataAvailability.heartRateQualityReasons ?? selectedSession.summary.qualityReasons).join(' | ')}</li>
+          <li className="list-group-item"><strong>{t.uploadQualityImpacts}:</strong> {qualityImpactItems.length > 0 ? qualityImpactItems.join(' | ') : t.notAvailable}</li>
         </ul>
 
         <h4>Processing & profile</h4>
-        <ul className="metrics-list">
-          <li><strong>{t.metricDataChange}:</strong> {dataChangeMetric}</li>
-          <li><strong>{t.filterSourceLabel}:</strong> {selectedFilterSource}</li>
-          <li><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</li>
-          <li><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
-          <li><strong>{t.metricSmoothingOutlier}:</strong> {`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`}</li>
+        <ul className="metrics-list list-group">
+          <li className="list-group-item"><strong>{t.metricDataChange}:</strong> {dataChangeMetric}</li>
+          <li className="list-group-item"><strong>{t.filterSourceLabel}:</strong> {selectedFilterSource}</li>
+          <li className="list-group-item"><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</li>
+          <li className="list-group-item"><strong>{t.metricSmoothingStrategy}:</strong> {selectedSession.summary.smoothing.selectedStrategy}</li>
+          <li className="list-group-item"><strong>{t.metricSmoothingOutlier}:</strong> {`${selectedSession.summary.smoothing.selectedParameters.OutlierDetectionMode ?? 'NotAvailable'} (threshold: ${selectedSession.summary.smoothing.selectedParameters.EffectiveOutlierSpeedThresholdMps ?? '12.5'} m/s)`}</li>
         </ul>
       </div>
     );
@@ -3644,20 +3644,20 @@ export function App() {
               {shouldShowSessionOverviewHeader && displayedCoreMetrics && (
                 <div className="analysis-disclosure__content">
                   <h3>{isSegmentScopeActive ? t.segmentDerivedMetricsTitle : t.analysisOverviewTitle}</h3>
-                  <ul className="metrics-list">
-                    <li><strong>{t.metricDuration}:</strong> {formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable)}</li>
+                  <ul className="metrics-list list-group">
+                    <li className="list-group-item"><strong>{t.metricDuration}:</strong> {formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable)}</li>
                     {resolveDataAvailability(selectedSession.summary).mode !== 'HeartRateOnly' && (
                       <>
-                        <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable)}</li>
-                        <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                        <li><strong>{t.metricSprintCount}:</strong> {displayedCoreMetrics.sprintCount ?? t.notAvailable}</li>
-                        <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
-                        <li><strong>{t.metricHighIntensityRunCount}:</strong> {displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
-                        <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
+                        <li className="list-group-item"><strong>{t.metricDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                        <li className="list-group-item"><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                        <li className="list-group-item"><strong>{t.metricSprintCount}:</strong> {displayedCoreMetrics.sprintCount ?? t.notAvailable}</li>
+                        <li className="list-group-item"><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                        <li className="list-group-item"><strong>{t.metricHighIntensityRunCount}:</strong> {displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
+                        <li className="list-group-item"><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
                       </>
                     )}
                     {resolveDataAvailability(selectedSession.summary).mode !== 'GpsOnly' && (
-                      <li><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)}</li>
+                      <li className="list-group-item"><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)}</li>
                     )}
                   </ul>
                 </div>
@@ -3856,9 +3856,9 @@ export function App() {
             {selectedSession.segmentChangeHistory.length === 0 ? (
               <p>{t.historyEmpty}</p>
             ) : (
-              <ul className="metrics-list">
+              <ul className="metrics-list list-group">
                 {[...selectedSession.segmentChangeHistory].reverse().map((entry) => (
-                  <li key={`${entry.version}-${entry.changedAtUtc}`}>v{entry.version} • {entry.action} • {formatLocalDateTime(entry.changedAtUtc)}{entry.notes ? ` • ${entry.notes}` : ''}</li>
+                  <li className="list-group-item" key={`${entry.version}-${entry.changedAtUtc}`}>v{entry.version} • {entry.action} • {formatLocalDateTime(entry.changedAtUtc)}{entry.notes ? ` • ${entry.notes}` : ''}</li>
                 ))}
               </ul>
             )}
@@ -3889,7 +3889,7 @@ export function App() {
             </button>
             {analysisAccordionState.recalculationHistory && (
             <div className="analysis-disclosure__content">
-              {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className="metrics-list">{selectedSession.recalculationHistory.map((entry) => <li key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
+              {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className="metrics-list list-group">{selectedSession.recalculationHistory.map((entry) => <li className="list-group-item" key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
             </div>
             )}
           </section>
@@ -3960,7 +3960,7 @@ export function App() {
                 <h4>{t.coreMetricsCategoryExternalTitle}</h4>
                 <p>{t.coreMetricsCategoryExternalHelp}</p>
                 {showExternalWarning && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
-                <ul className="metrics-list">
+                <ul className="metrics-list list-group">
                   <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />
                   <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
                   <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
@@ -3981,7 +3981,7 @@ export function App() {
               <div>
                 <h4>{t.coreMetricsCategoryInternalTitle}</h4>
                 <p>{t.coreMetricsCategoryInternalHelp}</p>
-                <ul className="metrics-list">
+                <ul className="metrics-list list-group">
                   <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', displayedCoreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
                   <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneLow} />
                   <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
@@ -3992,7 +3992,7 @@ export function App() {
                 </ul>
               </div>
             )}
-            <ul className="metrics-list">
+            <ul className="metrics-list list-group">
               <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(displayedCoreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
               <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (displayedCoreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (displayedCoreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (displayedCoreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (displayedCoreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (displayedCoreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (displayedCoreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
             </ul>
@@ -4034,22 +4034,22 @@ export function App() {
                     <tr key={`${aggregate.windowMinutes}-${aggregate.windowIndex}`}>
                       <td>{formatLocalDateTime(aggregate.windowStartUtc)}</td>
                       <td>
-                        <ul className="metrics-list interval-core-metrics-list">
-                          <li><strong>{t.metricDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricSprintCount}:</strong> {aggregate.coreMetrics.sprintCount ?? t.notAvailable}</li>
-                          <li><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(aggregate.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
-                          <li><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(aggregate.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricHighIntensityRunCount}:</strong> {aggregate.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
-                          <li><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricRunningDensity}:</strong> {formatNumber(aggregate.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
-                          <li><strong>{t.metricAccelerationCount}:</strong> {aggregate.coreMetrics.accelerationCount ?? t.notAvailable}</li>
-                          <li><strong>{t.metricDecelerationCount}:</strong> {aggregate.coreMetrics.decelerationCount ?? t.notAvailable}</li>
-                          <li><strong>{t.metricHrZoneLow}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
-                          <li><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(aggregate.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
-                          <li><strong>{t.metricHrRecovery60}:</strong> {aggregate.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
+                        <ul className="metrics-list list-group interval-core-metrics-list">
+                          <li className="list-group-item"><strong>{t.metricDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricSprintCount}:</strong> {aggregate.coreMetrics.sprintCount ?? t.notAvailable}</li>
+                          <li className="list-group-item"><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(aggregate.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(aggregate.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricHighIntensityRunCount}:</strong> {aggregate.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
+                          <li className="list-group-item"><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricRunningDensity}:</strong> {formatNumber(aggregate.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
+                          <li className="list-group-item"><strong>{t.metricAccelerationCount}:</strong> {aggregate.coreMetrics.accelerationCount ?? t.notAvailable}</li>
+                          <li className="list-group-item"><strong>{t.metricDecelerationCount}:</strong> {aggregate.coreMetrics.decelerationCount ?? t.notAvailable}</li>
+                          <li className="list-group-item"><strong>{t.metricHrZoneLow}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
+                          <li className="list-group-item"><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(aggregate.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
+                          <li className="list-group-item"><strong>{t.metricHrRecovery60}:</strong> {aggregate.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
                         </ul>
                       </td>
                       <td>{formatDuration(aggregate.windowDurationSeconds, locale, t.notAvailable)}</td>
@@ -4758,11 +4758,11 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
           {filteredRunSegments.length === 0 ? (
             <p>{listEmptyLabel}</p>
           ) : (
-            <ul>
+            <ul className="list-group">
               {filteredRunSegments.map((segment, index) => {
                 const label = segment.runType === 'sprint' ? sprintMetricLabel : highIntensityMetricLabel;
                 return (
-                  <li key={segment.id}>
+                  <li className="list-group-item" key={segment.id}>
                     <button
                       type="button"
                       className={selectedRunId === segment.id ? 'is-active' : ''}
