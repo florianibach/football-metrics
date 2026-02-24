@@ -1927,3 +1927,20 @@ input[type='checkbox']::before {
 .app-shell[data-theme='dark'] .analysis-disclosure__content {
   background: color-mix(in srgb, #212121 90%, white) !important;
 }
+
+/* task follow-up: dark list-group items + viewport + disclosure toggle anchor stability */
+.app-shell[data-theme='dark'] .list-group-item {
+  background: #212121 !important;
+  color: #fff !important;
+  border-color: var(--border) !important;
+}
+
+.app-shell {
+  min-height: 100dvh;
+  box-sizing: border-box;
+}
+
+.app-shell__main,
+.container {
+  min-height: 0;
+}
