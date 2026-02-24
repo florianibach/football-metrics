@@ -178,6 +178,7 @@ button:disabled {
   border-radius: 10px;
   background: var(--surface);
   padding: 0.75rem;
+  overflow-anchor: none;
 }
 
 .analysis-disclosure__toggle--quality {
@@ -187,6 +188,7 @@ button:disabled {
 
 .analysis-disclosure {
   margin: 1rem 0;
+  overflow-anchor: none;
 }
 
 .analysis-disclosure__toggle {
@@ -1926,4 +1928,37 @@ input[type='checkbox']::before {
 
 .app-shell[data-theme='dark'] .analysis-disclosure__content {
   background: color-mix(in srgb, #212121 90%, white) !important;
+}
+
+/* task follow-up: dark list-group items + viewport + disclosure toggle anchor stability */
+.app-shell[data-theme='dark'] .list-group-item {
+  background: #212121 !important;
+  color: #fff !important;
+  border-color: var(--border) !important;
+}
+
+/* follow-up: prevent viewport overflow caused by app-shell padding + full-height sidenav */
+.app-shell {
+  min-height: 100dvh;
+  box-sizing: border-box;
+}
+
+.app-shell__main,
+.container {
+  min-height: 0;
+}
+
+.side-nav {
+  height: calc(100dvh - 2rem);
+  top: 1rem;
+}
+
+.side-nav__meta {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  font-size: 0.72rem;
+  opacity: 0.65;
+  text-align: center;
+  color: var(--muted);
+  user-select: text;
 }
