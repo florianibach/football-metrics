@@ -3140,8 +3140,8 @@ export function App() {
         <button type="button" className="burger-menu" onClick={() => setIsMobileNavOpen((current) => !current)} aria-label="Open navigation menu">☰</button>
       </div>
       <div className="language-switcher">
-        <label htmlFor="language-selector">{t.languageLabel}</label>
-        <select id="language-selector" value={locale} onChange={onLocaleChange}>
+        <label className="form-label" htmlFor="language-selector">{t.languageLabel}</label>
+        <select className="form-select" id="language-selector" value={locale} onChange={onLocaleChange}>
           <option value="en">{t.languageEnglish}</option>
           <option value="de">{t.languageGerman}</option>
         </select>
@@ -3163,9 +3163,9 @@ export function App() {
             <button type="button" className={theme === "dark" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => void onThemeSelect("dark")}>Dark</button>
           </div>
         </div>
-        <form onSubmit={onProfileSubmit}>
-          <label htmlFor="profile-primary-position">{t.profilePrimaryPosition}</label>
-          <select
+        <form onSubmit={onProfileSubmit} className="vstack gap-2">
+          <label className="form-label" htmlFor="profile-primary-position">{t.profilePrimaryPosition}</label>
+          <select className="form-select"
             id="profile-primary-position"
             value={profileForm.primaryPosition}
             onChange={(event) => setProfileForm((current) => ({ ...current, primaryPosition: event.target.value as PlayerPosition }))}
@@ -3175,8 +3175,8 @@ export function App() {
             ))}
           </select>
 
-          <label htmlFor="profile-secondary-position">{t.profileSecondaryPosition} ({t.profileSecondaryOptional})</label>
-          <select
+          <label className="form-label" htmlFor="profile-secondary-position">{t.profileSecondaryPosition} ({t.profileSecondaryOptional})</label>
+          <select className="form-select"
             id="profile-secondary-position"
             value={profileForm.secondaryPosition ?? ''}
             onChange={(event) => setProfileForm((current) => ({
@@ -3190,8 +3190,8 @@ export function App() {
             ))}
           </select>
 
-          <label htmlFor="profile-default-filter">{t.profileDefaultSmoothingFilter}</label>
-          <select
+          <label className="form-label" htmlFor="profile-default-filter">{t.profileDefaultSmoothingFilter}</label>
+          <select className="form-select"
             id="profile-default-filter"
             value={profileForm.defaultSmoothingFilter}
             onChange={(event) => setProfileForm((current) => ({ ...current, defaultSmoothingFilter: event.target.value as SmoothingFilter }))}
@@ -3204,8 +3204,8 @@ export function App() {
           </select>
           <p>{t.profileDefaultSmoothingFilterHelp}</p>
 
-          <label htmlFor="profile-preferred-speed-unit">{t.profilePreferredSpeedUnit}</label>
-          <select
+          <label className="form-label" htmlFor="profile-preferred-speed-unit">{t.profilePreferredSpeedUnit}</label>
+          <select className="form-select"
             id="profile-preferred-speed-unit"
             value={profileForm.preferredSpeedUnit}
             onChange={(event) => setProfileForm((current) => ({ ...current, preferredSpeedUnit: event.target.value as SpeedUnit }))}
@@ -3216,8 +3216,8 @@ export function App() {
           </select>
           <p>{t.profilePreferredSpeedUnitHelp}</p>
 
-          <label htmlFor="profile-preferred-aggregation-window">{t.profilePreferredAggregationWindow}</label>
-          <select
+          <label className="form-label" htmlFor="profile-preferred-aggregation-window">{t.profilePreferredAggregationWindow}</label>
+          <select className="form-select"
             id="profile-preferred-aggregation-window"
             value={profileForm.preferredAggregationWindowMinutes}
             onChange={(event) => setProfileForm((current) => ({ ...current, preferredAggregationWindowMinutes: Number(event.target.value) as 1 | 2 | 5 }))}
@@ -3229,8 +3229,8 @@ export function App() {
           <p>{t.profilePreferredAggregationWindowHelp}</p>
 
           <h3>{t.profileThresholdsTitle}</h3>
-          <label htmlFor="profile-threshold-max-speed">Max speed ({profileForm.preferredSpeedUnit})</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-max-speed">Max speed ({profileForm.preferredSpeedUnit})</label>
+          <input className="form-control"
             id="profile-threshold-max-speed"
             type="number"
             step={profileForm.preferredSpeedUnit === "min/km" ? "0.01" : "0.1"}
@@ -3241,8 +3241,8 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, maxSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit) }
             }))}
           />
-          <label htmlFor="profile-threshold-sprint-mode">{t.profileThresholdMaxSpeedMode}</label>
-          <select
+          <label className="form-label" htmlFor="profile-threshold-sprint-mode">{t.profileThresholdMaxSpeedMode}</label>
+          <select className="form-select"
             id="profile-threshold-sprint-mode"
             value={profileForm.metricThresholds.maxSpeedMode}
             onChange={(event) => setProfileForm((current) => ({
@@ -3254,8 +3254,8 @@ export function App() {
             <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
           </select>
 
-          <label htmlFor="profile-threshold-max-heartrate">Max heartrate (bpm)</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-max-heartrate">Max heartrate (bpm)</label>
+          <input className="form-control"
             id="profile-threshold-max-heartrate"
             type="number"
             step="1"
@@ -3266,8 +3266,8 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, maxHeartRateBpm: Number(event.target.value) }
             }))}
           />
-          <label htmlFor="profile-threshold-high-intensity-mode">{t.profileThresholdMaxHeartRateMode}</label>
-          <select
+          <label className="form-label" htmlFor="profile-threshold-high-intensity-mode">{t.profileThresholdMaxHeartRateMode}</label>
+          <select className="form-select"
             id="profile-threshold-high-intensity-mode"
             value={profileForm.metricThresholds.maxHeartRateMode}
             onChange={(event) => setProfileForm((current) => ({
@@ -3279,8 +3279,8 @@ export function App() {
             <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
           </select>
 
-          <label htmlFor="profile-threshold-sprint">{t.profileThresholdSprint}</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-sprint">{t.profileThresholdSprint}</label>
+          <input className="form-control"
             id="profile-threshold-sprint"
             type="number"
             step="0.1"
@@ -3291,8 +3291,8 @@ export function App() {
             }))}
           />
           <p>{t.profileDerivedSprintThreshold}: {formatSpeed(sprintThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
-          <label htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
+          <input className="form-control"
             id="profile-threshold-high-intensity"
             type="number"
             step="0.1"
@@ -3303,8 +3303,8 @@ export function App() {
             }))}
           />
           <p>{t.profileDerivedHighIntensityThreshold}: {formatSpeed(highIntensityThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
-          <label htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
+          <input className="form-control"
             id="profile-threshold-acceleration"
             type="number"
             step="0.1"
@@ -3314,8 +3314,8 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, accelerationThresholdMps2: Number(event.target.value) }
             }))}
           />
-          <label htmlFor="profile-threshold-deceleration">{t.profileThresholdDeceleration}</label>
-          <input
+          <label className="form-label" htmlFor="profile-threshold-deceleration">{t.profileThresholdDeceleration}</label>
+          <input className="form-control"
             id="profile-threshold-deceleration"
             type="number"
             step="0.1"
@@ -3365,7 +3365,7 @@ export function App() {
             <span className="upload-form__drop-action">{t.uploadChooseFile}</span>
             <span className="upload-form__file-name">{selectedFile ? selectedFile.name : t.defaultMessage}</span>
           </div>
-          <input className="upload-form__file-input" type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} disabled={isUploading} />
+          <input className="upload-form__file-input form-control" type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} disabled={isUploading} />
         </label>
         <button type="submit" className="upload-form__submit btn-primary" disabled={!canSubmit}>
           {t.uploadButton}
@@ -3395,16 +3395,16 @@ export function App() {
           <div className="history-controls history-controls--filters history-controls--sidebar">
             <p className="history-filter-defaults">{t.historyFilterDefaultsHint}</p>
             <div className="history-filter-group">
-              <label htmlFor="history-sort-selector">{t.historySortLabel}</label>
-              <select id="history-sort-selector" value={draftSortDirection} onChange={(event) => setDraftSortDirection(event.target.value as SortDirection)}>
+              <label className="form-label" htmlFor="history-sort-selector">{t.historySortLabel}</label>
+              <select className="form-select" id="history-sort-selector" value={draftSortDirection} onChange={(event) => setDraftSortDirection(event.target.value as SortDirection)}>
                 <option value="desc">{t.historySortNewest}</option>
                 <option value="asc">{t.historySortOldest}</option>
               </select>
             </div>
 
             <div className="history-filter-group">
-              <label htmlFor="history-quality-filter">{t.historyFilterQualityStatus}</label>
-              <select id="history-quality-filter" value={draftQualityStatusFilter} onChange={(event) => setDraftQualityStatusFilter(event.target.value as 'All' | ActivitySummary['qualityStatus'])}>
+              <label className="form-label" htmlFor="history-quality-filter">{t.historyFilterQualityStatus}</label>
+              <select className="form-select" id="history-quality-filter" value={draftQualityStatusFilter} onChange={(event) => setDraftQualityStatusFilter(event.target.value as 'All' | ActivitySummary['qualityStatus'])}>
                 <option value="All">{t.historyFilterQualityAll}</option>
                 <option value="High">{qualityStatusText('High', t)}</option>
                 <option value="Medium">{qualityStatusText('Medium', t)}</option>
@@ -3440,13 +3440,13 @@ export function App() {
             </fieldset>
 
             <div className="history-filter-group history-filter-group--date">
-              <label htmlFor="history-date-from">{t.historyFilterDateFrom}</label>
-              <input id="history-date-from" type="date" value={draftDateFromFilter} onFocus={(event) => event.currentTarget.showPicker?.()} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setDraftDateFromFilter(event.target.value)} />
+              <label className="form-label" htmlFor="history-date-from">{t.historyFilterDateFrom}</label>
+              <input className="form-control" id="history-date-from" type="date" value={draftDateFromFilter} onFocus={(event) => event.currentTarget.showPicker?.()} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setDraftDateFromFilter(event.target.value)} />
             </div>
 
             <div className="history-filter-group history-filter-group--date">
-              <label htmlFor="history-date-to">{t.historyFilterDateTo}</label>
-              <input id="history-date-to" type="date" value={draftDateToFilter} onFocus={(event) => event.currentTarget.showPicker?.()} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setDraftDateToFilter(event.target.value)} />
+              <label className="form-label" htmlFor="history-date-to">{t.historyFilterDateTo}</label>
+              <input className="form-control" id="history-date-to" type="date" value={draftDateToFilter} onFocus={(event) => event.currentTarget.showPicker?.()} onClick={(event) => event.currentTarget.showPicker?.()} onChange={(event) => setDraftDateToFilter(event.target.value)} />
             </div>
 
             <div className="history-filter-group history-filter-group--action">
@@ -3490,7 +3490,7 @@ export function App() {
         {filteredHistory.length === 0 ? (
           <p>{t.historyEmpty}</p>
         ) : (
-          <table className="history-table">
+          <table className="history-table table table-sm">
             <thead>
               <tr>
                 <th>{t.historyColumnFileName}</th>
@@ -3546,8 +3546,8 @@ export function App() {
             <h3>{t.sessionCompareSelectionTitle}</h3>
             <p>{t.sessionCompareSelectionHint}</p>
             <p>{interpolate(t.sessionCompareOnlySameTypeHint, { sessionType: sessionTypeText(activeSessionType, t) })}</p>
-            <label htmlFor="comparison-session-selector">{t.sessionCompareDropdownLabel}</label>
-            <select
+            <label className="form-label" htmlFor="comparison-session-selector">{t.sessionCompareDropdownLabel}</label>
+            <select className="form-select"
               id="comparison-session-selector"
               value={compareOpponentSessionId ?? ''}
               onChange={(event) => setCompareOpponentSessionId(event.target.value || null)}
@@ -3674,7 +3674,7 @@ export function App() {
             </button>
             {analysisAccordionState.sessionSettings && (
             <div className="analysis-disclosure__content">
-              <button type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
+              <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
               <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
             </div>
             )}
@@ -3687,8 +3687,8 @@ export function App() {
             {analysisAccordionState.sessionContext && (
             <div className="analysis-disclosure__content">
             <div className="session-context">
-            <label htmlFor="session-type-selector">{t.sessionTypeLabel}</label>
-            <select
+            <label className="form-label" htmlFor="session-type-selector">{t.sessionTypeLabel}</label>
+            <select className="form-select"
               id="session-type-selector"
               value={sessionContextForm.sessionType}
               onChange={(event) => setSessionContextForm((current) => ({ ...current, sessionType: event.target.value as SessionType }))}
@@ -3702,17 +3702,17 @@ export function App() {
 
             {sessionContextForm.sessionType === 'Match' && (
               <>
-                <label htmlFor="session-match-result">{t.sessionContextMatchResult}</label>
-                <input id="session-match-result" value={sessionContextForm.matchResult ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, matchResult: event.target.value }))} />
-                <label htmlFor="session-competition">{t.sessionContextCompetition}</label>
-                <input id="session-competition" value={sessionContextForm.competition ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, competition: event.target.value }))} />
-                <label htmlFor="session-opponent">{t.sessionContextOpponentName}</label>
-                <input id="session-opponent" value={sessionContextForm.opponentName ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentName: event.target.value }))} />
-                <label htmlFor="session-opponent-logo">{t.sessionContextOpponentLogoUrl}</label>
-                <input id="session-opponent-logo" value={sessionContextForm.opponentLogoUrl ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentLogoUrl: event.target.value }))} />
+                <label className="form-label" htmlFor="session-match-result">{t.sessionContextMatchResult}</label>
+                <input className="form-control" id="session-match-result" value={sessionContextForm.matchResult ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, matchResult: event.target.value }))} />
+                <label className="form-label" htmlFor="session-competition">{t.sessionContextCompetition}</label>
+                <input className="form-control" id="session-competition" value={sessionContextForm.competition ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, competition: event.target.value }))} />
+                <label className="form-label" htmlFor="session-opponent">{t.sessionContextOpponentName}</label>
+                <input className="form-control" id="session-opponent" value={sessionContextForm.opponentName ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentName: event.target.value }))} />
+                <label className="form-label" htmlFor="session-opponent-logo">{t.sessionContextOpponentLogoUrl}</label>
+                <input className="form-control" id="session-opponent-logo" value={sessionContextForm.opponentLogoUrl ?? ''} onChange={(event) => setSessionContextForm((current) => ({ ...current, opponentLogoUrl: event.target.value }))} />
               </>
             )}
-            <button type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
+            <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onSaveSessionContext}>{t.sessionContextSave}</button>
           </div>
           </div>
             )}
@@ -3786,18 +3786,18 @@ export function App() {
                 <span className="analysis-disclosure__action">{segmentEditorsOpen.edit ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
               </button>
               {segmentEditorsOpen.edit && <div className="segment-form">
-              <label htmlFor="segment-category">{t.segmentCategory}</label>
-              <select id="segment-category" value={segmentForm.category} onChange={(event) => setSegmentForm((current) => ({ ...current, category: event.target.value as SegmentCategory }))}>{segmentCategoryOptions.map((option) => <option key={option} value={option}>{segmentCategoryLabel(option, t)}</option>)}</select>
-              <label htmlFor="segment-label">{t.segmentLabel}</label>
-              <input id="segment-label" value={segmentForm.label} onChange={(event) => setSegmentForm((current) => ({ ...current, label: event.target.value }))} />
-              <label htmlFor="segment-start">{t.segmentStartSecond}</label>
-              <input id="segment-start" type="number" min={0} value={segmentForm.startSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, startSecond: event.target.value }))} />
-              <label htmlFor="segment-end">{t.segmentEndSecond}</label>
-              <input id="segment-end" type="number" min={0} value={segmentForm.endSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, endSecond: event.target.value }))} />
-              <label htmlFor="segment-reason">{t.segmentNotes}</label>
-              <input id="segment-reason" value={segmentForm.notes} onChange={(event) => setSegmentForm((current) => ({ ...current, notes: event.target.value }))} />
+              <label className="form-label" htmlFor="segment-category">{t.segmentCategory}</label>
+              <select className="form-select" id="segment-category" value={segmentForm.category} onChange={(event) => setSegmentForm((current) => ({ ...current, category: event.target.value as SegmentCategory }))}>{segmentCategoryOptions.map((option) => <option key={option} value={option}>{segmentCategoryLabel(option, t)}</option>)}</select>
+              <label className="form-label" htmlFor="segment-label">{t.segmentLabel}</label>
+              <input className="form-control" id="segment-label" value={segmentForm.label} onChange={(event) => setSegmentForm((current) => ({ ...current, label: event.target.value }))} />
+              <label className="form-label" htmlFor="segment-start">{t.segmentStartSecond}</label>
+              <input className="form-control" id="segment-start" type="number" min={0} value={segmentForm.startSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, startSecond: event.target.value }))} />
+              <label className="form-label" htmlFor="segment-end">{t.segmentEndSecond}</label>
+              <input className="form-control" id="segment-end" type="number" min={0} value={segmentForm.endSecond} onChange={(event) => setSegmentForm((current) => ({ ...current, endSecond: event.target.value }))} />
+              <label className="form-label" htmlFor="segment-reason">{t.segmentNotes}</label>
+              <input className="form-control" id="segment-reason" value={segmentForm.notes} onChange={(event) => setSegmentForm((current) => ({ ...current, notes: event.target.value }))} />
               <div className="segment-actions">
-                <button type="button" onClick={onSaveSegment}>{editingSegmentId ? t.segmentUpdate : t.segmentAdd}</button>
+                <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onSaveSegment}>{editingSegmentId ? t.segmentUpdate : t.segmentAdd}</button>
                 {editingSegmentId && <button type="button" className="secondary-button" onClick={resetSegmentForms}>{t.segmentCancelEdit}</button>}
               </div>
             </div>}
@@ -3810,21 +3810,21 @@ export function App() {
               </button>
               {segmentEditorsOpen.merge && <div className="segment-form">
               <h4>{t.segmentMergeTitle}</h4>
-              <label htmlFor="merge-source">{t.segmentMergeSource}</label>
-              <select id="merge-source" value={mergeForm.sourceSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, sourceSegmentId: event.target.value }))}>
+              <label className="form-label" htmlFor="merge-source">{t.segmentMergeSource}</label>
+              <select className="form-select" id="merge-source" value={mergeForm.sourceSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, sourceSegmentId: event.target.value }))}>
                 <option value="">--</option>
                 {selectedSession.segments.map((segment) => <option key={`source-${segment.id}`} value={segment.id}>{segment.label}</option>)}
               </select>
-              <label htmlFor="merge-target">{t.segmentMergeTarget}</label>
-              <select id="merge-target" value={mergeForm.targetSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, targetSegmentId: event.target.value }))}>
+              <label className="form-label" htmlFor="merge-target">{t.segmentMergeTarget}</label>
+              <select className="form-select" id="merge-target" value={mergeForm.targetSegmentId} onChange={(event) => setMergeForm((current) => ({ ...current, targetSegmentId: event.target.value }))}>
                 <option value="">--</option>
                 {selectedSession.segments.map((segment) => <option key={`target-${segment.id}`} value={segment.id}>{segment.label}</option>)}
               </select>
-              <label htmlFor="merge-label">{t.segmentMergeLabel}</label>
-              <input id="merge-label" value={mergeForm.label} onChange={(event) => setMergeForm((current) => ({ ...current, label: event.target.value }))} />
-              <label htmlFor="merge-reason">{t.segmentNotes}</label>
-              <input id="merge-reason" value={mergeForm.notes} onChange={(event) => setMergeForm((current) => ({ ...current, notes: event.target.value }))} />
-              <button type="button" onClick={onMergeSegments}>{t.segmentMergeAction}</button>
+              <label className="form-label" htmlFor="merge-label">{t.segmentMergeLabel}</label>
+              <input className="form-control" id="merge-label" value={mergeForm.label} onChange={(event) => setMergeForm((current) => ({ ...current, label: event.target.value }))} />
+              <label className="form-label" htmlFor="merge-reason">{t.segmentNotes}</label>
+              <input className="form-control" id="merge-reason" value={mergeForm.notes} onChange={(event) => setMergeForm((current) => ({ ...current, notes: event.target.value }))} />
+              <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onMergeSegments}>{t.segmentMergeAction}</button>
             </div>}
             </section>
 
@@ -3835,20 +3835,20 @@ export function App() {
               </button>
               {segmentEditorsOpen.split && <div className="segment-form">
               <h4>{t.segmentSplitTitle}</h4>
-              <label htmlFor="split-segment">{t.segmentSplitSegment}</label>
-              <select id="split-segment" value={splitForm.segmentId} onChange={(event) => setSplitForm((current) => ({ ...current, segmentId: event.target.value }))}>
+              <label className="form-label" htmlFor="split-segment">{t.segmentSplitSegment}</label>
+              <select className="form-select" id="split-segment" value={splitForm.segmentId} onChange={(event) => setSplitForm((current) => ({ ...current, segmentId: event.target.value }))}>
                 <option value="">--</option>
                 {selectedSession.segments.map((segment) => <option key={`split-${segment.id}`} value={segment.id}>{segment.label} ({segment.startSecond}s-{segment.endSecond}s)</option>)}
               </select>
-              <label htmlFor="split-second">{t.segmentSplitSecond}</label>
-              <input id="split-second" type="number" min={1} value={splitForm.splitSecond} onChange={(event) => setSplitForm((current) => ({ ...current, splitSecond: event.target.value }))} />
-              <label htmlFor="split-left-label">{t.segmentSplitLeftLabel}</label>
-              <input id="split-left-label" value={splitForm.leftLabel} onChange={(event) => setSplitForm((current) => ({ ...current, leftLabel: event.target.value }))} />
-              <label htmlFor="split-right-label">{t.segmentSplitRightLabel}</label>
-              <input id="split-right-label" value={splitForm.rightLabel} onChange={(event) => setSplitForm((current) => ({ ...current, rightLabel: event.target.value }))} />
-              <label htmlFor="split-notes">{t.segmentNotes}</label>
-              <input id="split-notes" value={splitForm.notes} onChange={(event) => setSplitForm((current) => ({ ...current, notes: event.target.value }))} />
-              <button type="button" onClick={onSplitSegment}>{t.segmentSplitAction}</button>
+              <label className="form-label" htmlFor="split-second">{t.segmentSplitSecond}</label>
+              <input className="form-control" id="split-second" type="number" min={1} value={splitForm.splitSecond} onChange={(event) => setSplitForm((current) => ({ ...current, splitSecond: event.target.value }))} />
+              <label className="form-label" htmlFor="split-left-label">{t.segmentSplitLeftLabel}</label>
+              <input className="form-control" id="split-left-label" value={splitForm.leftLabel} onChange={(event) => setSplitForm((current) => ({ ...current, leftLabel: event.target.value }))} />
+              <label className="form-label" htmlFor="split-right-label">{t.segmentSplitRightLabel}</label>
+              <input className="form-control" id="split-right-label" value={splitForm.rightLabel} onChange={(event) => setSplitForm((current) => ({ ...current, rightLabel: event.target.value }))} />
+              <label className="form-label" htmlFor="split-notes">{t.segmentNotes}</label>
+              <input className="form-control" id="split-notes" value={splitForm.notes} onChange={(event) => setSplitForm((current) => ({ ...current, notes: event.target.value }))} />
+              <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onSplitSegment}>{t.segmentSplitAction}</button>
             </div>}
             </section>
 
@@ -3871,8 +3871,8 @@ export function App() {
             </button>
             {analysisAccordionState.processingSettings && (
             <div className="analysis-disclosure__content">
-            <label htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
-            <select id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
+            <label className="form-label" htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
+            <select className="form-select" id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
               <option value="km/h">km/h</option>
               <option value="m/s">m/s</option>
               <option value="min/km">min/km</option>
@@ -3896,8 +3896,8 @@ export function App() {
 
           <div className={`comparison-controls ${activeSessionSubpage === "compare" ? "" : "is-hidden"}`}>
             <h3>{t.compareTitle}</h3>
-            <label htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
-            <select
+            <label className="form-label" htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
+            <select className="form-select"
               id="session-filter-selector"
               value={selectedFilter}
               disabled={!selectedSession.summary.hasGpsData}
@@ -3914,8 +3914,8 @@ export function App() {
               <p>{t.filterRecommendationImpact}</p>
               <p>{selectedFilterDescription}</p>
             </div>
-            <label htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
-            <select
+            <label className="form-label" htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
+            <select className="form-select"
               id="comparison-mode-selector"
               value={compareMode}
               disabled={!selectedSession.summary.hasGpsData}
@@ -4007,8 +4007,8 @@ export function App() {
             {analysisAccordionState.intervalAggregation && (
             <div className="analysis-disclosure__content">
             <p>{t.intervalAggregationExplanation}</p>
-            <label htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
-            <select
+            <label className="form-label" htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
+            <select className="form-select"
               id="interval-window-selector"
               value={aggregationWindowMinutes}
               onChange={(event) => setAggregationWindowMinutes(Number(event.target.value) as 1 | 2 | 5)}
@@ -4021,7 +4021,7 @@ export function App() {
             {selectedAnalysisAggregates.length === 0 ? (
               <p>{t.intervalAggregationNoData}</p>
             ) : (
-              <table className="history-table interval-table">
+              <table className="history-table table table-sm interval-table">
                 <thead>
                   <tr>
                     <th>{t.intervalAggregationStart}</th>
@@ -4423,9 +4423,9 @@ function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, 
   return (
     <>
       <div className="gps-heatmap-controls" role="group" aria-label="Heatmap controls">
-        <button type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
-        <button type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
-        <button type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
+        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
+        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
+        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
       </div>
       <svg
         className={`gps-heatmap ${dragStart ? 'gps-heatmap--dragging' : ''}`}
