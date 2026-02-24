@@ -203,6 +203,68 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
+## Story R1.6-15: Robuste Run-Detection mit Consecutive-Sample-Logik
+**Als** Nutzer  
+**möchte ich** dass High-Intensity-Runs und Sprints nur bei stabiler Geschwindigkeitsüberschreitung erkannt werden  
+**damit** kurze GPS-Spikes oder Einzelwerte nicht als echte Belastungsphasen gezählt werden.
+
+### Acceptance Criteria
+- [ ] Ein Run (HSR oder Sprint) startet nur, wenn mindestens zwei aufeinanderfolgende Samples eine Geschwindigkeit ≥ dem jeweiligen Threshold aufweisen.
+- [ ] Ein Run endet erst, wenn mindestens zwei aufeinanderfolgende Samples wieder unterhalb des Thresholds liegen.
+- [ ] Einzelne Geschwindigkeitsspitzen von nur einem Sample dürfen keinen Run auslösen.
+- [ ] Die Logik funktioniert identisch für HSR und Sprint, wobei jeweils der definierte Schwellenwert verwendet wird.
+- [ ] Die Berechnung basiert auf 1 Hz GPS-Daten.
+- [ ] Bereits erkannte valide Runs (z. B. ≥ 2 Sekunden Dauer) bleiben korrekt erfasst.
+- [ ] Die Run-Distanz wird weiterhin als Summe der zurückgelegten Strecken innerhalb des gültigen Run-Zeitraums berechnet.
+- [ ] Bestehende Analysen (Peaks, Summen, Anzahl Runs) bleiben konsistent.
+
+---
+
+## Story R1.6-16: Hierarchische Run-Struktur mit differenzierter Sprint-Visualisierung
+**Als** Nutzer  
+**möchte ich** dass High-Intensity-Runs als übergeordnete Bewegungsphasen erkannt werden und Sprint-Phasen als Intensitätssegmente innerhalb dieser Runs modelliert werden  
+**damit** Belastungsdaten sportwissenschaftlich korrekt strukturiert sind und gleichzeitig flexibel analysiert und visuell unterschieden dargestellt werden können.
+
+### Acceptance Criteria
+- [ ] Ein Run wird primär als HSR-Run erkannt, basierend auf der definierten Schwellenlogik.
+- [ ] Sprint-Phasen werden als Teilsegmente innerhalb eines HSR-Runs gespeichert.
+- [ ] Sprint-Phasen besitzen eigene Start- und Endzeitpunkte sowie eigene Distanz- und Dauerwerte.
+- [ ] Sprint-Distanz ist stets Teilmenge der HSR-Distanz und wird nicht doppelt addiert.
+- [ ] In der Gesamtübersicht werden separat ausgewiesen:
+  - Anzahl HSR-Runs
+  - Anzahl Sprint-Phasen
+  - Gesamt-HSR-Distanz
+  - Gesamt-Sprint-Distanz
+- [ ] Im Bereich „Sprint & high-intensity trackpoints“ erlaubt die UI folgende Filteroptionen:
+  - Show all
+  - Only HSR runs
+  - Only sprint phases
+  - HSR runs with sprint phases
+- [ ] Bei „Show all“ werden HSR-Segmente (orange) und Sprint-Segmente (rot) gemeinsam dargestellt.
+- [ ] Bei „Only HSR runs“ werden ausschließlich HSR-Segmente (orange) dargestellt.
+- [ ] Bei „Only sprint phases“ werden ausschließlich die Sprint-Segmente (rot) dargestellt.
+- [ ] Bei „HSR runs with sprint phases“ werden nur jene HSR-Runs angezeigt, die mindestens eine Sprint-Phase enthalten.
+- [ ] GPS-Punkte, die als Sprint klassifiziert sind, werden innerhalb eines HSR-Runs stets rot dargestellt.
+- [ ] GPS-Punkte oberhalb der HSR-Schwelle, aber unterhalb der Sprint-Schwelle, werden orange dargestellt.
+- [ ] Die bestehende visuelle Farblogik bleibt konsistent.
+
+---
+
+## Story R1.6-17: Erweiterte Run-Visualisierung zur Richtungsdarstellung
+**Als** Nutzer  
+**möchte ich** dass auf der HSR-Tracking-Map pro High-Intensity-Run oder Sprint mindestens vier aufeinanderfolgende GPS-Punkte dargestellt werden  
+**damit** die Bewegungsrichtung und der Laufkontext klar erkennbar sind.
+
+### Acceptance Criteria
+- [ ] Für jeden erkannten HSR- oder Sprint-Run werden mindestens vier zeitlich aufeinanderfolgende GPS-Punkte auf der Map visualisiert.
+- [ ] Falls ein Run weniger als vier Schwellen-überschreitende Punkte enthält, werden die unmittelbar davor liegenden Punkte ergänzt.
+- [ ] Ergänzte Punkte werden visuell eindeutig als unterhalb der Schwelle gekennzeichnet (z. B. andersfarbige Marker).
+- [ ] Schwellen-überschreitende Punkte behalten ihre bestehende farbliche Kennzeichnung (HSR = orange, Sprint = rot).
+- [ ] Ergänzte Punkte werden nicht in Distanz-, Zeit- oder Statistikberechnungen einbezogen.
+- [ ] Die Ergänzung dient ausschließlich der visuellen Richtungsdarstellung.
+- [ ] Die Logik funktioniert identisch für HSR- und Sprint-Phasen.
+- [ ] Falls nicht genügend vorherige Punkte existieren (z. B. Run zu Beginn der Session), werden so viele Punkte wie verfügbar ergänzt.
+
 ## Priorisierung für R1.6
 
 ### Must-have
