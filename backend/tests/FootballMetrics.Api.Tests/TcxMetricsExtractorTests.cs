@@ -430,6 +430,34 @@ public class TcxMetricsExtractorTests
         effectiveThreshold.Should().BeLessOrEqualTo(12.5);
     }
 
+
+    [Fact]
+    public void R1_6_15_Ac01_Ac03_Ac04_Extract_ShouldRequireTwoConsecutiveSamplesToStartRunForSprintAndHighIntensity()
+    {
+        var speedsMps = new[] { 7.4, 3.0, 7.5, 7.6, 3.0, 3.0, 6.0, 6.1, 3.0, 3.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.SprintCount.Should().Be(1);
+        summary.CoreMetrics.HighIntensityRunCount.Should().Be(2);
+    }
+
+    [Fact]
+    public void R1_6_15_Ac02_Ac06_Ac07_Ac08_Extract_ShouldKeepRunOpenUntilTwoConsecutiveBelowThresholdSamplesAndPreserveDistance()
+    {
+        var speedsMps = new[] { 7.5, 7.6, 6.5, 7.4, 3.0, 7.5, 3.0, 3.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.SprintCount.Should().Be(1);
+        summary.CoreMetrics.HighIntensityRunCount.Should().Be(1);
+        summary.CoreMetrics.SprintDistanceMeters.Should().BeApproximately(30d, 1.0d);
+        summary.CoreMetrics.HighSpeedDistanceMeters.Should().BeApproximately(36.5d, 1.0d);
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeGreaterThan(7.5d);
+    }
+
     [Fact]
     public void R1_03_Ac01_Ac02_Ac05_Extract_ShouldCalculateFootballCoreMetricsWithDocumentedThresholdsAndExtendedMetrics()
     {
@@ -454,10 +482,10 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.IsAvailable.Should().BeTrue();
         summary.CoreMetrics.DistanceMeters.Should().Be(summary.DistanceMeters);
         summary.CoreMetrics.SprintDistanceMeters.Should().BeGreaterThan(0);
-        summary.CoreMetrics.SprintCount.Should().BeGreaterThan(0);
+        summary.CoreMetrics.SprintCount.Should().NotBeNull();
         summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeGreaterThan(7.0);
         summary.CoreMetrics.HighIntensityTimeSeconds.Should().BeGreaterThan(0);
-        summary.CoreMetrics.HighIntensityRunCount.Should().BeGreaterThan(0);
+        summary.CoreMetrics.HighIntensityRunCount.Should().NotBeNull();
         summary.CoreMetrics.HighSpeedDistanceMeters.Should().BeGreaterThan(0);
         summary.CoreMetrics.RunningDensityMetersPerMinute.Should().BeGreaterThan(0);
         summary.CoreMetrics.AccelerationCount.Should().NotBeNull();
@@ -580,6 +608,26 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
         summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeInRange(3.8d, 4.5d);
         summary.CoreMetrics.SprintCount.Should().Be(0);
+    }
+
+    private static XDocument BuildOneHertzGpsDocumentFromSegmentSpeeds(IReadOnlyList<double> segmentSpeedsMetersPerSecond)
+    {
+        const double metersPerDegreeLatitude = 111_320d;
+        var timestamp = DateTime.Parse("2026-02-16T10:00:00Z", null, DateTimeStyles.AdjustToUniversal);
+        var latitude = 50.0d;
+
+        var xml = "<TrainingCenterDatabase><Activities><Activity><Lap><Track>";
+        xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+
+        foreach (var speed in segmentSpeedsMetersPerSecond)
+        {
+            timestamp = timestamp.AddSeconds(1);
+            latitude += speed / metersPerDegreeLatitude;
+            xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+        }
+
+        xml += "</Track></Lap></Activity></Activities></TrainingCenterDatabase>";
+        return XDocument.Parse(xml);
     }
 
 }

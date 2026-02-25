@@ -203,20 +203,20 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
-## Story R1.6-15: Robuste Run-Detection mit Consecutive-Sample-Logik
+## Story R1.6-15: Robuste Run-Detection mit Consecutive-Sample-Logik ✅ DONE
 **Als** Nutzer  
 **möchte ich** dass High-Intensity-Runs und Sprints nur bei stabiler Geschwindigkeitsüberschreitung erkannt werden  
 **damit** kurze GPS-Spikes oder Einzelwerte nicht als echte Belastungsphasen gezählt werden.
 
 ### Acceptance Criteria
-- [ ] Ein Run (HSR oder Sprint) startet nur, wenn mindestens zwei aufeinanderfolgende Samples eine Geschwindigkeit ≥ dem jeweiligen Threshold aufweisen.
-- [ ] Ein Run endet erst, wenn mindestens zwei aufeinanderfolgende Samples wieder unterhalb des Thresholds liegen.
-- [ ] Einzelne Geschwindigkeitsspitzen von nur einem Sample dürfen keinen Run auslösen.
-- [ ] Die Logik funktioniert identisch für HSR und Sprint, wobei jeweils der definierte Schwellenwert verwendet wird.
-- [ ] Die Berechnung basiert auf 1 Hz GPS-Daten.
-- [ ] Bereits erkannte valide Runs (z. B. ≥ 2 Sekunden Dauer) bleiben korrekt erfasst.
-- [ ] Die Run-Distanz wird weiterhin als Summe der zurückgelegten Strecken innerhalb des gültigen Run-Zeitraums berechnet.
-- [ ] Bestehende Analysen (Peaks, Summen, Anzahl Runs) bleiben konsistent.
+- [x] Ein Run (HSR oder Sprint) startet nur, wenn mindestens zwei aufeinanderfolgende Samples eine Geschwindigkeit ≥ dem jeweiligen Threshold aufweisen.
+- [x] Ein Run endet erst, wenn mindestens zwei aufeinanderfolgende Samples wieder unterhalb des Thresholds liegen.
+- [x] Einzelne Geschwindigkeitsspitzen von nur einem Sample dürfen keinen Run auslösen.
+- [x] Die Logik funktioniert identisch für HSR und Sprint, wobei jeweils der definierte Schwellenwert verwendet wird.
+- [x] Die Berechnung basiert auf 1 Hz GPS-Daten.
+- [x] Bereits erkannte valide Runs (z. B. ≥ 2 Sekunden Dauer) bleiben korrekt erfasst.
+- [x] Die Run-Distanz wird weiterhin als Summe der zurückgelegten Strecken innerhalb des gültigen Run-Zeitraums berechnet.
+- [x] Bestehende Analysen (Peaks, Summen, Anzahl Runs) bleiben konsistent.
 
 ---
 
@@ -277,6 +277,7 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - R1.6-14 Sprint- & High-Intensity-Trackpoints mit Richtungsdarstellung auf der Karte
 - R1.6-08 Beibehaltung 1/2/5-Minuten-Granularität
 - [x] R1.6-13 GPS-Punkte-Heatmap in GPS- und Dual-Mode
+- [x] R1.6-15 Robuste Run-Detection mit Consecutive-Sample-Logik
 
 ### Should-have
 - R1.6-07 Training-vs-Spiel inkl. Segmentvergleich

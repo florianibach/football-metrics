@@ -852,37 +852,12 @@ private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
             sprintDistanceMeters = segments.Where(segment => segment.Speed >= sprintThresholdMps).Sum(segment => segment.Distance);
             highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= highIntensityThresholdMps).Sum(segment => segment.Distance);
 
-            var sprintTransitions = 0;
-            var currentlyInSprint = false;
-            foreach (var segment in segments)
-            {
-                var isSprint = segment.Speed >= sprintThresholdMps;
-                if (isSprint && !currentlyInSprint)
-                {
-                    sprintTransitions++;
-                }
-
-                currentlyInSprint = isSprint;
-            }
-
-            sprintCount = sprintTransitions;
+            sprintCount = CountRunsWithConsecutiveSamples(
+                segments.Select(segment => segment.Speed >= sprintThresholdMps).ToList());
             maxSpeed = segments.Max(segment => segment.Speed);
             highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= highIntensityThresholdMps).Sum(segment => segment.Duration);
-
-            var highIntensityTransitions = 0;
-            var currentlyInHighIntensity = false;
-            foreach (var segment in segments)
-            {
-                var isHighIntensity = segment.Speed >= highIntensityThresholdMps;
-                if (isHighIntensity && !currentlyInHighIntensity)
-                {
-                    highIntensityTransitions++;
-                }
-
-                currentlyInHighIntensity = isHighIntensity;
-            }
-
-            highIntensityRunCount = highIntensityTransitions;
+            highIntensityRunCount = CountRunsWithConsecutiveSamples(
+                segments.Select(segment => segment.Speed >= highIntensityThresholdMps).ToList());
 
             var totalDurationSeconds = segments.Sum(segment => segment.Duration);
             runningDensityMetersPerMinute = totalDurationSeconds > 0
@@ -1073,6 +1048,57 @@ private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
             metricAvailability,
             thresholds);
     }
+
+    private static int CountRunsWithConsecutiveSamples(
+        IReadOnlyList<bool> aboveThresholdSamples)
+    {
+        const int consecutiveSamplesRequired = 2;
+
+        var runCount = 0;
+        var isInRun = false;
+        var consecutiveAbove = 0;
+        var consecutiveBelow = 0;
+
+        foreach (var aboveThreshold in aboveThresholdSamples)
+        {
+            if (!isInRun)
+            {
+                if (aboveThreshold)
+                {
+                    consecutiveAbove++;
+                    if (consecutiveAbove >= consecutiveSamplesRequired)
+                    {
+                        runCount++;
+                        isInRun = true;
+                        consecutiveBelow = 0;
+                    }
+                }
+                else
+                {
+                    consecutiveAbove = 0;
+                }
+
+                continue;
+            }
+
+            if (aboveThreshold)
+            {
+                consecutiveBelow = 0;
+                continue;
+            }
+
+            consecutiveBelow++;
+            if (consecutiveBelow >= consecutiveSamplesRequired)
+            {
+                isInRun = false;
+                consecutiveAbove = 0;
+                consecutiveBelow = 0;
+            }
+        }
+
+        return runCount;
+    }
+
 
     private static (int JumpCount, int ClusteredJumpCount) CountUnplausibleGpsJumps(IReadOnlyList<TrackpointSnapshot> trackpoints, double outlierSpeedThresholdMps)
     {
