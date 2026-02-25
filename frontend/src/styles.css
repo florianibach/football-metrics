@@ -614,8 +614,8 @@ button:disabled {
 }
 
 .gps-heatmap__run--supplemental {
-  stroke: #2563eb;
-  fill: #2563eb;
+  stroke: #111827;
+  fill: #ffffff;
 }
 
 .gps-runs-layout {
