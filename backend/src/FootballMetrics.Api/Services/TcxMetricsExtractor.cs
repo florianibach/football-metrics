@@ -861,16 +861,36 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             var sprintRuns = DetectRunsWithConsecutiveSamples(segmentsForDetection, sprintThresholdMps, "sprint");
             var highIntensityRuns = DetectRunsWithConsecutiveSamples(segmentsForDetection, highIntensityThresholdMps, "highIntensity");
 
+            var highIntensityPointIndexLookup = highIntensityRuns
+                .ToDictionary(run => run.RunId, run => run.PointIndices.ToHashSet());
+
             var sprintParentAssignments = sprintRuns
                 .Select(sprintRun =>
                 {
-                    var parentRun = highIntensityRuns
+                    var containingParent = highIntensityRuns
                         .Where(highIntensityRun =>
-                            sprintRun.StartElapsedSeconds >= highIntensityRun.StartElapsedSeconds &&
-                            sprintRun.StartElapsedSeconds + sprintRun.DurationSeconds <= highIntensityRun.StartElapsedSeconds + highIntensityRun.DurationSeconds)
+                            sprintRun.PointIndices.All(pointIndex => highIntensityPointIndexLookup[highIntensityRun.RunId].Contains(pointIndex)))
                         .OrderBy(highIntensityRun => highIntensityRun.StartElapsedSeconds)
                         .FirstOrDefault();
-                    return new { SprintRun = sprintRun, ParentRunId = parentRun?.RunId };
+
+                    if (containingParent is not null)
+                    {
+                        return new { SprintRun = sprintRun, ParentRunId = containingParent.RunId };
+                    }
+
+                    var overlappingParent = highIntensityRuns
+                        .Select(highIntensityRun => new
+                        {
+                            RunId = highIntensityRun.RunId,
+                            OverlapCount = sprintRun.PointIndices.Count(pointIndex => highIntensityPointIndexLookup[highIntensityRun.RunId].Contains(pointIndex)),
+                            highIntensityRun.StartElapsedSeconds
+                        })
+                        .Where(candidate => candidate.OverlapCount > 0)
+                        .OrderByDescending(candidate => candidate.OverlapCount)
+                        .ThenBy(candidate => candidate.StartElapsedSeconds)
+                        .FirstOrDefault();
+
+                    return new { SprintRun = sprintRun, ParentRunId = overlappingParent?.RunId };
                 })
                 .ToList();
 
@@ -887,37 +907,16 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                             assignment.SprintRun.TopSpeedMetersPerSecond,
                             assignment.SprintRun.PointIndices,
                             highIntensityRun.RunId))
+                        .OrderBy(phase => phase.StartElapsedSeconds)
                         .ToList();
 
                     return highIntensityRun with { SprintPhases = sprintPhasesForRun };
                 })
-                .ToList();
-
-            var standaloneSprintRuns = sprintParentAssignments
-                .Where(assignment => assignment.ParentRunId is null)
-                .Select(assignment => assignment.SprintRun with { ParentRunId = null })
-                .ToList();
-
-            var flattenedNestedSprints = hierarchicalHighIntensityRuns
-                .SelectMany(highIntensityRun =>
-                    highIntensityRun.SprintPhases.Select(sprintPhase => new TcxDetectedRun(
-                        sprintPhase.RunId,
-                        "sprint",
-                        sprintPhase.StartElapsedSeconds,
-                        sprintPhase.DurationSeconds,
-                        sprintPhase.DistanceMeters,
-                        sprintPhase.TopSpeedMetersPerSecond,
-                        sprintPhase.PointIndices,
-                        sprintPhase.ParentRunId,
-                        Array.Empty<TcxSprintPhase>())))
-                .ToList();
-
-            detectedRuns = hierarchicalHighIntensityRuns
-                .Concat(flattenedNestedSprints)
-                .Concat(standaloneSprintRuns)
                 .OrderBy(run => run.StartElapsedSeconds)
                 .ThenBy(run => run.RunType)
                 .ToList();
+
+            detectedRuns = hierarchicalHighIntensityRuns;
 
             sprintCount = sprintRuns.Count;
             maxSpeed = segments.Max(segment => segment.Speed);

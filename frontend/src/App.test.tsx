@@ -964,7 +964,9 @@ describe('App', () => {
     expect(screen.getAllByText(/Maximum speed:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/High-intensity time:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/High-intensity runs:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/of which sprint phases:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/High-speed distance:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/of which sprint phase distance:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Running density \(m\/min\):/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Accelerations:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Decelerations:/).length).toBeGreaterThan(0);
@@ -1047,7 +1049,7 @@ describe('App', () => {
     });
 
     expect(screen.getByText(/Not measured: GPS coordinates were not recorded/)).toBeInTheDocument();
-    expect(screen.getByText(/Measurement unusable: GPS measurements are present/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Measurement unusable: GPS measurements are present/).length).toBeGreaterThan(0);
   });
 
   it('R1_04_Ac04_does_not_render_fake_zero_values_for_unavailable_metrics', async () => {
@@ -1169,7 +1171,7 @@ describe('App', () => {
       expect(screen.getByText(/Core metrics unavailable/)).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Not available — Measurement unusable: GPS quality below threshold\./)).toBeInTheDocument();
+    expect(screen.getAllByText(/Not available — Measurement unusable: GPS quality below threshold\./).length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
 
@@ -2356,17 +2358,6 @@ describe('App', () => {
                       }
                     ]
                   },
-                  {
-                    runId: 'sprint-1',
-                    runType: 'sprint',
-                    startElapsedSeconds: 2,
-                    durationSeconds: 2,
-                    distanceMeters: 15,
-                    topSpeedMetersPerSecond: 7.6,
-                    pointIndices: [2, 3],
-                    parentRunId: 'highIntensity-1',
-                    sprintPhases: []
-                  }
                 ],
                 coreMetrics: {
                   ...baseCoreMetrics(),
@@ -2389,14 +2380,87 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Sprint count #/ })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'HSR runs with sprint phases' }));
     const runsMap = screen.getByRole('img', { name: 'GPS sprint and high-intensity runs map' });
     expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--sprint').length).toBeGreaterThan(0);
     expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity').length).toBeGreaterThan(0);
 
+    fireEvent.click(screen.getByRole('button', { name: 'Only sprint phases' }));
+    expect(screen.getByRole('button', { name: /Sprint count #1/ })).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole('button', { name: 'Only HSR runs' }));
     expect(screen.queryByRole('button', { name: /Sprint count #/ })).not.toBeInTheDocument();
+  });
+
+  it('R1_6_16_Ac05_shows_hsr_and_sprint_phase_breakdown_in_overview_and_core_metrics', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([6.0, 6.1, 7.5, 7.6, 6.2, 6.1, 3.0, 3.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: trackpoints,
+                detectedRuns: [
+                  {
+                    runId: 'highIntensity-1',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 1,
+                    durationSeconds: 5,
+                    distanceMeters: 33,
+                    topSpeedMetersPerSecond: 7.6,
+                    pointIndices: [1, 2, 3, 4, 5],
+                    parentRunId: null,
+                    sprintPhases: [
+                      {
+                        runId: 'sprint-1',
+                        startElapsedSeconds: 2,
+                        durationSeconds: 2,
+                        distanceMeters: 15,
+                        topSpeedMetersPerSecond: 7.6,
+                        pointIndices: [2, 3],
+                        parentRunId: 'highIntensity-1'
+                      }
+                    ]
+                  }
+                ],
+                coreMetrics: {
+                  ...baseCoreMetrics(),
+                  sprintCount: 4,
+                  highIntensityRunCount: 7,
+                  sprintDistanceMeters: 950,
+                  highSpeedDistanceMeters: 1600
+                }
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('Overview')).toBeInTheDocument();
+    expect(screen.getAllByText(/High-intensity runs:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/of which sprint phases:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/of which sprint phase distance:/).length).toBeGreaterThan(0);
+
+    const breakdownCountRows = screen.getAllByText(/of which sprint phases:/).map((label) => label.closest('li')?.textContent ?? '');
+    expect(breakdownCountRows.some((row) => row.includes('1'))).toBe(true);
+
+    const breakdownDistanceRows = screen.getAllByText(/of which sprint phase distance:/).map((label) => label.closest('li')?.textContent ?? '');
+    expect(breakdownDistanceRows.some((row) => row.includes('15.0 m') || row.includes('0.015 km'))).toBe(true);
   });
 
   it('R1_6_15_Ac01_Ac02_Ac03_runs_list_should_follow_consecutive_logic_and_avoid_zero_meter_entries', async () => {

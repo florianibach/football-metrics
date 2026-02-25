@@ -451,9 +451,9 @@ public class TcxMetricsExtractorTests
 
         var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
 
-        summary.DetectedRuns.Should().HaveCount(3);
-        summary.DetectedRuns.Count(run => run.RunType == "sprint").Should().Be(1);
-        summary.DetectedRuns.Count(run => run.RunType == "highIntensity").Should().Be(2);
+        summary.DetectedRuns.Should().HaveCount(2);
+        summary.DetectedRuns.Should().OnlyContain(run => run.RunType == "highIntensity");
+        summary.DetectedRuns.Sum(run => run.SprintPhases.Count).Should().Be(1);
         summary.DetectedRuns.Should().OnlyContain(run => run.DistanceMeters > 0);
         summary.DetectedRuns.Should().OnlyContain(run => run.PointIndices.Count >= 2);
     }
@@ -467,18 +467,15 @@ public class TcxMetricsExtractorTests
         var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
 
         var highIntensityRuns = summary.DetectedRuns.Where(run => run.RunType == "highIntensity").ToList();
-        var sprintRuns = summary.DetectedRuns.Where(run => run.RunType == "sprint").ToList();
 
         highIntensityRuns.Should().HaveCount(1);
-        sprintRuns.Should().HaveCount(1);
 
         var highIntensityRun = highIntensityRuns.Single();
-        var sprintRun = sprintRuns.Single();
 
         highIntensityRun.SprintPhases.Should().HaveCount(1);
-        highIntensityRun.SprintPhases[0].RunId.Should().Be(sprintRun.RunId);
-        sprintRun.ParentRunId.Should().Be(highIntensityRun.RunId);
-        sprintRun.DistanceMeters.Should().BeLessThanOrEqualTo(highIntensityRun.DistanceMeters);
+        highIntensityRun.SprintPhases[0].ParentRunId.Should().Be(highIntensityRun.RunId);
+        highIntensityRun.SprintPhases[0].DistanceMeters.Should().BeLessThanOrEqualTo(highIntensityRun.DistanceMeters);
+        summary.DetectedRuns.Should().OnlyContain(run => run.ParentRunId == null);
     }
 
     [Fact]
