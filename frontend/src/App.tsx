@@ -766,7 +766,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsRunsListEmpty: 'No sprint or high-intensity runs detected for the current filter.',
     gpsRunsListShowAll: 'Show all listed runs',
     gpsRunsListTopSpeed: 'Top speed',
-    gpsRunsMapExplanation: 'Sprint points are red within HSR runs, HSR-only points stay orange. If a run has fewer than 4 threshold points, earlier context points are added in white for direction only. Point size increases in running direction; outlined points mark run endings.',
+    gpsRunsMapExplanation: 'Sprint points are red within HSR runs, HSR-only points stay orange. If a run has fewer than 4 threshold points, earlier context points are added in light gray for direction only. Point size increases in running direction; outlined points mark run endings.',
     hfOnlyInsightTitle: 'HF-only interpretation aid',
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics',
@@ -1111,7 +1111,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsRunsListEmpty: 'Für den aktuellen Filter wurden keine Sprint- oder High-Intensity-Runs erkannt.',
     gpsRunsListShowAll: 'Alle gelisteten Runs anzeigen',
     gpsRunsListTopSpeed: 'Top-Speed',
-    gpsRunsMapExplanation: 'Sprint-Punkte innerhalb von HSR-Runs sind rot, reine HSR-Punkte bleiben orange. Falls ein Run weniger als 4 Schwellen-Punkte hat, werden davorliegende Kontextpunkte nur zur Richtung in Weiß ergänzt. Die Punktgröße steigt mit der Laufrichtung; umrandete Punkte markieren das Run-Ende.',
+    gpsRunsMapExplanation: 'Sprint-Punkte innerhalb von HSR-Runs sind rot, reine HSR-Punkte bleiben orange. Falls ein Run weniger als 4 Schwellen-Punkte hat, werden davorliegende Kontextpunkte nur zur Richtung in Hellgrau ergänzt. Die Punktgröße steigt mit der Laufrichtung; umrandete Punkte markieren das Run-Ende.',
     hfOnlyInsightTitle: 'Interpretationshilfe für HF-only',
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken',
@@ -4989,7 +4989,24 @@ function GpsRunsMap({ points, detectedRuns, minLatitude, maxLatitude, minLongitu
                 const highlightNestedSprintPoints = runFilter !== 'highIntensityOnly';
                 return (
                   <g key={segment.id} className={isMuted ? 'gps-heatmap__run--muted' : ''}>
-                    <polyline fill="none" points={segment.points.map((point) => `${point.x},${point.y}`).join(' ')} className={`gps-heatmap__run-line ${lineColorClass}`} />
+                    {segment.points.slice(0, -1).map((point, index) => {
+                      const nextPoint = segment.points[index + 1];
+                      if (!nextPoint) {
+                        return null;
+                      }
+
+                      const lineSegmentClass = point.isSupplemental ? 'gps-heatmap__run--supplemental' : lineColorClass;
+                      return (
+                        <line
+                          key={`${segment.id}-line-${index}`}
+                          x1={point.x}
+                          y1={point.y}
+                          x2={nextPoint.x}
+                          y2={nextPoint.y}
+                          className={`gps-heatmap__run-line ${lineSegmentClass}`}
+                        />
+                      );
+                    })}
                     {segment.points.map((point, index) => {
                       const isSprintPoint = !point.isSupplemental
                         && (segment.runType === 'sprint' || (highlightNestedSprintPoints && segment.sprintPointIndices.includes(point.pointIndex)));

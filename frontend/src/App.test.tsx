@@ -2463,7 +2463,7 @@ describe('App', () => {
     expect(breakdownDistanceRows.some((row) => row.includes('15.0 m') || row.includes('0.015 km'))).toBe(true);
   });
 
-  it('R1_6_17_Ac01_Ac02_Ac03_Ac04_Ac05_Ac06_Ac07_Ac08_extends_short_runs_with_white_context_points_only_for_direction', async () => {
+  it('R1_6_17_Ac01_Ac02_Ac03_Ac04_Ac05_Ac06_Ac07_Ac08_extends_short_runs_with_lightgray_context_points_only_for_direction', async () => {
     const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 3.1, 6.0, 6.1, 3.0, 3.0]);
 
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
@@ -2510,10 +2510,13 @@ describe('App', () => {
     const supplementalPoints = runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--supplemental');
     expect(supplementalPoints.length).toBe(2);
 
+    const supplementalLines = runsMap.querySelectorAll('.gps-heatmap__run-line.gps-heatmap__run--supplemental');
+    expect(supplementalLines.length).toBeGreaterThan(0);
+
     const highIntensityPoints = runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity');
     expect(highIntensityPoints.length).toBe(2);
 
-    expect(screen.getByText(/earlier context points are added in white for direction only/i)).toBeInTheDocument();
+    expect(screen.getByText(/earlier context points are added in light gray for direction only/i)).toBeInTheDocument();
 
     const runEntry = screen.getByRole('button', { name: /High-intensity runs #1/ });
     expect(runEntry.textContent).toContain('(12 m)');

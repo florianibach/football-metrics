@@ -614,8 +614,10 @@ button:disabled {
 }
 
 .gps-heatmap__run--supplemental {
-  stroke: #111827;
-  fill: #ffffff;
+  stroke: #ffffff;
+  fill: #d1d5db;
+  fill-opacity: 0.56;
+  stroke-opacity: 0.72;
 }
 
 .gps-runs-layout {
