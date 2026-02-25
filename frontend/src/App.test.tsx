@@ -2322,6 +2322,83 @@ describe('App', () => {
     expect(runEntries.some((entry) => entry.textContent?.includes('Sprint count #'))).toBe(true);
   });
 
+  it('R1_6_16_Ac06_Ac10_Ac11_Ac12_Ac13_supports_hierarchical_hsr_filters_and_nested_sprint_coloring', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([6.0, 6.1, 7.5, 7.6, 6.2, 6.1, 3.0, 3.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: trackpoints,
+                detectedRuns: [
+                  {
+                    runId: 'highIntensity-1',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 1,
+                    durationSeconds: 5,
+                    distanceMeters: 33,
+                    topSpeedMetersPerSecond: 7.6,
+                    pointIndices: [1, 2, 3, 4, 5],
+                    parentRunId: null,
+                    sprintPhases: [
+                      {
+                        runId: 'sprint-1',
+                        startElapsedSeconds: 2,
+                        durationSeconds: 2,
+                        distanceMeters: 15,
+                        topSpeedMetersPerSecond: 7.6,
+                        pointIndices: [2, 3],
+                        parentRunId: 'highIntensity-1'
+                      }
+                    ]
+                  },
+                  {
+                    runId: 'sprint-1',
+                    runType: 'sprint',
+                    startElapsedSeconds: 2,
+                    durationSeconds: 2,
+                    distanceMeters: 15,
+                    topSpeedMetersPerSecond: 7.6,
+                    pointIndices: [2, 3],
+                    parentRunId: 'highIntensity-1',
+                    sprintPhases: []
+                  }
+                ],
+                coreMetrics: {
+                  ...baseCoreMetrics(),
+                  sprintCount: 1,
+                  highIntensityRunCount: 1
+                }
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'HSR runs with sprint phases' }));
+    const runsMap = screen.getByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+    expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--sprint').length).toBeGreaterThan(0);
+    expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Only HSR runs' }));
+    expect(screen.queryByRole('button', { name: /Sprint count #/ })).not.toBeInTheDocument();
+  });
+
   it('R1_6_15_Ac01_Ac02_Ac03_runs_list_should_follow_consecutive_logic_and_avoid_zero_meter_entries', async () => {
     const trackpoints = gpsTrackpointsFromOneHertzSpeeds([7.4, 3.0, 7.5, 7.6, 3.0, 3.0, 6.0, 6.1, 3.0, 3.0]);
 
@@ -2401,7 +2478,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Only sprints' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Only sprint phases' }));
 
     const runsMap = screen.getByRole('img', { name: 'GPS sprint and high-intensity runs map' });
     expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--sprint').length).toBeGreaterThan(0);

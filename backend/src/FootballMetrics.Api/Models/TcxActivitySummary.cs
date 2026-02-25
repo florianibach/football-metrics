@@ -27,9 +27,21 @@ public sealed record TcxGpsTrackpoint(
 
 
 public sealed record TcxDetectedRun(
+    string RunId,
     string RunType,
     double StartElapsedSeconds,
     double DurationSeconds,
     double DistanceMeters,
     double TopSpeedMetersPerSecond,
-    IReadOnlyList<int> PointIndices);
+    IReadOnlyList<int> PointIndices,
+    string? ParentRunId,
+    IReadOnlyList<TcxSprintPhase> SprintPhases);
+
+public sealed record TcxSprintPhase(
+    string RunId,
+    double StartElapsedSeconds,
+    double DurationSeconds,
+    double DistanceMeters,
+    double TopSpeedMetersPerSecond,
+    IReadOnlyList<int> PointIndices,
+    string ParentRunId);

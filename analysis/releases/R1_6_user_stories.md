@@ -220,7 +220,7 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
-## Story R1.6-16: Hierarchische Run-Struktur mit differenzierter Sprint-Visualisierung
+## Story R1.6-16: Hierarchische Run-Struktur mit differenzierter Sprint-Visualisierung ✅ DONE
 **Als** Nutzer  
 **möchte ich** dass High-Intensity-Runs als übergeordnete Bewegungsphasen erkannt werden und Sprint-Phasen als Intensitätssegmente innerhalb dieser Runs modelliert werden  
 **damit** Belastungsdaten sportwissenschaftlich korrekt strukturiert sind und gleichzeitig flexibel analysiert und visuell unterschieden dargestellt werden können.
@@ -278,6 +278,7 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - R1.6-08 Beibehaltung 1/2/5-Minuten-Granularität
 - [x] R1.6-13 GPS-Punkte-Heatmap in GPS- und Dual-Mode
 - [x] R1.6-15 Robuste Run-Detection mit Consecutive-Sample-Logik
+- [x] R1.6-16 Hierarchische Run-Struktur mit differenzierter Sprint-Visualisierung
 
 ### Should-have
 - R1.6-07 Training-vs-Spiel inkl. Segmentvergleich

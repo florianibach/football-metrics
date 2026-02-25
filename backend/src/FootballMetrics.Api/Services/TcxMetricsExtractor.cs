@@ -860,7 +860,61 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
 
             var sprintRuns = DetectRunsWithConsecutiveSamples(segmentsForDetection, sprintThresholdMps, "sprint");
             var highIntensityRuns = DetectRunsWithConsecutiveSamples(segmentsForDetection, highIntensityThresholdMps, "highIntensity");
-            detectedRuns = sprintRuns.Concat(highIntensityRuns)
+
+            var sprintParentAssignments = sprintRuns
+                .Select(sprintRun =>
+                {
+                    var parentRun = highIntensityRuns
+                        .Where(highIntensityRun =>
+                            sprintRun.StartElapsedSeconds >= highIntensityRun.StartElapsedSeconds &&
+                            sprintRun.StartElapsedSeconds + sprintRun.DurationSeconds <= highIntensityRun.StartElapsedSeconds + highIntensityRun.DurationSeconds)
+                        .OrderBy(highIntensityRun => highIntensityRun.StartElapsedSeconds)
+                        .FirstOrDefault();
+                    return new { SprintRun = sprintRun, ParentRunId = parentRun?.RunId };
+                })
+                .ToList();
+
+            var hierarchicalHighIntensityRuns = highIntensityRuns
+                .Select(highIntensityRun =>
+                {
+                    var sprintPhasesForRun = sprintParentAssignments
+                        .Where(assignment => assignment.ParentRunId == highIntensityRun.RunId)
+                        .Select(assignment => new TcxSprintPhase(
+                            assignment.SprintRun.RunId,
+                            assignment.SprintRun.StartElapsedSeconds,
+                            assignment.SprintRun.DurationSeconds,
+                            assignment.SprintRun.DistanceMeters,
+                            assignment.SprintRun.TopSpeedMetersPerSecond,
+                            assignment.SprintRun.PointIndices,
+                            highIntensityRun.RunId))
+                        .ToList();
+
+                    return highIntensityRun with { SprintPhases = sprintPhasesForRun };
+                })
+                .ToList();
+
+            var standaloneSprintRuns = sprintParentAssignments
+                .Where(assignment => assignment.ParentRunId is null)
+                .Select(assignment => assignment.SprintRun with { ParentRunId = null })
+                .ToList();
+
+            var flattenedNestedSprints = hierarchicalHighIntensityRuns
+                .SelectMany(highIntensityRun =>
+                    highIntensityRun.SprintPhases.Select(sprintPhase => new TcxDetectedRun(
+                        sprintPhase.RunId,
+                        "sprint",
+                        sprintPhase.StartElapsedSeconds,
+                        sprintPhase.DurationSeconds,
+                        sprintPhase.DistanceMeters,
+                        sprintPhase.TopSpeedMetersPerSecond,
+                        sprintPhase.PointIndices,
+                        sprintPhase.ParentRunId,
+                        Array.Empty<TcxSprintPhase>())))
+                .ToList();
+
+            detectedRuns = hierarchicalHighIntensityRuns
+                .Concat(flattenedNestedSprints)
+                .Concat(standaloneSprintRuns)
                 .OrderBy(run => run.StartElapsedSeconds)
                 .ThenBy(run => run.RunType)
                 .ToList();
@@ -1090,12 +1144,15 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 .ToList();
 
             runs.Add(new TcxDetectedRun(
+                $"{runType}-{runs.Count + 1}",
                 runType,
                 Math.Max(0, first.PointIndex - 1),
                 Math.Max(0, last.PointIndex - first.PointIndex + 1),
                 distanceMeters,
                 topSpeedMetersPerSecond,
-                pointIndices));
+                pointIndices,
+                null,
+                Array.Empty<TcxSprintPhase>()));
         }
 
         for (var sampleIndex = 0; sampleIndex < segments.Count; sampleIndex++)
