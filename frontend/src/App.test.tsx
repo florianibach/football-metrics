@@ -2278,7 +2278,8 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Set segment end from cursor' }));
     expect(screen.getByLabelText('Start (s)')).toHaveValue(180);
     expect(screen.getByLabelText('End (s)')).toHaveValue(181);
-    expect(screen.getByText('Current time: 03:00 (180s)')).toBeInTheDocument();
+    expect(screen.getAllByText(/Time in selected segment: 03:00 \(180s\)/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Current time: 03:00 (180s)')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Split at cursor' }));
     await waitFor(() => expect(screen.getAllByText('Warm-up').length).toBeGreaterThan(1));

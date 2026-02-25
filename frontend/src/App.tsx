@@ -4276,7 +4276,6 @@ export function App() {
                     titleMap={t.segmentManualAssistantMapTitle}
                     noHeartRateDataLabel={t.segmentManualAssistantHeartRateChartNoData}
                     currentPointLabel={t.segmentManualAssistantCurrentPoint}
-                    currentTimeLabel={t.segmentManualAssistantCurrentTime}
                     segmentTimeLabel={t.segmentManualAssistantSegmentTime}
                     currentHeartRateLabel={t.segmentManualAssistantCurrentHeartRate}
                     segmentStartSecond={selectedSegment?.startSecond ?? 0}
@@ -4296,7 +4295,9 @@ export function App() {
                     )}
                     betweenControls={(
                       <div className="segment-manual-assistant__middle-controls">
-                        <label className="form-label" htmlFor="segment-timeline-cursor">{t.segmentManualAssistantSliderLabel}: {formatSecondsMmSs(segmentCursorSecond)} ({Math.floor(segmentCursorSecond)}s)</label>
+                        <label className="form-label" htmlFor="segment-timeline-cursor">
+                          {t.segmentManualAssistantSliderLabel}: {formatSecondsMmSs(segmentCursorSecond)} ({Math.floor(segmentCursorSecond)}s) / {t.segmentManualAssistantSegmentTime}: {formatSecondsMmSs(Math.max(0, segmentCursorSecond - (selectedSegment?.startSecond ?? 0)))} ({Math.max(0, Math.floor(segmentCursorSecond - (selectedSegment?.startSecond ?? 0)))}s)
+                        </label>
                         <input
                           id="segment-timeline-cursor"
                           className="form-range"
@@ -4834,7 +4835,6 @@ type SegmentationAssistantProps = {
   sessionId: string;
   topControls: ReactNode;
   betweenControls: ReactNode;
-  currentTimeLabel: string;
   segmentTimeLabel: string;
   currentHeartRateLabel: string;
   segmentStartSecond: number;
@@ -5081,7 +5081,7 @@ function MapSurface({ width, height, satelliteImageUrl, children }: MapSurfacePr
   );
 }
 
-function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, topControls, betweenControls, currentTimeLabel, segmentTimeLabel, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
+function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, topControls, betweenControls, segmentTimeLabel, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
   const heartRateTrend = useMemo(() => {
     return (heartRateSamples ?? [])
       .filter((sample) => sample.elapsedSeconds >= segmentStartSecond && sample.elapsedSeconds <= segmentEndSecond)
@@ -5114,21 +5114,36 @@ function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples,
   const maxTrendSecond = Math.max(...heartRateTrend.map((entry) => entry.xSecond), minTrendSecond + 1);
   const trendSpanSeconds = Math.max(1, maxTrendSecond - minTrendSecond);
   const maxTrendValue = Math.max(...heartRateTrend.map((entry) => entry.heartRateBpm), 1);
-  const nearestHeartRateEntry = heartRateTrend.length === 0
-    ? null
-    : heartRateTrend.reduce((best, entry) => {
-      if (best === null) {
-        return entry;
-      }
 
-      return Math.abs(entry.xSecond - cursorSecond) < Math.abs(best.xSecond - cursorSecond) ? entry : best;
-    }, null as { xSecond: number; heartRateBpm: number } | null);
-  const heartRateCursorPoint = nearestHeartRateEntry
-    ? {
-      x: ((nearestHeartRateEntry.xSecond - minTrendSecond) / trendSpanSeconds) * 560,
-      y: 160 - ((nearestHeartRateEntry.heartRateBpm / maxTrendValue) * 160)
+  const clampedCursorSecond = Math.max(minTrendSecond, Math.min(maxTrendSecond, cursorSecond));
+  const heartRateInterpolationWindow = heartRateTrend.reduce<{ before: { xSecond: number; heartRateBpm: number } | null; after: { xSecond: number; heartRateBpm: number } | null }>((acc, entry) => {
+    if (entry.xSecond <= clampedCursorSecond) {
+      return { ...acc, before: entry };
     }
-    : null;
+
+    if (acc.after === null) {
+      return { ...acc, after: entry };
+    }
+
+    return acc;
+  }, { before: null, after: null });
+  const heartRateCursorBpm = (() => {
+    const before = heartRateInterpolationWindow.before;
+    const after = heartRateInterpolationWindow.after;
+
+    if (before && after && after.xSecond !== before.xSecond) {
+      const progress = (clampedCursorSecond - before.xSecond) / (after.xSecond - before.xSecond);
+      return before.heartRateBpm + ((after.heartRateBpm - before.heartRateBpm) * progress);
+    }
+
+    return before?.heartRateBpm ?? after?.heartRateBpm ?? null;
+  })();
+  const heartRateCursorPoint = heartRateCursorBpm === null
+    ? null
+    : {
+      x: ((clampedCursorSecond - minTrendSecond) / trendSpanSeconds) * 560,
+      y: 160 - ((heartRateCursorBpm / maxTrendValue) * 160)
+    };
 
   const cursorIndex = findNearestPointIndexBySecond(points, cursorSecond);
   const cursorPoint = cursorIndex >= 0 ? points[cursorIndex] : null;
@@ -5154,7 +5169,7 @@ function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples,
             <polyline points={chartPoints} className="segment-manual-assistant__hr-line" />
             {heartRateCursorPoint && <circle cx={heartRateCursorPoint.x} cy={heartRateCursorPoint.y} r="4" className="segment-manual-assistant__cursor-point" />}
           </svg>
-          <p>{currentHeartRateLabel}: {nearestHeartRateEntry?.heartRateBpm ?? 'n/a'}{nearestHeartRateEntry?.heartRateBpm ? ' bpm' : ''}</p>
+          <p>{currentHeartRateLabel}: {heartRateCursorBpm === null ? 'n/a' : Math.round(heartRateCursorBpm)}{heartRateCursorBpm === null ? '' : ' bpm'}</p>
         </>
       )}
 
@@ -5190,7 +5205,6 @@ function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples,
               </MapSurface>
             )}
           </InteractiveMap>
-          <p>{currentTimeLabel}: {formatSecondsMmSs(cursorSecond)} ({Math.floor(cursorSecond)}s)</p>
           <p>{segmentTimeLabel}: {formatSecondsMmSs(Math.max(0, cursorSecond - segmentStartSecond))} ({Math.max(0, Math.floor(cursorSecond - segmentStartSecond))}s)</p>
           <p>{currentPointLabel}: {cursorPoint ? `${formatSecondsMmSs(cursorPoint.elapsedSeconds)} (${cursorPoint.elapsedSeconds}s) · ${cursorPoint.latitude.toFixed(5)}, ${cursorPoint.longitude.toFixed(5)}` : 'n/a'}</p>
         </>
