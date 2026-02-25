@@ -2881,6 +2881,68 @@ export function App() {
       && point.elapsedSeconds <= selectedSegment.endSecond);
   }, [selectedSession, isSegmentScopeActive, selectedSegment]);
 
+  const selectedDetectedRuns = useMemo(() => {
+    if (!selectedSession) {
+      return [] as DetectedRun[];
+    }
+
+    const detectedRuns = selectedSession.summary.detectedRuns ?? [];
+    if (!isSegmentScopeActive || !selectedSegment) {
+      return detectedRuns;
+    }
+
+    const allPoints = selectedSession.summary.gpsTrackpoints ?? [];
+    if (allPoints.length === 0 || detectedRuns.length === 0) {
+      return [] as DetectedRun[];
+    }
+
+    const pointIndexToSegmentIndex = new Map<number, number>();
+    let segmentPointIndex = 0;
+    allPoints.forEach((point, pointIndex) => {
+      if (point.elapsedSeconds === null) {
+        return;
+      }
+
+      if (point.elapsedSeconds >= selectedSegment.startSecond && point.elapsedSeconds <= selectedSegment.endSecond) {
+        pointIndexToSegmentIndex.set(pointIndex, segmentPointIndex);
+        segmentPointIndex += 1;
+      }
+    });
+
+    const remapPointIndices = (indices: number[]) => indices
+      .map((index) => pointIndexToSegmentIndex.get(index))
+      .filter((index): index is number => index !== undefined);
+
+    return detectedRuns
+      .map((run) => {
+        const remappedPointIndices = remapPointIndices(run.pointIndices);
+        if (remappedPointIndices.length === 0) {
+          return null;
+        }
+
+        const remappedSprintPhases = (run.sprintPhases ?? [])
+          .map((phase) => {
+            const remappedPhaseIndices = remapPointIndices(phase.pointIndices);
+            if (remappedPhaseIndices.length === 0) {
+              return null;
+            }
+
+            return {
+              ...phase,
+              pointIndices: remappedPhaseIndices
+            } satisfies SprintPhase;
+          })
+          .filter((phase): phase is SprintPhase => phase !== null);
+
+        return {
+          ...run,
+          pointIndices: remappedPointIndices,
+          sprintPhases: remappedSprintPhases
+        } satisfies DetectedRun;
+      })
+      .filter((run): run is DetectedRun => run !== null);
+  }, [selectedSession, isSegmentScopeActive, selectedSegment]);
+
   const dataChangeMetric = selectedSession
     ? (() => {
       const correctedShare = selectedSession.summary.trackpointCount > 0
@@ -4277,7 +4339,7 @@ export function App() {
               <p>{t.gpsRunsMapDescription}</p>
               <GpsRunsMap
                 points={heatmapData.points}
-                detectedRuns={selectedSession.summary.detectedRuns ?? []}
+                detectedRuns={selectedDetectedRuns}
                 minLatitude={heatmapData.minLatitude}
                 maxLatitude={heatmapData.maxLatitude}
                 minLongitude={heatmapData.minLongitude}

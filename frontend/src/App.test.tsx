@@ -2446,6 +2446,89 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /Sprint count #/ })).not.toBeInTheDocument();
   });
 
+
+  it('R1_6_16_segment_scope_remaps_detected_run_indices_for_consistent_hsr_and_sprint_lists', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 6.1, 6.2, 3.0, 3.0, 3.0, 6.0, 7.5, 7.6, 6.1, 3.0, 3.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: trackpoints,
+                detectedRuns: [
+                  {
+                    runId: 'hsr-first-half',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 1,
+                    durationSeconds: 2,
+                    distanceMeters: 12,
+                    topSpeedMetersPerSecond: 6.2,
+                    pointIndices: [1, 2, 3],
+                    parentRunId: null,
+                    sprintPhases: []
+                  },
+                  {
+                    runId: 'hsr-second-half',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 7,
+                    durationSeconds: 3,
+                    distanceMeters: 21,
+                    topSpeedMetersPerSecond: 7.6,
+                    pointIndices: [7, 8, 9, 10],
+                    parentRunId: null,
+                    sprintPhases: [
+                      {
+                        runId: 'sprint-second-half',
+                        startElapsedSeconds: 8,
+                        durationSeconds: 2,
+                        distanceMeters: 15,
+                        topSpeedMetersPerSecond: 7.6,
+                        pointIndices: [8, 9],
+                        parentRunId: 'hsr-second-half'
+                      }
+                    ]
+                  }
+                ],
+                coreMetrics: {
+                  ...baseCoreMetrics(),
+                  sprintCount: 1,
+                  highIntensityRunCount: 2
+                }
+              }),
+              segments: [{ id: 'seg-second-half', label: 'Second half', startSecond: 6, endSecond: 12, category: 'Match', notes: null }]
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+
+    const fullSessionRunsRegion = screen.getByRole('region', { name: 'Detected runs' });
+    expect(within(fullSessionRunsRegion).getAllByRole('button', { name: /High-intensity runs #/ })).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze segment' }));
+
+    const segmentRunsRegion = await screen.findByRole('region', { name: 'Detected runs' });
+    expect(within(segmentRunsRegion).getAllByRole('button', { name: /High-intensity runs #/ })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Only sprint phases' }));
+    expect(within(segmentRunsRegion).getAllByRole('button', { name: /Sprint count/ })).toHaveLength(1);
+  });
+
   it('R1_6_16_Ac05_shows_hsr_and_sprint_phase_breakdown_in_overview_and_core_metrics', async () => {
     const trackpoints = gpsTrackpointsFromOneHertzSpeeds([6.0, 6.1, 7.5, 7.6, 6.2, 6.1, 3.0, 3.0]);
 
