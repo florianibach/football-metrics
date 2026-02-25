@@ -3731,8 +3731,6 @@ export function App() {
                         <li className="list-group-item"><strong>{t.metricDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable)}</li>
                         <li className="list-group-item"><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
                         <li className="list-group-item"><strong>{t.metricOfWhichSprintPhasesDistance}:</strong> {formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                        <li className="list-group-item"><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                        <li className="list-group-item"><strong>{t.metricSprintCount}:</strong> {displayedCoreMetrics.sprintCount ?? t.notAvailable}</li>
                         <li className="list-group-item"><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
                         <li className="list-group-item"><strong>{t.metricHighIntensityRunCount}:</strong> {detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
                         <li className="list-group-item"><strong>{t.metricOfWhichSprintPhasesCount}:</strong> {detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable}</li>
@@ -4047,8 +4045,6 @@ export function App() {
                   <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />
                   <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
                   <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
-                  <MetricListItem label={t.metricSprintDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.sprintDistance} />
-                  <MetricListItem label={t.metricSprintCount} value={withMetricStatus(String(displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)} helpText={metricHelp.sprintCount} />
                   <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)} helpText={metricHelp.maxSpeed} />
                   <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityTime} />
                   <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
@@ -4970,7 +4966,7 @@ function GpsRunsMap({ points, detectedRuns, minLatitude, maxLatitude, minLongitu
                 const highlightNestedSprintPoints = runFilter !== 'highIntensityOnly';
                 return (
                   <g key={segment.id} className={isMuted ? 'gps-heatmap__run--muted' : ''}>
-                    <polyline points={segment.points.map((point) => `${point.x},${point.y}`).join(' ')} className={`gps-heatmap__run-line ${lineColorClass}`} />
+                    <polyline fill="none" points={segment.points.map((point) => `${point.x},${point.y}`).join(' ')} className={`gps-heatmap__run-line ${lineColorClass}`} />
                     {segment.points.map((point, index) => {
                       const segmentPointIndex = segment.pointIndices[index];
                       const isSprintPoint = segment.runType === 'sprint' || (highlightNestedSprintPoints && segment.sprintPointIndices.includes(segmentPointIndex));
@@ -4999,7 +4995,9 @@ function GpsRunsMap({ points, detectedRuns, minLatitude, maxLatitude, minLongitu
           ) : (
             <ul className="list-group">
               {filteredRunSegments.map((segment, index) => {
-                const label = segment.runType === 'sprint' ? sprintMetricLabel : highIntensityMetricLabel;
+                const label = segment.runType === 'sprint'
+                  ? segment.parentRunId ? `${sprintMetricLabel} (${showHighIntensityLabel} ${segment.parentRunId})` : sprintMetricLabel
+                  : highIntensityMetricLabel;
                 return (
                   <li className="list-group-item" key={segment.id}>
                     <button

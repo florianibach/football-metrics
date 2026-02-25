@@ -959,8 +959,8 @@ describe('App', () => {
       expect(screen.getByText('Football core metrics')).toBeInTheDocument();
     });
 
-    expect(screen.getAllByText(/Sprint distance:/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Sprint count:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/of which sprint phase distance:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/of which sprint phases:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Maximum speed:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/High-intensity time:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/High-intensity runs:/).length).toBeGreaterThan(0);
@@ -1124,7 +1124,7 @@ describe('App', () => {
     expect(screen.getByText(/Unit: km and m/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close details' }));
-    const sprintDistanceInfo = screen.getByRole('button', { name: 'Sprint distance explanation' });
+    const sprintDistanceInfo = screen.getByRole('button', { name: 'of which sprint phase distance explanation' });
     fireEvent.click(sprintDistanceInfo);
     expect(screen.getByText(/Very low values usually mean little sprint exposure/)).toBeInTheDocument();
   });
@@ -1175,7 +1175,7 @@ describe('App', () => {
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'de' } });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Anzahl Sprints explanation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'davon Sprint-Phasen explanation' }));
     expect(screen.getByText(/0-2 niedrig, 3-6 mittel, >6 hoch/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Details schließen' }));
@@ -2388,7 +2388,7 @@ describe('App', () => {
     expect(runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Only sprint phases' }));
-    expect(screen.getByRole('button', { name: /Sprint count #1/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sprint count \(Only HSR runs highIntensity-1\) #1/ })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Only HSR runs' }));
     expect(screen.queryByRole('button', { name: /Sprint count #/ })).not.toBeInTheDocument();
