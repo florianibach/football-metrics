@@ -15,6 +15,7 @@ public sealed record TcxActivitySummary(
     IReadOnlyList<string> QualityReasons,
     TcxDataAvailability DataAvailability,
     IReadOnlyList<TcxGpsTrackpoint> GpsTrackpoints,
+    IReadOnlyList<TcxHeartRateSample> HeartRateSamples,
     TcxSmoothingTrace Smoothing,
     TcxFootballCoreMetrics CoreMetrics,
     IReadOnlyList<TcxIntervalAggregate> IntervalAggregates,
@@ -23,7 +24,8 @@ public sealed record TcxActivitySummary(
 public sealed record TcxGpsTrackpoint(
     double Latitude,
     double Longitude,
-    double? ElapsedSeconds);
+    double? ElapsedSeconds,
+    int? HeartRateBpm);
 
 
 public sealed record TcxDetectedRun(
@@ -45,3 +47,8 @@ public sealed record TcxSprintPhase(
     double TopSpeedMetersPerSecond,
     IReadOnlyList<int> PointIndices,
     string ParentRunId);
+
+
+public sealed record TcxHeartRateSample(
+    double ElapsedSeconds,
+    int HeartRateBpm);

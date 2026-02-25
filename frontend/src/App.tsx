@@ -51,6 +51,12 @@ type GpsTrackpoint = {
   latitude: number;
   longitude: number;
   elapsedSeconds: number | null;
+  heartRateBpm?: number | null;
+};
+
+type HeartRateSample = {
+  elapsedSeconds: number;
+  heartRateBpm: number;
 };
 
 type DataAvailability = {
@@ -104,6 +110,7 @@ type ActivitySummary = {
   qualityReasons: string[];
   dataAvailability?: DataAvailability | null;
   gpsTrackpoints: GpsTrackpoint[];
+  heartRateSamples?: HeartRateSample[];
   smoothing: SmoothingTrace;
   coreMetrics: FootballCoreMetrics;
   intervalAggregates: IntervalAggregate[];
@@ -189,6 +196,7 @@ type SessionSegment = {
   endSecond: number;
   notes?: string | null;
 };
+
 
 type SegmentChangeEntry = {
   version: number;
@@ -548,7 +556,38 @@ type TranslationKey =
   | 'segmentSplitAction'
   | 'segmentSplitSuccess'
   | 'segmentValidationSplitSecond'
+  | 'segmentTimelineTitle'
+  | 'segmentTimelineDescription'
+  | 'segmentTimelineInternalCurve'
+  | 'segmentTimelineExternalCurve'
+  | 'segmentTimelineExternalUnavailable'
+  | 'segmentTimelineSuggestionTitle'
+  | 'segmentTimelineSuggestionApply'
+  | 'segmentTimelineSuggestionDismiss'
+  | 'segmentTimelineNoSuggestions'
+  | 'segmentTimelineSuggestionLabel'
+  | 'segmentTimelineSuggestionNotes'
+  | 'segmentManualAssistantTitle'
+  | 'segmentManualAssistantDescription'
+  | 'segmentManualAssistantSliderLabel'
+  | 'segmentManualAssistantCurrentPoint'
+  | 'segmentManualAssistantSetStart'
+  | 'segmentManualAssistantSetEnd'
+  | 'segmentManualAssistantHeartRateChartTitle'
+  | 'segmentManualAssistantHeartRateChartNoData'
+  | 'segmentManualAssistantMapTitle'
+  | 'segmentManualAssistantSelectedSegment'
+  | 'segmentManualAssistantSplitAtCursor'
+  | 'segmentManualAssistantCursorBack'
+  | 'segmentManualAssistantCursorForward'
+  | 'segmentManualAssistantCurrentHeartRate'
+  | 'segmentManualAssistantCurrentTime'
+  | 'segmentManualAssistantSegmentTime'
+  | 'segmentManualAssistantNoSegments'
   | 'segmentCategoryOther'
+  | 'segmentCategoryFirstHalf'
+  | 'segmentCategorySecondHalf'
+  | 'segmentCategoryHalfTimeBreak'
   | 'segmentCategoryWarmup'
   | 'segmentCategoryGameForm'
   | 'segmentCategoryFinishing'
@@ -926,7 +965,38 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentSplitAction: 'Split',
     segmentSplitSuccess: 'Segment split.',
     segmentValidationSplitSecond: 'Split second must be inside the selected segment.',
+    segmentTimelineTitle: 'Timeline-assisted segmentation',
+    segmentTimelineDescription: 'Use the timeline to apply suggested cuts from heart-rate and GPS intensity trends, then adjust manually if needed.',
+    segmentTimelineInternalCurve: 'Internal load (heart-rate trend)',
+    segmentTimelineExternalCurve: 'External load (GPS intensity trend)',
+    segmentTimelineExternalUnavailable: 'GPS intensity trend unavailable for this session.',
+    segmentTimelineSuggestionTitle: 'Suggested cuts',
+    segmentTimelineSuggestionApply: 'Apply suggestion',
+    segmentTimelineSuggestionDismiss: 'Dismiss',
+    segmentTimelineNoSuggestions: 'No suggestions available for this session timeline.',
+    segmentTimelineSuggestionLabel: 'Suggested label',
+    segmentTimelineSuggestionNotes: 'Suggested notes',
+    segmentManualAssistantTitle: 'Manual segmentation assistant',
+    segmentManualAssistantDescription: 'Use the heart-rate timeline and GPS trackpoints together. Move the slider to inspect the same moment in time, then set start/end for your segment manually.',
+    segmentManualAssistantSliderLabel: 'Timeline cursor (seconds)',
+    segmentManualAssistantCurrentPoint: 'Current point',
+    segmentManualAssistantSetStart: 'Set segment start from cursor',
+    segmentManualAssistantSetEnd: 'Set segment end from cursor',
+    segmentManualAssistantHeartRateChartTitle: 'Heart-rate over time',
+    segmentManualAssistantHeartRateChartNoData: 'No heart-rate data available for this session.',
+    segmentManualAssistantMapTitle: 'GPS trackpoints (timeline-linked)',
+    segmentManualAssistantSelectedSegment: 'Active segment for graphical edit',
+    segmentManualAssistantSplitAtCursor: 'Split at cursor',
+    segmentManualAssistantCursorBack: 'Previous point',
+    segmentManualAssistantCursorForward: 'Next point',
+    segmentManualAssistantCurrentHeartRate: 'Current heart-rate',
+    segmentManualAssistantCurrentTime: 'Current time',
+    segmentManualAssistantSegmentTime: 'Time in selected segment',
+    segmentManualAssistantNoSegments: 'Create at least one segment first to use graphical editing safely.',
     segmentCategoryOther: 'Other',
+    segmentCategoryFirstHalf: '1st half',
+    segmentCategorySecondHalf: '2nd half',
+    segmentCategoryHalfTimeBreak: 'Half-time break',
     segmentCategoryWarmup: 'Warm-up',
     segmentCategoryGameForm: 'Game form',
     segmentCategoryFinishing: 'Finishing',
@@ -1275,7 +1345,38 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentSplitAction: 'Teilen',
     segmentSplitSuccess: 'Segment geteilt.',
     segmentValidationSplitSecond: 'Die Teilungssekunde muss innerhalb des Segments liegen.',
-    segmentCategoryOther: 'Other',
+    segmentTimelineTitle: 'Verlaufsgestützte Segmentierung',
+    segmentTimelineDescription: 'Nutze die Zeitachse, um vorgeschlagene Schnittpunkte aus Herzfrequenz- und GPS-Intensitätsverläufen zu übernehmen und danach manuell anzupassen.',
+    segmentTimelineInternalCurve: 'Interne Last (Herzfrequenz-Verlauf)',
+    segmentTimelineExternalCurve: 'Externe Last (GPS-Intensitätsverlauf)',
+    segmentTimelineExternalUnavailable: 'GPS-Intensitätsverlauf ist für diese Session nicht verfügbar.',
+    segmentTimelineSuggestionTitle: 'Vorgeschlagene Schnittpunkte',
+    segmentTimelineSuggestionApply: 'Vorschlag übernehmen',
+    segmentTimelineSuggestionDismiss: 'Verwerfen',
+    segmentTimelineNoSuggestions: 'Für diese Session-Zeitachse sind keine Vorschläge verfügbar.',
+    segmentTimelineSuggestionLabel: 'Vorgeschlagenes Label',
+    segmentTimelineSuggestionNotes: 'Vorgeschlagene Notizen',
+    segmentManualAssistantTitle: 'Manuelle Segmentierungs-Hilfe',
+    segmentManualAssistantDescription: 'Nutze Herzfrequenz-Zeitverlauf und GPS-Trackpoints zusammen. Bewege den Slider, um denselben Zeitpunkt zu sehen, und setze danach Segmentstart/-ende manuell.',
+    segmentManualAssistantSliderLabel: 'Zeitachsen-Cursor (Sekunden)',
+    segmentManualAssistantCurrentPoint: 'Aktueller Punkt',
+    segmentManualAssistantSetStart: 'Segmentstart vom Cursor übernehmen',
+    segmentManualAssistantSetEnd: 'Segmentende vom Cursor übernehmen',
+    segmentManualAssistantHeartRateChartTitle: 'Herzfrequenz über die Zeit',
+    segmentManualAssistantHeartRateChartNoData: 'Keine Herzfrequenzdaten für diese Session verfügbar.',
+    segmentManualAssistantMapTitle: 'GPS-Trackpoints (mit Zeitachsen-Bezug)',
+    segmentManualAssistantSelectedSegment: 'Aktives Segment für grafisches Editieren',
+    segmentManualAssistantSplitAtCursor: 'Am Cursor teilen',
+    segmentManualAssistantCursorBack: 'Vorheriger Punkt',
+    segmentManualAssistantCursorForward: 'Nächster Punkt',
+    segmentManualAssistantCurrentHeartRate: 'Aktuelle Herzfrequenz',
+    segmentManualAssistantCurrentTime: 'Aktuelle Zeit',
+    segmentManualAssistantSegmentTime: 'Zeit im gewählten Segment',
+    segmentManualAssistantNoSegments: 'Lege zuerst mindestens ein Segment an, um sicher grafisch zu editieren.',
+    segmentCategoryOther: 'Sonstiges',
+    segmentCategoryFirstHalf: '1. Halbzeit',
+    segmentCategorySecondHalf: '2. Halbzeit',
+    segmentCategoryHalfTimeBreak: 'Halbzeitpause',
     segmentCategoryWarmup: 'Aufwärmen',
     segmentCategoryGameForm: 'Spielform',
     segmentCategoryFinishing: 'Torschuss',
@@ -1463,6 +1564,12 @@ function formatLocalDateTime(dateText: string): string {
 
 function toDateInputValue(date: Date): string {
   return date.toISOString().slice(0, 10);
+}
+
+function formatSecondsMmSs(seconds: number): string {
+  const mins = Math.floor(Math.max(0, seconds) / 60);
+  const remaining = Math.floor(Math.max(0, seconds) % 60);
+  return `${mins.toString().padStart(2, '0')}:${remaining.toString().padStart(2, '0')}`;
 }
 
 function formatDuration(durationSeconds: number | null, locale: Locale, notAvailable: string): string {
@@ -1717,6 +1824,8 @@ function availabilityText(status: DataAvailability['gpsStatus'], t: Record<Trans
   }
 }
 
+
+
 function trimpPerMinute(summary: ActivitySummary): number | null {
   const trimp = summary.coreMetrics.trainingImpulseEdwards;
   if (trimp === null || summary.durationSeconds <= 0) {
@@ -1757,7 +1866,7 @@ function getFileValidationMessage(file: File | null, locale: Locale): string | n
 }
 
 const smoothingFilterOptions: SmoothingFilter[] = ['Raw', 'AdaptiveMedian', 'Savitzky-Golay', 'Butterworth'];
-const segmentCategoryOptions = ['Other', 'Aufwärmen', 'Spielform', 'Torschuss', 'Athletik', 'Cooldown'] as const;
+const segmentCategoryOptions = ['Other', 'Aufwärmen', 'Spielform', 'Torschuss', 'Athletik', 'Cooldown', '1. Halbzeit', '2. Halbzeit', 'Halbzeit Pause'] as const;
 
 type SegmentCategory = typeof segmentCategoryOptions[number];
 
@@ -1768,6 +1877,9 @@ function segmentCategoryLabel(category: SegmentCategory, t: Record<TranslationKe
     case 'Torschuss': return t.segmentCategoryFinishing;
     case 'Athletik': return t.segmentCategoryAthletics;
     case 'Cooldown': return t.segmentCategoryCooldown;
+    case '1. Halbzeit': return t.segmentCategoryFirstHalf;
+    case '2. Halbzeit': return t.segmentCategorySecondHalf;
+    case 'Halbzeit Pause': return t.segmentCategoryHalfTimeBreak;
     default: return t.segmentCategoryOther;
   }
 }
@@ -1927,6 +2039,7 @@ export function App() {
   const [splitForm, setSplitForm] = useState({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
   const [segmentEditorsOpen, setSegmentEditorsOpen] = useState({ edit: false, merge: false, split: false });
   const [segmentActionError, setSegmentActionError] = useState<string | null>(null);
+  const [segmentCursorSecond, setSegmentCursorSecond] = useState(0);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [analysisScope, setAnalysisScope] = useState<'session' | 'segment'>('session');
   const [profileForm, setProfileForm] = useState<UserProfile>({
@@ -2163,6 +2276,8 @@ export function App() {
       setSelectedSegmentId(null);
       return;
     }
+
+    setSegmentCursorSecond(0);
 
     setSelectedSegmentId((current) => {
       if (current && selectedSession.segments.some((segment) => segment.id === current)) {
@@ -2590,6 +2705,77 @@ export function App() {
     setMessage(t.segmentMergeSuccess);
   }
 
+
+  function onSetSegmentBoundaryFromCursor(boundary: 'start' | 'end') {
+    if (!selectedSegment) {
+      return;
+    }
+
+    setEditingSegmentId(selectedSegment.id);
+    setSegmentCursorSecond((currentSecond) => {
+      if (currentSecond < selectedSegment.startSecond) {
+        return selectedSegment.startSecond;
+      }
+      if (currentSecond > selectedSegment.endSecond) {
+        return selectedSegment.endSecond;
+      }
+      return currentSecond;
+    });
+    setSegmentForm((current) => {
+      const currentStart = Number(current.startSecond);
+      const currentEnd = Number(current.endSecond);
+      const cursor = Math.max(selectedSegment.startSecond, Math.min(Math.floor(segmentCursorSecond), selectedSegment.endSecond));
+
+      if (boundary === 'start') {
+        const fallbackEnd = Number.isFinite(currentEnd) ? currentEnd : selectedSegment.endSecond;
+        const boundedStart = Math.min(cursor, Math.max(selectedSegment.startSecond, fallbackEnd - 1));
+        return { ...current, startSecond: String(boundedStart) };
+      }
+
+      const fallbackStart = Number.isFinite(currentStart) ? currentStart : selectedSegment.startSecond;
+      const boundedEnd = Math.max(cursor, Math.min(selectedSegment.endSecond, fallbackStart + 1));
+      return { ...current, endSecond: String(boundedEnd) };
+    });
+    setSegmentEditorsOpen({ edit: true, merge: false, split: false });
+  }
+
+  async function onSplitAtCursor() {
+    if (!selectedSession || !selectedSegment) {
+      return;
+    }
+
+    const splitSecond = Math.floor(segmentCursorSecond);
+    if (splitSecond <= selectedSegment.startSecond || splitSecond >= selectedSegment.endSecond) {
+      setSegmentActionError(t.segmentValidationSplitSecond);
+      return;
+    }
+
+    const response = await fetch(`${apiBaseUrl}/tcx/${selectedSession.id}/segments/split`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        segmentId: selectedSegment.id,
+        splitSecond,
+        leftLabel: null,
+        rightLabel: null,
+        notes: `Split at cursor ${formatSecondsMmSs(splitSecond)} (${splitSecond}s)`
+      })
+    });
+
+    if (!response.ok) {
+      const detail = await extractApiError(response);
+      setSegmentActionError(`${t.segmentErrorPrefix} ${detail}`);
+      setMessage(`${t.segmentErrorPrefix} ${detail}`);
+      return;
+    }
+
+    const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
+    applyUpdatedSession(payload);
+    setSegmentActionError(null);
+    setSegmentEditorsOpen({ edit: false, merge: false, split: false });
+    setMessage(t.segmentSplitSuccess);
+  }
+
   async function onSplitSegment() {
     if (!selectedSession) {
       return;
@@ -2864,7 +3050,71 @@ export function App() {
     : null;
 
   const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
+  const segmentAssistantPoints = useMemo(() => {
+    const allPoints = (selectedSession?.summary.gpsTrackpoints ?? [])
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+
+    if (!selectedSegment) {
+      return allPoints;
+    }
+
+    return allPoints.filter((point) => point.elapsedSeconds >= selectedSegment.startSecond && point.elapsedSeconds <= selectedSegment.endSecond);
+  }, [selectedSession, selectedSegment]);
+  const segmentAssistantBounds = useMemo(() => {
+    if (segmentAssistantPoints.length === 0) {
+      return null;
+    }
+
+    return {
+      minLatitude: Math.min(...segmentAssistantPoints.map((point) => point.latitude)),
+      maxLatitude: Math.max(...segmentAssistantPoints.map((point) => point.latitude)),
+      minLongitude: Math.min(...segmentAssistantPoints.map((point) => point.longitude)),
+      maxLongitude: Math.max(...segmentAssistantPoints.map((point) => point.longitude))
+    };
+  }, [segmentAssistantPoints]);
+  const segmentAssistantMaxSecond = selectedSegment
+    ? selectedSegment.endSecond
+    : Math.max(0, Math.floor(selectedSession?.summary.durationSeconds ?? segmentAssistantPoints.at(-1)?.elapsedSeconds ?? 0));
+  const segmentAssistantMinSecond = selectedSegment?.startSecond ?? 0;
+  const clampedSegmentCursorSecond = Math.min(Math.max(segmentCursorSecond, segmentAssistantMinSecond), segmentAssistantMaxSecond);
   const isSegmentScopeActive = analysisScope === 'segment' && selectedSegment !== null;
+
+  useEffect(() => {
+    if (activeSessionSubpage !== 'segmentEdit' || !selectedSegment) {
+      return;
+    }
+
+    setEditingSegmentId(selectedSegment.id);
+    setSegmentCursorSecond((currentSecond) => {
+      if (currentSecond < selectedSegment.startSecond || currentSecond > selectedSegment.endSecond) {
+        return selectedSegment.startSecond;
+      }
+
+      return currentSecond;
+    });
+    setSegmentForm((current) => {
+      const currentStart = Number(current.startSecond);
+      const currentEnd = Number(current.endSecond);
+      const withinSelectedRange = Number.isFinite(currentStart)
+        && Number.isFinite(currentEnd)
+        && currentStart >= selectedSegment.startSecond
+        && currentEnd <= selectedSegment.endSecond
+        && currentEnd > currentStart;
+
+      if (withinSelectedRange) {
+        return current;
+      }
+
+      return {
+        category: selectedSegment.category ?? 'Other',
+        label: selectedSegment.label,
+        startSecond: String(selectedSegment.startSecond),
+        endSecond: String(selectedSegment.endSecond),
+        notes: selectedSegment.notes ?? ''
+      };
+    });
+  }, [activeSessionSubpage, selectedSegment]);
 
   const analysisTimeRange = useMemo(() => {
     if (!selectedSession) {
@@ -4007,6 +4257,77 @@ export function App() {
 
           <div className={`segment-management ${activeSessionSubpage === "segmentEdit" ? "" : "is-hidden"}`} id="session-segment-edit">
             <h3>{t.segmentEditTitle}</h3>
+            <section className="segment-timeline-helper" aria-label={t.segmentTimelineTitle}>
+              <h4>{t.segmentManualAssistantTitle}</h4>
+              <p>{t.segmentManualAssistantDescription}</p>
+              <div className="segment-timeline-helper__legend">
+                <span className="segment-timeline-helper__legend-item segment-timeline-helper__legend-item--internal">{t.segmentTimelineInternalCurve}</span>
+                {selectedSession.summary.hasGpsData
+                  ? <span className="segment-timeline-helper__legend-item segment-timeline-helper__legend-item--external">{t.segmentTimelineExternalCurve}</span>
+                  : <span className="segment-timeline-helper__legend-item segment-timeline-helper__legend-item--external-unavailable">{t.segmentTimelineExternalUnavailable}</span>}
+              </div>
+              {selectedSession.segments.length === 0 ? (
+                <p>{t.segmentManualAssistantNoSegments}</p>
+              ) : (
+                <>
+                  <label className="form-label" htmlFor="active-segment-id">{t.segmentManualAssistantSelectedSegment}</label>
+                  <select className="form-select" id="active-segment-id" value={selectedSegment?.id ?? ''} onChange={(event) => setSelectedSegmentId(event.target.value)}>
+                    {selectedSession.segments.map((segment) => (
+                      <option key={`assistant-${segment.id}`} value={segment.id}>{segment.label} ({formatSecondsMmSs(segment.startSecond)}-{formatSecondsMmSs(segment.endSecond)})</option>
+                    ))}
+                  </select>
+                  <SegmentationAssistant
+                    points={segmentAssistantPoints}
+                    bounds={segmentAssistantBounds}
+                    cursorSecond={clampedSegmentCursorSecond}
+                    heartRateSamples={selectedSession.summary.heartRateSamples ?? []}
+                    titleHeartRate={t.segmentManualAssistantHeartRateChartTitle}
+                    titleMap={t.segmentManualAssistantMapTitle}
+                    noHeartRateDataLabel={t.segmentManualAssistantHeartRateChartNoData}
+                    currentPointLabel={t.segmentManualAssistantCurrentPoint}
+                    currentHeartRateLabel={t.segmentManualAssistantCurrentHeartRate}
+                    segmentStartSecond={selectedSegment?.startSecond ?? 0}
+                    segmentEndSecond={selectedSegment?.endSecond ?? segmentAssistantMaxSecond}
+                    zoomInLabel={t.gpsHeatmapZoomIn}
+                    zoomOutLabel={t.gpsHeatmapZoomOut}
+                    zoomResetLabel={t.gpsHeatmapZoomReset}
+                    sessionId={selectedSession.id}
+                    topControls={(
+                      <div className="segment-manual-assistant__middle-controls">
+                        <div className="segment-suggestion-list__actions">
+                          <button type="button" className="secondary-button" onClick={onSplitAtCursor}>{t.segmentManualAssistantSplitAtCursor}</button>
+                          <button type="button" className="secondary-button" onClick={() => onSetSegmentBoundaryFromCursor('start')}>{t.segmentManualAssistantSetStart}</button>
+                          <button type="button" className="secondary-button" onClick={() => onSetSegmentBoundaryFromCursor('end')}>{t.segmentManualAssistantSetEnd}</button>
+                        </div>
+                      </div>
+                    )}
+                    betweenControls={(
+                      <div className="segment-manual-assistant__middle-controls">
+                        <label className="form-label" htmlFor="segment-timeline-cursor">
+                          {t.segmentManualAssistantSliderLabel}: {formatSecondsMmSs(clampedSegmentCursorSecond)} ({Math.floor(clampedSegmentCursorSecond)}s) / {t.segmentManualAssistantSegmentTime}: {formatSecondsMmSs(Math.max(0, clampedSegmentCursorSecond - segmentAssistantMinSecond))} ({Math.max(0, Math.floor(clampedSegmentCursorSecond - segmentAssistantMinSecond))}s)
+                        </label>
+                        <input
+                          id="segment-timeline-cursor"
+                          className="form-range"
+                          type="range"
+                          min={selectedSegment?.startSecond ?? 0}
+                          max={selectedSegment?.endSecond ?? segmentAssistantMaxSecond}
+                          step={1}
+                          value={clampedSegmentCursorSecond}
+                          onChange={(event) => setSegmentCursorSecond(Number(event.target.value))}
+                        />
+                        <div className="segment-suggestion-list__actions">
+                          <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.max(selectedSegment?.startSecond ?? 0, current - 5))}>-5s</button>
+                          <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.max(selectedSegment?.startSecond ?? 0, current - 1))}>-1s</button>
+                          <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.min(selectedSegment?.endSecond ?? segmentAssistantMaxSecond, current + 1))}>+1s</button>
+                          <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.min(selectedSegment?.endSecond ?? segmentAssistantMaxSecond, current + 5))}>+5s</button>
+                        </div>
+                      </div>
+                    )}
+                  />
+                </>
+              )}
+            </section>
             <table className="history-table segment-table">
               <thead>
                 <tr>
@@ -4507,6 +4828,45 @@ type GpsRunsMapProps = {
   sessionId: string;
 };
 
+type SegmentationAssistantProps = {
+  points: Array<GpsTrackpoint & { elapsedSeconds: number }>;
+  bounds: { minLatitude: number; maxLatitude: number; minLongitude: number; maxLongitude: number } | null;
+  cursorSecond: number;
+  heartRateSamples: HeartRateSample[];
+  titleHeartRate: string;
+  titleMap: string;
+  noHeartRateDataLabel: string;
+  currentPointLabel: string;
+  zoomInLabel: string;
+  zoomOutLabel: string;
+  zoomResetLabel: string;
+  sessionId: string;
+  topControls: ReactNode;
+  betweenControls: ReactNode;
+  currentHeartRateLabel: string;
+  segmentStartSecond: number;
+  segmentEndSecond: number;
+};
+
+function findNearestPointIndexBySecond(points: Array<GpsTrackpoint & { elapsedSeconds: number }>, targetSecond: number): number {
+  if (points.length === 0) {
+    return -1;
+  }
+
+  let nearestIndex = 0;
+  let nearestDelta = Math.abs(points[0].elapsedSeconds - targetSecond);
+
+  for (let index = 1; index < points.length; index += 1) {
+    const delta = Math.abs(points[index].elapsedSeconds - targetSecond);
+    if (delta < nearestDelta) {
+      nearestDelta = delta;
+      nearestIndex = index;
+    }
+  }
+
+  return nearestIndex;
+}
+
 type HeatmapLayerProps = {
   width: number;
   height: number;
@@ -4530,6 +4890,7 @@ type InteractiveMapProps = {
   zoomResetLabel: string;
   sessionId: string;
   ariaLabel: string;
+  controlsPosition?: 'top' | 'bottom';
   children: (args: { width: number; height: number; transform: string; isDragging: boolean; handlers: {
     onPointerDown: (event: PointerEvent<SVGSVGElement>) => void;
     onPointerMove: (event: PointerEvent<SVGSVGElement>) => void;
@@ -4590,7 +4951,7 @@ function useMapProjection(points: GpsTrackpoint[], minLatitude: number, maxLatit
   return { width, height, screenPoints, satelliteImageUrl };
 }
 
-function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, ariaLabel, children }: InteractiveMapProps) {
+function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, ariaLabel, controlsPosition = 'top', children }: InteractiveMapProps) {
   const width = 560;
   const height = 320;
   const [zoomScale, setZoomScale] = useState(1);
@@ -4685,13 +5046,17 @@ function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, 
   const centerTranslateY = (height / 2) + panOffset.y;
   const transform = `translate(${centerTranslateX} ${centerTranslateY}) scale(${zoomScale}) translate(${-width / 2} ${-height / 2})`;
 
+  const controls = (
+    <div className="gps-heatmap-controls" role="group" aria-label="Heatmap controls">
+      <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
+      <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
+      <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
+    </div>
+  );
+
   return (
     <>
-      <div className="gps-heatmap-controls" role="group" aria-label="Heatmap controls">
-        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
-        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
-        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
-      </div>
+      {controlsPosition === 'top' && controls}
       <svg
         className={`gps-heatmap ${dragStart ? 'gps-heatmap--dragging' : ''}`}
         viewBox={`0 0 ${width} ${height}`}
@@ -4708,6 +5073,7 @@ function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, 
           {children({ width, height, transform, isDragging: dragStart !== null, handlers: { onPointerDown, onPointerMove, onPointerUp: onPointerEnd } })}
         </g>
       </svg>
+      {controlsPosition === 'bottom' && controls}
     </>
   );
 }
@@ -4719,6 +5085,141 @@ function MapSurface({ width, height, satelliteImageUrl, children }: MapSurfacePr
       <rect x="0" y="0" width={width} height={height} rx="8" ry="8" className="gps-heatmap__overlay" />
       {children}
     </>
+  );
+}
+
+function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, topControls, betweenControls, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
+  const heartRateTrend = useMemo(() => {
+    return (heartRateSamples ?? [])
+      .filter((sample) => sample.elapsedSeconds >= segmentStartSecond && sample.elapsedSeconds <= segmentEndSecond)
+      .map((sample) => ({ xSecond: sample.elapsedSeconds, heartRateBpm: sample.heartRateBpm }))
+      .sort((a, b) => a.xSecond - b.xSecond);
+  }, [heartRateSamples, segmentStartSecond, segmentEndSecond]);
+
+  const chartPoints = useMemo(() => {
+    if (heartRateTrend.length === 0) {
+      return '';
+    }
+
+    const width = 560;
+    const height = 160;
+    const minX = Math.min(...heartRateTrend.map((entry) => entry.xSecond));
+    const maxX = Math.max(...heartRateTrend.map((entry) => entry.xSecond), minX + 1);
+    const spanX = Math.max(1, maxX - minX);
+    const maxY = Math.max(...heartRateTrend.map((entry) => entry.heartRateBpm), 1);
+
+    return heartRateTrend
+      .map((entry) => {
+        const x = ((entry.xSecond - minX) / spanX) * width;
+        const y = height - ((entry.heartRateBpm / maxY) * height);
+        return `${x},${y}`;
+      })
+      .join(' ');
+  }, [heartRateTrend]);
+
+  const minTrendSecond = heartRateTrend.length > 0
+    ? Math.min(...heartRateTrend.map((entry) => entry.xSecond))
+    : 0;
+  const maxTrendSecond = heartRateTrend.length > 0
+    ? Math.max(...heartRateTrend.map((entry) => entry.xSecond), minTrendSecond + 1)
+    : minTrendSecond + 1;
+  const trendSpanSeconds = Math.max(1, maxTrendSecond - minTrendSecond);
+  const maxTrendValue = Math.max(...heartRateTrend.map((entry) => entry.heartRateBpm), 1);
+
+  const clampedCursorSecond = Math.max(minTrendSecond, Math.min(maxTrendSecond, cursorSecond));
+  const heartRateInterpolationWindow = heartRateTrend.reduce<{ before: { xSecond: number; heartRateBpm: number } | null; after: { xSecond: number; heartRateBpm: number } | null }>((acc, entry) => {
+    if (entry.xSecond <= clampedCursorSecond) {
+      return { ...acc, before: entry };
+    }
+
+    if (acc.after === null) {
+      return { ...acc, after: entry };
+    }
+
+    return acc;
+  }, { before: null, after: null });
+  const heartRateCursorBpm = (() => {
+    const before = heartRateInterpolationWindow.before;
+    const after = heartRateInterpolationWindow.after;
+
+    if (before && after && after.xSecond !== before.xSecond) {
+      const progress = (clampedCursorSecond - before.xSecond) / (after.xSecond - before.xSecond);
+      return before.heartRateBpm + ((after.heartRateBpm - before.heartRateBpm) * progress);
+    }
+
+    return before?.heartRateBpm ?? after?.heartRateBpm ?? null;
+  })();
+  const heartRateCursorPoint = heartRateCursorBpm === null
+    ? null
+    : {
+      x: ((clampedCursorSecond - minTrendSecond) / trendSpanSeconds) * 560,
+      y: 160 - ((heartRateCursorBpm / maxTrendValue) * 160)
+    };
+
+  const cursorIndex = findNearestPointIndexBySecond(points, cursorSecond);
+  const cursorPoint = cursorIndex >= 0 ? points[cursorIndex] : null;
+
+  const { width, height, screenPoints, satelliteImageUrl } = useMapProjection(
+    points,
+    bounds?.minLatitude ?? 0,
+    bounds?.maxLatitude ?? 0,
+    bounds?.minLongitude ?? 0,
+    bounds?.maxLongitude ?? 0
+  );
+
+  return (
+    <div className="segment-manual-assistant">
+      {topControls}
+      <h5>{titleHeartRate}</h5>
+      {heartRateTrend.length === 0 ? (
+        <p>{noHeartRateDataLabel}</p>
+      ) : (
+        <>
+          <svg className="segment-manual-assistant__hr-chart" viewBox="0 0 560 160" role="img" aria-label={titleHeartRate}>
+            <rect x="0" y="0" width="560" height="160" rx="6" ry="6" className="segment-manual-assistant__hr-bg" />
+            <polyline points={chartPoints} className="segment-manual-assistant__hr-line" />
+            {heartRateCursorPoint && <circle cx={heartRateCursorPoint.x} cy={heartRateCursorPoint.y} r="4" className="segment-manual-assistant__cursor-point" />}
+          </svg>
+          <p>{currentHeartRateLabel}: {heartRateCursorBpm === null ? 'n/a' : Math.round(heartRateCursorBpm)}{heartRateCursorBpm === null ? '' : ' bpm'}</p>
+        </>
+      )}
+
+
+      {betweenControls}
+
+      <h5>{titleMap}</h5>
+      {points.length === 0 || !bounds ? (
+        <p>{currentPointLabel}: n/a</p>
+      ) : (
+        <>
+          <InteractiveMap zoomInLabel={zoomInLabel} zoomOutLabel={zoomOutLabel} zoomResetLabel={zoomResetLabel} sessionId={`segment-assistant-${sessionId}`} ariaLabel={titleMap} controlsPosition="bottom">
+            {() => (
+              <MapSurface width={width} height={height} satelliteImageUrl={satelliteImageUrl}>
+                <polyline points={screenPoints.map((point) => `${point.x},${point.y}`).join(' ')} className="gps-heatmap__track-line" />
+                {screenPoints.map((point, index) => index !== cursorIndex ? (
+                  <circle
+                    key={`segment-assistant-point-${index}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={1.1}
+                    className="gps-heatmap__point-marker gps-heatmap__point-marker--blue"
+                  />
+                ) : null)}
+                {cursorIndex >= 0 && (
+                  <circle
+                    cx={screenPoints[cursorIndex].x}
+                    cy={screenPoints[cursorIndex].y}
+                    r={3.2}
+                    className="segment-manual-assistant__cursor-point"
+                  />
+                )}
+              </MapSurface>
+            )}
+          </InteractiveMap>
+          <p>{currentPointLabel}: {cursorPoint ? `${formatSecondsMmSs(cursorPoint.elapsedSeconds)} (${cursorPoint.elapsedSeconds}s) · ${cursorPoint.latitude.toFixed(5)}, ${cursorPoint.longitude.toFixed(5)}` : 'n/a'}</p>
+        </>
+      )}
+    </div>
   );
 }
 
