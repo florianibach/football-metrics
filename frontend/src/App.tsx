@@ -582,8 +582,12 @@ type TranslationKey =
   | 'segmentManualAssistantCursorForward'
   | 'segmentManualAssistantCurrentHeartRate'
   | 'segmentManualAssistantCurrentTime'
+  | 'segmentManualAssistantSegmentTime'
   | 'segmentManualAssistantNoSegments'
   | 'segmentCategoryOther'
+  | 'segmentCategoryFirstHalf'
+  | 'segmentCategorySecondHalf'
+  | 'segmentCategoryHalfTimeBreak'
   | 'segmentCategoryWarmup'
   | 'segmentCategoryGameForm'
   | 'segmentCategoryFinishing'
@@ -987,8 +991,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentManualAssistantCursorForward: 'Next point',
     segmentManualAssistantCurrentHeartRate: 'Current heart-rate',
     segmentManualAssistantCurrentTime: 'Current time',
+    segmentManualAssistantSegmentTime: 'Time in selected segment',
     segmentManualAssistantNoSegments: 'Create at least one segment first to use graphical editing safely.',
     segmentCategoryOther: 'Other',
+    segmentCategoryFirstHalf: '1st half',
+    segmentCategorySecondHalf: '2nd half',
+    segmentCategoryHalfTimeBreak: 'Half-time break',
     segmentCategoryWarmup: 'Warm-up',
     segmentCategoryGameForm: 'Game form',
     segmentCategoryFinishing: 'Finishing',
@@ -1363,8 +1371,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentManualAssistantCursorForward: 'Nächster Punkt',
     segmentManualAssistantCurrentHeartRate: 'Aktuelle Herzfrequenz',
     segmentManualAssistantCurrentTime: 'Aktuelle Zeit',
+    segmentManualAssistantSegmentTime: 'Zeit im gewählten Segment',
     segmentManualAssistantNoSegments: 'Lege zuerst mindestens ein Segment an, um sicher grafisch zu editieren.',
     segmentCategoryOther: 'Sonstiges',
+    segmentCategoryFirstHalf: '1. Halbzeit',
+    segmentCategorySecondHalf: '2. Halbzeit',
+    segmentCategoryHalfTimeBreak: 'Halbzeitpause',
     segmentCategoryWarmup: 'Aufwärmen',
     segmentCategoryGameForm: 'Spielform',
     segmentCategoryFinishing: 'Torschuss',
@@ -1854,7 +1866,7 @@ function getFileValidationMessage(file: File | null, locale: Locale): string | n
 }
 
 const smoothingFilterOptions: SmoothingFilter[] = ['Raw', 'AdaptiveMedian', 'Savitzky-Golay', 'Butterworth'];
-const segmentCategoryOptions = ['Other', 'Aufwärmen', 'Spielform', 'Torschuss', 'Athletik', 'Cooldown'] as const;
+const segmentCategoryOptions = ['Other', 'Aufwärmen', 'Spielform', 'Torschuss', 'Athletik', 'Cooldown', '1. Halbzeit', '2. Halbzeit', 'Halbzeit Pause'] as const;
 
 type SegmentCategory = typeof segmentCategoryOptions[number];
 
@@ -1865,6 +1877,9 @@ function segmentCategoryLabel(category: SegmentCategory, t: Record<TranslationKe
     case 'Torschuss': return t.segmentCategoryFinishing;
     case 'Athletik': return t.segmentCategoryAthletics;
     case 'Cooldown': return t.segmentCategoryCooldown;
+    case '1. Halbzeit': return t.segmentCategoryFirstHalf;
+    case '2. Halbzeit': return t.segmentCategorySecondHalf;
+    case 'Halbzeit Pause': return t.segmentCategoryHalfTimeBreak;
     default: return t.segmentCategoryOther;
   }
 }
@@ -4262,6 +4277,7 @@ export function App() {
                     noHeartRateDataLabel={t.segmentManualAssistantHeartRateChartNoData}
                     currentPointLabel={t.segmentManualAssistantCurrentPoint}
                     currentTimeLabel={t.segmentManualAssistantCurrentTime}
+                    segmentTimeLabel={t.segmentManualAssistantSegmentTime}
                     currentHeartRateLabel={t.segmentManualAssistantCurrentHeartRate}
                     segmentStartSecond={selectedSegment?.startSecond ?? 0}
                     segmentEndSecond={selectedSegment?.endSecond ?? segmentAssistantMaxSecond}
@@ -4819,6 +4835,7 @@ type SegmentationAssistantProps = {
   topControls: ReactNode;
   betweenControls: ReactNode;
   currentTimeLabel: string;
+  segmentTimeLabel: string;
   currentHeartRateLabel: string;
   segmentStartSecond: number;
   segmentEndSecond: number;
@@ -5064,7 +5081,7 @@ function MapSurface({ width, height, satelliteImageUrl, children }: MapSurfacePr
   );
 }
 
-function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, topControls, betweenControls, currentTimeLabel, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
+function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, topControls, betweenControls, currentTimeLabel, segmentTimeLabel, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
   const heartRateTrend = useMemo(() => {
     return (heartRateSamples ?? [])
       .filter((sample) => sample.elapsedSeconds >= segmentStartSecond && sample.elapsedSeconds <= segmentEndSecond)
@@ -5079,19 +5096,23 @@ function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples,
 
     const width = 560;
     const height = 160;
-    const maxX = Math.max(...heartRateTrend.map((entry) => entry.xSecond), 1);
+    const minX = Math.min(...heartRateTrend.map((entry) => entry.xSecond));
+    const maxX = Math.max(...heartRateTrend.map((entry) => entry.xSecond), minX + 1);
+    const spanX = Math.max(1, maxX - minX);
     const maxY = Math.max(...heartRateTrend.map((entry) => entry.heartRateBpm), 1);
 
     return heartRateTrend
       .map((entry) => {
-        const x = (entry.xSecond / maxX) * width;
+        const x = ((entry.xSecond - minX) / spanX) * width;
         const y = height - ((entry.heartRateBpm / maxY) * height);
         return `${x},${y}`;
       })
       .join(' ');
   }, [heartRateTrend]);
 
-  const maxTrendSecond = Math.max(...heartRateTrend.map((entry) => entry.xSecond), 1);
+  const minTrendSecond = Math.min(...heartRateTrend.map((entry) => entry.xSecond), 0);
+  const maxTrendSecond = Math.max(...heartRateTrend.map((entry) => entry.xSecond), minTrendSecond + 1);
+  const trendSpanSeconds = Math.max(1, maxTrendSecond - minTrendSecond);
   const maxTrendValue = Math.max(...heartRateTrend.map((entry) => entry.heartRateBpm), 1);
   const nearestHeartRateEntry = heartRateTrend.length === 0
     ? null
@@ -5104,7 +5125,7 @@ function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples,
     }, null as { xSecond: number; heartRateBpm: number } | null);
   const heartRateCursorPoint = nearestHeartRateEntry
     ? {
-      x: (nearestHeartRateEntry.xSecond / maxTrendSecond) * 560,
+      x: ((nearestHeartRateEntry.xSecond - minTrendSecond) / trendSpanSeconds) * 560,
       y: 160 - ((nearestHeartRateEntry.heartRateBpm / maxTrendValue) * 160)
     }
     : null;
@@ -5170,6 +5191,7 @@ function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples,
             )}
           </InteractiveMap>
           <p>{currentTimeLabel}: {formatSecondsMmSs(cursorSecond)} ({Math.floor(cursorSecond)}s)</p>
+          <p>{segmentTimeLabel}: {formatSecondsMmSs(Math.max(0, cursorSecond - segmentStartSecond))} ({Math.max(0, Math.floor(cursorSecond - segmentStartSecond))}s)</p>
           <p>{currentPointLabel}: {cursorPoint ? `${formatSecondsMmSs(cursorPoint.elapsedSeconds)} (${cursorPoint.elapsedSeconds}s) · ${cursorPoint.latitude.toFixed(5)}, ${cursorPoint.longitude.toFixed(5)}` : 'n/a'}</p>
         </>
       )}
