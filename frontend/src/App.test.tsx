@@ -2262,9 +2262,15 @@ describe('App', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Edit segments' }));
 
-    await screen.findByText('Timeline-assisted segmentation');
+    await screen.findByText('Manual segmentation assistant');
     expect(screen.getByText('GPS intensity trend unavailable for this session.')).toBeInTheDocument();
     expect(screen.getByText(/0s-300s/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Timeline cursor/), { target: { value: '180' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Set segment start from cursor' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set segment end from cursor' }));
+    expect(screen.getByLabelText('Start (s)')).toHaveValue(180);
+    expect(screen.getByLabelText('End (s)')).toHaveValue(181);
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Apply suggestion' })[0]);
     expect(screen.getByLabelText('Label')).toHaveValue('Warm-up block');

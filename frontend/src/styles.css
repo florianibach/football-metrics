@@ -516,6 +516,34 @@ button:disabled {
   margin-top: 0.4rem;
   flex-wrap: wrap;
 }
+
+.segment-manual-assistant {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.segment-manual-assistant__hr-chart {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+}
+
+.segment-manual-assistant__hr-bg {
+  fill: rgba(16, 24, 40, 0.08);
+}
+
+.segment-manual-assistant__hr-line {
+  fill: none;
+  stroke: #a7cd33;
+  stroke-width: 3;
+}
+
+.segment-manual-assistant__cursor-point {
+  fill: #d92d20;
+  stroke: #ffffff;
+  stroke-width: 0.9;
+}
 .gps-heatmap-section {
   margin-top: 1rem;
 }
