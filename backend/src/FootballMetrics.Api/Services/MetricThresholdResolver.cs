@@ -12,16 +12,36 @@ public class MetricThresholdResolver : IMetricThresholdResolver
         _repository = repository;
     }
 
-    public async Task<MetricThresholdProfile> ResolveEffectiveAsync(MetricThresholdProfile baseProfile, CancellationToken cancellationToken = default)
+    public async Task<MetricThresholdProfile> ResolveEffectiveAsync(
+        MetricThresholdProfile baseProfile,
+        double? candidateMaxSpeedMps = null,
+        int? candidateMaxHeartRateBpm = null,
+        CancellationToken cancellationToken = default)
     {
         var stats = await _repository.GetAdaptiveStatsExtremesAsync(cancellationToken);
 
-        var effectiveMaxSpeed = string.Equals(baseProfile.MaxSpeedMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && stats.MaxSpeedMps.HasValue
-            ? stats.MaxSpeedMps.Value
+        var effectiveAdaptiveMaxSpeed = stats.MaxSpeedMps;
+        if (candidateMaxSpeedMps.HasValue)
+        {
+            effectiveAdaptiveMaxSpeed = !effectiveAdaptiveMaxSpeed.HasValue
+                ? candidateMaxSpeedMps.Value
+                : Math.Max(effectiveAdaptiveMaxSpeed.Value, candidateMaxSpeedMps.Value);
+        }
+
+        var effectiveAdaptiveMaxHeartRate = stats.MaxHeartRateBpm;
+        if (candidateMaxHeartRateBpm.HasValue)
+        {
+            effectiveAdaptiveMaxHeartRate = !effectiveAdaptiveMaxHeartRate.HasValue
+                ? candidateMaxHeartRateBpm.Value
+                : Math.Max(effectiveAdaptiveMaxHeartRate.Value, candidateMaxHeartRateBpm.Value);
+        }
+
+        var effectiveMaxSpeed = string.Equals(baseProfile.MaxSpeedMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && effectiveAdaptiveMaxSpeed.HasValue
+            ? effectiveAdaptiveMaxSpeed.Value
             : baseProfile.MaxSpeedMps;
 
-        var effectiveMaxHeartRate = string.Equals(baseProfile.MaxHeartRateMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && stats.MaxHeartRateBpm.HasValue
-            ? stats.MaxHeartRateBpm.Value
+        var effectiveMaxHeartRate = string.Equals(baseProfile.MaxHeartRateMode, MetricThresholdModes.Adaptive, StringComparison.OrdinalIgnoreCase) && effectiveAdaptiveMaxHeartRate.HasValue
+            ? effectiveAdaptiveMaxHeartRate.Value
             : baseProfile.MaxHeartRateBpm;
 
         return new MetricThresholdProfile
