@@ -96,7 +96,8 @@ public static partial class TcxMetricsExtractor
                 snapshot.Longitude!.Value,
                 snapshot.TimeUtc.HasValue && startTime.HasValue
                     ? Math.Max(0, (snapshot.TimeUtc.Value - startTime.Value).TotalSeconds)
-                    : null))
+                    : null,
+                snapshot.HeartRateBpm))
             .ToList();
 
         return new TcxActivitySummary(

@@ -51,6 +51,7 @@ type GpsTrackpoint = {
   latitude: number;
   longitude: number;
   elapsedSeconds: number | null;
+  heartRateBpm?: number | null;
 };
 
 type DataAvailability = {
@@ -978,7 +979,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentManualAssistantSplitAtCursor: 'Split at cursor',
     segmentManualAssistantCursorBack: 'Previous point',
     segmentManualAssistantCursorForward: 'Next point',
-    segmentManualAssistantCurrentHeartRate: 'Current heart-rate trend value',
+    segmentManualAssistantCurrentHeartRate: 'Current heart-rate',
     segmentManualAssistantCurrentTime: 'Current time',
     segmentManualAssistantNoSegments: 'Create at least one segment first to use graphical editing safely.',
     segmentCategoryOther: 'Other',
@@ -1354,7 +1355,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentManualAssistantSplitAtCursor: 'Am Cursor teilen',
     segmentManualAssistantCursorBack: 'Vorheriger Punkt',
     segmentManualAssistantCursorForward: 'Nächster Punkt',
-    segmentManualAssistantCurrentHeartRate: 'Aktueller Herzfrequenz-Verlaufswert',
+    segmentManualAssistantCurrentHeartRate: 'Aktuelle Herzfrequenz',
     segmentManualAssistantCurrentTime: 'Aktuelle Zeit',
     segmentManualAssistantNoSegments: 'Lege zuerst mindestens ein Segment an, um sicher grafisch zu editieren.',
     segmentCategoryOther: 'Sonstiges',
@@ -3027,10 +3028,18 @@ export function App() {
       : selectedSession.summary.smoothing.smoothedDirectionChanges
     : null;
 
-  const segmentAssistantPoints = useMemo(
-    () => (selectedSession?.summary.gpsTrackpoints ?? []).filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null).sort((a, b) => a.elapsedSeconds - b.elapsedSeconds),
-    [selectedSession]
-  );
+  const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
+  const segmentAssistantPoints = useMemo(() => {
+    const allPoints = (selectedSession?.summary.gpsTrackpoints ?? [])
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+
+    if (!selectedSegment) {
+      return allPoints;
+    }
+
+    return allPoints.filter((point) => point.elapsedSeconds >= selectedSegment.startSecond && point.elapsedSeconds <= selectedSegment.endSecond);
+  }, [selectedSession, selectedSegment]);
   const segmentAssistantBounds = useMemo(() => {
     if (segmentAssistantPoints.length === 0) {
       return null;
@@ -3043,12 +3052,9 @@ export function App() {
       maxLongitude: Math.max(...segmentAssistantPoints.map((point) => point.longitude))
     };
   }, [segmentAssistantPoints]);
-  const segmentAssistantMaxSecond = Math.max(0, Math.floor(selectedSession?.summary.durationSeconds ?? segmentAssistantPoints.at(-1)?.elapsedSeconds ?? 0));
-  const currentCursorPointIndex = useMemo(
-    () => findNearestPointIndexBySecond(segmentAssistantPoints, segmentCursorSecond),
-    [segmentAssistantPoints, segmentCursorSecond]
-  );
-  const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
+  const segmentAssistantMaxSecond = selectedSegment
+    ? selectedSegment.endSecond
+    : Math.max(0, Math.floor(selectedSession?.summary.durationSeconds ?? segmentAssistantPoints.at(-1)?.elapsedSeconds ?? 0));
   const isSegmentScopeActive = analysisScope === 'segment' && selectedSegment !== null;
 
   useEffect(() => {
@@ -4252,6 +4258,8 @@ export function App() {
                     currentPointLabel={t.segmentManualAssistantCurrentPoint}
                     currentTimeLabel={t.segmentManualAssistantCurrentTime}
                     currentHeartRateLabel={t.segmentManualAssistantCurrentHeartRate}
+                    segmentStartSecond={selectedSegment?.startSecond ?? 0}
+                    segmentEndSecond={selectedSegment?.endSecond ?? segmentAssistantMaxSecond}
                     zoomInLabel={t.gpsHeatmapZoomIn}
                     zoomOutLabel={t.gpsHeatmapZoomOut}
                     zoomResetLabel={t.gpsHeatmapZoomReset}
@@ -4270,8 +4278,10 @@ export function App() {
                           onChange={(event) => setSegmentCursorSecond(Number(event.target.value))}
                         />
                         <div className="segment-suggestion-list__actions">
-                          <button type="button" className="secondary-button" onClick={() => { if (currentCursorPointIndex > 0) setSegmentCursorSecond(segmentAssistantPoints[currentCursorPointIndex - 1].elapsedSeconds); }}>{t.segmentManualAssistantCursorBack}</button>
-                          <button type="button" className="secondary-button" onClick={() => { if (currentCursorPointIndex >= 0 && currentCursorPointIndex < segmentAssistantPoints.length - 1) setSegmentCursorSecond(segmentAssistantPoints[currentCursorPointIndex + 1].elapsedSeconds); }}>{t.segmentManualAssistantCursorForward}</button>
+                          <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.max(selectedSegment?.startSecond ?? 0, current - 5))}>-5s</button>
+                          <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.max(selectedSegment?.startSecond ?? 0, current - 1))}>-1s</button>
+                          <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.min(selectedSegment?.endSecond ?? segmentAssistantMaxSecond, current + 1))}>+1s</button>
+                          <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.min(selectedSegment?.endSecond ?? segmentAssistantMaxSecond, current + 5))}>+5s</button>
                           <button type="button" className="secondary-button" onClick={() => onSetSegmentBoundaryFromCursor('start')}>{t.segmentManualAssistantSetStart}</button>
                           <button type="button" className="secondary-button" onClick={() => onSetSegmentBoundaryFromCursor('end')}>{t.segmentManualAssistantSetEnd}</button>
                           <button type="button" className="secondary-button" onClick={onSplitAtCursor}>{t.segmentManualAssistantSplitAtCursor}</button>
@@ -4799,6 +4809,8 @@ type SegmentationAssistantProps = {
   middleControls: ReactNode;
   currentTimeLabel: string;
   currentHeartRateLabel: string;
+  segmentStartSecond: number;
+  segmentEndSecond: number;
 };
 
 function findNearestPointIndexBySecond(points: Array<GpsTrackpoint & { elapsedSeconds: number }>, targetSecond: number): number {
@@ -4843,6 +4855,7 @@ type InteractiveMapProps = {
   zoomResetLabel: string;
   sessionId: string;
   ariaLabel: string;
+  controlsPosition?: 'top' | 'bottom';
   children: (args: { width: number; height: number; transform: string; isDragging: boolean; handlers: {
     onPointerDown: (event: PointerEvent<SVGSVGElement>) => void;
     onPointerMove: (event: PointerEvent<SVGSVGElement>) => void;
@@ -4903,7 +4916,7 @@ function useMapProjection(points: GpsTrackpoint[], minLatitude: number, maxLatit
   return { width, height, screenPoints, satelliteImageUrl };
 }
 
-function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, ariaLabel, children }: InteractiveMapProps) {
+function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, ariaLabel, controlsPosition = 'top', children }: InteractiveMapProps) {
   const width = 560;
   const height = 320;
   const [zoomScale, setZoomScale] = useState(1);
@@ -4998,13 +5011,17 @@ function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, 
   const centerTranslateY = (height / 2) + panOffset.y;
   const transform = `translate(${centerTranslateX} ${centerTranslateY}) scale(${zoomScale}) translate(${-width / 2} ${-height / 2})`;
 
+  const controls = (
+    <div className="gps-heatmap-controls" role="group" aria-label="Heatmap controls">
+      <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
+      <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
+      <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
+    </div>
+  );
+
   return (
     <>
-      <div className="gps-heatmap-controls" role="group" aria-label="Heatmap controls">
-        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(-0.2)}>{zoomOutLabel}</button>
-        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => adjustZoom(0.2)}>{zoomInLabel}</button>
-        <button className="btn btn-sm btn-outline-secondary" type="button" onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}>{zoomResetLabel}</button>
-      </div>
+      {controlsPosition === 'top' && controls}
       <svg
         className={`gps-heatmap ${dragStart ? 'gps-heatmap--dragging' : ''}`}
         viewBox={`0 0 ${width} ${height}`}
@@ -5021,6 +5038,7 @@ function InteractiveMap({ zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, 
           {children({ width, height, transform, isDragging: dragStart !== null, handlers: { onPointerDown, onPointerMove, onPointerUp: onPointerEnd } })}
         </g>
       </svg>
+      {controlsPosition === 'bottom' && controls}
     </>
   );
 }
@@ -5035,7 +5053,7 @@ function MapSurface({ width, height, satelliteImageUrl, children }: MapSurfacePr
   );
 }
 
-function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregates, activityStartTimeUtc, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, middleControls, currentTimeLabel, currentHeartRateLabel }: SegmentationAssistantProps) {
+function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregates, activityStartTimeUtc, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, middleControls, currentTimeLabel, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
   const heartRateTrend = useMemo(() => {
     const sessionStart = activityStartTimeUtc ? new Date(activityStartTimeUtc).getTime() : Number.NaN;
 
@@ -5057,6 +5075,7 @@ function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregate
         };
       })
       .filter((item): item is { xSecond: number; intensity: number } => item !== null)
+      .filter((entry) => entry.xSecond >= segmentStartSecond && entry.xSecond <= segmentEndSecond)
       .sort((a, b) => a.xSecond - b.xSecond);
   }, [intervalAggregates, activityStartTimeUtc]);
 
@@ -5110,6 +5129,7 @@ function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregate
 
   return (
     <div className="segment-manual-assistant">
+      {middleControls}
       <h5>{titleHeartRate}</h5>
       {heartRateTrend.length === 0 ? (
         <p>{noHeartRateDataLabel}</p>
@@ -5120,18 +5140,17 @@ function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregate
             <polyline points={chartPoints} className="segment-manual-assistant__hr-line" />
             {heartRateCursorPoint && <circle cx={heartRateCursorPoint.x} cy={heartRateCursorPoint.y} r="4" className="segment-manual-assistant__cursor-point" />}
           </svg>
-          <p>{currentHeartRateLabel}: {nearestHeartRateEntry ? `${nearestHeartRateEntry.intensity.toFixed(2)} TRIMP/min` : 'n/a'}</p>
+          <p>{currentHeartRateLabel}: {cursorPoint?.heartRateBpm ?? 'n/a'}{cursorPoint?.heartRateBpm ? ' bpm' : ''}</p>
         </>
       )}
 
-      {middleControls}
 
       <h5>{titleMap}</h5>
       {points.length === 0 || !bounds ? (
         <p>{currentPointLabel}: n/a</p>
       ) : (
         <>
-          <InteractiveMap zoomInLabel={zoomInLabel} zoomOutLabel={zoomOutLabel} zoomResetLabel={zoomResetLabel} sessionId={`segment-assistant-${sessionId}`} ariaLabel={titleMap}>
+          <InteractiveMap zoomInLabel={zoomInLabel} zoomOutLabel={zoomOutLabel} zoomResetLabel={zoomResetLabel} sessionId={`segment-assistant-${sessionId}`} ariaLabel={titleMap} controlsPosition="bottom">
             {() => (
               <MapSurface width={width} height={height} satelliteImageUrl={satelliteImageUrl}>
                 <polyline points={screenPoints.map((point) => `${point.x},${point.y}`).join(' ')} className="gps-heatmap__track-line" />

@@ -23,7 +23,8 @@ public sealed record TcxActivitySummary(
 public sealed record TcxGpsTrackpoint(
     double Latitude,
     double Longitude,
-    double? ElapsedSeconds);
+    double? ElapsedSeconds,
+    int? HeartRateBpm);
 
 
 public sealed record TcxDetectedRun(
