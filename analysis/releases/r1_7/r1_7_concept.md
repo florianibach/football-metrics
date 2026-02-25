@@ -27,10 +27,12 @@ Die Analyse basiert auf vier Belastungsdimensionen:
 
 ## 2.2 Speed / High-Speed
 
-* Max Speed
-* High-Speed Distance
-* Sprint Count
-* Sprint Distance
+* Maximum speed
+* High-intensity time
+* High-intensity runs
+* of which sprint phases
+* High-speed distance
+* of which sprint phase distance
 
 ## 2.3 Mechanical Load
 
@@ -89,10 +91,12 @@ Schnelle Einordnung der Session in allen 4 Dimensionen.
 
 ### 4.2 Speed
 
-* Max Speed
-* High-Speed Distance
-* Sprint Count
-* Sprint Distance
+* Maximum speed
+* High-intensity time
+* High-intensity runs
+* of which sprint phases
+* High-speed distance
+* of which sprint phase distance
 
 ### 4.3 Mechanical
 
@@ -191,7 +195,7 @@ Standard = 5 min
 ## Darstellung
 
 ### Window Selector:
-
+Dropdown
 ◉ 5 min
 ○ 2 min
 ○ 1 min
@@ -248,8 +252,6 @@ Leistungsabfall oder Unterschiede analysieren.
 ## Segmenttypen
 
 * Entire Session
-* First Half
-* Second Half
 * Custom Segments (manuell definierbar)
 
 ---
@@ -283,7 +285,7 @@ Funktionen:
   * Accels only
 
 Heatmap ist orthogonal zur Zeitachse.
-
+Hint: we will keep the maps as they are at the moment - but we add a accel/deccel map, with at least 3 points for display reasons
 ---
 
 # 10. Rolling vs Block (fachliche Definition)
