@@ -4264,7 +4264,16 @@ export function App() {
                     zoomOutLabel={t.gpsHeatmapZoomOut}
                     zoomResetLabel={t.gpsHeatmapZoomReset}
                     sessionId={selectedSession.id}
-                    middleControls={(
+                    topControls={(
+                      <div className="segment-manual-assistant__middle-controls">
+                        <div className="segment-suggestion-list__actions">
+                          <button type="button" className="secondary-button" onClick={onSplitAtCursor}>{t.segmentManualAssistantSplitAtCursor}</button>
+                          <button type="button" className="secondary-button" onClick={() => onSetSegmentBoundaryFromCursor('start')}>{t.segmentManualAssistantSetStart}</button>
+                          <button type="button" className="secondary-button" onClick={() => onSetSegmentBoundaryFromCursor('end')}>{t.segmentManualAssistantSetEnd}</button>
+                        </div>
+                      </div>
+                    )}
+                    betweenControls={(
                       <div className="segment-manual-assistant__middle-controls">
                         <label className="form-label" htmlFor="segment-timeline-cursor">{t.segmentManualAssistantSliderLabel}: {formatSecondsMmSs(segmentCursorSecond)} ({Math.floor(segmentCursorSecond)}s)</label>
                         <input
@@ -4282,9 +4291,6 @@ export function App() {
                           <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.max(selectedSegment?.startSecond ?? 0, current - 1))}>-1s</button>
                           <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.min(selectedSegment?.endSecond ?? segmentAssistantMaxSecond, current + 1))}>+1s</button>
                           <button type="button" className="secondary-button" onClick={() => setSegmentCursorSecond((current) => Math.min(selectedSegment?.endSecond ?? segmentAssistantMaxSecond, current + 5))}>+5s</button>
-                          <button type="button" className="secondary-button" onClick={() => onSetSegmentBoundaryFromCursor('start')}>{t.segmentManualAssistantSetStart}</button>
-                          <button type="button" className="secondary-button" onClick={() => onSetSegmentBoundaryFromCursor('end')}>{t.segmentManualAssistantSetEnd}</button>
-                          <button type="button" className="secondary-button" onClick={onSplitAtCursor}>{t.segmentManualAssistantSplitAtCursor}</button>
                         </div>
                       </div>
                     )}
@@ -4806,7 +4812,8 @@ type SegmentationAssistantProps = {
   zoomOutLabel: string;
   zoomResetLabel: string;
   sessionId: string;
-  middleControls: ReactNode;
+  topControls: ReactNode;
+  betweenControls: ReactNode;
   currentTimeLabel: string;
   currentHeartRateLabel: string;
   segmentStartSecond: number;
@@ -5053,31 +5060,19 @@ function MapSurface({ width, height, satelliteImageUrl, children }: MapSurfacePr
   );
 }
 
-function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregates, activityStartTimeUtc, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, middleControls, currentTimeLabel, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
+function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregates, activityStartTimeUtc, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, topControls, betweenControls, currentTimeLabel, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
   const heartRateTrend = useMemo(() => {
-    const sessionStart = activityStartTimeUtc ? new Date(activityStartTimeUtc).getTime() : Number.NaN;
-
-    return intervalAggregates
-      .map((aggregate) => {
-        const trimp = aggregate.coreMetrics.trainingImpulseEdwards;
-        if (trimp === null || aggregate.windowDurationSeconds <= 0) {
-          return null;
-        }
-
-        const aggregateStart = new Date(aggregate.windowStartUtc).getTime();
-        const xSecond = Number.isFinite(sessionStart) && Number.isFinite(aggregateStart)
-          ? Math.max(0, Math.round((aggregateStart - sessionStart) / 1000))
-          : Math.max(0, Math.round(aggregate.windowIndex * aggregate.windowMinutes * 60));
-
-        return {
-          xSecond,
-          intensity: trimp / (aggregate.windowDurationSeconds / 60)
-        };
-      })
-      .filter((item): item is { xSecond: number; intensity: number } => item !== null)
-      .filter((entry) => entry.xSecond >= segmentStartSecond && entry.xSecond <= segmentEndSecond)
+    const directHeartRateSeries = points
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number; heartRateBpm: number } => point.elapsedSeconds !== null && point.heartRateBpm !== null && point.heartRateBpm !== undefined)
+      .map((point) => ({ xSecond: point.elapsedSeconds, heartRateBpm: point.heartRateBpm }))
       .sort((a, b) => a.xSecond - b.xSecond);
-  }, [intervalAggregates, activityStartTimeUtc]);
+
+    if (directHeartRateSeries.length > 0) {
+      return directHeartRateSeries;
+    }
+
+    return [] as Array<{ xSecond: number; heartRateBpm: number }>;
+  }, [points]);
 
   const chartPoints = useMemo(() => {
     if (heartRateTrend.length === 0) {
@@ -5087,19 +5082,19 @@ function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregate
     const width = 560;
     const height = 160;
     const maxX = Math.max(...heartRateTrend.map((entry) => entry.xSecond), 1);
-    const maxY = Math.max(...heartRateTrend.map((entry) => entry.intensity), 1);
+    const maxY = Math.max(...heartRateTrend.map((entry) => entry.heartRateBpm), 1);
 
     return heartRateTrend
       .map((entry) => {
         const x = (entry.xSecond / maxX) * width;
-        const y = height - ((entry.intensity / maxY) * height);
+        const y = height - ((entry.heartRateBpm / maxY) * height);
         return `${x},${y}`;
       })
       .join(' ');
   }, [heartRateTrend]);
 
   const maxTrendSecond = Math.max(...heartRateTrend.map((entry) => entry.xSecond), 1);
-  const maxTrendValue = Math.max(...heartRateTrend.map((entry) => entry.intensity), 1);
+  const maxTrendValue = Math.max(...heartRateTrend.map((entry) => entry.heartRateBpm), 1);
   const nearestHeartRateEntry = heartRateTrend.length === 0
     ? null
     : heartRateTrend.reduce((best, entry) => {
@@ -5108,11 +5103,11 @@ function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregate
       }
 
       return Math.abs(entry.xSecond - cursorSecond) < Math.abs(best.xSecond - cursorSecond) ? entry : best;
-    }, null as { xSecond: number; intensity: number } | null);
+    }, null as { xSecond: number; heartRateBpm: number } | null);
   const heartRateCursorPoint = nearestHeartRateEntry
     ? {
       x: (nearestHeartRateEntry.xSecond / maxTrendSecond) * 560,
-      y: 160 - ((nearestHeartRateEntry.intensity / maxTrendValue) * 160)
+      y: 160 - ((nearestHeartRateEntry.heartRateBpm / maxTrendValue) * 160)
     }
     : null;
 
@@ -5129,7 +5124,7 @@ function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregate
 
   return (
     <div className="segment-manual-assistant">
-      {middleControls}
+      {topControls}
       <h5>{titleHeartRate}</h5>
       {heartRateTrend.length === 0 ? (
         <p>{noHeartRateDataLabel}</p>
@@ -5140,10 +5135,12 @@ function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregate
             <polyline points={chartPoints} className="segment-manual-assistant__hr-line" />
             {heartRateCursorPoint && <circle cx={heartRateCursorPoint.x} cy={heartRateCursorPoint.y} r="4" className="segment-manual-assistant__cursor-point" />}
           </svg>
-          <p>{currentHeartRateLabel}: {cursorPoint?.heartRateBpm ?? 'n/a'}{cursorPoint?.heartRateBpm ? ' bpm' : ''}</p>
+          <p>{currentHeartRateLabel}: {(cursorPoint?.heartRateBpm ?? nearestHeartRateEntry?.heartRateBpm) ?? 'n/a'}{(cursorPoint?.heartRateBpm ?? nearestHeartRateEntry?.heartRateBpm) ? ' bpm' : ''}</p>
         </>
       )}
 
+
+      {betweenControls}
 
       <h5>{titleMap}</h5>
       {points.length === 0 || !bounds ? (

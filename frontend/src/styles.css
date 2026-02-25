@@ -524,6 +524,7 @@ button:disabled {
 
 .segment-manual-assistant__hr-chart {
   width: 100%;
+  max-width: 560px;
   height: auto;
 }
 
