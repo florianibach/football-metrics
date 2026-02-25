@@ -2222,6 +2222,62 @@ describe('App', () => {
     const errorCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/segments'));
     expect(errorCalls.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('R1_6_04_Ac01_Ac03_Ac04_shows_timeline_suggestions_and_allows_apply_or_dismiss', async () => {
+    const initial = createUploadRecord({
+      id: 'upload-segment-timeline',
+      summary: createSummary({ durationSeconds: 1200, hasGpsData: false }),
+      segments: [],
+      segmentChangeHistory: []
+    });
+
+    const createdResponse = createUploadRecord({
+      id: 'upload-segment-timeline',
+      summary: createSummary({ durationSeconds: 1200, hasGpsData: false }),
+      segments: [{ id: 'seg-suggestion', label: 'Warm-up block', startSecond: 0, endSecond: 300, notes: 'Detected lower load block at session start. Good candidate for warm-up.' }],
+      segmentChangeHistory: []
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [initial] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      if (url.includes('/segments') && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: async () => createdResponse } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => initial } as Response);
+    });
+
+    render(<App />);
+    await screen.findByText('Upload history');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit segments' }));
+
+    await screen.findByText('Timeline-assisted segmentation');
+    expect(screen.getByText('GPS intensity trend unavailable for this session.')).toBeInTheDocument();
+    expect(screen.getByText(/0s-300s/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Apply suggestion' })[0]);
+    expect(screen.getByLabelText('Label')).toHaveValue('Warm-up block');
+    expect(screen.getByLabelText('Start (s)')).toHaveValue(0);
+    expect(screen.getByLabelText('End (s)')).toHaveValue(300);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add segment' }));
+    await waitFor(() => expect(screen.getAllByText('Warm-up block').length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss' })[0]);
+    await waitFor(() => expect(screen.queryByText(/0s-300s/)).not.toBeInTheDocument());
+  });
+
   it('R1_6_13_Ac01_Ac02_renders_gps_heatmap_for_dual_mode_sessions_with_imported_points', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);

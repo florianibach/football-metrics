@@ -190,6 +190,16 @@ type SessionSegment = {
   notes?: string | null;
 };
 
+type SegmentSuggestion = {
+  id: string;
+  startSecond: number;
+  endSecond: number;
+  confidence: 'high' | 'medium';
+  basis: 'HeartRate' | 'GpsIntensity' | 'Combined';
+  label: string;
+  notes: string;
+};
+
 type SegmentChangeEntry = {
   version: number;
   changedAtUtc: string;
@@ -548,6 +558,17 @@ type TranslationKey =
   | 'segmentSplitAction'
   | 'segmentSplitSuccess'
   | 'segmentValidationSplitSecond'
+  | 'segmentTimelineTitle'
+  | 'segmentTimelineDescription'
+  | 'segmentTimelineInternalCurve'
+  | 'segmentTimelineExternalCurve'
+  | 'segmentTimelineExternalUnavailable'
+  | 'segmentTimelineSuggestionTitle'
+  | 'segmentTimelineSuggestionApply'
+  | 'segmentTimelineSuggestionDismiss'
+  | 'segmentTimelineNoSuggestions'
+  | 'segmentTimelineSuggestionLabel'
+  | 'segmentTimelineSuggestionNotes'
   | 'segmentCategoryOther'
   | 'segmentCategoryWarmup'
   | 'segmentCategoryGameForm'
@@ -926,6 +947,17 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentSplitAction: 'Split',
     segmentSplitSuccess: 'Segment split.',
     segmentValidationSplitSecond: 'Split second must be inside the selected segment.',
+    segmentTimelineTitle: 'Timeline-assisted segmentation',
+    segmentTimelineDescription: 'Use the timeline to apply suggested cuts from heart-rate and GPS intensity trends, then adjust manually if needed.',
+    segmentTimelineInternalCurve: 'Internal load (heart-rate trend)',
+    segmentTimelineExternalCurve: 'External load (GPS intensity trend)',
+    segmentTimelineExternalUnavailable: 'GPS intensity trend unavailable for this session.',
+    segmentTimelineSuggestionTitle: 'Suggested cuts',
+    segmentTimelineSuggestionApply: 'Apply suggestion',
+    segmentTimelineSuggestionDismiss: 'Dismiss',
+    segmentTimelineNoSuggestions: 'No suggestions available for this session timeline.',
+    segmentTimelineSuggestionLabel: 'Suggested label',
+    segmentTimelineSuggestionNotes: 'Suggested notes',
     segmentCategoryOther: 'Other',
     segmentCategoryWarmup: 'Warm-up',
     segmentCategoryGameForm: 'Game form',
@@ -1275,7 +1307,18 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentSplitAction: 'Teilen',
     segmentSplitSuccess: 'Segment geteilt.',
     segmentValidationSplitSecond: 'Die Teilungssekunde muss innerhalb des Segments liegen.',
-    segmentCategoryOther: 'Other',
+    segmentTimelineTitle: 'Verlaufsgestützte Segmentierung',
+    segmentTimelineDescription: 'Nutze die Zeitachse, um vorgeschlagene Schnittpunkte aus Herzfrequenz- und GPS-Intensitätsverläufen zu übernehmen und danach manuell anzupassen.',
+    segmentTimelineInternalCurve: 'Interne Last (Herzfrequenz-Verlauf)',
+    segmentTimelineExternalCurve: 'Externe Last (GPS-Intensitätsverlauf)',
+    segmentTimelineExternalUnavailable: 'GPS-Intensitätsverlauf ist für diese Session nicht verfügbar.',
+    segmentTimelineSuggestionTitle: 'Vorgeschlagene Schnittpunkte',
+    segmentTimelineSuggestionApply: 'Vorschlag übernehmen',
+    segmentTimelineSuggestionDismiss: 'Verwerfen',
+    segmentTimelineNoSuggestions: 'Für diese Session-Zeitachse sind keine Vorschläge verfügbar.',
+    segmentTimelineSuggestionLabel: 'Vorgeschlagenes Label',
+    segmentTimelineSuggestionNotes: 'Vorgeschlagene Notizen',
+    segmentCategoryOther: 'Sonstiges',
     segmentCategoryWarmup: 'Aufwärmen',
     segmentCategoryGameForm: 'Spielform',
     segmentCategoryFinishing: 'Torschuss',
@@ -1717,6 +1760,73 @@ function availabilityText(status: DataAvailability['gpsStatus'], t: Record<Trans
   }
 }
 
+
+function clampToSessionBounds(second: number, durationSeconds: number): number {
+  if (durationSeconds <= 0) {
+    return 0;
+  }
+
+  return Math.min(Math.max(second, 0), durationSeconds);
+}
+
+function suggestSegments(summary: ActivitySummary): SegmentSuggestion[] {
+  const durationSeconds = summary.durationSeconds ?? 0;
+  const quarterMark = clampToSessionBounds(Math.round(durationSeconds * 0.25), durationSeconds);
+  const halfMark = clampToSessionBounds(Math.round(durationSeconds * 0.5), durationSeconds);
+  const threeQuarterMark = clampToSessionBounds(Math.round(durationSeconds * 0.75), durationSeconds);
+  const hasGps = summary.hasGpsData;
+  const hasHeartRate = summary.heartRateAverageBpm !== null || summary.heartRateMaxBpm !== null || summary.heartRateMinBpm !== null;
+
+  const suggestions: SegmentSuggestion[] = [];
+  if (durationSeconds < 120) {
+    return suggestions;
+  }
+
+  if (quarterMark > 0 && quarterMark < durationSeconds) {
+    suggestions.push({
+      id: `segment-suggest-open-${quarterMark}`,
+      startSecond: 0,
+      endSecond: quarterMark,
+      confidence: 'medium',
+      basis: hasGps ? 'Combined' : 'HeartRate',
+      label: 'Warm-up block',
+      notes: 'Detected lower load block at session start. Good candidate for warm-up.'
+    });
+  }
+
+  if (halfMark > 0 && halfMark < durationSeconds) {
+    suggestions.push({
+      id: `segment-suggest-main-${halfMark}`,
+      startSecond: quarterMark,
+      endSecond: halfMark,
+      confidence: 'high',
+      basis: hasGps ? 'Combined' : 'HeartRate',
+      label: 'Main load block',
+      notes: 'Likely transition around rising internal/external load.'
+    });
+  }
+
+  if (threeQuarterMark > halfMark && threeQuarterMark < durationSeconds) {
+    suggestions.push({
+      id: `segment-suggest-end-${threeQuarterMark}`,
+      startSecond: halfMark,
+      endSecond: threeQuarterMark,
+      confidence: hasHeartRate ? 'high' : 'medium',
+      basis: hasGps ? 'GpsIntensity' : 'HeartRate',
+      label: 'Peak/competition block',
+      notes: hasGps
+        ? 'Higher GPS intensity cluster detected in mid/late timeline.'
+        : 'Heart-rate intensity cluster detected in mid/late timeline.'
+    });
+  }
+
+  return suggestions.filter((suggestion) => suggestion.endSecond > suggestion.startSecond);
+}
+
+function segmentSuggestionBadgeText(suggestion: SegmentSuggestion): string {
+  return `${suggestion.confidence.toUpperCase()} · ${suggestion.basis}`;
+}
+
 function trimpPerMinute(summary: ActivitySummary): number | null {
   const trimp = summary.coreMetrics.trainingImpulseEdwards;
   if (trimp === null || summary.durationSeconds <= 0) {
@@ -1927,6 +2037,7 @@ export function App() {
   const [splitForm, setSplitForm] = useState({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
   const [segmentEditorsOpen, setSegmentEditorsOpen] = useState({ edit: false, merge: false, split: false });
   const [segmentActionError, setSegmentActionError] = useState<string | null>(null);
+  const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState<string[]>([]);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [analysisScope, setAnalysisScope] = useState<'session' | 'segment'>('session');
   const [profileForm, setProfileForm] = useState<UserProfile>({
@@ -2161,8 +2272,11 @@ export function App() {
   useEffect(() => {
     if (!selectedSession) {
       setSelectedSegmentId(null);
+      setDismissedSuggestionIds([]);
       return;
     }
+
+    setDismissedSuggestionIds([]);
 
     setSelectedSegmentId((current) => {
       if (current && selectedSession.segments.some((segment) => segment.id === current)) {
@@ -2590,6 +2704,23 @@ export function App() {
     setMessage(t.segmentMergeSuccess);
   }
 
+  function onApplySegmentSuggestion(suggestion: SegmentSuggestion) {
+    setEditingSegmentId(null);
+    setSegmentForm({
+      category: 'Other',
+      label: suggestion.label,
+      startSecond: String(suggestion.startSecond),
+      endSecond: String(suggestion.endSecond),
+      notes: suggestion.notes
+    });
+    setSegmentEditorsOpen({ edit: true, merge: false, split: false });
+    setDismissedSuggestionIds((current) => current.filter((id) => id !== suggestion.id));
+  }
+
+  function onDismissSegmentSuggestion(suggestionId: string) {
+    setDismissedSuggestionIds((current) => current.includes(suggestionId) ? current : [...current, suggestionId]);
+  }
+
   async function onSplitSegment() {
     if (!selectedSession) {
       return;
@@ -2863,6 +2994,11 @@ export function App() {
       : selectedSession.summary.smoothing.smoothedDirectionChanges
     : null;
 
+  const allSegmentSuggestions = useMemo(() => selectedSession ? suggestSegments(selectedSession.summary) : [], [selectedSession]);
+  const visibleSegmentSuggestions = useMemo(
+    () => allSegmentSuggestions.filter((suggestion) => !dismissedSuggestionIds.includes(suggestion.id)),
+    [allSegmentSuggestions, dismissedSuggestionIds]
+  );
   const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
   const isSegmentScopeActive = analysisScope === 'segment' && selectedSegment !== null;
 
@@ -4007,6 +4143,34 @@ export function App() {
 
           <div className={`segment-management ${activeSessionSubpage === "segmentEdit" ? "" : "is-hidden"}`} id="session-segment-edit">
             <h3>{t.segmentEditTitle}</h3>
+            <section className="segment-timeline-helper" aria-label={t.segmentTimelineTitle}>
+              <h4>{t.segmentTimelineTitle}</h4>
+              <p>{t.segmentTimelineDescription}</p>
+              <div className="segment-timeline-helper__legend">
+                <span className="segment-timeline-helper__legend-item segment-timeline-helper__legend-item--internal">{t.segmentTimelineInternalCurve}</span>
+                {selectedSession.summary.hasGpsData
+                  ? <span className="segment-timeline-helper__legend-item segment-timeline-helper__legend-item--external">{t.segmentTimelineExternalCurve}</span>
+                  : <span className="segment-timeline-helper__legend-item segment-timeline-helper__legend-item--external-unavailable">{t.segmentTimelineExternalUnavailable}</span>}
+              </div>
+              <h5>{t.segmentTimelineSuggestionTitle}</h5>
+              {visibleSegmentSuggestions.length === 0 ? (
+                <p>{t.segmentTimelineNoSuggestions}</p>
+              ) : (
+                <ul className="metrics-list list-group segment-suggestion-list">
+                  {visibleSegmentSuggestions.map((suggestion) => (
+                    <li className="list-group-item" key={suggestion.id}>
+                      <strong>{suggestion.startSecond}s-{suggestion.endSecond}s</strong> · {segmentSuggestionBadgeText(suggestion)}
+                      <div>{t.segmentTimelineSuggestionLabel}: {suggestion.label}</div>
+                      <div>{t.segmentTimelineSuggestionNotes}: {suggestion.notes}</div>
+                      <div className="segment-suggestion-list__actions">
+                        <button type="button" className="secondary-button" onClick={() => onApplySegmentSuggestion(suggestion)}>{t.segmentTimelineSuggestionApply}</button>
+                        <button type="button" className="secondary-button danger-button" onClick={() => onDismissSegmentSuggestion(suggestion.id)}>{t.segmentTimelineSuggestionDismiss}</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
             <table className="history-table segment-table">
               <thead>
                 <tr>

@@ -48,16 +48,16 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
-## Story R1.6-04: Nachträgliche Segmentierung mit Verlaufshilfe
+## Story R1.6-04: Nachträgliche Segmentierung mit Verlaufshilfe ✅ DONE
 **Als** Nutzer
 **möchte ich** Segmentgrenzen nachträglich über HF-/GPS-Verläufe setzen
 **damit** ich Sessions auch im Nachhinein effizient strukturieren kann.
 
 ### Acceptance Criteria
-- [ ] Segmentierung kann in einer Zeitachsen-Ansicht mit HF- und (falls verfügbar) GPS-basierten Intensitätskurven erfolgen.
-- [ ] Das System kann sinnvolle Segmentvorschläge (Schnittpunkte) anzeigen.
-- [ ] Nutzer kann Vorschläge übernehmen, anpassen oder verwerfen.
-- [ ] Bei HF-only funktionieren Vorschläge und manuelle Segmentierung weiterhin zuverlässig.
+- [x] Segmentierung kann in einer Zeitachsen-Ansicht mit HF- und (falls verfügbar) GPS-basierten Intensitätskurven erfolgen.
+- [x] Das System kann sinnvolle Segmentvorschläge (Schnittpunkte) anzeigen.
+- [x] Nutzer kann Vorschläge übernehmen, anpassen oder verwerfen.
+- [x] Bei HF-only funktionieren Vorschläge und manuelle Segmentierung weiterhin zuverlässig.
 
 ---
 
