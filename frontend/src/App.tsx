@@ -54,6 +54,11 @@ type GpsTrackpoint = {
   heartRateBpm?: number | null;
 };
 
+type HeartRateSample = {
+  elapsedSeconds: number;
+  heartRateBpm: number;
+};
+
 type DataAvailability = {
   mode: 'Dual' | 'HeartRateOnly' | 'GpsOnly' | 'NotAvailable';
   gpsStatus: 'Available' | 'NotMeasured' | 'NotUsable' | 'AvailableWithWarning';
@@ -105,6 +110,7 @@ type ActivitySummary = {
   qualityReasons: string[];
   dataAvailability?: DataAvailability | null;
   gpsTrackpoints: GpsTrackpoint[];
+  heartRateSamples?: HeartRateSample[];
   smoothing: SmoothingTrace;
   coreMetrics: FootballCoreMetrics;
   intervalAggregates: IntervalAggregate[];
@@ -972,8 +978,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentManualAssistantCurrentPoint: 'Current point',
     segmentManualAssistantSetStart: 'Set segment start from cursor',
     segmentManualAssistantSetEnd: 'Set segment end from cursor',
-    segmentManualAssistantHeartRateChartTitle: 'Heart-rate trend over time',
-    segmentManualAssistantHeartRateChartNoData: 'No heart-rate trend data available for this session.',
+    segmentManualAssistantHeartRateChartTitle: 'Heart-rate over time',
+    segmentManualAssistantHeartRateChartNoData: 'No heart-rate data available for this session.',
     segmentManualAssistantMapTitle: 'GPS trackpoints (timeline-linked)',
     segmentManualAssistantSelectedSegment: 'Active segment for graphical edit',
     segmentManualAssistantSplitAtCursor: 'Split at cursor',
@@ -1348,8 +1354,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentManualAssistantCurrentPoint: 'Aktueller Punkt',
     segmentManualAssistantSetStart: 'Segmentstart vom Cursor übernehmen',
     segmentManualAssistantSetEnd: 'Segmentende vom Cursor übernehmen',
-    segmentManualAssistantHeartRateChartTitle: 'Herzfrequenz-Verlauf über die Zeit',
-    segmentManualAssistantHeartRateChartNoData: 'Keine Herzfrequenz-Verlaufsdaten für diese Session verfügbar.',
+    segmentManualAssistantHeartRateChartTitle: 'Herzfrequenz über die Zeit',
+    segmentManualAssistantHeartRateChartNoData: 'Keine Herzfrequenzdaten für diese Session verfügbar.',
     segmentManualAssistantMapTitle: 'GPS-Trackpoints (mit Zeitachsen-Bezug)',
     segmentManualAssistantSelectedSegment: 'Aktives Segment für grafisches Editieren',
     segmentManualAssistantSplitAtCursor: 'Am Cursor teilen',
@@ -4250,8 +4256,7 @@ export function App() {
                     points={segmentAssistantPoints}
                     bounds={segmentAssistantBounds}
                     cursorSecond={Math.min(segmentCursorSecond, segmentAssistantMaxSecond)}
-                    intervalAggregates={selectedSession.summary.intervalAggregates}
-                    activityStartTimeUtc={selectedSession.summary.activityStartTimeUtc}
+                    heartRateSamples={selectedSession.summary.heartRateSamples ?? []}
                     titleHeartRate={t.segmentManualAssistantHeartRateChartTitle}
                     titleMap={t.segmentManualAssistantMapTitle}
                     noHeartRateDataLabel={t.segmentManualAssistantHeartRateChartNoData}
@@ -4802,8 +4807,7 @@ type SegmentationAssistantProps = {
   points: Array<GpsTrackpoint & { elapsedSeconds: number }>;
   bounds: { minLatitude: number; maxLatitude: number; minLongitude: number; maxLongitude: number } | null;
   cursorSecond: number;
-  intervalAggregates: IntervalAggregate[];
-  activityStartTimeUtc: string | null;
+  heartRateSamples: HeartRateSample[];
   titleHeartRate: string;
   titleMap: string;
   noHeartRateDataLabel: string;
@@ -5060,19 +5064,13 @@ function MapSurface({ width, height, satelliteImageUrl, children }: MapSurfacePr
   );
 }
 
-function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregates, activityStartTimeUtc, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, topControls, betweenControls, currentTimeLabel, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
+function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, topControls, betweenControls, currentTimeLabel, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
   const heartRateTrend = useMemo(() => {
-    const directHeartRateSeries = points
-      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number; heartRateBpm: number } => point.elapsedSeconds !== null && point.heartRateBpm !== null && point.heartRateBpm !== undefined)
-      .map((point) => ({ xSecond: point.elapsedSeconds, heartRateBpm: point.heartRateBpm }))
+    return (heartRateSamples ?? [])
+      .filter((sample) => sample.elapsedSeconds >= segmentStartSecond && sample.elapsedSeconds <= segmentEndSecond)
+      .map((sample) => ({ xSecond: sample.elapsedSeconds, heartRateBpm: sample.heartRateBpm }))
       .sort((a, b) => a.xSecond - b.xSecond);
-
-    if (directHeartRateSeries.length > 0) {
-      return directHeartRateSeries;
-    }
-
-    return [] as Array<{ xSecond: number; heartRateBpm: number }>;
-  }, [points]);
+  }, [heartRateSamples, segmentStartSecond, segmentEndSecond]);
 
   const chartPoints = useMemo(() => {
     if (heartRateTrend.length === 0) {
@@ -5135,7 +5133,7 @@ function SegmentationAssistant({ points, bounds, cursorSecond, intervalAggregate
             <polyline points={chartPoints} className="segment-manual-assistant__hr-line" />
             {heartRateCursorPoint && <circle cx={heartRateCursorPoint.x} cy={heartRateCursorPoint.y} r="4" className="segment-manual-assistant__cursor-point" />}
           </svg>
-          <p>{currentHeartRateLabel}: {(cursorPoint?.heartRateBpm ?? nearestHeartRateEntry?.heartRateBpm) ?? 'n/a'}{(cursorPoint?.heartRateBpm ?? nearestHeartRateEntry?.heartRateBpm) ? ' bpm' : ''}</p>
+          <p>{currentHeartRateLabel}: {nearestHeartRateEntry?.heartRateBpm ?? 'n/a'}{nearestHeartRateEntry?.heartRateBpm ? ' bpm' : ''}</p>
         </>
       )}
 

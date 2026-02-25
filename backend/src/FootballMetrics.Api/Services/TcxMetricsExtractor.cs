@@ -89,6 +89,14 @@ public static partial class TcxMetricsExtractor
         var (coreMetrics, detectedRuns) = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
         var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints, effectiveThresholds);
 
+
+        var heartRateSamples = smoothedTrackpoints
+            .Where(snapshot => snapshot.TimeUtc.HasValue && snapshot.HeartRateBpm.HasValue && startTime.HasValue)
+            .Select(snapshot => new TcxHeartRateSample(
+                Math.Max(0, (snapshot.TimeUtc!.Value - startTime!.Value).TotalSeconds),
+                snapshot.HeartRateBpm!.Value))
+            .ToList();
+
         var gpsTrackpoints = smoothedTrackpoints
             .Where(snapshot => snapshot.Latitude.HasValue && snapshot.Longitude.HasValue)
             .Select(snapshot => new TcxGpsTrackpoint(
@@ -115,6 +123,7 @@ public static partial class TcxMetricsExtractor
             qualityAssessment.Reasons,
             dataAvailability,
             gpsTrackpoints,
+            heartRateSamples,
             smoothingTrace,
             coreMetrics,
             intervalAggregates,
