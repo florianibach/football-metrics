@@ -145,10 +145,26 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         var profile = await profileResponse.Content.ReadFromJsonAsync<UserProfileResponseDto>();
         profile.Should().NotBeNull();
 
+        var adaptiveThresholds = new MetricThresholdProfile
+        {
+            MaxSpeedMps = profile!.MetricThresholds.MaxSpeedMps,
+            MaxSpeedMode = MetricThresholdModes.Adaptive,
+            MaxHeartRateBpm = profile.MetricThresholds.MaxHeartRateBpm,
+            MaxHeartRateMode = profile.MetricThresholds.MaxHeartRateMode,
+            SprintSpeedPercentOfMaxSpeed = profile.MetricThresholds.SprintSpeedPercentOfMaxSpeed,
+            HighIntensitySpeedPercentOfMaxSpeed = profile.MetricThresholds.HighIntensitySpeedPercentOfMaxSpeed,
+            AccelerationThresholdMps2 = profile.MetricThresholds.AccelerationThresholdMps2,
+            DecelerationThresholdMps2 = profile.MetricThresholds.DecelerationThresholdMps2,
+            EffectiveMaxSpeedMps = profile.MetricThresholds.EffectiveMaxSpeedMps,
+            EffectiveMaxHeartRateBpm = profile.MetricThresholds.EffectiveMaxHeartRateBpm,
+            Version = profile.MetricThresholds.Version,
+            UpdatedAtUtc = profile.MetricThresholds.UpdatedAtUtc
+        };
+
         var adaptiveProfileRequest = new UpdateUserProfileRequestDto(
-            profile!.PrimaryPosition,
+            profile.PrimaryPosition,
             profile.SecondaryPosition,
-            profile.MetricThresholds with { MaxSpeedMode = MetricThresholdModes.Adaptive },
+            adaptiveThresholds,
             profile.DefaultSmoothingFilter,
             profile.PreferredSpeedUnit,
             profile.PreferredAggregationWindowMinutes,
@@ -1206,6 +1222,10 @@ internal sealed class InMemoryUserProfileRepository : IUserProfileRepository
 
 internal sealed class PassThroughMetricThresholdResolver : IMetricThresholdResolver
 {
-    public Task<MetricThresholdProfile> ResolveEffectiveAsync(MetricThresholdProfile baseProfile, CancellationToken cancellationToken = default)
+    public Task<MetricThresholdProfile> ResolveEffectiveAsync(
+        MetricThresholdProfile baseProfile,
+        double? candidateMaxSpeedMps = null,
+        int? candidateMaxHeartRateBpm = null,
+        CancellationToken cancellationToken = default)
         => Task.FromResult(baseProfile);
 }

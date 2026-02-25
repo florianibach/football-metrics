@@ -232,7 +232,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
         var normalizedFilter = NormalizeSmoothingFilter(profile.DefaultSmoothingFilter);
         var normalizedSpeedUnit = NormalizeSpeedUnit(profile.PreferredSpeedUnit);
-        var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
+        var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken: cancellationToken);
         var newSnapshot = CreateAppliedProfileSnapshot(effectiveThresholds, normalizedFilter);
         var previousSnapshot = ResolveAppliedProfileSnapshot(upload);
         var previousHistory = ResolveRecalculationHistory(upload);

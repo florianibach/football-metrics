@@ -26,7 +26,7 @@ public class ProfileUseCase : IProfileUseCase
     public async Task<UserProfile> GetProfileAsync(CancellationToken cancellationToken)
     {
         var profile = await _repository.GetAsync(cancellationToken);
-        var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
+        var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken: cancellationToken);
         profile.MetricThresholds = effectiveThresholds;
         return profile;
     }
@@ -98,7 +98,7 @@ public class ProfileUseCase : IProfileUseCase
             await _recalculationOrchestrator.EnqueueAsync(ProfileRecalculationTriggers.ProfileUpdated, normalizedThresholds.Version, cancellationToken);
         }
 
-        var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken);
+        var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken: cancellationToken);
         profile.MetricThresholds = effectiveThresholds;
         return profile;
     }
