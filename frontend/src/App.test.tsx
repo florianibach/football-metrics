@@ -184,6 +184,21 @@ describe('App', () => {
     };
   }
 
+
+  function gpsTrackpointsFromOneHertzSpeeds(speedsMetersPerSecond: number[]) {
+    const metersPerDegreeLatitude = 111_320;
+    let latitude = 50.9366;
+    const longitude = 6.9603;
+
+    const points = [{ latitude, longitude, elapsedSeconds: 0 }];
+    speedsMetersPerSecond.forEach((speed, index) => {
+      latitude += speed / metersPerDegreeLatitude;
+      points.push({ latitude, longitude, elapsedSeconds: index + 1 });
+    });
+
+    return points;
+  }
+
   function createUploadRecord(overrides?: Partial<Record<string, unknown>>) {
     return {
       id: 'upload-1',
@@ -2259,6 +2274,98 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Sprint count #1/ })).toBeInTheDocument();
     const runEntries = screen.getAllByRole('button').filter((button) => button.textContent?.includes('Top speed:'));
     expect(runEntries.length).toBeGreaterThan(0);
+  });
+
+
+  it('R1_6_15_Ac04_prefers_backend_detected_runs_to_keep_logic_in_single_place', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([7.4, 3.0, 7.5, 7.6, 3.0, 3.0, 6.0, 6.1, 3.0, 3.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: trackpoints,
+                detectedRuns: [
+                  { runType: 'highIntensity', startElapsedSeconds: 2, durationSeconds: 3, distanceMeters: 20, topSpeedMetersPerSecond: 6.1, pointIndices: [2, 3, 4] },
+                  { runType: 'sprint', startElapsedSeconds: 6, durationSeconds: 2, distanceMeters: 14, topSpeedMetersPerSecond: 7.6, pointIndices: [6, 7] }
+                ],
+                coreMetrics: {
+                  ...baseCoreMetrics(),
+                  sprintCount: 1,
+                  highIntensityRunCount: 1
+                }
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('Sprint & high-intensity trackpoints')).toBeInTheDocument();
+
+    const runsRegion = screen.getByRole('region', { name: 'Detected runs' });
+    const runEntries = within(runsRegion).getAllByRole('button').filter((button) => button.textContent?.includes('Top speed:'));
+    expect(runEntries.length).toBeGreaterThanOrEqual(2);
+    expect(runEntries.some((entry) => entry.textContent?.includes('High-intensity runs #'))).toBe(true);
+    expect(runEntries.some((entry) => entry.textContent?.includes('Sprint count #'))).toBe(true);
+  });
+
+  it('R1_6_15_Ac01_Ac02_Ac03_runs_list_should_follow_consecutive_logic_and_avoid_zero_meter_entries', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([7.4, 3.0, 7.5, 7.6, 3.0, 3.0, 6.0, 6.1, 3.0, 3.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: trackpoints,
+                coreMetrics: {
+                  ...baseCoreMetrics(),
+                  sprintCount: 1,
+                  highIntensityRunCount: 2
+                }
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(await screen.findByText('Sprint & high-intensity trackpoints')).toBeInTheDocument();
+
+    const runEntries = screen.getAllByRole('button').filter((button) => button.textContent?.includes('Top speed:'));
+    expect(runEntries).toHaveLength(3);
+    runEntries.forEach((entry) => {
+      expect(entry.textContent).not.toContain('(0 m)');
+    });
+
+    const sprintEntries = runEntries.filter((entry) => entry.textContent?.includes('Sprint count #'));
+    const highIntensityEntries = runEntries.filter((entry) => entry.textContent?.includes('High-intensity runs #'));
+    expect(sprintEntries).toHaveLength(1);
+    expect(highIntensityEntries).toHaveLength(2);
   });
 
   it('R1_6_14_Ac04_Ac06_filters_run_types_and_keeps_independent_map_controls', async () => {

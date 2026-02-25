@@ -17,9 +17,19 @@ public sealed record TcxActivitySummary(
     IReadOnlyList<TcxGpsTrackpoint> GpsTrackpoints,
     TcxSmoothingTrace Smoothing,
     TcxFootballCoreMetrics CoreMetrics,
-    IReadOnlyList<TcxIntervalAggregate> IntervalAggregates);
+    IReadOnlyList<TcxIntervalAggregate> IntervalAggregates,
+    IReadOnlyList<TcxDetectedRun> DetectedRuns);
 
 public sealed record TcxGpsTrackpoint(
     double Latitude,
     double Longitude,
     double? ElapsedSeconds);
+
+
+public sealed record TcxDetectedRun(
+    string RunType,
+    double StartElapsedSeconds,
+    double DurationSeconds,
+    double DistanceMeters,
+    double TopSpeedMetersPerSecond,
+    IReadOnlyList<int> PointIndices);
