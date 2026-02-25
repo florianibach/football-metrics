@@ -2866,20 +2866,57 @@ export function App() {
   const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
   const isSegmentScopeActive = analysisScope === 'segment' && selectedSegment !== null;
 
-  const selectedGpsTrackpoints = useMemo(() => {
+  const analysisTimeRange = useMemo(() => {
     if (!selectedSession) {
-      return [] as GpsTrackpoint[];
+      return { startSecond: 0, endSecond: 0 };
     }
 
-    const points = selectedSession.summary.gpsTrackpoints ?? [];
-    if (!isSegmentScopeActive || !selectedSegment) {
-      return points;
+    if (isSegmentScopeActive && selectedSegment) {
+      return { startSecond: selectedSegment.startSecond, endSecond: selectedSegment.endSecond };
     }
 
-    return points.filter((point) => point.elapsedSeconds !== null
-      && point.elapsedSeconds >= selectedSegment.startSecond
-      && point.elapsedSeconds <= selectedSegment.endSecond);
+    const elapsedSeconds = (selectedSession.summary.gpsTrackpoints ?? [])
+      .map((point) => point.elapsedSeconds)
+      .filter((value): value is number => value !== null);
+
+    const fallbackEndSecond = selectedSession.summary.durationSeconds
+      ?? (elapsedSeconds.length > 0 ? Math.max(...elapsedSeconds) : 0);
+
+    return { startSecond: 0, endSecond: Math.max(0, fallbackEndSecond) };
   }, [selectedSession, isSegmentScopeActive, selectedSegment]);
+
+  const analysisTrackpointSelection = useMemo(() => {
+    if (!selectedSession) {
+      return {
+        points: [] as GpsTrackpoint[],
+        pointIndexToAnalysisIndex: new Map<number, number>()
+      };
+    }
+
+    const allPoints = selectedSession.summary.gpsTrackpoints ?? [];
+    const pointIndexToAnalysisIndex = new Map<number, number>();
+    const points: GpsTrackpoint[] = [];
+
+    allPoints.forEach((point, pointIndex) => {
+      if (point.elapsedSeconds === null) {
+        return;
+      }
+
+      if (point.elapsedSeconds < analysisTimeRange.startSecond || point.elapsedSeconds > analysisTimeRange.endSecond) {
+        return;
+      }
+
+      pointIndexToAnalysisIndex.set(pointIndex, points.length);
+      points.push(point);
+    });
+
+    return {
+      points,
+      pointIndexToAnalysisIndex
+    };
+  }, [selectedSession, analysisTimeRange]);
+
+  const selectedGpsTrackpoints = analysisTrackpointSelection.points;
 
   const selectedDetectedRuns = useMemo(() => {
     if (!selectedSession) {
@@ -2887,30 +2924,12 @@ export function App() {
     }
 
     const detectedRuns = selectedSession.summary.detectedRuns ?? [];
-    if (!isSegmentScopeActive || !selectedSegment) {
-      return detectedRuns;
-    }
-
-    const allPoints = selectedSession.summary.gpsTrackpoints ?? [];
-    if (allPoints.length === 0 || detectedRuns.length === 0) {
+    if (detectedRuns.length === 0 || analysisTrackpointSelection.points.length === 0) {
       return [] as DetectedRun[];
     }
 
-    const pointIndexToSegmentIndex = new Map<number, number>();
-    let segmentPointIndex = 0;
-    allPoints.forEach((point, pointIndex) => {
-      if (point.elapsedSeconds === null) {
-        return;
-      }
-
-      if (point.elapsedSeconds >= selectedSegment.startSecond && point.elapsedSeconds <= selectedSegment.endSecond) {
-        pointIndexToSegmentIndex.set(pointIndex, segmentPointIndex);
-        segmentPointIndex += 1;
-      }
-    });
-
     const remapPointIndices = (indices: number[]) => indices
-      .map((index) => pointIndexToSegmentIndex.get(index))
+      .map((index) => analysisTrackpointSelection.pointIndexToAnalysisIndex.get(index))
       .filter((index): index is number => index !== undefined);
 
     return detectedRuns
@@ -2941,7 +2960,7 @@ export function App() {
         } satisfies DetectedRun;
       })
       .filter((run): run is DetectedRun => run !== null);
-  }, [selectedSession, isSegmentScopeActive, selectedSegment]);
+  }, [selectedSession, analysisTrackpointSelection]);
 
   const dataChangeMetric = selectedSession
     ? (() => {
