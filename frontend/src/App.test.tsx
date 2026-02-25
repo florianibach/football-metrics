@@ -2278,7 +2278,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Set segment end from cursor' }));
     expect(screen.getByLabelText('Start (s)')).toHaveValue(180);
     expect(screen.getByLabelText('End (s)')).toHaveValue(181);
-    expect(screen.getAllByText(/Time in selected segment: 03:00 \(180s\)/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Time in selected segment: 03:00 \(180s\)/)).toHaveLength(1);
     expect(screen.queryByText('Current time: 03:00 (180s)')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Split at cursor' }));
@@ -2287,6 +2287,61 @@ describe('App', () => {
     const splitCalls = fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/segments/split'));
     expect(splitCalls.length).toBeGreaterThanOrEqual(1);
   });
+
+  it('R1_6_04_regression_keeps_hr_cursor_at_chart_start_for_non_first_segment', async () => {
+    const heartRateSamples = Array.from({ length: 401 }, (_, second) => ({ elapsedSeconds: second, heartRateBpm: 120 + Math.round(Math.sin(second / 8) * 12) }));
+    const gpsTrackpoints = Array.from({ length: 41 }, (_, index) => ({
+      latitude: 50.9366 + (index * 0.0001),
+      longitude: 6.9603 + (index * 0.0001),
+      elapsedSeconds: index * 10
+    }));
+
+    const initial = createUploadRecord({
+      id: 'upload-segment-cursor-alignment',
+      summary: createSummary({
+        durationSeconds: 400,
+        hasGpsData: true,
+        gpsTrackpoints,
+        heartRateSamples
+      }),
+      segments: [
+        { id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 200, notes: null },
+        { id: 'seg-2', label: 'Game form', startSecond: 200, endSecond: 400, notes: null }
+      ],
+      segmentChangeHistory: []
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [initial] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => initial } as Response);
+    });
+
+    render(<App />);
+    await screen.findByText('Upload history');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open details' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit segments' }));
+    await screen.findByText('Manual segmentation assistant');
+
+    fireEvent.change(screen.getByLabelText('Active segment for graphical edit'), { target: { value: 'seg-2' } });
+    fireEvent.change(screen.getByLabelText(/Timeline cursor/), { target: { value: '200' } });
+
+    const heartRateChart = screen.getByRole('img', { name: 'Heart-rate over time' });
+    const heartRateCursor = heartRateChart.querySelector('circle.segment-manual-assistant__cursor-point');
+    expect(heartRateCursor).not.toBeNull();
+    expect(Number(heartRateCursor?.getAttribute('cx') ?? '999')).toBeLessThanOrEqual(1);
+    expect(screen.getAllByText(/Time in selected segment: 00:00 \(0s\)/)).toHaveLength(1);
+  });
+
 
   it('R1_6_13_Ac01_Ac02_renders_gps_heatmap_for_dual_mode_sessions_with_imported_points', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {

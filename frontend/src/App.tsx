@@ -3076,6 +3076,8 @@ export function App() {
   const segmentAssistantMaxSecond = selectedSegment
     ? selectedSegment.endSecond
     : Math.max(0, Math.floor(selectedSession?.summary.durationSeconds ?? segmentAssistantPoints.at(-1)?.elapsedSeconds ?? 0));
+  const segmentAssistantMinSecond = selectedSegment?.startSecond ?? 0;
+  const clampedSegmentCursorSecond = Math.min(Math.max(segmentCursorSecond, segmentAssistantMinSecond), segmentAssistantMaxSecond);
   const isSegmentScopeActive = analysisScope === 'segment' && selectedSegment !== null;
 
   useEffect(() => {
@@ -3084,6 +3086,13 @@ export function App() {
     }
 
     setEditingSegmentId(selectedSegment.id);
+    setSegmentCursorSecond((currentSecond) => {
+      if (currentSecond < selectedSegment.startSecond || currentSecond > selectedSegment.endSecond) {
+        return selectedSegment.startSecond;
+      }
+
+      return currentSecond;
+    });
     setSegmentForm((current) => {
       const currentStart = Number(current.startSecond);
       const currentEnd = Number(current.endSecond);
@@ -4270,13 +4279,12 @@ export function App() {
                   <SegmentationAssistant
                     points={segmentAssistantPoints}
                     bounds={segmentAssistantBounds}
-                    cursorSecond={Math.min(segmentCursorSecond, segmentAssistantMaxSecond)}
+                    cursorSecond={clampedSegmentCursorSecond}
                     heartRateSamples={selectedSession.summary.heartRateSamples ?? []}
                     titleHeartRate={t.segmentManualAssistantHeartRateChartTitle}
                     titleMap={t.segmentManualAssistantMapTitle}
                     noHeartRateDataLabel={t.segmentManualAssistantHeartRateChartNoData}
                     currentPointLabel={t.segmentManualAssistantCurrentPoint}
-                    segmentTimeLabel={t.segmentManualAssistantSegmentTime}
                     currentHeartRateLabel={t.segmentManualAssistantCurrentHeartRate}
                     segmentStartSecond={selectedSegment?.startSecond ?? 0}
                     segmentEndSecond={selectedSegment?.endSecond ?? segmentAssistantMaxSecond}
@@ -4296,7 +4304,7 @@ export function App() {
                     betweenControls={(
                       <div className="segment-manual-assistant__middle-controls">
                         <label className="form-label" htmlFor="segment-timeline-cursor">
-                          {t.segmentManualAssistantSliderLabel}: {formatSecondsMmSs(segmentCursorSecond)} ({Math.floor(segmentCursorSecond)}s) / {t.segmentManualAssistantSegmentTime}: {formatSecondsMmSs(Math.max(0, segmentCursorSecond - (selectedSegment?.startSecond ?? 0)))} ({Math.max(0, Math.floor(segmentCursorSecond - (selectedSegment?.startSecond ?? 0)))}s)
+                          {t.segmentManualAssistantSliderLabel}: {formatSecondsMmSs(clampedSegmentCursorSecond)} ({Math.floor(clampedSegmentCursorSecond)}s) / {t.segmentManualAssistantSegmentTime}: {formatSecondsMmSs(Math.max(0, clampedSegmentCursorSecond - segmentAssistantMinSecond))} ({Math.max(0, Math.floor(clampedSegmentCursorSecond - segmentAssistantMinSecond))}s)
                         </label>
                         <input
                           id="segment-timeline-cursor"
@@ -4305,7 +4313,7 @@ export function App() {
                           min={selectedSegment?.startSecond ?? 0}
                           max={selectedSegment?.endSecond ?? segmentAssistantMaxSecond}
                           step={1}
-                          value={Math.min(Math.max(segmentCursorSecond, selectedSegment?.startSecond ?? 0), selectedSegment?.endSecond ?? segmentAssistantMaxSecond)}
+                          value={clampedSegmentCursorSecond}
                           onChange={(event) => setSegmentCursorSecond(Number(event.target.value))}
                         />
                         <div className="segment-suggestion-list__actions">
@@ -4835,7 +4843,6 @@ type SegmentationAssistantProps = {
   sessionId: string;
   topControls: ReactNode;
   betweenControls: ReactNode;
-  segmentTimeLabel: string;
   currentHeartRateLabel: string;
   segmentStartSecond: number;
   segmentEndSecond: number;
@@ -5081,7 +5088,7 @@ function MapSurface({ width, height, satelliteImageUrl, children }: MapSurfacePr
   );
 }
 
-function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, topControls, betweenControls, segmentTimeLabel, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
+function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples, titleHeartRate, titleMap, noHeartRateDataLabel, currentPointLabel, zoomInLabel, zoomOutLabel, zoomResetLabel, sessionId, topControls, betweenControls, currentHeartRateLabel, segmentStartSecond, segmentEndSecond }: SegmentationAssistantProps) {
   const heartRateTrend = useMemo(() => {
     return (heartRateSamples ?? [])
       .filter((sample) => sample.elapsedSeconds >= segmentStartSecond && sample.elapsedSeconds <= segmentEndSecond)
@@ -5110,8 +5117,12 @@ function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples,
       .join(' ');
   }, [heartRateTrend]);
 
-  const minTrendSecond = Math.min(...heartRateTrend.map((entry) => entry.xSecond), 0);
-  const maxTrendSecond = Math.max(...heartRateTrend.map((entry) => entry.xSecond), minTrendSecond + 1);
+  const minTrendSecond = heartRateTrend.length > 0
+    ? Math.min(...heartRateTrend.map((entry) => entry.xSecond))
+    : 0;
+  const maxTrendSecond = heartRateTrend.length > 0
+    ? Math.max(...heartRateTrend.map((entry) => entry.xSecond), minTrendSecond + 1)
+    : minTrendSecond + 1;
   const trendSpanSeconds = Math.max(1, maxTrendSecond - minTrendSecond);
   const maxTrendValue = Math.max(...heartRateTrend.map((entry) => entry.heartRateBpm), 1);
 
@@ -5205,7 +5216,6 @@ function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples,
               </MapSurface>
             )}
           </InteractiveMap>
-          <p>{segmentTimeLabel}: {formatSecondsMmSs(Math.max(0, cursorSecond - segmentStartSecond))} ({Math.max(0, Math.floor(cursorSecond - segmentStartSecond))}s)</p>
           <p>{currentPointLabel}: {cursorPoint ? `${formatSecondsMmSs(cursorPoint.elapsedSeconds)} (${cursorPoint.elapsedSeconds}s) · ${cursorPoint.latitude.toFixed(5)}, ${cursorPoint.longitude.toFixed(5)}` : 'n/a'}</p>
         </>
       )}
