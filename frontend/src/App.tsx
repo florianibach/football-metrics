@@ -3486,6 +3486,9 @@ export function App() {
   }, [isSegmentScopeActive, selectedSegment, selectedSessionAggregates, selectedSession?.summary.activityStartTimeUtc]);
 
   const displayedCoreMetrics = useMemo(() => {
+    // Backend delivers a single session summary + interval aggregates.
+    // Segment analysis is currently created by slicing these intervals in the UI by time range,
+    // so parity fixes for R1.6-05 intentionally live in this frontend aggregation path.
     if (!selectedSession) {
       return null;
     }
