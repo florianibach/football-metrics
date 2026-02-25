@@ -2463,6 +2463,65 @@ describe('App', () => {
     expect(breakdownDistanceRows.some((row) => row.includes('15.0 m') || row.includes('0.015 km'))).toBe(true);
   });
 
+  it('R1_6_17_Ac01_Ac02_Ac03_Ac04_Ac05_Ac06_Ac07_Ac08_extends_short_runs_with_lightgray_context_points_only_for_direction', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 3.1, 6.0, 6.1, 3.0, 3.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: trackpoints,
+                detectedRuns: [
+                  {
+                    runId: 'highIntensity-1',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 2,
+                    durationSeconds: 2,
+                    distanceMeters: 12,
+                    topSpeedMetersPerSecond: 6.1,
+                    pointIndices: [2, 3],
+                    parentRunId: null,
+                    sprintPhases: []
+                  }
+                ]
+              })
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    const runsMap = await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+    const allRunPoints = runsMap.querySelectorAll('.gps-heatmap__run-point');
+    expect(allRunPoints.length).toBe(4);
+
+    const supplementalPoints = runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--supplemental');
+    expect(supplementalPoints.length).toBe(2);
+
+    const supplementalLines = runsMap.querySelectorAll('.gps-heatmap__run-line.gps-heatmap__run--supplemental');
+    expect(supplementalLines.length).toBeGreaterThan(0);
+
+    const highIntensityPoints = runsMap.querySelectorAll('.gps-heatmap__run-point.gps-heatmap__run--high-intensity');
+    expect(highIntensityPoints.length).toBe(2);
+
+    expect(screen.getByText(/earlier context points are added in light gray for direction only/i)).toBeInTheDocument();
+
+    const runEntry = screen.getByRole('button', { name: /High-intensity runs #1/ });
+    expect(runEntry.textContent).toContain('(12 m)');
+  });
+
   it('R1_6_15_Ac01_Ac02_Ac03_runs_list_should_follow_consecutive_logic_and_avoid_zero_meter_entries', async () => {
     const trackpoints = gpsTrackpointsFromOneHertzSpeeds([7.4, 3.0, 7.5, 7.6, 3.0, 3.0, 6.0, 6.1, 3.0, 3.0]);
 

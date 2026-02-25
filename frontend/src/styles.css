@@ -613,6 +613,13 @@ button:disabled {
   fill: #f97316;
 }
 
+.gps-heatmap__run--supplemental {
+  stroke: #ffffff;
+  fill: #d1d5db;
+  fill-opacity: 0.56;
+  stroke-opacity: 0.56;
+}
+
 .gps-runs-layout {
   max-width: 560px;
 }

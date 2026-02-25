@@ -250,20 +250,20 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 
 ---
 
-## Story R1.6-17: Erweiterte Run-Visualisierung zur Richtungsdarstellung
+## Story R1.6-17: Erweiterte Run-Visualisierung zur Richtungsdarstellung ✅ DONE
 **Als** Nutzer  
 **möchte ich** dass auf der HSR-Tracking-Map pro High-Intensity-Run oder Sprint mindestens vier aufeinanderfolgende GPS-Punkte dargestellt werden  
 **damit** die Bewegungsrichtung und der Laufkontext klar erkennbar sind.
 
 ### Acceptance Criteria
-- [ ] Für jeden erkannten HSR- oder Sprint-Run werden mindestens vier zeitlich aufeinanderfolgende GPS-Punkte auf der Map visualisiert.
-- [ ] Falls ein Run weniger als vier Schwellen-überschreitende Punkte enthält, werden die unmittelbar davor liegenden Punkte ergänzt.
-- [ ] Ergänzte Punkte werden visuell eindeutig als unterhalb der Schwelle gekennzeichnet (z. B. andersfarbige Marker).
-- [ ] Schwellen-überschreitende Punkte behalten ihre bestehende farbliche Kennzeichnung (HSR = orange, Sprint = rot).
-- [ ] Ergänzte Punkte werden nicht in Distanz-, Zeit- oder Statistikberechnungen einbezogen.
-- [ ] Die Ergänzung dient ausschließlich der visuellen Richtungsdarstellung.
-- [ ] Die Logik funktioniert identisch für HSR- und Sprint-Phasen.
-- [ ] Falls nicht genügend vorherige Punkte existieren (z. B. Run zu Beginn der Session), werden so viele Punkte wie verfügbar ergänzt.
+- [x] Für jeden erkannten HSR- oder Sprint-Run werden mindestens vier zeitlich aufeinanderfolgende GPS-Punkte auf der Map visualisiert.
+- [x] Falls ein Run weniger als vier Schwellen-überschreitende Punkte enthält, werden die unmittelbar davor liegenden Punkte ergänzt.
+- [x] Ergänzte Punkte werden visuell eindeutig als unterhalb der Schwelle gekennzeichnet (z. B. andersfarbige Marker).
+- [x] Schwellen-überschreitende Punkte behalten ihre bestehende farbliche Kennzeichnung (HSR = orange, Sprint = rot).
+- [x] Ergänzte Punkte werden nicht in Distanz-, Zeit- oder Statistikberechnungen einbezogen.
+- [x] Die Ergänzung dient ausschließlich der visuellen Richtungsdarstellung.
+- [x] Die Logik funktioniert identisch für HSR- und Sprint-Phasen.
+- [x] Falls nicht genügend vorherige Punkte existieren (z. B. Run zu Beginn der Session), werden so viele Punkte wie verfügbar ergänzt.
 
 ## Priorisierung für R1.6
 
@@ -279,6 +279,7 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - [x] R1.6-13 GPS-Punkte-Heatmap in GPS- und Dual-Mode
 - [x] R1.6-15 Robuste Run-Detection mit Consecutive-Sample-Logik
 - [x] R1.6-16 Hierarchische Run-Struktur mit differenzierter Sprint-Visualisierung
+- [x] R1.6-17 Erweiterte Run-Visualisierung zur Richtungsdarstellung
 
 ### Should-have
 - R1.6-07 Training-vs-Spiel inkl. Segmentvergleich

@@ -766,7 +766,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsRunsListEmpty: 'No sprint or high-intensity runs detected for the current filter.',
     gpsRunsListShowAll: 'Show all listed runs',
     gpsRunsListTopSpeed: 'Top speed',
-    gpsRunsMapExplanation: 'Sprint points are red within HSR runs, HSR-only points stay orange. Point size increases in running direction; outlined points mark run endings.',
+    gpsRunsMapExplanation: 'Sprint points are red within HSR runs, HSR-only points stay orange. If a run has fewer than 4 threshold points, earlier context points are added in light gray for direction only. Point size increases in running direction; outlined points mark run endings.',
     hfOnlyInsightTitle: 'HF-only interpretation aid',
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics',
@@ -1111,7 +1111,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     gpsRunsListEmpty: 'Für den aktuellen Filter wurden keine Sprint- oder High-Intensity-Runs erkannt.',
     gpsRunsListShowAll: 'Alle gelisteten Runs anzeigen',
     gpsRunsListTopSpeed: 'Top-Speed',
-    gpsRunsMapExplanation: 'Sprint-Punkte innerhalb von HSR-Runs sind rot, reine HSR-Punkte bleiben orange. Die Punktgröße steigt mit der Laufrichtung; umrandete Punkte markieren das Run-Ende.',
+    gpsRunsMapExplanation: 'Sprint-Punkte innerhalb von HSR-Runs sind rot, reine HSR-Punkte bleiben orange. Falls ein Run weniger als 4 Schwellen-Punkte hat, werden davorliegende Kontextpunkte nur zur Richtung in Hellgrau ergänzt. Die Punktgröße steigt mit der Laufrichtung; umrandete Punkte markieren das Run-Ende.',
     hfOnlyInsightTitle: 'Interpretationshilfe für HF-only',
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken',
@@ -4290,7 +4290,7 @@ type GpsPointHeatmapProps = {
   sessionId: string;
 };
 
-type RenderPoint = { x: number; y: number; radius: number; isEnd: boolean };
+type RenderPoint = { x: number; y: number; radius: number; isEnd: boolean; pointIndex: number; isSupplemental: boolean };
 type RunSegment = {
   id: string;
   runType: 'sprint' | 'highIntensity';
@@ -4693,15 +4693,38 @@ function GpsRunsMap({ points, detectedRuns, minLatitude, maxLatitude, minLongitu
       return [] as RunSegment[];
     }
 
-    const toRenderPoints = (pointIndices: number[]) => pointIndices.map((pointIndex, pointListIndex) => {
-      const progression = pointIndices.length === 1 ? 1 : pointListIndex / (pointIndices.length - 1);
+    const appendDirectionalContextPoints = (pointIndices: number[]) => {
+      if (pointIndices.length >= 4) {
+        return { renderPointIndices: pointIndices, supplementalPointIndices: new Set<number>() };
+      }
+
+      const supplementalPointIndices = new Set<number>();
+      const firstPointIndex = pointIndices[0];
+      const minPointIndex = Math.max(0, firstPointIndex - (4 - pointIndices.length));
+      for (let index = firstPointIndex - 1; index >= minPointIndex; index -= 1) {
+        supplementalPointIndices.add(index);
+      }
+
+      return {
+        renderPointIndices: [...Array.from(supplementalPointIndices).sort((a, b) => a - b), ...pointIndices],
+        supplementalPointIndices
+      };
+    };
+
+    const toRenderPoints = (pointIndices: number[]) => {
+      const { renderPointIndices, supplementalPointIndices } = appendDirectionalContextPoints(pointIndices);
+      return renderPointIndices.map((pointIndex, pointListIndex) => {
+      const progression = renderPointIndices.length === 1 ? 1 : pointListIndex / (renderPointIndices.length - 1);
       return {
         x: screenPoints[pointIndex].x,
         y: screenPoints[pointIndex].y,
         radius: 1.1 + (progression * 1.2),
-        isEnd: pointListIndex === pointIndices.length - 1
+        isEnd: pointListIndex === renderPointIndices.length - 1,
+        pointIndex,
+        isSupplemental: supplementalPointIndices.has(pointIndex)
       };
     });
+    };
 
     if (detectedRuns && detectedRuns.length > 0) {
       const highIntensityRuns = detectedRuns.filter((run) => run.runType === 'highIntensity');
@@ -4966,11 +4989,32 @@ function GpsRunsMap({ points, detectedRuns, minLatitude, maxLatitude, minLongitu
                 const highlightNestedSprintPoints = runFilter !== 'highIntensityOnly';
                 return (
                   <g key={segment.id} className={isMuted ? 'gps-heatmap__run--muted' : ''}>
-                    <polyline fill="none" points={segment.points.map((point) => `${point.x},${point.y}`).join(' ')} className={`gps-heatmap__run-line ${lineColorClass}`} />
+                    {segment.points.slice(0, -1).map((point, index) => {
+                      const nextPoint = segment.points[index + 1];
+                      if (!nextPoint) {
+                        return null;
+                      }
+
+                      const lineSegmentClass = point.isSupplemental ? 'gps-heatmap__run--supplemental' : lineColorClass;
+                      return (
+                        <line
+                          key={`${segment.id}-line-${index}`}
+                          x1={point.x}
+                          y1={point.y}
+                          x2={nextPoint.x}
+                          y2={nextPoint.y}
+                          className={`gps-heatmap__run-line ${lineSegmentClass}`}
+                        />
+                      );
+                    })}
                     {segment.points.map((point, index) => {
-                      const segmentPointIndex = segment.pointIndices[index];
-                      const isSprintPoint = segment.runType === 'sprint' || (highlightNestedSprintPoints && segment.sprintPointIndices.includes(segmentPointIndex));
-                      const pointColorClass = isSprintPoint ? 'gps-heatmap__run--sprint' : 'gps-heatmap__run--high-intensity';
+                      const isSprintPoint = !point.isSupplemental
+                        && (segment.runType === 'sprint' || (highlightNestedSprintPoints && segment.sprintPointIndices.includes(point.pointIndex)));
+                      const pointColorClass = point.isSupplemental
+                        ? 'gps-heatmap__run--supplemental'
+                        : isSprintPoint
+                          ? 'gps-heatmap__run--sprint'
+                          : 'gps-heatmap__run--high-intensity';
                       return (
                         <circle
                           key={`${segment.id}-${index}`}
