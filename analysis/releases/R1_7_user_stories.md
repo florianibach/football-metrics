@@ -57,7 +57,13 @@ R1.7 fokussiert auf ein **UI-Rework der Session-Detailseite**: bestehende Metrik
 - [ ] Timeline-Charts sind zeitlich synchronisiert und teilen sich eine gemeinsame X-Achse.
 - [ ] Mindestens folgende Spuren sind darstellbar (datenmodusabhängig): `m/min`, `Speed + HSR Events`, `Accel/Decel Events`, `Heart Rate`.
 - [ ] Zwischen `Instant` und `Rolling` kann umgeschaltet werden.
-- [ ] Rolling unterstützt 1-, 2- und 5-Minuten-Fenster und nutzt die vorhandene Aggregationslogik aus früheren Releases.
+- [ ] Rolling unterstützt 1-, 2- und 5-Minuten-Fenster.
+
+Rolling Window Definition:
+Rolling Fenster werden gleitend über die Session-Zeit berechnet (nicht blockbasiert).
+Berechnung erfolgt auf Basis der bestehenden Aggregationslogik (Backend).
+Zeitauflösung = vorhandene Samplefrequenz.
+Siehe hierzu auch r1_7_concept.md für mehr Details.
 
 ---
 
@@ -71,6 +77,13 @@ R1.7 fokussiert auf ein **UI-Rework der Session-Detailseite**: bestehende Metrik
 - [ ] Peaks werden nach den vier Belastungsdimensionen tabellarisch dargestellt.
 - [ ] Pro Peak-Metrik können (falls vorhanden) `Ø letzte Sessions` und `Best Saison` angezeigt werden.
 - [ ] Klick auf einen Peak springt in die Timeline und markiert das zugehörige Zeitfenster.
+
+Peak Definition:
+- Distance: Rolling Sum
+- HSR Distance: Rolling Sum
+- Accels: Rolling Count
+- TRIMP/min: Rolling Average über Fenster
+- HR: Rolling Average
 
 ---
 
@@ -110,6 +123,12 @@ R1.7 fokussiert auf ein **UI-Rework der Session-Detailseite**: bestehende Metrik
 - [ ] Die gewählte Vergleichsbasis ist in jeder Ansicht transparent ausgewiesen.
 - [ ] Bei unzureichender Datenbasis wird Vergleich transparent als `nicht verfügbar` markiert, nicht als Nullwert.
 - [ ] Qualitäts- und Datenmodus-Hinweise werden in Vergleichs-Widgets übernommen.
+
+Vergleichsbasis:
+- Standard: Ø letzte 5 Sessions gleichen Typs (Spiel/Training)
+- Gleiches Datenqualitätsniveau erforderlich
+- Kein positionsbasierter Filter in R1.7
+- Keine Gewichtung
 
 ---
 
@@ -166,6 +185,8 @@ R1.7 fokussiert auf ein **UI-Rework der Session-Detailseite**: bestehende Metrik
 - [ ] Score-Berechnung kann zunächst feature-flagged oder read-only vorbereitet werden.
 - [ ] Interpretationslogik (<90%, 90–105%, >105%) ist fachlich dokumentiert, auch wenn noch nicht produktiv aktiviert.
 - [ ] Aktivierung des Scores ist ohne erneutes Layout-Rework möglich.
+
+Dimension Score basiert auf 5-min Peak im Vergleich zu Ø letzte 5 Sessions.
 
 ---
 
