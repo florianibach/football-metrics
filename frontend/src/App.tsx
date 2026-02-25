@@ -1401,6 +1401,54 @@ function MetricListItem({ label, value, helpText }: MetricListItemProps) {
   );
 }
 
+
+type CachedAppearancePreferences = {
+  preferredTheme: 'light' | 'dark';
+  preferredLocale: Locale | null;
+};
+
+const appearanceCacheKey = 'football-metrics.profile-appearance';
+
+function loadCachedAppearancePreferences(): CachedAppearancePreferences | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(appearanceCacheKey);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<CachedAppearancePreferences>;
+    const preferredTheme = parsed.preferredTheme === 'light' || parsed.preferredTheme === 'dark' ? parsed.preferredTheme : null;
+    const preferredLocale = parsed.preferredLocale === 'de' || parsed.preferredLocale === 'en' ? parsed.preferredLocale : null;
+
+    if (!preferredTheme) {
+      return null;
+    }
+
+    return { preferredTheme, preferredLocale };
+  } catch {
+    return null;
+  }
+}
+
+function persistAppearancePreferences(profile: Pick<UserProfile, 'preferredTheme' | 'preferredLocale'>) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(appearanceCacheKey, JSON.stringify({
+      preferredTheme: profile.preferredTheme,
+      preferredLocale: profile.preferredLocale
+    }));
+  } catch {
+    // Intentionally ignore storage failures.
+  }
+}
+
 function resolveInitialLocale(): Locale {
   if (typeof navigator === 'undefined') {
     return 'en';
@@ -1836,7 +1884,10 @@ export function App() {
   const initialRoute = resolveRouteFromPath(window.location.pathname);
   const shouldAutoOpenFirstSession = window.location.pathname === '/';
   const browserLocale = resolveInitialLocale();
-  const [locale, setLocale] = useState<Locale>(browserLocale);
+  const cachedAppearancePreferences = loadCachedAppearancePreferences();
+  const initialLocale = cachedAppearancePreferences?.preferredLocale ?? browserLocale;
+  const initialTheme = cachedAppearancePreferences?.preferredTheme ?? 'dark';
+  const [locale, setLocale] = useState<Locale>(initialLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
   const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
@@ -1908,7 +1959,7 @@ export function App() {
   const [activeMainPage, setActiveMainPage] = useState<MainPage>(initialRoute.mainPage);
   const [activeSessionIdFromRoute, setActiveSessionIdFromRoute] = useState<string | null>(initialRoute.sessionId);
   const [activeSegmentIdFromRoute, setActiveSegmentIdFromRoute] = useState<string | null>(initialRoute.segmentId);
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>(initialTheme);
   const [isInitialDataHydrated, setIsInitialDataHydrated] = useState(false);
   const [isSessionMenuVisible, setIsSessionMenuVisible] = useState(false);
   const shouldGateInitialRender = import.meta.env.MODE !== 'test' || (globalThis as { __ENABLE_INITIAL_HYDRATION_GATE__?: boolean }).__ENABLE_INITIAL_HYDRATION_GATE__ === true;
@@ -2180,6 +2231,10 @@ export function App() {
             setLocale((profilePayload.preferredLocale as Locale | null) ?? browserLocale);
             setAggregationWindowMinutes((profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5);
             setLatestProfileRecalculationJob(profilePayload.latestRecalculationJob ?? null);
+            persistAppearancePreferences({
+              preferredTheme: (profilePayload.preferredTheme as 'light' | 'dark') ?? 'dark',
+              preferredLocale: (profilePayload.preferredLocale as Locale | null) ?? null
+            });
           }
           const normalizedPayload = payload.map(normalizeUploadRecord);
           setUploadHistory(normalizedPayload);
@@ -2665,6 +2720,7 @@ export function App() {
   async function onThemeSelect(nextTheme: 'light' | 'dark') {
     setTheme(nextTheme);
     setProfileForm((current) => ({ ...current, preferredTheme: nextTheme }));
+    persistAppearancePreferences({ preferredTheme: nextTheme, preferredLocale: profileForm.preferredLocale });
 
     try {
       const response = await fetch(`${apiBaseUrl}/profile`, {
@@ -2690,6 +2746,7 @@ export function App() {
       });
       setTheme(payload.preferredTheme);
       setLocale((payload.preferredLocale as Locale | null) ?? browserLocale);
+      persistAppearancePreferences({ preferredTheme: payload.preferredTheme, preferredLocale: (payload.preferredLocale as Locale | null) ?? null });
     } catch {
       // keep local selection even if persistence fails
     }
@@ -2735,6 +2792,7 @@ export function App() {
     setLocale((payload.preferredLocale as Locale | null) ?? browserLocale);
     setAggregationWindowMinutes(payload.preferredAggregationWindowMinutes);
     setLatestProfileRecalculationJob(payload.latestRecalculationJob ?? null);
+    persistAppearancePreferences({ preferredTheme: payload.preferredTheme, preferredLocale: (payload.preferredLocale as Locale | null) ?? null });
     setProfileValidationMessage(t.profileSaveSuccess);
   }
 
@@ -3196,13 +3254,7 @@ export function App() {
   }, []);
 
   if (shouldGateInitialRender && !isInitialDataHydrated) {
-    return (
-      <div className="app-shell">
-        <main className="container">
-          <p aria-live="polite">Loading profile…</p>
-        </main>
-      </div>
-    );
+    return <div className="app-shell" data-theme={theme} />;
   }
 
 

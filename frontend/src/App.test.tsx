@@ -4,6 +4,7 @@ import { App } from './App';
 describe('App', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.localStorage.clear();
     window.history.pushState({}, '', '/');
   });
 
@@ -380,7 +381,8 @@ describe('App', () => {
 
       render(<App />);
 
-      expect(screen.getByText('Loading profile…')).toBeInTheDocument();
+      expect(document.querySelector('.app-shell')).toHaveAttribute('data-theme', 'dark');
+      expect(document.body.textContent).toBe('');
       expect(screen.queryByText('Profile settings')).not.toBeInTheDocument();
       expect(screen.queryByText('Profileinstellungen')).not.toBeInTheDocument();
 
@@ -389,7 +391,6 @@ describe('App', () => {
         json: async () => createProfile({ preferredTheme: 'light', preferredLocale: 'de' })
       } as Response);
 
-      await waitFor(() => expect(screen.queryByText('Loading profile…')).not.toBeInTheDocument());
       await screen.findByText('Profileinstellungen');
       expect(document.querySelector('.app-shell')).toHaveAttribute('data-theme', 'light');
     } finally {
