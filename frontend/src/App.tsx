@@ -164,6 +164,7 @@ type UserProfile = {
   preferredSpeedUnit: SpeedUnit;
   preferredAggregationWindowMinutes: 1 | 2 | 5;
   preferredTheme: 'light' | 'dark';
+  preferredLocale: Locale | null;
   latestRecalculationJob?: ProfileRecalculationJob | null;
 };
 
@@ -491,6 +492,10 @@ type TranslationKey =
   | 'profilePreferredSpeedUnitHelp'
   | 'profilePreferredAggregationWindow'
   | 'profilePreferredAggregationWindowHelp'
+  | 'profileAppearanceTitle'
+  | 'profilePreferredTheme'
+  | 'profilePreferredLanguage'
+  | 'profilePreferredLanguageHelp'
   | 'filterSourceLabel'
   | 'filterSourceProfileDefault'
   | 'filterSourceManualOverride'
@@ -848,6 +853,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profilePreferredSpeedUnitHelp: 'Used as default unit for new session analyses. You can still override per session without changing your profile.',
     profilePreferredAggregationWindow: 'Preferred aggregation window',
     profilePreferredAggregationWindowHelp: 'Used as default interval aggregation window for new session analyses. You can still override per session without changing your profile.',
+    profileAppearanceTitle: 'Appearance',
+    profilePreferredTheme: 'Theme',
+    profilePreferredLanguage: 'Language',
+    profilePreferredLanguageHelp: 'Used as application language on all pages.',
     sessionSpeedUnitLabel: 'Speed unit',
     sessionSpeedUnitSourceLabel: 'Speed unit source',
     speedUnitSourceProfileDefault: 'Profile default',
@@ -1193,6 +1202,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profilePreferredSpeedUnitHelp: 'Wird als Standard für neue Session-Analysen verwendet. Pro Session kannst du temporär überschreiben, ohne das Profil zu ändern.',
     profilePreferredAggregationWindow: 'Bevorzugtes Aggregationsfenster',
     profilePreferredAggregationWindowHelp: 'Wird als Standard-Aggregationsfenster für neue Session-Analysen verwendet. Pro Session kannst du weiterhin manuell wechseln, ohne das Profil zu ändern.',
+    profileAppearanceTitle: 'Darstellung',
+    profilePreferredTheme: 'Theme',
+    profilePreferredLanguage: 'Sprache',
+    profilePreferredLanguageHelp: 'Wird als App-Sprache auf allen Seiten verwendet.',
     sessionSpeedUnitLabel: 'Geschwindigkeitseinheit',
     sessionSpeedUnitSourceLabel: 'Quelle Geschwindigkeitseinheit',
     speedUnitSourceProfileDefault: 'Profil-Standard',
@@ -1822,7 +1835,8 @@ function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, ses
 export function App() {
   const initialRoute = resolveRouteFromPath(window.location.pathname);
   const shouldAutoOpenFirstSession = window.location.pathname === '/';
-  const [locale, setLocale] = useState<Locale>(resolveInitialLocale);
+  const browserLocale = resolveInitialLocale();
+  const [locale, setLocale] = useState<Locale>(browserLocale);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedSession, setSelectedSession] = useState<UploadRecord | null>(null);
   const [uploadHistory, setUploadHistory] = useState<UploadRecord[]>([]);
@@ -1842,7 +1856,7 @@ export function App() {
   const [activeMetricInfo, setActiveMetricInfo] = useState<{ label: string; helpText: string } | null>(null);
   const [isQualityDetailsSidebarOpen, setIsQualityDetailsSidebarOpen] = useState(false);
   const [showUploadQualityStep, setShowUploadQualityStep] = useState(false);
-  const [message, setMessage] = useState<string>(translations[resolveInitialLocale()].defaultMessage);
+  const [message, setMessage] = useState<string>(translations[browserLocale].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
@@ -1884,7 +1898,8 @@ export function App() {
     defaultSmoothingFilter: 'AdaptiveMedian',
     preferredSpeedUnit: 'km/h',
     preferredAggregationWindowMinutes: 5,
-    preferredTheme: 'dark'
+    preferredTheme: 'dark',
+    preferredLocale: null
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
@@ -2156,9 +2171,11 @@ export function App() {
               defaultSmoothingFilter: (profilePayload.defaultSmoothingFilter as SmoothingFilter) ?? 'AdaptiveMedian',
               preferredSpeedUnit: (profilePayload.preferredSpeedUnit as SpeedUnit) ?? 'km/h',
               preferredAggregationWindowMinutes: (profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5,
-              preferredTheme: (profilePayload.preferredTheme as 'light' | 'dark') ?? 'dark'
+              preferredTheme: (profilePayload.preferredTheme as 'light' | 'dark') ?? 'dark',
+              preferredLocale: (profilePayload.preferredLocale as Locale | null) ?? null
             });
             setTheme((profilePayload.preferredTheme as 'light' | 'dark') ?? 'dark');
+            setLocale((profilePayload.preferredLocale as Locale | null) ?? browserLocale);
             setAggregationWindowMinutes((profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5);
             setLatestProfileRecalculationJob(profilePayload.latestRecalculationJob ?? null);
           }
@@ -2206,12 +2223,6 @@ export function App() {
       cancelled = true;
     };
   }, []);
-
-  function onLocaleChange(event: ChangeEvent<HTMLSelectElement>) {
-    const nextLocale = event.target.value as Locale;
-    setLocale(nextLocale);
-    setMessage(translations[nextLocale].defaultMessage);
-  }
 
   function handleFileSelection(file: File | null) {
     if (isUploading) {
@@ -2653,7 +2664,7 @@ export function App() {
       const response = await fetch(`${apiBaseUrl}/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...profileForm, preferredTheme: nextTheme })
+        body: JSON.stringify({ ...profileForm, preferredTheme: nextTheme, preferredLocale: profileForm.preferredLocale })
       });
 
       if (!response.ok) {
@@ -2668,9 +2679,11 @@ export function App() {
         defaultSmoothingFilter: payload.defaultSmoothingFilter,
         preferredSpeedUnit: payload.preferredSpeedUnit,
         preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes,
-        preferredTheme: payload.preferredTheme
+        preferredTheme: payload.preferredTheme,
+        preferredLocale: (payload.preferredLocale as Locale | null) ?? null
       });
       setTheme(payload.preferredTheme);
+      setLocale((payload.preferredLocale as Locale | null) ?? browserLocale);
     } catch {
       // keep local selection even if persistence fails
     }
@@ -2693,7 +2706,7 @@ export function App() {
     const response = await fetch(`${apiBaseUrl}/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...profileForm, preferredTheme: theme })
+      body: JSON.stringify({ ...profileForm, preferredTheme: theme, preferredLocale: profileForm.preferredLocale })
     });
 
     if (!response.ok) {
@@ -2709,9 +2722,11 @@ export function App() {
       defaultSmoothingFilter: payload.defaultSmoothingFilter,
       preferredSpeedUnit: payload.preferredSpeedUnit,
       preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes,
-      preferredTheme: payload.preferredTheme
+      preferredTheme: payload.preferredTheme,
+      preferredLocale: (payload.preferredLocale as Locale | null) ?? null
     });
     setTheme(payload.preferredTheme);
+    setLocale((payload.preferredLocale as Locale | null) ?? browserLocale);
     setAggregationWindowMinutes(payload.preferredAggregationWindowMinutes);
     setLatestProfileRecalculationJob(payload.latestRecalculationJob ?? null);
     setProfileValidationMessage(t.profileSaveSuccess);
@@ -3219,13 +3234,6 @@ export function App() {
       <div className="mobile-topbar">
         <button type="button" className="burger-menu" onClick={() => setIsMobileNavOpen((current) => !current)} aria-label="Open navigation menu">☰</button>
       </div>
-      <div className="language-switcher">
-        <label className="form-label" htmlFor="language-selector">{t.languageLabel}</label>
-        <select className="form-select" id="language-selector" value={locale} onChange={onLocaleChange}>
-          <option value="en">{t.languageEnglish}</option>
-          <option value="de">{t.languageGerman}</option>
-        </select>
-      </div>
       {activeMainPage === 'upload' && (
         <>
           <h1>{t.title}</h1>
@@ -3236,13 +3244,29 @@ export function App() {
 
       <section className={`profile-settings ${activeMainPage === "profile" ? "" : "is-hidden"}`} id="profile-settings">
         <h2>{t.profileSettingsTitle}</h2>
+        <h3>{t.profileAppearanceTitle}</h3>
         <div className="profile-theme-switch" role="group" aria-label="Theme switch">
-          <span>Theme</span>
+          <span>{t.profilePreferredTheme}</span>
           <div className="profile-theme-switch__controls">
             <button type="button" className={theme === "light" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => void onThemeSelect("light")}>Light</button>
             <button type="button" className={theme === "dark" ? "theme-btn theme-btn--active" : "theme-btn"} onClick={() => void onThemeSelect("dark")}>Dark</button>
           </div>
         </div>
+        <label className="form-label" htmlFor="profile-preferred-language">{t.profilePreferredLanguage}</label>
+        <select className="form-select"
+          id="profile-preferred-language"
+          value={profileForm.preferredLocale ?? browserLocale}
+          onChange={(event) => {
+            const nextLocale = event.target.value as Locale;
+            setProfileForm((current) => ({ ...current, preferredLocale: nextLocale }));
+            setLocale(nextLocale);
+            setMessage(translations[nextLocale].defaultMessage);
+          }}
+        >
+          <option value="en">{t.languageEnglish}</option>
+          <option value="de">{t.languageGerman}</option>
+        </select>
+        <p>{t.profilePreferredLanguageHelp}</p>
         <form onSubmit={onProfileSubmit} className="vstack gap-2">
           <label className="form-label" htmlFor="profile-primary-position">{t.profilePrimaryPosition}</label>
           <select className="form-select"

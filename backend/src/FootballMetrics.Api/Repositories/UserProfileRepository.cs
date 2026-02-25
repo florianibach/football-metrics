@@ -21,7 +21,7 @@ public class UserProfileRepository : IUserProfileRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes, PreferredTheme
+            SELECT PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes, PreferredTheme, PreferredLocale
             FROM UserProfiles
             WHERE Id = $id;
         ";
@@ -41,7 +41,8 @@ public class UserProfileRepository : IUserProfileRepository
             DefaultSmoothingFilter = DeserializeDefaultSmoothingFilter(reader.IsDBNull(3) ? null : reader.GetString(3)),
             PreferredSpeedUnit = DeserializePreferredSpeedUnit(reader.IsDBNull(4) ? null : reader.GetString(4)),
             PreferredAggregationWindowMinutes = DeserializePreferredAggregationWindowMinutes(reader.IsDBNull(5) ? null : reader.GetInt32(5)),
-            PreferredTheme = DeserializePreferredTheme(reader.IsDBNull(6) ? null : reader.GetString(6))
+            PreferredTheme = DeserializePreferredTheme(reader.IsDBNull(6) ? null : reader.GetString(6)),
+            PreferredLocale = DeserializePreferredLocale(reader.IsDBNull(7) ? null : reader.GetString(7))
         };
     }
 
@@ -52,8 +53,8 @@ public class UserProfileRepository : IUserProfileRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO UserProfiles (Id, PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes, PreferredTheme)
-            VALUES ($id, $primaryPosition, $secondaryPosition, $metricThresholdsJson, $defaultSmoothingFilter, $preferredSpeedUnit, $preferredAggregationWindowMinutes, $preferredTheme)
+            INSERT INTO UserProfiles (Id, PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes, PreferredTheme, PreferredLocale)
+            VALUES ($id, $primaryPosition, $secondaryPosition, $metricThresholdsJson, $defaultSmoothingFilter, $preferredSpeedUnit, $preferredAggregationWindowMinutes, $preferredTheme, $preferredLocale)
             ON CONFLICT(Id) DO UPDATE SET
                 PrimaryPosition = excluded.PrimaryPosition,
                 SecondaryPosition = excluded.SecondaryPosition,
@@ -61,7 +62,8 @@ public class UserProfileRepository : IUserProfileRepository
                 DefaultSmoothingFilter = excluded.DefaultSmoothingFilter,
                 PreferredSpeedUnit = excluded.PreferredSpeedUnit,
                 PreferredAggregationWindowMinutes = excluded.PreferredAggregationWindowMinutes,
-                PreferredTheme = excluded.PreferredTheme;
+                PreferredTheme = excluded.PreferredTheme,
+                PreferredLocale = excluded.PreferredLocale;
         ";
         command.Parameters.AddWithValue("$id", SingletonProfileId);
         command.Parameters.AddWithValue("$primaryPosition", profile.PrimaryPosition);
@@ -71,6 +73,7 @@ public class UserProfileRepository : IUserProfileRepository
         command.Parameters.AddWithValue("$preferredSpeedUnit", profile.PreferredSpeedUnit);
         command.Parameters.AddWithValue("$preferredAggregationWindowMinutes", profile.PreferredAggregationWindowMinutes);
         command.Parameters.AddWithValue("$preferredTheme", profile.PreferredTheme);
+        command.Parameters.AddWithValue("$preferredLocale", (object?)profile.PreferredLocale ?? DBNull.Value);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return profile;
@@ -125,6 +128,17 @@ public class UserProfileRepository : IUserProfileRepository
         return AggregationWindows.Supported.Contains(value.Value)
             ? value.Value
             : AggregationWindows.FiveMinutes;
+    }
+
+
+    private static string? DeserializePreferredLocale(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return UiLanguages.Supported.FirstOrDefault(language => string.Equals(language, value, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string DeserializePreferredTheme(string? value)
