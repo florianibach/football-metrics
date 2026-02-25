@@ -517,6 +517,29 @@ public class TcxMetricsExtractorTests
 
 
     [Fact]
+    public void R1_6_16_Qa_Extract_ShouldDetectSingleShortHsrRunWithoutSprintPhaseWhenOnlyOneSprintSampleExists()
+    {
+        var speedsMps = new[] { 6.0, 7.5, 3.0, 3.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.HighIntensityRunCount.Should().Be(1);
+        summary.CoreMetrics.SprintCount.Should().Be(0);
+        summary.CoreMetrics.SprintDistanceMeters.Should().Be(0);
+
+        var highIntensityRuns = summary.DetectedRuns.Where(run => run.RunType == "highIntensity").ToList();
+        highIntensityRuns.Should().HaveCount(1);
+
+        var run = highIntensityRuns.Single();
+        run.StartElapsedSeconds.Should().Be(0);
+        run.DurationSeconds.Should().Be(2);
+        run.PointIndices.Should().Equal(new[] { 1, 2 });
+        run.SprintPhases.Should().BeEmpty();
+    }
+
+
+    [Fact]
     public void R1_6_16_Qa_Extract_ShouldKeepSingleHsrRunAndCreateNoSprintPhaseForIsolatedSprintSamples()
     {
         var speedsMps = new[] { 6.0, 6.1, 7.5, 3.0, 7.6, 6.0, 3.0, 3.0, 3.0 };
