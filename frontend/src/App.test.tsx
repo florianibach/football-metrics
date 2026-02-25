@@ -2152,7 +2152,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Warm-up' } });
     fireEvent.change(screen.getByLabelText('Start (s)'), { target: { value: '0' } });
     fireEvent.change(screen.getByLabelText('End (s)'), { target: { value: '300' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add segment' }));
+    fireEvent.click(screen.getByRole('button', { name: /Add segment|Save segment changes/ }));
 
     await waitFor(() => expect(screen.getAllByText('Warm-up').length).toBeGreaterThan(0));
 
@@ -2189,6 +2189,10 @@ describe('App', () => {
         return Promise.resolve({ ok: false, json: async () => ({ detail: 'Segments must not overlap.' }) } as Response);
       }
 
+      if (url.includes('/segments/seg-a') && init?.method === 'PUT') {
+        return Promise.resolve({ ok: false, json: async () => ({ detail: 'Segments must not overlap.' }) } as Response);
+      }
+
       if (url.endsWith('/segments/merge') && init?.method === 'POST') {
         return Promise.resolve({ ok: false, json: async () => ({ detail: 'Only adjacent segments can be merged.' }) } as Response);
       }
@@ -2207,7 +2211,7 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Label'), { target: { value: 'Overlap' } });
     fireEvent.change(screen.getByLabelText('Start (s)'), { target: { value: '100' } });
     fireEvent.change(screen.getByLabelText('End (s)'), { target: { value: '250' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Add segment' }));
+    fireEvent.click(screen.getByRole('button', { name: /Add segment|Save segment changes/ }));
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Segments must not overlap.'));
 
@@ -2223,22 +2227,25 @@ describe('App', () => {
     expect(errorCalls.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('R1_6_04_Ac01_Ac03_Ac04_shows_timeline_suggestions_and_allows_apply_or_dismiss', async () => {
+  it('R1_6_04_Ac01_Ac03_Ac04_supports_manual_cursor_based_segment_editing', async () => {
     const initial = createUploadRecord({
       id: 'upload-segment-timeline',
       summary: createSummary({ durationSeconds: 1200, hasGpsData: false }),
-      segments: [],
+      segments: [{ id: 'seg-1', label: 'Warm-up', startSecond: 0, endSecond: 300, notes: null }],
       segmentChangeHistory: []
     });
 
-    const createdResponse = createUploadRecord({
+    const splitResponse = createUploadRecord({
       id: 'upload-segment-timeline',
       summary: createSummary({ durationSeconds: 1200, hasGpsData: false }),
-      segments: [{ id: 'seg-suggestion', label: 'Warm-up block', startSecond: 0, endSecond: 300, notes: 'Detected lower load block at session start. Good candidate for warm-up.' }],
+      segments: [
+        { id: 'seg-1a', label: 'Warm-up', startSecond: 0, endSecond: 180, notes: null },
+        { id: 'seg-1b', label: 'Warm-up', startSecond: 180, endSecond: 300, notes: null }
+      ],
       segmentChangeHistory: []
     });
 
-    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
 
       if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
@@ -2249,8 +2256,8 @@ describe('App', () => {
         return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
       }
 
-      if (url.includes('/segments') && init?.method === 'POST') {
-        return Promise.resolve({ ok: true, json: async () => createdResponse } as Response);
+      if (url.endsWith('/segments/split') && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: async () => splitResponse } as Response);
       }
 
       return Promise.resolve({ ok: true, json: async () => initial } as Response);
@@ -2264,24 +2271,20 @@ describe('App', () => {
 
     await screen.findByText('Manual segmentation assistant');
     expect(screen.getByText('GPS intensity trend unavailable for this session.')).toBeInTheDocument();
-    expect(screen.getByText(/0s-300s/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Active segment for graphical edit')).toHaveValue('seg-1');
 
     fireEvent.change(screen.getByLabelText(/Timeline cursor/), { target: { value: '180' } });
     fireEvent.click(screen.getByRole('button', { name: 'Set segment start from cursor' }));
     fireEvent.click(screen.getByRole('button', { name: 'Set segment end from cursor' }));
     expect(screen.getByLabelText('Start (s)')).toHaveValue(180);
     expect(screen.getByLabelText('End (s)')).toHaveValue(181);
+    expect(screen.getByText('Current time: 03:00 (180s)')).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Apply suggestion' })[0]);
-    expect(screen.getByLabelText('Label')).toHaveValue('Warm-up block');
-    expect(screen.getByLabelText('Start (s)')).toHaveValue(0);
-    expect(screen.getByLabelText('End (s)')).toHaveValue(300);
+    fireEvent.click(screen.getByRole('button', { name: 'Split at cursor' }));
+    await waitFor(() => expect(screen.getAllByText('Warm-up').length).toBeGreaterThan(1));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add segment' }));
-    await waitFor(() => expect(screen.getAllByText('Warm-up block').length).toBeGreaterThan(0));
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Dismiss' })[0]);
-    await waitFor(() => expect(screen.queryByText(/0s-300s/)).not.toBeInTheDocument());
+    const splitCalls = fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/segments/split'));
+    expect(splitCalls.length).toBeGreaterThanOrEqual(1);
   });
 
   it('R1_6_13_Ac01_Ac02_renders_gps_heatmap_for_dual_mode_sessions_with_imported_points', async () => {
