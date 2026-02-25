@@ -65,6 +65,17 @@ type DataAvailability = {
   heartRateQualityReasons?: string[] | null;
 };
 
+
+
+type DetectedRun = {
+  runType: 'sprint' | 'highIntensity';
+  startElapsedSeconds: number;
+  durationSeconds: number;
+  distanceMeters: number;
+  topSpeedMetersPerSecond: number;
+  pointIndices: number[];
+};
+
 type ActivitySummary = {
   activityStartTimeUtc: string | null;
   durationSeconds: number | null;
@@ -83,6 +94,7 @@ type ActivitySummary = {
   smoothing: SmoothingTrace;
   coreMetrics: FootballCoreMetrics;
   intervalAggregates: IntervalAggregate[];
+  detectedRuns?: DetectedRun[];
 };
 
 type SessionType = 'Training' | 'Match' | 'Rehab' | 'Athletics' | 'Other';
@@ -4126,6 +4138,7 @@ export function App() {
               <p>{t.gpsRunsMapDescription}</p>
               <GpsRunsMap
                 points={heatmapData.points}
+                detectedRuns={selectedSession.summary.detectedRuns ?? []}
                 minLatitude={heatmapData.minLatitude}
                 maxLatitude={heatmapData.maxLatitude}
                 minLongitude={heatmapData.minLongitude}
@@ -4215,6 +4228,7 @@ function formatUtcDateTime(value: string | null | undefined, locale: Locale, fal
 
 type GpsPointHeatmapProps = {
   points: GpsTrackpoint[];
+  detectedRuns?: DetectedRun[];
   minLatitude: number;
   maxLatitude: number;
   minLongitude: number;
@@ -4240,6 +4254,7 @@ type RunSegment = {
 
 type GpsRunsMapProps = {
   points: GpsTrackpoint[];
+  detectedRuns?: DetectedRun[];
   minLatitude: number;
   maxLatitude: number;
   minLongitude: number;
@@ -4613,7 +4628,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   );
 }
 
-function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, sprintThresholdMps, highIntensityThresholdMps, showAllLabel, showSprintLabel, showHighIntensityLabel, listTitle, listEmptyLabel, clearSelectionLabel, topSpeedLabel, explanationLabel, sprintMetricLabel, highIntensityMetricLabel, speedUnit, locale, sessionId }: GpsRunsMapProps) {
+function GpsRunsMap({ points, detectedRuns, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, sprintThresholdMps, highIntensityThresholdMps, showAllLabel, showSprintLabel, showHighIntensityLabel, listTitle, listEmptyLabel, clearSelectionLabel, topSpeedLabel, explanationLabel, sprintMetricLabel, highIntensityMetricLabel, speedUnit, locale, sessionId }: GpsRunsMapProps) {
   const { width, height, screenPoints, satelliteImageUrl } = useMapProjection(points, minLatitude, maxLatitude, minLongitude, maxLongitude);
   const [runFilter, setRunFilter] = useState<'all' | 'sprint' | 'highIntensity'>('all');
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -4621,6 +4636,37 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
   const runSegments = useMemo(() => {
     if (sprintThresholdMps === null || highIntensityThresholdMps === null || points.length < 2) {
       return [] as RunSegment[];
+    }
+
+    if (detectedRuns && detectedRuns.length > 0) {
+      return detectedRuns
+        .map((run, index) => {
+          const validPointIndices = run.pointIndices.filter((pointIndex) => pointIndex >= 0 && pointIndex < screenPoints.length);
+          if (validPointIndices.length === 0) {
+            return null;
+          }
+
+          const uniquePointIndices = Array.from(new Set(validPointIndices));
+          return {
+            id: `${run.runType}-${index + 1}-${Math.round(run.startElapsedSeconds)}`,
+            runType: run.runType,
+            startElapsedSeconds: run.startElapsedSeconds,
+            durationSeconds: run.durationSeconds,
+            distanceMeters: run.distanceMeters,
+            topSpeedMetersPerSecond: run.topSpeedMetersPerSecond,
+            points: uniquePointIndices.map((pointIndex, pointListIndex) => {
+              const progression = uniquePointIndices.length === 1 ? 1 : pointListIndex / (uniquePointIndices.length - 1);
+              return {
+                x: screenPoints[pointIndex].x,
+                y: screenPoints[pointIndex].y,
+                radius: 1.1 + (progression * 1.2),
+                isEnd: pointListIndex === uniquePointIndices.length - 1
+              };
+            })
+          } satisfies RunSegment;
+        })
+        .filter((segment): segment is RunSegment => segment !== null)
+        .sort((first, second) => first.startElapsedSeconds - second.startElapsedSeconds);
     }
 
     const earthRadius = 6371000;
@@ -4749,7 +4795,7 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
 
     return [...sprintRuns, ...highIntensityRuns]
       .sort((first, second) => first.startElapsedSeconds - second.startElapsedSeconds);
-  }, [highIntensityThresholdMps, points, screenPoints, sprintThresholdMps]);
+  }, [detectedRuns, highIntensityThresholdMps, points, screenPoints, sprintThresholdMps]);
 
   const filteredRunSegments = useMemo(() => runSegments.filter((segment) => {
     if (runFilter === 'all') {

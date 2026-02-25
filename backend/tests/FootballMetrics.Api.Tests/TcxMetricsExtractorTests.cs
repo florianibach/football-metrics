@@ -444,6 +444,21 @@ public class TcxMetricsExtractorTests
     }
 
     [Fact]
+    public void R1_6_15_Ac04_Extract_ShouldExposeDetectedRunsAsSingleSourceForUi()
+    {
+        var speedsMps = new[] { 7.4, 3.0, 7.5, 7.6, 3.0, 3.0, 6.0, 6.1, 3.0, 3.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.DetectedRuns.Should().HaveCount(3);
+        summary.DetectedRuns.Count(run => run.RunType == "sprint").Should().Be(1);
+        summary.DetectedRuns.Count(run => run.RunType == "highIntensity").Should().Be(2);
+        summary.DetectedRuns.Should().OnlyContain(run => run.DistanceMeters > 0);
+        summary.DetectedRuns.Should().OnlyContain(run => run.PointIndices.Count >= 2);
+    }
+
+    [Fact]
     public void R1_6_15_Ac02_Ac06_Ac07_Ac08_Extract_ShouldKeepRunOpenUntilTwoConsecutiveBelowThresholdSamplesAndPreserveDistance()
     {
         var speedsMps = new[] { 7.5, 7.6, 6.5, 7.4, 3.0, 7.5, 3.0, 3.0 };

@@ -86,7 +86,7 @@ public static partial class TcxMetricsExtractor
         var dataAvailability = BuildDataAvailability(rawGpsPoints.Count > 0, heartRates.Count > 0, qualityAssessment.Status, qualityAssessment.GpsAssessment, qualityAssessment.HeartRateAssessment);
         var smoothingTrace = BuildSmoothingTrace(normalizedFilter, trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
         var effectiveThresholds = thresholdProfile ?? MetricThresholdProfile.CreateDefault();
-        var coreMetrics = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
+        var (coreMetrics, detectedRuns) = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
         var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints, effectiveThresholds);
 
         var gpsTrackpoints = smoothedTrackpoints
@@ -116,7 +116,8 @@ public static partial class TcxMetricsExtractor
             gpsTrackpoints,
             smoothingTrace,
             coreMetrics,
-            intervalAggregates);
+            intervalAggregates,
+            detectedRuns);
     }
 
 
@@ -595,7 +596,7 @@ public static partial class TcxMetricsExtractor
                 .Where(point => point.TimeUtc.HasValue && point.TimeUtc.Value >= windowStart && point.TimeUtc.Value <= windowEnd)
                 .ToList();
 
-            var intervalCoreMetrics = BuildFootballCoreMetrics(
+            var (intervalCoreMetrics, _) = BuildFootballCoreMetrics(
                 windowTrackpoints,
                 "High",
                 coveredSeconds > 0 ? distanceMeters : null,
@@ -733,7 +734,7 @@ public static partial class TcxMetricsExtractor
         return new QualityAssessment(status, reasons, new ChannelQualityAssessment(gpsStatus, gpsReasons), new ChannelQualityAssessment(hrStatus, hrReasons));
     }
 
-private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
+private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun> DetectedRuns) BuildFootballCoreMetrics(
         IReadOnlyList<TrackpointSnapshot> trackpoints,
         string qualityStatus,
         double? totalDistanceMeters,
@@ -778,12 +779,12 @@ private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
 
         var segments = gpsPoints
             .Zip(gpsPoints.Skip(1), (previous, current) => new { previous, current })
-            .Select(pair =>
+            .Select((pair, index) =>
             {
                 var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
                 if (elapsedSeconds <= 0)
                 {
-                    return (IsValid: false, Distance: 0.0, Speed: 0.0, Duration: 0.0);
+                    return (IsValid: false, PointIndex: index + 1, Distance: 0.0, Speed: 0.0, Duration: 0.0);
                 }
 
                 var distanceMeters = HaversineMeters(
@@ -791,7 +792,7 @@ private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
                     (pair.current.Latitude!.Value, pair.current.Longitude!.Value));
                 var speedMps = distanceMeters / elapsedSeconds;
 
-                return (IsValid: true, Distance: distanceMeters, Speed: speedMps, Duration: elapsedSeconds);
+                return (IsValid: true, PointIndex: index + 1, Distance: distanceMeters, Speed: speedMps, Duration: elapsedSeconds);
             })
             .Where(x => x.IsValid)
             .ToList();
@@ -810,6 +811,7 @@ private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
         int? accelerationCount = null;
         int? decelerationCount = null;
         double? distanceMeters = null;
+        var detectedRuns = new List<TcxDetectedRun>();
 
         if (!hasGpsMeasurements)
         {
@@ -852,12 +854,21 @@ private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
             sprintDistanceMeters = segments.Where(segment => segment.Speed >= sprintThresholdMps).Sum(segment => segment.Distance);
             highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= highIntensityThresholdMps).Sum(segment => segment.Distance);
 
-            sprintCount = CountRunsWithConsecutiveSamples(
-                segments.Select(segment => segment.Speed >= sprintThresholdMps).ToList());
+            var segmentsForDetection = segments
+                .Select(segment => (segment.PointIndex, segment.Distance, segment.Speed, segment.Duration))
+                .ToList();
+
+            var sprintRuns = DetectRunsWithConsecutiveSamples(segmentsForDetection, sprintThresholdMps, "sprint");
+            var highIntensityRuns = DetectRunsWithConsecutiveSamples(segmentsForDetection, highIntensityThresholdMps, "highIntensity");
+            detectedRuns = sprintRuns.Concat(highIntensityRuns)
+                .OrderBy(run => run.StartElapsedSeconds)
+                .ThenBy(run => run.RunType)
+                .ToList();
+
+            sprintCount = sprintRuns.Count;
             maxSpeed = segments.Max(segment => segment.Speed);
             highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= highIntensityThresholdMps).Sum(segment => segment.Duration);
-            highIntensityRunCount = CountRunsWithConsecutiveSamples(
-                segments.Select(segment => segment.Speed >= highIntensityThresholdMps).ToList());
+            highIntensityRunCount = highIntensityRuns.Count;
 
             var totalDurationSeconds = segments.Sum(segment => segment.Duration);
             runningDensityMetersPerMinute = totalDurationSeconds > 0
@@ -1027,7 +1038,7 @@ private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
 
         var availableMetrics = metricAvailability.Count(entry => string.Equals(entry.Value.State, "Available", StringComparison.OrdinalIgnoreCase) || string.Equals(entry.Value.State, "AvailableWithWarning", StringComparison.OrdinalIgnoreCase));
 
-        return new TcxFootballCoreMetrics(
+        return (new TcxFootballCoreMetrics(
             availableMetrics > 0,
             availableMetrics > 0 ? null : "No core metric could be calculated from the available measurements.",
             distanceMeters,
@@ -1046,36 +1057,67 @@ private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
             trimpEdwards,
             hrRecoveryAfter60Seconds,
             metricAvailability,
-            thresholds);
+            thresholds),
+            detectedRuns);
     }
 
-    private static int CountRunsWithConsecutiveSamples(
-        IReadOnlyList<bool> aboveThresholdSamples)
+    private static List<TcxDetectedRun> DetectRunsWithConsecutiveSamples(
+        IReadOnlyList<(int PointIndex, double Distance, double Speed, double Duration)> segments,
+        double thresholdMps,
+        string runType)
     {
         const int consecutiveSamplesRequired = 2;
-
-        var runCount = 0;
-        var isInRun = false;
-        var consecutiveAbove = 0;
+        var runs = new List<TcxDetectedRun>();
+        var pendingAbove = new List<int>();
+        var currentRun = new List<int>();
+        var inRun = false;
         var consecutiveBelow = 0;
 
-        foreach (var aboveThreshold in aboveThresholdSamples)
+        void FinalizeRun()
         {
-            if (!isInRun)
+            if (currentRun.Count == 0)
+            {
+                return;
+            }
+
+            var first = segments[currentRun[0]];
+            var last = segments[currentRun[^1]];
+            var distanceMeters = currentRun.Sum(sampleIndex => segments[sampleIndex].Distance);
+            var topSpeedMetersPerSecond = currentRun.Max(sampleIndex => segments[sampleIndex].Speed);
+            var pointIndices = currentRun
+                .Select(sampleIndex => segments[sampleIndex].PointIndex)
+                .Distinct()
+                .ToList();
+
+            runs.Add(new TcxDetectedRun(
+                runType,
+                Math.Max(0, first.PointIndex - 1),
+                Math.Max(0, last.PointIndex - first.PointIndex + 1),
+                distanceMeters,
+                topSpeedMetersPerSecond,
+                pointIndices));
+        }
+
+        for (var sampleIndex = 0; sampleIndex < segments.Count; sampleIndex++)
+        {
+            var aboveThreshold = segments[sampleIndex].Speed >= thresholdMps;
+
+            if (!inRun)
             {
                 if (aboveThreshold)
                 {
-                    consecutiveAbove++;
-                    if (consecutiveAbove >= consecutiveSamplesRequired)
+                    pendingAbove.Add(sampleIndex);
+                    if (pendingAbove.Count >= consecutiveSamplesRequired)
                     {
-                        runCount++;
-                        isInRun = true;
+                        inRun = true;
+                        currentRun = new List<int>(pendingAbove);
+                        pendingAbove.Clear();
                         consecutiveBelow = 0;
                     }
                 }
                 else
                 {
-                    consecutiveAbove = 0;
+                    pendingAbove.Clear();
                 }
 
                 continue;
@@ -1083,6 +1125,7 @@ private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
 
             if (aboveThreshold)
             {
+                currentRun.Add(sampleIndex);
                 consecutiveBelow = 0;
                 continue;
             }
@@ -1090,13 +1133,20 @@ private static TcxFootballCoreMetrics BuildFootballCoreMetrics(
             consecutiveBelow++;
             if (consecutiveBelow >= consecutiveSamplesRequired)
             {
-                isInRun = false;
-                consecutiveAbove = 0;
+                FinalizeRun();
+                inRun = false;
+                pendingAbove.Clear();
+                currentRun.Clear();
                 consecutiveBelow = 0;
             }
         }
 
-        return runCount;
+        if (inRun)
+        {
+            FinalizeRun();
+        }
+
+        return runs;
     }
 
 
