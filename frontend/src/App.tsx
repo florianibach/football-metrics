@@ -4635,8 +4635,7 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
       return earthRadius * c;
     };
 
-    const classified: Array<{ index: number; runType: 'sprint' | 'highIntensity'; speedMps: number }> = [];
-
+    const speedSamples: Array<{ pointIndex: number; speedMps: number; distanceMeters: number }> = [];
     for (let index = 1; index < points.length; index += 1) {
       const previous = points[index - 1];
       const current = points[index];
@@ -4650,71 +4649,106 @@ function GpsRunsMap({ points, minLatitude, maxLatitude, minLongitude, maxLongitu
         continue;
       }
 
-      const speedMps = distanceMetersBetween(previous, current) / deltaSeconds;
-      if (speedMps >= sprintThresholdMps) {
-        classified.push({ index, runType: 'sprint', speedMps });
-      } else if (speedMps >= highIntensityThresholdMps) {
-        classified.push({ index, runType: 'highIntensity', speedMps });
-      }
+      const distanceMeters = distanceMetersBetween(previous, current);
+      speedSamples.push({
+        pointIndex: index,
+        speedMps: distanceMeters / deltaSeconds,
+        distanceMeters
+      });
     }
 
-    if (classified.length === 0) {
+    if (speedSamples.length === 0) {
       return [] as RunSegment[];
     }
 
-    const segments: RunSegment[] = [];
-    let currentSegment = [classified[0]];
+    const buildSegmentsForThreshold = (runType: 'sprint' | 'highIntensity', thresholdMps: number) => {
+      const detectedRuns: RunSegment[] = [];
+      let pendingAboveSamples: number[] = [];
+      let currentRunSamples: number[] = [];
+      let inRun = false;
+      let consecutiveBelow = 0;
 
-    const buildSegment = (entries: Array<{ index: number; runType: 'sprint' | 'highIntensity'; speedMps: number }>): RunSegment => {
-      const firstPoint = points[entries[0].index];
-      const lastPoint = points[entries[entries.length - 1].index];
-      const startElapsedSeconds = firstPoint.elapsedSeconds ?? 0;
-      const endElapsedSeconds = lastPoint.elapsedSeconds ?? startElapsedSeconds;
-      const distanceMeters = entries.reduce((total, entry, entryIndex) => {
-        if (entryIndex === 0) {
-          return total;
+      const finalizeRun = () => {
+        if (currentRunSamples.length === 0) {
+          return;
         }
 
-        const previousEntry = entries[entryIndex - 1];
-        return total + distanceMetersBetween(points[previousEntry.index], points[entry.index]);
-      }, 0);
+        const firstSample = speedSamples[currentRunSamples[0]];
+        const lastSample = speedSamples[currentRunSamples[currentRunSamples.length - 1]];
+        const startElapsedSeconds = points[firstSample.pointIndex].elapsedSeconds ?? 0;
+        const endElapsedSeconds = points[lastSample.pointIndex].elapsedSeconds ?? startElapsedSeconds;
+        const distanceMeters = currentRunSamples.reduce((sum, sampleIndex) => sum + speedSamples[sampleIndex].distanceMeters, 0);
+        const topSpeedMetersPerSecond = Math.max(...currentRunSamples.map((sampleIndex) => speedSamples[sampleIndex].speedMps));
 
-      return {
-        id: `${entries[0].runType}-${entries[0].index}`,
-        runType: entries[0].runType,
-        startElapsedSeconds,
-        durationSeconds: Math.max(0, endElapsedSeconds - startElapsedSeconds),
-        distanceMeters,
-        topSpeedMetersPerSecond: Math.max(...entries.map((entry) => entry.speedMps)),
-        points: entries.map((entry, entryIndex) => {
-          const progression = entries.length === 1 ? 1 : entryIndex / (entries.length - 1);
-          return {
-            x: screenPoints[entry.index].x,
-            y: screenPoints[entry.index].y,
-            radius: 1.1 + (progression * 1.2),
-            isEnd: entryIndex === entries.length - 1
-          };
-        })
+        const pointIndices = Array.from(new Set(currentRunSamples.map((sampleIndex) => speedSamples[sampleIndex].pointIndex)));
+
+        detectedRuns.push({
+          id: `${runType}-${firstSample.pointIndex}-${detectedRuns.length + 1}`,
+          runType,
+          startElapsedSeconds,
+          durationSeconds: Math.max(0, endElapsedSeconds - startElapsedSeconds),
+          distanceMeters,
+          topSpeedMetersPerSecond,
+          points: pointIndices.map((pointIndex, pointListIndex) => {
+            const progression = pointIndices.length === 1 ? 1 : pointListIndex / (pointIndices.length - 1);
+            return {
+              x: screenPoints[pointIndex].x,
+              y: screenPoints[pointIndex].y,
+              radius: 1.1 + (progression * 1.2),
+              isEnd: pointListIndex === pointIndices.length - 1
+            };
+          })
+        });
       };
-    };
 
-    for (let index = 1; index < classified.length; index += 1) {
-      const point = classified[index];
-      const previous = classified[index - 1];
-      const shouldContinue = point.runType === previous.runType && point.index === previous.index + 1;
+      for (let sampleIndex = 0; sampleIndex < speedSamples.length; sampleIndex += 1) {
+        const sample = speedSamples[sampleIndex];
+        const aboveThreshold = sample.speedMps >= thresholdMps;
 
-      if (shouldContinue) {
-        currentSegment.push(point);
-        continue;
+        if (!inRun) {
+          if (aboveThreshold) {
+            pendingAboveSamples.push(sampleIndex);
+            if (pendingAboveSamples.length >= 2) {
+              inRun = true;
+              currentRunSamples = [...pendingAboveSamples];
+              pendingAboveSamples = [];
+              consecutiveBelow = 0;
+            }
+          } else {
+            pendingAboveSamples = [];
+          }
+
+          continue;
+        }
+
+        if (aboveThreshold) {
+          currentRunSamples.push(sampleIndex);
+          consecutiveBelow = 0;
+          continue;
+        }
+
+        consecutiveBelow += 1;
+        if (consecutiveBelow >= 2) {
+          finalizeRun();
+          inRun = false;
+          pendingAboveSamples = [];
+          currentRunSamples = [];
+          consecutiveBelow = 0;
+        }
       }
 
-      segments.push(buildSegment(currentSegment));
-      currentSegment = [point];
-    }
+      if (inRun) {
+        finalizeRun();
+      }
 
-    segments.push(buildSegment(currentSegment));
+      return detectedRuns;
+    };
 
-    return segments;
+    const sprintRuns = buildSegmentsForThreshold('sprint', sprintThresholdMps);
+    const highIntensityRuns = buildSegmentsForThreshold('highIntensity', highIntensityThresholdMps);
+
+    return [...sprintRuns, ...highIntensityRuns]
+      .sort((first, second) => first.startElapsedSeconds - second.startElapsedSeconds);
   }, [highIntensityThresholdMps, points, screenPoints, sprintThresholdMps]);
 
   const filteredRunSegments = useMemo(() => runSegments.filter((segment) => {
