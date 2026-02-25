@@ -4,6 +4,7 @@ import { App } from './App';
 describe('App', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.localStorage.clear();
     window.history.pushState({}, '', '/');
   });
 
@@ -185,6 +186,16 @@ describe('App', () => {
   }
 
 
+
+  function deferredPromise<T>() {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    const promise = new Promise<T>((resolvePromise) => {
+      resolve = resolvePromise;
+    });
+
+    return { promise, resolve };
+  }
+
   function gpsTrackpointsFromOneHertzSpeeds(speedsMetersPerSecond: number[]) {
     const metersPerDegreeLatitude = 111_320;
     let latitude = 50.9366;
@@ -346,6 +357,47 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
     await waitFor(() => expect(screen.getByText('Upload history')).toBeInTheDocument());
   });
+
+
+  it('R2_regression_blocks_default_ui_until_profile_and_sessions_are_hydrated', async () => {
+    window.history.pushState({}, '', '/profile');
+    (globalThis as { __ENABLE_INITIAL_HYDRATION_GATE__?: boolean }).__ENABLE_INITIAL_HYDRATION_GATE__ = true;
+    const profileRequest = deferredPromise<Response>();
+
+    try {
+      vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+        const url = String(input);
+
+        if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+          return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+        }
+
+        if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+          return profileRequest.promise;
+        }
+
+        return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+      });
+
+      render(<App />);
+
+      expect(document.querySelector('.app-shell')).toHaveAttribute('data-theme', 'dark');
+      expect(document.body.textContent).toBe('');
+      expect(screen.queryByText('Profile settings')).not.toBeInTheDocument();
+      expect(screen.queryByText('Profileinstellungen')).not.toBeInTheDocument();
+
+      profileRequest.resolve({
+        ok: true,
+        json: async () => createProfile({ preferredTheme: 'light', preferredLocale: 'de' })
+      } as Response);
+
+      await screen.findByText('Profileinstellungen');
+      expect(document.querySelector('.app-shell')).toHaveAttribute('data-theme', 'light');
+    } finally {
+      delete (globalThis as { __ENABLE_INITIAL_HYDRATION_GATE__?: boolean }).__ENABLE_INITIAL_HYDRATION_GATE__;
+    }
+  });
+
 
   it('Mvp01_Ac02_shows validation message for non-tcx files in current language', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => [] } as Response);
