@@ -301,6 +301,23 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
         payload.Status.Should().Be(ProfileRecalculationStatuses.Running);
     }
 
+
+    [Fact]
+    public async Task R2_Appearance_UpdateProfile_ShouldPersistPreferredLocaleAndRejectUnsupportedLocale()
+    {
+        var client = _factory.CreateClient();
+
+        var validResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, null, null, null, "de"));
+        validResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var validPayload = await validResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
+        validPayload.Should().NotBeNull();
+        validPayload!.PreferredLocale.Should().Be("de");
+
+        var invalidResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, null, null, null, "fr"));
+        invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     private sealed record ProfileResponseWithRecalculation(ProfileRecalculationJobResponse? LatestRecalculationJob);
     private sealed record ProfileRecalculationJobResponse(string Status, string Trigger);
 

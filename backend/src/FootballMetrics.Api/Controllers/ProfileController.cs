@@ -70,6 +70,12 @@ public class ProfileController : ControllerBase
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported preferred theme", $"Unsupported preferred theme. Supported values: {string.Join(", ", UiThemes.Supported)}.", ApiErrorCodes.ValidationError);
         }
 
+        var normalizedPreferredLocale = ProfileUseCase.NormalizePreferredLocale(request.PreferredLocale, existingProfile.PreferredLocale);
+        if (request.PreferredLocale is not null && normalizedPreferredLocale is null)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported preferred locale", $"Unsupported preferred locale. Supported values: {string.Join(", ", UiLanguages.Supported)}.", ApiErrorCodes.ValidationError);
+        }
+
         var submittedThresholds = request.MetricThresholds ?? existingProfile.MetricThresholds;
         submittedThresholds.MaxSpeedMode = ProfileUseCase.NormalizeThresholdMode(submittedThresholds.MaxSpeedMode);
         submittedThresholds.MaxHeartRateMode = ProfileUseCase.NormalizeThresholdMode(submittedThresholds.MaxHeartRateMode);
@@ -87,7 +93,7 @@ public class ProfileController : ControllerBase
         }
 
         var profile = await _profileUseCase.UpdateProfileAsync(
-            new UpdateUserProfileRequest(request.PrimaryPosition, request.SecondaryPosition, request.MetricThresholds, request.DefaultSmoothingFilter, request.PreferredSpeedUnit, request.PreferredAggregationWindowMinutes, request.PreferredTheme),
+            new UpdateUserProfileRequest(request.PrimaryPosition, request.SecondaryPosition, request.MetricThresholds, request.DefaultSmoothingFilter, request.PreferredSpeedUnit, request.PreferredAggregationWindowMinutes, request.PreferredTheme, request.PreferredLocale),
             cancellationToken);
 
         var latestRecalculationJob = await _profileUseCase.GetLatestRecalculationJobAsync(cancellationToken);
@@ -101,7 +107,7 @@ public class ProfileController : ControllerBase
     }
 
     private static UserProfileResponseDto ToResponse(UserProfile profile, ProfileRecalculationJob? latestRecalculationJob)
-        => new(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes, profile.PreferredTheme, ToDto(latestRecalculationJob));
+        => new(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes, profile.PreferredTheme, profile.PreferredLocale, ToDto(latestRecalculationJob));
 
     private static ProfileRecalculationJobDto? ToDto(ProfileRecalculationJob? job)
         => job is null

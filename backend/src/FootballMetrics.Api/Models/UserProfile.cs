@@ -9,6 +9,19 @@ public class UserProfile
     public string PreferredSpeedUnit { get; set; } = SpeedUnits.KilometersPerHour;
     public int PreferredAggregationWindowMinutes { get; set; } = AggregationWindows.FiveMinutes;
     public string PreferredTheme { get; set; } = UiThemes.Dark;
+    public string? PreferredLocale { get; set; }
+}
+
+public static class UiLanguages
+{
+    public const string English = "en";
+    public const string German = "de";
+
+    public static readonly IReadOnlyList<string> Supported =
+    [
+        English,
+        German
+    ];
 }
 
 public static class UiThemes
@@ -160,5 +173,5 @@ public static class MetricThresholdModes
     public static readonly IReadOnlyList<string> Supported = [Fixed, Adaptive];
 }
 
-public record UpdateUserProfileRequest(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile? MetricThresholds, string? DefaultSmoothingFilter, string? PreferredSpeedUnit, int? PreferredAggregationWindowMinutes, string? PreferredTheme = null);
-public record UserProfileResponse(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile MetricThresholds, string DefaultSmoothingFilter, string PreferredSpeedUnit, int PreferredAggregationWindowMinutes, string PreferredTheme);
+public record UpdateUserProfileRequest(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile? MetricThresholds, string? DefaultSmoothingFilter, string? PreferredSpeedUnit, int? PreferredAggregationWindowMinutes, string? PreferredTheme = null, string? PreferredLocale = null);
+public record UserProfileResponse(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile MetricThresholds, string DefaultSmoothingFilter, string PreferredSpeedUnit, int PreferredAggregationWindowMinutes, string PreferredTheme, string? PreferredLocale = null);

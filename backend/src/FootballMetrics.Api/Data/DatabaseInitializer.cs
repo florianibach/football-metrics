@@ -60,7 +60,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 DefaultSmoothingFilter TEXT NOT NULL DEFAULT 'AdaptiveMedian',
                 PreferredSpeedUnit TEXT NOT NULL DEFAULT 'km/h',
                 PreferredAggregationWindowMinutes INTEGER NOT NULL DEFAULT 5,
-                PreferredTheme TEXT NOT NULL DEFAULT 'dark'
+                PreferredTheme TEXT NOT NULL DEFAULT 'dark',
+                PreferredLocale TEXT NULL
             );
 
 
@@ -124,6 +125,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredAggregationWindowMinutes", "INTEGER NOT NULL DEFAULT 5", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredTheme", "TEXT NOT NULL DEFAULT 'dark'", cancellationToken);
+        await EnsureUserProfileColumnExistsAsync(connection, "PreferredLocale", "TEXT NULL", cancellationToken);
 
         await ApplyMigrationSlot001Async(connection, cancellationToken);
         await ApplyMigrationSlot002Async(connection, cancellationToken);
