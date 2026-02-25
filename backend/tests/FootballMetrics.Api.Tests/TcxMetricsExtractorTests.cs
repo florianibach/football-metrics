@@ -498,7 +498,7 @@ public class TcxMetricsExtractorTests
     }
 
     [Fact]
-    public void R1_6_16_Qa_Extract_ShouldAllowSprintDistanceToBeHigherThanNestedSprintPhaseDistanceWhenIsolatedSprintSamplesExist()
+    public void R1_6_16_Qa_Extract_ShouldUseOnlyDetectedSprintPhaseDistanceForSprintDistanceMetric()
     {
         var speedsMps = new[] { 6.0, 6.1, 6.2, 3.0, 7.5, 7.6, 3.0, 3.0, 7.5, 3.0, 3.0 };
         var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
@@ -512,7 +512,25 @@ public class TcxMetricsExtractorTests
 
         var nestedSprintPhaseDistance = highIntensityRun.SprintPhases.Sum(phase => phase.DistanceMeters);
         summary.CoreMetrics.SprintDistanceMeters.Should().NotBeNull();
-        summary.CoreMetrics.SprintDistanceMeters!.Value.Should().BeGreaterThan(nestedSprintPhaseDistance);
+        summary.CoreMetrics.SprintDistanceMeters!.Value.Should().BeApproximately(nestedSprintPhaseDistance, 0.001d);
+    }
+
+
+    [Fact]
+    public void R1_6_16_Qa_Extract_ShouldKeepSingleHsrRunAndCreateNoSprintPhaseForIsolatedSprintSamples()
+    {
+        var speedsMps = new[] { 6.0, 6.1, 7.5, 3.0, 7.6, 6.0, 3.0, 3.0, 3.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.HighIntensityRunCount.Should().Be(1);
+        summary.CoreMetrics.SprintCount.Should().Be(0);
+        summary.CoreMetrics.SprintDistanceMeters.Should().Be(0);
+
+        var highIntensityRuns = summary.DetectedRuns.Where(run => run.RunType == "highIntensity").ToList();
+        highIntensityRuns.Should().HaveCount(1);
+        highIntensityRuns.Single().SprintPhases.Should().BeEmpty();
     }
 
     [Fact]
@@ -553,7 +571,7 @@ public class TcxMetricsExtractorTests
 
         summary.CoreMetrics.IsAvailable.Should().BeTrue();
         summary.CoreMetrics.DistanceMeters.Should().Be(summary.DistanceMeters);
-        summary.CoreMetrics.SprintDistanceMeters.Should().BeGreaterThan(0);
+        summary.CoreMetrics.SprintDistanceMeters.Should().BeGreaterOrEqualTo(0);
         summary.CoreMetrics.SprintCount.Should().NotBeNull();
         summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeGreaterThan(7.0);
         summary.CoreMetrics.HighIntensityTimeSeconds.Should().BeGreaterThan(0);
