@@ -1962,3 +1962,8 @@ input[type='checkbox']::before {
   color: var(--muted);
   user-select: text;
 }
+
+.gps-heatmap__run-line.gps-heatmap__run--sprint,
+.gps-heatmap__run-line.gps-heatmap__run--high-intensity {
+  fill: none;
+}

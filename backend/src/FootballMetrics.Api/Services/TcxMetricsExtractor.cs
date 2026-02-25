@@ -851,7 +851,6 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             var sprintThresholdMps = thresholdsProfile.EffectiveMaxSpeedMps * (thresholdsProfile.SprintSpeedPercentOfMaxSpeed / 100.0);
             var highIntensityThresholdMps = thresholdsProfile.EffectiveMaxSpeedMps * (thresholdsProfile.HighIntensitySpeedPercentOfMaxSpeed / 100.0);
 
-            sprintDistanceMeters = segments.Where(segment => segment.Speed >= sprintThresholdMps).Sum(segment => segment.Distance);
             highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= highIntensityThresholdMps).Sum(segment => segment.Distance);
 
             var segmentsForDetection = segments
@@ -860,10 +859,65 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
 
             var sprintRuns = DetectRunsWithConsecutiveSamples(segmentsForDetection, sprintThresholdMps, "sprint");
             var highIntensityRuns = DetectRunsWithConsecutiveSamples(segmentsForDetection, highIntensityThresholdMps, "highIntensity");
-            detectedRuns = sprintRuns.Concat(highIntensityRuns)
+
+            sprintDistanceMeters = sprintRuns.Sum(run => run.DistanceMeters);
+
+            var highIntensityPointIndexLookup = highIntensityRuns
+                .ToDictionary(run => run.RunId, run => run.PointIndices.ToHashSet());
+
+            var sprintParentAssignments = sprintRuns
+                .Select(sprintRun =>
+                {
+                    var containingParent = highIntensityRuns
+                        .Where(highIntensityRun =>
+                            sprintRun.PointIndices.All(pointIndex => highIntensityPointIndexLookup[highIntensityRun.RunId].Contains(pointIndex)))
+                        .OrderBy(highIntensityRun => highIntensityRun.StartElapsedSeconds)
+                        .FirstOrDefault();
+
+                    if (containingParent is not null)
+                    {
+                        return new { SprintRun = sprintRun, ParentRunId = containingParent.RunId };
+                    }
+
+                    var overlappingParent = highIntensityRuns
+                        .Select(highIntensityRun => new
+                        {
+                            RunId = highIntensityRun.RunId,
+                            OverlapCount = sprintRun.PointIndices.Count(pointIndex => highIntensityPointIndexLookup[highIntensityRun.RunId].Contains(pointIndex)),
+                            highIntensityRun.StartElapsedSeconds
+                        })
+                        .Where(candidate => candidate.OverlapCount > 0)
+                        .OrderByDescending(candidate => candidate.OverlapCount)
+                        .ThenBy(candidate => candidate.StartElapsedSeconds)
+                        .FirstOrDefault();
+
+                    return new { SprintRun = sprintRun, ParentRunId = overlappingParent?.RunId };
+                })
+                .ToList();
+
+            var hierarchicalHighIntensityRuns = highIntensityRuns
+                .Select(highIntensityRun =>
+                {
+                    var sprintPhasesForRun = sprintParentAssignments
+                        .Where(assignment => assignment.ParentRunId == highIntensityRun.RunId)
+                        .Select(assignment => new TcxSprintPhase(
+                            assignment.SprintRun.RunId,
+                            assignment.SprintRun.StartElapsedSeconds,
+                            assignment.SprintRun.DurationSeconds,
+                            assignment.SprintRun.DistanceMeters,
+                            assignment.SprintRun.TopSpeedMetersPerSecond,
+                            assignment.SprintRun.PointIndices,
+                            highIntensityRun.RunId))
+                        .OrderBy(phase => phase.StartElapsedSeconds)
+                        .ToList();
+
+                    return highIntensityRun with { SprintPhases = sprintPhasesForRun };
+                })
                 .OrderBy(run => run.StartElapsedSeconds)
                 .ThenBy(run => run.RunType)
                 .ToList();
+
+            detectedRuns = hierarchicalHighIntensityRuns;
 
             sprintCount = sprintRuns.Count;
             maxSpeed = segments.Max(segment => segment.Speed);
@@ -1090,12 +1144,15 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 .ToList();
 
             runs.Add(new TcxDetectedRun(
+                $"{runType}-{runs.Count + 1}",
                 runType,
                 Math.Max(0, first.PointIndex - 1),
                 Math.Max(0, last.PointIndex - first.PointIndex + 1),
                 distanceMeters,
                 topSpeedMetersPerSecond,
-                pointIndices));
+                pointIndices,
+                null,
+                Array.Empty<TcxSprintPhase>()));
         }
 
         for (var sampleIndex = 0; sampleIndex < segments.Count; sampleIndex++)
