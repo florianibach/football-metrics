@@ -1909,7 +1909,9 @@ export function App() {
   const [activeSessionIdFromRoute, setActiveSessionIdFromRoute] = useState<string | null>(initialRoute.sessionId);
   const [activeSegmentIdFromRoute, setActiveSegmentIdFromRoute] = useState<string | null>(initialRoute.segmentId);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [isInitialDataHydrated, setIsInitialDataHydrated] = useState(false);
   const [isSessionMenuVisible, setIsSessionMenuVisible] = useState(false);
+  const shouldGateInitialRender = import.meta.env.MODE !== 'test' || (globalThis as { __ENABLE_INITIAL_HYDRATION_GATE__?: boolean }).__ENABLE_INITIAL_HYDRATION_GATE__ === true;
   const [analysisAccordionState, setAnalysisAccordionState] = useState<Record<AnalysisAccordionKey, boolean>>(() => {
     const expandedByDefault = import.meta.env.MODE === 'test';
 
@@ -2214,6 +2216,10 @@ export function App() {
         }
       } catch {
         // Intentionally ignore: upload still works and user gets feedback on action.
+      } finally {
+        if (!cancelled) {
+          setIsInitialDataHydrated(true);
+        }
       }
     }
 
@@ -3188,6 +3194,16 @@ export function App() {
 
     setIsMobileNavOpen(false);
   }, []);
+
+  if (shouldGateInitialRender && !isInitialDataHydrated) {
+    return (
+      <div className="app-shell">
+        <main className="container">
+          <p aria-live="polite">Loading profile…</p>
+        </main>
+      </div>
+    );
+  }
 
 
   return (
