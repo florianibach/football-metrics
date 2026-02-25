@@ -478,6 +478,43 @@ public class TcxMetricsExtractorTests
         summary.DetectedRuns.Should().OnlyContain(run => run.ParentRunId == null);
     }
 
+
+    [Fact]
+    public void R1_6_16_Ac01_Ac03_Ac04_Extract_ShouldKeepOneHsrRunAcrossSingleBelowThresholdGapWithSevenSamples()
+    {
+        var speedsMps = new[] { 6.0, 6.1, 6.2, 3.0, 7.5, 6.0, 7.4, 3.0, 3.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        var highIntensityRuns = summary.DetectedRuns.Where(run => run.RunType == "highIntensity").ToList();
+        highIntensityRuns.Should().HaveCount(1);
+
+        var run = highIntensityRuns.Single();
+        run.PointIndices.Should().HaveCount(6);
+        run.StartElapsedSeconds.Should().Be(0);
+        run.DurationSeconds.Should().Be(7);
+        run.SprintPhases.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void R1_6_16_Qa_Extract_ShouldAllowSprintDistanceToBeHigherThanNestedSprintPhaseDistanceWhenIsolatedSprintSamplesExist()
+    {
+        var speedsMps = new[] { 6.0, 6.1, 6.2, 3.0, 7.5, 7.6, 3.0, 3.0, 7.5, 3.0, 3.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.SprintCount.Should().Be(1);
+        summary.DetectedRuns.Should().HaveCount(1);
+        var highIntensityRun = summary.DetectedRuns.Single();
+        highIntensityRun.SprintPhases.Should().HaveCount(1);
+
+        var nestedSprintPhaseDistance = highIntensityRun.SprintPhases.Sum(phase => phase.DistanceMeters);
+        summary.CoreMetrics.SprintDistanceMeters.Should().NotBeNull();
+        summary.CoreMetrics.SprintDistanceMeters!.Value.Should().BeGreaterThan(nestedSprintPhaseDistance);
+    }
+
     [Fact]
     public void R1_6_15_Ac02_Ac06_Ac07_Ac08_Extract_ShouldKeepRunOpenUntilTwoConsecutiveBelowThresholdSamplesAndPreserveDistance()
     {
