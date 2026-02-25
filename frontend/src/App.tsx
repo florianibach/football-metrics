@@ -3577,11 +3577,11 @@ export function App() {
   }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedSegment]);
 
   const detectedRunHierarchySummary = useMemo(() => {
-    if (!selectedSession || isSegmentScopeActive) {
+    if (!selectedSession) {
       return null;
     }
 
-    const highIntensityRuns = (selectedSession.summary.detectedRuns ?? []).filter((run) => run.runType === 'highIntensity');
+    const highIntensityRuns = selectedDetectedRuns.filter((run) => run.runType === 'highIntensity');
     if (highIntensityRuns.length === 0) {
       return null;
     }
@@ -3595,7 +3595,7 @@ export function App() {
       sprintPhaseCount,
       sprintPhaseDistanceMeters
     };
-  }, [selectedSession, isSegmentScopeActive]);
+  }, [selectedSession, selectedDetectedRuns]);
 
   const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
   const shouldShowSessionOverviewHeader = activeSessionSubpage === 'analysis' && !isQualityDetailsPageVisible;
