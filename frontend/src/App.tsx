@@ -1721,6 +1721,27 @@ function withMetricStatus(value: string, metricKey: string, coreMetrics: Footbal
   return status ? `${value} — ${status}` : value;
 }
 
+function combineMetricAvailability(states: Array<MetricAvailability['state']>): MetricAvailability['state'] {
+  if (states.some((state) => state === 'AvailableWithWarning')) {
+    return 'AvailableWithWarning';
+  }
+
+  if (states.some((state) => state === 'Available')) {
+    return 'Available';
+  }
+
+  if (states.some((state) => state === 'NotUsable')) {
+    return 'NotUsable';
+  }
+
+  return 'NotMeasured';
+}
+
+function isMetricAvailableForAggregation(metricAvailability: Record<string, MetricAvailability>, metricKey: string): boolean {
+  const status = metricAvailability[metricKey]?.state;
+  return status === 'Available' || status === 'AvailableWithWarning';
+}
+
 function hasAvailableWithWarning(coreMetrics: FootballCoreMetrics, keys: string[]): boolean {
   return keys.some((key) => coreMetrics.metricAvailability?.[key]?.state === 'AvailableWithWarning');
 }
@@ -3465,6 +3486,9 @@ export function App() {
   }, [isSegmentScopeActive, selectedSegment, selectedSessionAggregates, selectedSession?.summary.activityStartTimeUtc]);
 
   const displayedCoreMetrics = useMemo(() => {
+    // Backend delivers a single session summary + interval aggregates.
+    // Segment analysis is currently created by slicing these intervals in the UI by time range,
+    // so parity fixes for R1.6-05 intentionally live in this frontend aggregation path.
     if (!selectedSession) {
       return null;
     }
@@ -3475,32 +3499,89 @@ export function App() {
 
     const source = selectedAnalysisAggregates;
     const durationSeconds = selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : 1;
+    const sourceMetricAvailability = source.map((item) => item.coreMetrics.metricAvailability ?? {});
+    const baseMetricAvailability = selectedSession.summary.coreMetrics.metricAvailability ?? {};
+
+    const combinedMetricAvailability = Object.keys(baseMetricAvailability).reduce<Record<string, MetricAvailability>>((accumulator, metricKey) => {
+      const states = sourceMetricAvailability
+        .map((availability) => availability[metricKey]?.state)
+        .filter((state): state is MetricAvailability['state'] => state !== undefined);
+
+      if (states.length === 0) {
+        accumulator[metricKey] = baseMetricAvailability[metricKey];
+        return accumulator;
+      }
+
+      const combinedState = combineMetricAvailability(states);
+      const reasons = sourceMetricAvailability
+        .map((availability) => availability[metricKey]?.reason)
+        .filter((reason): reason is string => typeof reason === 'string' && reason.trim().length > 0);
+
+      accumulator[metricKey] = {
+        state: combinedState,
+        reason: reasons.length > 0 ? reasons[0] : null
+      };
+      return accumulator;
+    }, {});
+
+    const sumMetric = (metricKey: string, getter: (metrics: FootballCoreMetrics) => number | null): number | null => {
+      if (!isMetricAvailableForAggregation(combinedMetricAvailability, metricKey)) {
+        return null;
+      }
+
+      return source.reduce((sum, item) => sum + (getter(item.coreMetrics) ?? 0), 0);
+    };
+
+    const maxMetric = (metricKey: string, getter: (metrics: FootballCoreMetrics) => number | null): number | null => {
+      if (!isMetricAvailableForAggregation(combinedMetricAvailability, metricKey)) {
+        return null;
+      }
+
+      return Math.max(...source.map((item) => getter(item.coreMetrics) ?? 0));
+    };
+
+    const distanceMeters = sumMetric('distanceMeters', (metrics) => metrics.distanceMeters);
+
     return {
       ...selectedSession.summary.coreMetrics,
-      distanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.distanceMeters ?? 0), 0),
-      sprintDistanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.sprintDistanceMeters ?? 0), 0),
-      sprintCount: source.reduce((sum, item) => sum + (item.coreMetrics.sprintCount ?? 0), 0),
-      maxSpeedMetersPerSecond: Math.max(...source.map((item) => item.coreMetrics.maxSpeedMetersPerSecond ?? 0)),
-      highIntensityTimeSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.highIntensityTimeSeconds ?? 0), 0),
-      highIntensityRunCount: source.reduce((sum, item) => sum + (item.coreMetrics.highIntensityRunCount ?? 0), 0),
-      highSpeedDistanceMeters: source.reduce((sum, item) => sum + (item.coreMetrics.highSpeedDistanceMeters ?? 0), 0),
-      runningDensityMetersPerMinute: (source.reduce((sum, item) => sum + (item.coreMetrics.distanceMeters ?? 0), 0) / durationSeconds) * 60,
-      accelerationCount: source.reduce((sum, item) => sum + (item.coreMetrics.accelerationCount ?? 0), 0),
-      decelerationCount: source.reduce((sum, item) => sum + (item.coreMetrics.decelerationCount ?? 0), 0),
-      heartRateZoneLowSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.heartRateZoneLowSeconds ?? 0), 0),
-      heartRateZoneMediumSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.heartRateZoneMediumSeconds ?? 0), 0),
-      heartRateZoneHighSeconds: source.reduce((sum, item) => sum + (item.coreMetrics.heartRateZoneHighSeconds ?? 0), 0),
-      trainingImpulseEdwards: source.reduce((sum, item) => sum + (item.coreMetrics.trainingImpulseEdwards ?? 0), 0),
-      heartRateRecoveryAfter60Seconds: source[source.length - 1]?.coreMetrics.heartRateRecoveryAfter60Seconds ?? null
+      metricAvailability: combinedMetricAvailability,
+      distanceMeters,
+      sprintDistanceMeters: sumMetric('sprintDistanceMeters', (metrics) => metrics.sprintDistanceMeters),
+      sprintCount: sumMetric('sprintCount', (metrics) => metrics.sprintCount),
+      maxSpeedMetersPerSecond: maxMetric('maxSpeedMetersPerSecond', (metrics) => metrics.maxSpeedMetersPerSecond),
+      highIntensityTimeSeconds: sumMetric('highIntensityTimeSeconds', (metrics) => metrics.highIntensityTimeSeconds),
+      highIntensityRunCount: sumMetric('highIntensityRunCount', (metrics) => metrics.highIntensityRunCount),
+      highSpeedDistanceMeters: sumMetric('highSpeedDistanceMeters', (metrics) => metrics.highSpeedDistanceMeters),
+      runningDensityMetersPerMinute: distanceMeters === null || !isMetricAvailableForAggregation(combinedMetricAvailability, 'runningDensityMetersPerMinute')
+        ? null
+        : (distanceMeters / durationSeconds) * 60,
+      accelerationCount: sumMetric('accelerationCount', (metrics) => metrics.accelerationCount),
+      decelerationCount: sumMetric('decelerationCount', (metrics) => metrics.decelerationCount),
+      heartRateZoneLowSeconds: sumMetric('heartRateZoneLowSeconds', (metrics) => metrics.heartRateZoneLowSeconds),
+      heartRateZoneMediumSeconds: sumMetric('heartRateZoneMediumSeconds', (metrics) => metrics.heartRateZoneMediumSeconds),
+      heartRateZoneHighSeconds: sumMetric('heartRateZoneHighSeconds', (metrics) => metrics.heartRateZoneHighSeconds),
+      trainingImpulseEdwards: sumMetric('trainingImpulseEdwards', (metrics) => metrics.trainingImpulseEdwards),
+      heartRateRecoveryAfter60Seconds: !isMetricAvailableForAggregation(combinedMetricAvailability, 'heartRateRecoveryAfter60Seconds')
+        ? null
+        : (() => {
+            for (let index = source.length - 1; index >= 0; index -= 1) {
+              const value = source[index].coreMetrics.heartRateRecoveryAfter60Seconds;
+              if (value !== null) {
+                return value;
+              }
+            }
+
+            return null;
+          })()
     } satisfies FootballCoreMetrics;
   }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedSegment]);
 
   const detectedRunHierarchySummary = useMemo(() => {
-    if (!selectedSession || isSegmentScopeActive) {
+    if (!selectedSession) {
       return null;
     }
 
-    const highIntensityRuns = (selectedSession.summary.detectedRuns ?? []).filter((run) => run.runType === 'highIntensity');
+    const highIntensityRuns = selectedDetectedRuns.filter((run) => run.runType === 'highIntensity');
     if (highIntensityRuns.length === 0) {
       return null;
     }
@@ -3514,7 +3595,7 @@ export function App() {
       sprintPhaseCount,
       sprintPhaseDistanceMeters
     };
-  }, [selectedSession, isSegmentScopeActive]);
+  }, [selectedSession, selectedDetectedRuns]);
 
   const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
   const shouldShowSessionOverviewHeader = activeSessionSubpage === 'analysis' && !isQualityDetailsPageVisible;
