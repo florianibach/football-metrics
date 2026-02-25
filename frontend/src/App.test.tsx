@@ -3062,6 +3062,60 @@ describe('App', () => {
     expect(within(gpsOnlyOverview).queryByText(/Heart rate \(min\/avg\/max\):/)).not.toBeInTheDocument();
   });
 
+  it('R1_6_05_Ac01_Ac04_segment_analysis_uses_same_unavailable_mechanism_as_session_analysis', async () => {
+    const notMeasuredReason = 'GPS coverage is missing inside the selected segment.';
+    const sourceMetrics = baseCoreMetrics();
+    const segmentWindowMetrics = {
+      ...sourceMetrics,
+      distanceMeters: null,
+      maxSpeedMetersPerSecond: null,
+      runningDensityMetersPerMinute: null,
+      metricAvailability: {
+        ...sourceMetrics.metricAvailability,
+        distanceMeters: { state: 'NotMeasured', reason: notMeasuredReason },
+        maxSpeedMetersPerSecond: { state: 'NotMeasured', reason: notMeasuredReason },
+        runningDensityMetersPerMinute: { state: 'NotMeasured', reason: notMeasuredReason }
+      }
+    };
+
+    const record = createUploadRecord({
+      summary: createSummary({
+        intervalAggregates: [
+          {
+            windowMinutes: 1,
+            windowIndex: 0,
+            windowStartUtc: '2026-02-16T21:00:00.000Z',
+            windowDurationSeconds: 60,
+            coreMetrics: segmentWindowMetrics
+          }
+        ]
+      }),
+      segments: [{ id: 'seg-1', label: 'Segment A', startSecond: 0, endSecond: 60, category: 'Other', notes: null }]
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [record] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredAggregationWindowMinutes: 1 }) } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    window.history.pushState({}, '', '/sessions/upload-1/segments/seg-1');
+    render(<App />);
+
+    await screen.findByText('Segment Overview');
+
+    const detailSection = screen.getByRole('heading', { name: 'Session details' }).closest('section');
+    expect(detailSection).toHaveTextContent(/distance:\s*not available\s*—\s*not measured/i);
+    expect(detailSection).toHaveTextContent(/maximum speed:\s*not available\s*—\s*not measured/i);
+  });
+
     it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
     const withSegment = createUploadRecord({
       segments: [{ id: 'seg-1', label: 'Segment A', startSecond: 0, endSecond: 300, category: 'Other', notes: 'Segment note' }]
