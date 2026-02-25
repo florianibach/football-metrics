@@ -2866,20 +2866,101 @@ export function App() {
   const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
   const isSegmentScopeActive = analysisScope === 'segment' && selectedSegment !== null;
 
-  const selectedGpsTrackpoints = useMemo(() => {
+  const analysisTimeRange = useMemo(() => {
     if (!selectedSession) {
-      return [] as GpsTrackpoint[];
+      return { startSecond: 0, endSecond: 0 };
     }
 
-    const points = selectedSession.summary.gpsTrackpoints ?? [];
-    if (!isSegmentScopeActive || !selectedSegment) {
-      return points;
+    if (isSegmentScopeActive && selectedSegment) {
+      return { startSecond: selectedSegment.startSecond, endSecond: selectedSegment.endSecond };
     }
 
-    return points.filter((point) => point.elapsedSeconds !== null
-      && point.elapsedSeconds >= selectedSegment.startSecond
-      && point.elapsedSeconds <= selectedSegment.endSecond);
+    const elapsedSeconds = (selectedSession.summary.gpsTrackpoints ?? [])
+      .map((point) => point.elapsedSeconds)
+      .filter((value): value is number => value !== null);
+
+    const fallbackEndSecond = selectedSession.summary.durationSeconds
+      ?? (elapsedSeconds.length > 0 ? Math.max(...elapsedSeconds) : 0);
+
+    return { startSecond: 0, endSecond: Math.max(0, fallbackEndSecond) };
   }, [selectedSession, isSegmentScopeActive, selectedSegment]);
+
+  const analysisTrackpointSelection = useMemo(() => {
+    if (!selectedSession) {
+      return {
+        points: [] as GpsTrackpoint[],
+        pointIndexToAnalysisIndex: new Map<number, number>()
+      };
+    }
+
+    const allPoints = selectedSession.summary.gpsTrackpoints ?? [];
+    const pointIndexToAnalysisIndex = new Map<number, number>();
+    const points: GpsTrackpoint[] = [];
+
+    allPoints.forEach((point, pointIndex) => {
+      if (point.elapsedSeconds === null) {
+        return;
+      }
+
+      if (point.elapsedSeconds < analysisTimeRange.startSecond || point.elapsedSeconds > analysisTimeRange.endSecond) {
+        return;
+      }
+
+      pointIndexToAnalysisIndex.set(pointIndex, points.length);
+      points.push(point);
+    });
+
+    return {
+      points,
+      pointIndexToAnalysisIndex
+    };
+  }, [selectedSession, analysisTimeRange]);
+
+  const selectedGpsTrackpoints = analysisTrackpointSelection.points;
+
+  const selectedDetectedRuns = useMemo(() => {
+    if (!selectedSession) {
+      return [] as DetectedRun[];
+    }
+
+    const detectedRuns = selectedSession.summary.detectedRuns ?? [];
+    if (detectedRuns.length === 0 || analysisTrackpointSelection.points.length === 0) {
+      return [] as DetectedRun[];
+    }
+
+    const remapPointIndices = (indices: number[]) => indices
+      .map((index) => analysisTrackpointSelection.pointIndexToAnalysisIndex.get(index))
+      .filter((index): index is number => index !== undefined);
+
+    return detectedRuns
+      .map((run) => {
+        const remappedPointIndices = remapPointIndices(run.pointIndices);
+        if (remappedPointIndices.length === 0) {
+          return null;
+        }
+
+        const remappedSprintPhases = (run.sprintPhases ?? [])
+          .map((phase) => {
+            const remappedPhaseIndices = remapPointIndices(phase.pointIndices);
+            if (remappedPhaseIndices.length === 0) {
+              return null;
+            }
+
+            return {
+              ...phase,
+              pointIndices: remappedPhaseIndices
+            } satisfies SprintPhase;
+          })
+          .filter((phase): phase is SprintPhase => phase !== null);
+
+        return {
+          ...run,
+          pointIndices: remappedPointIndices,
+          sprintPhases: remappedSprintPhases
+        } satisfies DetectedRun;
+      })
+      .filter((run): run is DetectedRun => run !== null);
+  }, [selectedSession, analysisTrackpointSelection]);
 
   const dataChangeMetric = selectedSession
     ? (() => {
@@ -4277,7 +4358,7 @@ export function App() {
               <p>{t.gpsRunsMapDescription}</p>
               <GpsRunsMap
                 points={heatmapData.points}
-                detectedRuns={selectedSession.summary.detectedRuns ?? []}
+                detectedRuns={selectedDetectedRuns}
                 minLatitude={heatmapData.minLatitude}
                 maxLatitude={heatmapData.maxLatitude}
                 minLongitude={heatmapData.minLongitude}
