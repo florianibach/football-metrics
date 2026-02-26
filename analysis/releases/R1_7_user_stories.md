@@ -22,16 +22,16 @@ R1.7 fokussiert auf ein **UI-Rework der Session-Detailseite**: bestehende Metrik
 
 ---
 
-## Story R1.7-02: Overview nach 4 Belastungsdimensionen neu ordnen
+## Story R1.7-02: Overview nach 4 Belastungsdimensionen neu ordnen ✅ done
 **Als** Nutzer
 **möchte ich** die Übersicht in Volume, Speed, Mechanical und Internal gegliedert sehen
 **damit** ich Belastungssignale schneller fachlich einordnen kann.
 
 ### Acceptance Criteria
-- [ ] `Overview` gruppiert KPI-Cards in die vier Dimensionen `Volume`, `Speed`, `Mechanical`, `Internal`.
-- [ ] Bereits vorhandene Metriken (z. B. Distance, Duration, Max Speed, HR min/avg/max, Direction Changes) werden den passenden Dimensionen zugeordnet.
-- [ ] Die Dimensionen sind Inhaltsstruktur, aber **kein** eigenes Navigationskonzept.
-- [ ] Auf Mobile wird die Struktur als Accordion, auf Desktop als Sections dargestellt.
+- [x] `Overview` gruppiert KPI-Cards in die vier Dimensionen `Volume`, `Speed`, `Mechanical`, `Internal`.
+- [x] Bereits vorhandene Metriken (z. B. Distance, Duration, Max Speed, HR min/avg/max, Direction Changes) werden den passenden Dimensionen zugeordnet.
+- [x] Die Dimensionen sind Inhaltsstruktur, aber **kein** eigenes Navigationskonzept.
+- [x] Auf Mobile wird die Struktur als Accordion, auf Desktop als Sections dargestellt.
 
 ---
 
