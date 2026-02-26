@@ -4442,7 +4442,7 @@ export function App() {
                           type="range"
                           min={selectedSegment?.startSecond ?? 0}
                           max={selectedSegment?.endSecond ?? segmentAssistantMaxSecond}
-                          step={1}
+                          step={0.25}
                           value={clampedSegmentCursorSecond}
                           onChange={(event) => setSegmentCursorSecond(Number(event.target.value))}
                         />
