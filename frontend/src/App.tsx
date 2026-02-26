@@ -241,8 +241,6 @@ type Locale = 'en' | 'de';
 type SortDirection = 'desc' | 'asc';
 type CompareMode = 'raw' | 'smoothed';
 type SmoothingFilter = 'Raw' | 'AdaptiveMedian' | 'Savitzky-Golay' | 'Butterworth';
-type CoreMetricsCategoryFilter = 'all' | 'external' | 'internal';
-
 type TranslationKey =
   | 'title'
   | 'subtitle'
@@ -517,15 +515,15 @@ type TranslationKey =
   | 'filterSourceLabel'
   | 'filterSourceProfileDefault'
   | 'filterSourceManualOverride'
-  | 'coreMetricsCategoryTitle'
-  | 'coreMetricsCategoryDescription'
-  | 'coreMetricsCategoryTabAll'
-  | 'coreMetricsCategoryTabExternal'
-  | 'coreMetricsCategoryTabInternal'
-  | 'coreMetricsCategoryExternalTitle'
-  | 'coreMetricsCategoryExternalHelp'
-  | 'coreMetricsCategoryInternalTitle'
-  | 'coreMetricsCategoryInternalHelp'
+  | 'overviewDimensionStructureHint'
+  | 'overviewDimensionVolumeTitle'
+  | 'overviewDimensionVolumeHelp'
+  | 'overviewDimensionSpeedTitle'
+  | 'overviewDimensionSpeedHelp'
+  | 'overviewDimensionMechanicalTitle'
+  | 'overviewDimensionMechanicalHelp'
+  | 'overviewDimensionInternalTitle'
+  | 'overviewDimensionInternalHelp'
   | 'segmentsTitle'
   | 'segmentsEmpty'
   | 'segmentCategory'
@@ -941,15 +939,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileRecalculationStatusRunning: 'Running',
     profileRecalculationStatusCompleted: 'Completed',
     profileRecalculationStatusFailed: 'Failed',
-    coreMetricsCategoryTitle: 'Metric categories',
-    coreMetricsCategoryDescription: 'Separate external and internal load metrics to focus your interpretation. External metrics show what you did physically on the pitch, while internal metrics show how hard your body had to work to produce that output.',
-    coreMetricsCategoryTabAll: 'All metrics',
-    coreMetricsCategoryTabExternal: 'External metrics',
-    coreMetricsCategoryTabInternal: 'Internal metrics',
-    coreMetricsCategoryExternalTitle: 'External metrics (movement-based)',
-    coreMetricsCategoryExternalHelp: 'External metrics describe your visible physical output and answer: What did I do on the pitch? They are built from movement and speed data, for example distance covered, top speed, and acceleration/deceleration events. In simple terms, these values show your running volume and intensity independent of how your body felt internally. A high external load usually means many intense actions, but it does not automatically mean your body coped well with them.',
-    coreMetricsCategoryInternalTitle: 'Internal metrics (heart-rate-based)',
-    coreMetricsCategoryInternalHelp: 'Internal metrics describe your physiological response and answer: How hard did this session feel for my body? They are derived from heart-rate intensity and recovery behavior, for example time in heart-rate zones, TRIMP load, and heart-rate recovery. In simple terms, these values show your cardiovascular strain and recovery quality, even when movement output is similar. If internal load is unusually high compared with external load, this can indicate fatigue, stress, heat effects, or incomplete recovery.',
+    overviewDimensionStructureHint: 'Overview groups KPIs by four load dimensions: Volume, Speed, Mechanical, and Internal.',
+    overviewDimensionVolumeTitle: 'Volume',
+    overviewDimensionVolumeHelp: 'Volume summarizes total movement output: how much you moved and how dense the running load was.',
+    overviewDimensionSpeedTitle: 'Speed',
+    overviewDimensionSpeedHelp: 'Speed highlights high-tempo exposure, including maximum pace, high-intensity phases, and sprint-related distances.',
+    overviewDimensionMechanicalTitle: 'Mechanical',
+    overviewDimensionMechanicalHelp: 'Mechanical load captures repeated force-intensive actions such as accelerations, decelerations, and direction changes.',
+    overviewDimensionInternalTitle: 'Internal',
+    overviewDimensionInternalHelp: 'Internal load reflects physiological strain and recovery response, derived from heart-rate-based metrics.',
     segmentsTitle: 'Session segments',
     segmentsEmpty: 'No segments yet. Add your first phase to structure this session.',
     segmentCategory: 'Category',
@@ -1335,15 +1333,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileRecalculationStatusRunning: 'Läuft',
     profileRecalculationStatusCompleted: 'Abgeschlossen',
     profileRecalculationStatusFailed: 'Fehlgeschlagen',
-    coreMetricsCategoryTitle: 'Metrik-Kategorien',
-    coreMetricsCategoryDescription: 'Trenne externe und interne Belastungsmetriken für eine fokussierte Einordnung. Externe Metriken zeigen, was du auf dem Platz körperlich gemacht hast, interne Metriken zeigen, wie stark dein Körper dafür belastet wurde.',
-    coreMetricsCategoryTabAll: 'Alle Metriken',
-    coreMetricsCategoryTabExternal: 'Externe Metriken',
-    coreMetricsCategoryTabInternal: 'Interne Metriken',
-    coreMetricsCategoryExternalTitle: 'Externe Metriken (bewegungsbasiert)',
-    coreMetricsCategoryExternalHelp: 'Externe Metriken beschreiben deine sichtbare körperliche Leistung und beantworten: Was habe ich auf dem Platz gemacht? Sie basieren auf Bewegungs- und Geschwindigkeitsdaten, zum Beispiel Distanz, Maximaltempo sowie Beschleunigungs- und Abbremsaktionen. Vereinfacht zeigen diese Werte Laufumfang und Bewegungsintensität – unabhängig davon, wie sich dein Körper dabei intern belastet hat. Eine hohe externe Last bedeutet meist viele intensive Aktionen, sagt aber allein noch nicht, wie gut dein Körper diese Last verkraftet hat.',
-    coreMetricsCategoryInternalTitle: 'Interne Metriken (herzfrequenzbasiert)',
-    coreMetricsCategoryInternalHelp: 'Interne Metriken beschreiben deine physiologische Reaktion und beantworten: Wie anstrengend war die Einheit für meinen Körper? Sie werden aus Herzfrequenzintensität und Erholungsverhalten abgeleitet, zum Beispiel Zeit in HF-Zonen, TRIMP-Belastung und Herzfrequenz-Erholung. Vereinfacht zeigen diese Werte die innere Herz-Kreislauf-Belastung und die Erholungsqualität – auch dann, wenn die äußere Laufleistung ähnlich war. Ist die interne Last im Verhältnis zur externen Last ungewöhnlich hoch, kann das auf Müdigkeit, Stress, Hitzeeinfluss oder unvollständige Regeneration hindeuten.',
+    overviewDimensionStructureHint: 'Die Übersicht gruppiert KPIs in vier Belastungsdimensionen: Volume, Speed, Mechanical und Internal.',
+    overviewDimensionVolumeTitle: 'Volume',
+    overviewDimensionVolumeHelp: 'Volume fasst den gesamten Bewegungsumfang zusammen: wie viel du gelaufen bist und wie dicht die Laufbelastung war.',
+    overviewDimensionSpeedTitle: 'Speed',
+    overviewDimensionSpeedHelp: 'Speed zeigt die Tempo-Exposition, inklusive Maximalgeschwindigkeit, hochintensiver Phasen und sprintbezogener Distanzen.',
+    overviewDimensionMechanicalTitle: 'Mechanical',
+    overviewDimensionMechanicalHelp: 'Mechanical Load erfasst wiederholte kraftintensive Aktionen wie Beschleunigungen, Abbremsen und Richtungswechsel.',
+    overviewDimensionInternalTitle: 'Internal',
+    overviewDimensionInternalHelp: 'Internal Load beschreibt die physiologische Beanspruchung und Erholungsreaktion auf Basis herzfrequenzbasierter Metriken.',
     segmentsTitle: 'Session-Segmente',
     segmentsEmpty: 'Noch keine Segmente vorhanden. Füge die erste Phase hinzu, um die Session zu strukturieren.',
     segmentCategory: 'Kategorie',
@@ -2102,7 +2100,6 @@ export function App() {
   const [isSessionDetailLoading, setIsSessionDetailLoading] = useState(false);
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
-  const [coreMetricsCategoryFilter, setCoreMetricsCategoryFilter] = useState<CoreMetricsCategoryFilter>('all');
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
@@ -2146,6 +2143,7 @@ export function App() {
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isOverviewMobileLayout, setIsOverviewMobileLayout] = useState<boolean>(() => typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>('overview');
   const [activeMainPage, setActiveMainPage] = useState<MainPage>(initialRoute.mainPage);
@@ -2239,6 +2237,16 @@ export function App() {
     + (dateFromFilter && dateFromFilter !== defaultDateBounds.from ? 1 : 0)
     + (dateToFilter && dateToFilter !== defaultDateBounds.to ? 1 : 0)
     + (sortDirection !== 'desc' ? 1 : 0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleResize = () => setIsOverviewMobileLayout(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const onPopState = () => {
@@ -4781,62 +4789,66 @@ export function App() {
             {!displayedCoreMetrics.isAvailable && !isSegmentScopeActive && (
               <p>{t.coreMetricsUnavailable.replace('{reason}', displayedCoreMetrics.unavailableReason ?? t.notAvailable)}</p>
             )}
-            <div className="core-metrics-filter" role="tablist" aria-label={t.coreMetricsCategoryTitle}>
-              <button type="button" role="tab" aria-selected={coreMetricsCategoryFilter === 'all'} className={coreMetricsCategoryFilter === 'all' ? 'tab-button tab-button--active' : 'tab-button'} onClick={() => setCoreMetricsCategoryFilter('all')}>
-                {t.coreMetricsCategoryTabAll}
-              </button>
-              <button type="button" role="tab" aria-selected={coreMetricsCategoryFilter === 'external'} className={coreMetricsCategoryFilter === 'external' ? 'tab-button tab-button--active' : 'tab-button'} onClick={() => setCoreMetricsCategoryFilter('external')}>
-                {t.coreMetricsCategoryTabExternal}
-              </button>
-              <button type="button" role="tab" aria-selected={coreMetricsCategoryFilter === 'internal'} className={coreMetricsCategoryFilter === 'internal' ? 'tab-button tab-button--active' : 'tab-button'} onClick={() => setCoreMetricsCategoryFilter('internal')}>
-                {t.coreMetricsCategoryTabInternal}
-              </button>
-            </div>
-            <p>{t.coreMetricsCategoryDescription}</p>
-            {(coreMetricsCategoryFilter === 'all' || coreMetricsCategoryFilter === 'external') && (() => {
-              const externalMetricKeys = [
-                'distanceMeters', 'sprintDistanceMeters', 'sprintCount', 'maxSpeedMetersPerSecond', 'highIntensityTimeSeconds', 'highIntensityRunCount',
-                'highSpeedDistanceMeters', 'runningDensityMetersPerMinute', 'accelerationCount', 'decelerationCount'
-              ];
-              const showExternalWarning = !isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, externalMetricKeys);
+            <p>{t.overviewDimensionStructureHint}</p>
+            {(() => {
+              const speedMetricKeys = ['maxSpeedMetersPerSecond', 'highIntensityTimeSeconds', 'highIntensityRunCount', 'sprintCount', 'highSpeedDistanceMeters', 'sprintDistanceMeters'];
+              const mechanicalMetricKeys = ['accelerationCount', 'decelerationCount', 'directionChanges'];
+              const showSpeedWarning = !isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, speedMetricKeys);
+              const showMechanicalWarning = !isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, mechanicalMetricKeys);
 
               return (
-              <div>
-                <h4>{t.coreMetricsCategoryExternalTitle}</h4>
-                <p>{t.coreMetricsCategoryExternalHelp}</p>
-                {showExternalWarning && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
-                <ul className="metrics-list list-group">
-                  <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />
-                  <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
-                  <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
-                  <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)} helpText={metricHelp.maxSpeed} />
-                  <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityTime} />
-                  <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
-                  <MetricListItem label={t.metricOfWhichSprintPhasesCount} value={withMetricStatus(String(detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)} helpText={metricHelp.sprintCount} />
-                  <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
-                  <MetricListItem label={t.metricOfWhichSprintPhasesDistance} value={withMetricStatus(formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.sprintDistance} />
-                  <MetricListItem label={t.metricRunningDensity} value={withMetricStatus(formatNumber(displayedCoreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', displayedCoreMetrics, t)} helpText={metricHelp.runningDensity} />
-                  <MetricListItem label={t.metricAccelerationCount} value={withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
-                  <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
-                </ul>
-              </div>
+                <>
+                  <details className="overview-dimension" open={!isOverviewMobileLayout}>
+                    <summary>{t.overviewDimensionVolumeTitle}</summary>
+                    <p>{t.overviewDimensionVolumeHelp}</p>
+                    <ul className="metrics-list list-group">
+                      <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />
+                      <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
+                      <MetricListItem label={t.metricRunningDensity} value={withMetricStatus(formatNumber(displayedCoreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', displayedCoreMetrics, t)} helpText={metricHelp.runningDensity} />
+                    </ul>
+                  </details>
+
+                  <details className="overview-dimension" open={!isOverviewMobileLayout}>
+                    <summary>{t.overviewDimensionSpeedTitle}</summary>
+                    <p>{t.overviewDimensionSpeedHelp}</p>
+                    {showSpeedWarning && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
+                    <ul className="metrics-list list-group">
+                      <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)} helpText={metricHelp.maxSpeed} />
+                      <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityTime} />
+                      <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
+                      <MetricListItem label={t.metricOfWhichSprintPhasesCount} value={withMetricStatus(String(detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)} helpText={metricHelp.sprintCount} />
+                      <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
+                      <MetricListItem label={t.metricOfWhichSprintPhasesDistance} value={withMetricStatus(formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.sprintDistance} />
+                    </ul>
+                  </details>
+
+                  <details className="overview-dimension" open={!isOverviewMobileLayout}>
+                    <summary>{t.overviewDimensionMechanicalTitle}</summary>
+                    <p>{t.overviewDimensionMechanicalHelp}</p>
+                    {showMechanicalWarning && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
+                    <ul className="metrics-list list-group">
+                      <MetricListItem label={t.metricAccelerationCount} value={withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
+                      <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
+                      <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
+                    </ul>
+                  </details>
+
+                  <details className="overview-dimension" open={!isOverviewMobileLayout}>
+                    <summary>{t.overviewDimensionInternalTitle}</summary>
+                    <p>{t.overviewDimensionInternalHelp}</p>
+                    <ul className="metrics-list list-group">
+                      <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', displayedCoreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
+                      <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneLow} />
+                      <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
+                      <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
+                      <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(displayedCoreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', displayedCoreMetrics, t)} helpText={metricHelp.trimpEdwards} />
+                      <MetricListItem label={t.metricTrimpPerMinute} value={formatNumber(displayedCoreMetrics.trainingImpulseEdwards !== null ? displayedCoreMetrics.trainingImpulseEdwards / ((isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : Math.max(1, selectedSession.summary.durationSeconds ?? 0)) / 60) : null, locale, t.notAvailable, 2)} helpText={metricHelp.trimpEdwards} />
+                      <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(displayedCoreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)} helpText={metricHelp.hrRecovery60} />
+                    </ul>
+                  </details>
+                </>
               );
             })()}
-            {(coreMetricsCategoryFilter === 'all' || coreMetricsCategoryFilter === 'internal') && (
-              <div>
-                <h4>{t.coreMetricsCategoryInternalTitle}</h4>
-                <p>{t.coreMetricsCategoryInternalHelp}</p>
-                <ul className="metrics-list list-group">
-                  <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', displayedCoreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
-                  <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneLow} />
-                  <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
-                  <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
-                  <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(displayedCoreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', displayedCoreMetrics, t)} helpText={metricHelp.trimpEdwards} />
-                  <MetricListItem label={t.metricTrimpPerMinute} value={formatNumber(displayedCoreMetrics.trainingImpulseEdwards !== null ? displayedCoreMetrics.trainingImpulseEdwards / ((isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : Math.max(1, selectedSession.summary.durationSeconds ?? 0)) / 60) : null, locale, t.notAvailable, 2)} helpText={metricHelp.trimpEdwards} />
-                  <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(displayedCoreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)} helpText={metricHelp.hrRecovery60} />
-                </ul>
-              </div>
-            )}
             <ul className="metrics-list list-group">
               <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(displayedCoreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
               <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (displayedCoreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (displayedCoreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (displayedCoreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (displayedCoreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (displayedCoreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (displayedCoreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
