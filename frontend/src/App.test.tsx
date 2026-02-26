@@ -735,7 +735,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Raw vs. smoothed comparison')).toBeInTheDocument();
+      expect(screen.getByLabelText('Display mode')).toBeInTheDocument();
     });
 
     expect(screen.getByText(/Data change due to smoothing:/)).toBeInTheDocument();
@@ -851,7 +851,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Raw vs. smoothed comparison')).toBeInTheDocument();
+      expect(screen.getByLabelText('Display mode')).toBeInTheDocument();
     });
 
     expect(screen.getByText(/distance delta 0\.244 m/)).toBeInTheDocument();
@@ -960,7 +960,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Raw vs. smoothed comparison')).toBeInTheDocument();
+      expect(screen.getByLabelText('Display mode')).toBeInTheDocument();
     });
 
     expect(screen.getByLabelText('Display mode')).toBeDisabled();
@@ -2391,7 +2391,8 @@ describe('App', () => {
     const heatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
     expect(heatmap.querySelectorAll('.gps-heatmap__cell').length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Track points' }));
+    const heatmapViewToggle = screen.getByRole('group', { name: 'Heatmap view mode' });
+    fireEvent.click(within(heatmapViewToggle).getByRole('button', { name: 'Track points' }));
 
     await waitFor(() => {
       const switchedHeatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
@@ -2399,7 +2400,7 @@ describe('App', () => {
       expect(switchedHeatmap.querySelector('.gps-heatmap__track-line')).not.toBeNull();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Heatmap' }));
+    fireEvent.click(within(heatmapViewToggle).getByRole('button', { name: 'Heatmap' }));
 
     await waitFor(() => {
       const switchedBackHeatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
@@ -2707,7 +2708,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('Overview')).toBeInTheDocument();
+    expect((await screen.findAllByText('Overview')).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/High-intensity runs:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/of which sprint phases:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/of which sprint phase distance:/).length).toBeGreaterThan(0);
@@ -3221,7 +3222,7 @@ describe('App', () => {
 
     await screen.findByText('Session details');
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
-    expect(screen.getByText('Overview')).toBeInTheDocument();
+    expect(screen.getAllByText('Overview').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments'));
@@ -3229,7 +3230,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/compare'));
 
-    fireEvent.click(screen.getByRole('button', { name: /Analysis|Analyse/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Overview|Übersicht/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
@@ -3284,6 +3285,44 @@ describe('App', () => {
       expect(window.location.pathname).toBe('/sessions');
       expect(screen.getByText('Upload history')).toBeInTheDocument();
     });
+  });
+
+
+  it('R1_7_01_Ac01_uses_side_navigation_and_mobile_dropdown_for_session_views', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+
+    expect(screen.queryByRole('tab', { name: 'Overview' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Timeline' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Peak Demand' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Heatmap' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Session settings' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Technical info' })).toBeInTheDocument();
+
+    const mobileNav = screen.getByLabelText('Session navigation');
+    fireEvent.change(mobileNav, { target: { value: 'timeline' } });
+    expect(await screen.findByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+
+    fireEvent.change(mobileNav, { target: { value: 'sessionSettings' } });
+    expect(await screen.findByText('Session context')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Technical info' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/technical-info'));
   });
 
 

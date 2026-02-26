@@ -146,7 +146,8 @@ type MetricThresholdProfile = {
 
 type SpeedUnit = 'km/h' | 'm/s' | 'min/km';
 type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
-type SessionSubpage = 'analysis' | 'segments' | 'segmentEdit' | 'compare';
+type SessionSubpage = 'analysis' | 'segments' | 'segmentEdit' | 'compare' | 'sessionSettings' | 'technicalInfo';
+type SessionAnalysisTab = 'overview' | 'timeline' | 'peakDemand' | 'segments' | 'heatmap';
 type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null; segmentId: string | null };
 
 
@@ -404,6 +405,13 @@ type TranslationKey =
   | 'sessionSubpageSegments'
   | 'sessionSubpageSegmentEdit'
   | 'sessionSubpageCompare'
+  | 'sessionSubpageOverview'
+  | 'sessionSubpageTimeline'
+  | 'sessionSubpagePeakDemand'
+  | 'sessionSubpageHeatmap'
+  | 'sessionSubpageSessionSettings'
+  | 'sessionSubpageTechnicalInfo'
+  | 'mobileSessionNavigationLabel'
   | 'detailMissingHeartRateHint'
   | 'detailMissingDistanceHint'
   | 'detailMissingGpsHint'
@@ -598,6 +606,11 @@ type TranslationKey =
   | 'segmentScopeHint'
   | 'segmentDerivedMetricsTitle'
   | 'analysisOverviewTitle'
+  | 'sessionTabOverview'
+  | 'sessionTabTimeline'
+  | 'sessionTabPeakDemand'
+  | 'sessionTabSegments'
+  | 'sessionTabHeatmap'
   | 'segmentBackToSessionMetrics'
   | 'segmentBackToSegmentList'
   | 'sessionRecalculateButton'
@@ -613,12 +626,13 @@ type TranslationKey =
   | 'profileRecalculationStatusCompleted'
   | 'profileRecalculationStatusFailed'
   | 'sessionProcessingTitle'
+  | 'sessionDisplaySettingsTitle'
   | 'sessionSettingsTitle'
   | 'analysisSectionExpand'
   | 'analysisSectionCollapse'
   | 'qualityDetailsWarning';
 
-type AnalysisAccordionKey = 'sessionSettings' | 'coreMetrics' | 'intervalAggregation' | 'gpsHeatmap' | 'gpsRunsMap' | 'sessionContext' | 'processingSettings' | 'recalculationHistory' | 'dangerZone';
+type AnalysisAccordionKey = 'sessionSettings' | 'coreMetrics' | 'intervalAggregation' | 'gpsHeatmap' | 'gpsRunsMap' | 'sessionContext' | 'processingSettings' | 'displaySettings' | 'recalculationHistory' | 'dangerZone';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
 const normalizedApiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, '');
@@ -788,9 +802,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricInfoSidebarTitle: 'Metric details',
     metricInfoSidebarClose: 'Close details',
     sessionSubpageAnalysis: 'Analysis',
+    sessionSubpageOverview: 'Overview',
+    sessionSubpageTimeline: 'Timeline',
+    sessionSubpagePeakDemand: 'Peak Demand',
+    sessionSubpageHeatmap: 'Heatmap',
+    sessionSubpageSessionSettings: 'Session settings',
+    sessionSubpageTechnicalInfo: 'Technical info',
     sessionSubpageSegments: 'Segments',
     sessionSubpageSegmentEdit: 'Edit segments',
     sessionSubpageCompare: 'Compare',
+    mobileSessionNavigationLabel: 'Session navigation',
     detailMissingHeartRateHint: 'Heart-rate values are missing in this session. The metric is intentionally shown as not available.',
     detailMissingDistanceHint: 'Distance cannot be calculated because GPS points are missing. No fallback chart is rendered.',
     detailMissingGpsHint: 'No GPS coordinates were detected in this file.',
@@ -818,6 +839,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics',
     sessionProcessingTitle: 'Processing settings',
+    sessionDisplaySettingsTitle: 'Display settings',
     sessionSettingsTitle: 'Session settings',
     analysisSectionExpand: 'Show section',
     analysisSectionCollapse: 'Hide section',
@@ -1008,6 +1030,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentScopeHint: 'Segment-focused analysis is active.',
     segmentDerivedMetricsTitle: 'Segment Overview',
     analysisOverviewTitle: 'Overview',
+    sessionTabOverview: 'Overview',
+    sessionTabTimeline: 'Timeline',
+    sessionTabPeakDemand: 'Peak Demand',
+    sessionTabSegments: 'Segments',
+    sessionTabHeatmap: 'Heatmap',
     segmentBackToSessionMetrics: 'Back to full-session metrics',
     segmentBackToSegmentList: 'Back to segment list'
   },
@@ -1169,9 +1196,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricInfoSidebarTitle: 'Metrik-Details',
     metricInfoSidebarClose: 'Details schließen',
     sessionSubpageAnalysis: 'Analyse',
+    sessionSubpageOverview: 'Übersicht',
+    sessionSubpageTimeline: 'Zeitverlauf',
+    sessionSubpagePeakDemand: 'Peak Demand',
+    sessionSubpageHeatmap: 'Heatmap',
+    sessionSubpageSessionSettings: 'Session Settings',
+    sessionSubpageTechnicalInfo: 'Technische Infos',
     sessionSubpageSegments: 'Segmente',
     sessionSubpageSegmentEdit: 'Segmente bearbeiten',
     sessionSubpageCompare: 'Vergleich',
+    mobileSessionNavigationLabel: 'Session Navigation',
     detailMissingHeartRateHint: 'In dieser Session fehlen Herzfrequenzwerte. Die Metrik wird bewusst als nicht vorhanden angezeigt.',
     detailMissingDistanceHint: 'Die Distanz kann nicht berechnet werden, weil GPS-Punkte fehlen. Es wird kein Platzhalterdiagramm angezeigt.',
     detailMissingGpsHint: 'In dieser Datei wurden keine GPS-Koordinaten erkannt.',
@@ -1199,6 +1233,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken',
     sessionProcessingTitle: 'Verarbeitungseinstellungen',
+    sessionDisplaySettingsTitle: 'Anzeigeeinstellungen',
     sessionSettingsTitle: 'Session-Einstellungen',
     analysisSectionExpand: 'Bereich anzeigen',
     analysisSectionCollapse: 'Bereich ausblenden',
@@ -1389,6 +1424,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentScopeHint: 'Segment-fokussierte Analyse ist aktiv.',
     segmentDerivedMetricsTitle: 'Segment-Übersicht',
     analysisOverviewTitle: 'Übersicht',
+    sessionTabOverview: 'Übersicht',
+    sessionTabTimeline: 'Zeitverlauf',
+    sessionTabPeakDemand: 'Peak Demand',
+    sessionTabSegments: 'Segmente',
+    sessionTabHeatmap: 'Heatmap',
     segmentBackToSessionMetrics: 'Zurück zu Session-Metriken',
     segmentBackToSegmentList: 'Zurück zur Segmentliste'
   }
@@ -1963,11 +2003,15 @@ function resolveRouteFromPath(pathname: string): RouteState {
     };
   }
 
-  const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|segments-edit|compare))?$/);
+  const sessionRouteMatch = pathname.match(/^\/sessions\/([^/]+)(?:\/(segments|segments-edit|compare|settings|technical-info))?$/);
   if (sessionRouteMatch) {
     const subpage = sessionRouteMatch[2] === 'segments-edit'
       ? 'segmentEdit'
-      : (sessionRouteMatch[2] as SessionSubpage | undefined);
+      : sessionRouteMatch[2] === 'settings'
+        ? 'sessionSettings'
+        : sessionRouteMatch[2] === 'technical-info'
+          ? 'technicalInfo'
+          : (sessionRouteMatch[2] as SessionSubpage | undefined);
 
     return {
       mainPage: 'session',
@@ -2006,6 +2050,14 @@ function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, ses
 
     if (sessionSubpage === 'compare') {
       return `/sessions/${encodedSessionId}/compare`;
+    }
+
+    if (sessionSubpage === 'sessionSettings') {
+      return `/sessions/${encodedSessionId}/settings`;
+    }
+
+    if (sessionSubpage === 'technicalInfo') {
+      return `/sessions/${encodedSessionId}/technical-info`;
     }
 
     if (sessionSubpage === 'analysis' && segmentId) {
@@ -2096,6 +2148,7 @@ export function App() {
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>('overview');
   const [activeMainPage, setActiveMainPage] = useState<MainPage>(initialRoute.mainPage);
   const [activeSessionIdFromRoute, setActiveSessionIdFromRoute] = useState<string | null>(initialRoute.sessionId);
   const [activeSegmentIdFromRoute, setActiveSegmentIdFromRoute] = useState<string | null>(initialRoute.segmentId);
@@ -2112,8 +2165,9 @@ export function App() {
       intervalAggregation: expandedByDefault,
       gpsHeatmap: expandedByDefault,
       gpsRunsMap: expandedByDefault,
-      sessionContext: expandedByDefault,
+      sessionContext: true,
       processingSettings: expandedByDefault,
+      displaySettings: expandedByDefault,
       recalculationHistory: expandedByDefault,
       dangerZone: expandedByDefault
     };
@@ -3654,6 +3708,19 @@ export function App() {
   const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
   const shouldShowSessionOverviewHeader = activeSessionSubpage === 'analysis' && !isQualityDetailsPageVisible;
 
+  useEffect(() => {
+    if (activeSessionSubpage === 'segments') {
+      setActiveAnalysisTab('segments');
+      return;
+    }
+
+    if (activeSessionSubpage !== 'analysis') {
+      return;
+    }
+
+    setActiveAnalysisTab((current) => (current === 'segments' ? 'overview' : current));
+  }, [activeSessionSubpage]);
+
 
   const renderQualityDetailsContent = () => {
     if (!selectedSession) {
@@ -3719,6 +3786,60 @@ export function App() {
     setIsMobileNavOpen(false);
   }, []);
 
+  const getSessionMobileNavValue = useCallback(() => {
+    if (activeSessionSubpage === 'analysis') {
+      return activeAnalysisTab;
+    }
+
+    if (activeSessionSubpage === 'sessionSettings') {
+      return 'sessionSettings';
+    }
+
+    if (activeSessionSubpage === 'technicalInfo') {
+      return 'technicalInfo';
+    }
+
+    if (activeSessionSubpage === 'segments') {
+      return 'segments';
+    }
+
+    if (activeSessionSubpage === 'segmentEdit') {
+      return 'segmentEdit';
+    }
+
+    return 'compare';
+  }, [activeAnalysisTab, activeSessionSubpage]);
+
+  const navigateSessionMobile = useCallback((target: string) => {
+    if (target === 'overview' || target === 'timeline' || target === 'peakDemand' || target === 'heatmap') {
+      setAnalysisScope('session');
+      setActiveAnalysisTab(target as SessionAnalysisTab);
+      jumpToSection('session-analysis', 'analysis');
+      return;
+    }
+
+    if (target === 'sessionSettings') {
+      jumpToSection('session-settings', 'sessionSettings');
+      return;
+    }
+
+    if (target === 'technicalInfo') {
+      jumpToSection('session-technical-info', 'technicalInfo');
+      return;
+    }
+
+    if (target === 'segments') {
+      jumpToSection('session-segments', 'segments');
+      return;
+    }
+
+    if (target === 'segmentEdit') {
+      jumpToSection('session-segment-edit', 'segmentEdit');
+      return;
+    }
+
+    jumpToSection('session-compare', 'compare');
+  }, [jumpToSection]);
   if (shouldGateInitialRender && !isInitialDataHydrated) {
     return <div className="app-shell" data-theme={theme} />;
   }
@@ -3756,18 +3877,45 @@ export function App() {
         {selectedSession && activeMainPage === "session" && isSessionMenuVisible && (
           <div className="side-nav__session-subpages">
             <p>Session</p>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageAnalysis}</button>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segments' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segments', 'segments')}>{t.sessionSubpageSegments}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'overview' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); setActiveAnalysisTab('overview'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageOverview}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'timeline' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageTimeline}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'peakDemand' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpagePeakDemand}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segments' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveAnalysisTab('segments'); jumpToSection('session-segments', 'segments'); }}>{t.sessionSubpageSegments}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'heatmap' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); setActiveAnalysisTab('heatmap'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageHeatmap}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'sessionSettings' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-settings', 'sessionSettings')}>{t.sessionSubpageSessionSettings}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'technicalInfo' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-technical-info', 'technicalInfo')}>{t.sessionSubpageTechnicalInfo}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segmentEdit' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segment-edit', 'segmentEdit')}>{t.sessionSubpageSegmentEdit}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'compare' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-compare', 'compare')}>{t.sessionSubpageCompare}</button>
           </div>
         )}
         <div className="side-nav__meta" aria-label="Application version">v{appVersion}</div>
       </aside>
+      <div className={`side-nav-overlay ${isMobileNavOpen ? 'side-nav-overlay--open' : ''}`} onClick={() => setIsMobileNavOpen(false)} />
       <main className="container">
       <div className="mobile-topbar">
         <button type="button" className="burger-menu" onClick={() => setIsMobileNavOpen((current) => !current)} aria-label="Open navigation menu">☰</button>
       </div>
+      {selectedSession && activeMainPage === 'session' && (
+        <div className="mobile-session-nav">
+          <label className="form-label" htmlFor="mobile-session-nav-selector">{t.mobileSessionNavigationLabel}</label>
+          <select
+            id="mobile-session-nav-selector"
+            className="form-select"
+            value={getSessionMobileNavValue()}
+            onChange={(event) => navigateSessionMobile(event.target.value)}
+          >
+            <option value="overview">{t.sessionSubpageOverview}</option>
+            <option value="timeline">{t.sessionSubpageTimeline}</option>
+            <option value="peakDemand">{t.sessionSubpagePeakDemand}</option>
+            <option value="segments">{t.sessionSubpageSegments}</option>
+            <option value="heatmap">{t.sessionSubpageHeatmap}</option>
+            <option value="sessionSettings">{t.sessionSubpageSessionSettings}</option>
+            <option value="technicalInfo">{t.sessionSubpageTechnicalInfo}</option>
+            <option value="segmentEdit">{t.sessionSubpageSegmentEdit}</option>
+            <option value="compare">{t.sessionSubpageCompare}</option>
+          </select>
+        </div>
+      )}
       {activeMainPage === 'upload' && (
         <>
           <h1>{t.title}</h1>
@@ -4274,7 +4422,9 @@ export function App() {
               {shouldShowSessionOverviewHeader && isSegmentScopeActive && selectedSegment && <p><strong>{t.segmentsTitle}:</strong> {segmentCategoryLabel(selectedSegment.category ?? 'Other', t)} · {selectedSegment.label} ({selectedSegment.startSecond}s-{selectedSegment.endSecond}s)</p>}
               {shouldShowSessionOverviewHeader && isSegmentScopeActive && <p><strong>{t.segmentScopeHint}</strong> <button type="button" className="secondary-button" onClick={() => { setAnalysisScope('session'); setActiveSessionSubpage('segments'); }}>{t.segmentBackToSegmentList}</button></p>}
               {shouldShowSessionOverviewHeader && isSegmentScopeActive && selectedSegment?.notes && <p><strong>{t.segmentNotes}:</strong> {selectedSegment.notes}</p>}
-              {shouldShowSessionOverviewHeader && displayedCoreMetrics && (
+              {activeSessionSubpage === 'sessionSettings' && <h3>{t.sessionSubpageSessionSettings}</h3>}
+              {activeSessionSubpage === 'technicalInfo' && <h3>{t.sessionSubpageTechnicalInfo}</h3>}
+              {shouldShowSessionOverviewHeader && displayedCoreMetrics && activeAnalysisTab === 'overview' && (
                 <div className="analysis-disclosure__content">
                   <h3>{isSegmentScopeActive ? t.segmentDerivedMetricsTitle : t.analysisOverviewTitle}</h3>
                   <ul className="metrics-list list-group">
@@ -4299,21 +4449,9 @@ export function App() {
             </>
           )}
 
-          {!isQualityDetailsPageVisible && selectedSession.isDetailed && !isSessionDetailLoading && (
+          {!isQualityDetailsPageVisible && !isSessionDetailLoading && (
           <div className="session-analysis-flow">
-          <section className={`analysis-disclosure analysis-block--session-settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionSettings')} aria-expanded={analysisAccordionState.sessionSettings}>
-              <span>{t.sessionSettingsTitle}</span>
-              <span className="analysis-disclosure__action">{analysisAccordionState.sessionSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
-            </button>
-            {analysisAccordionState.sessionSettings && (
-            <div className="analysis-disclosure__content">
-              <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
-              <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
-            </div>
-            )}
-          </section>
-          <section className={`analysis-disclosure analysis-block--session-context ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+          <section id="session-settings" className={`analysis-disclosure analysis-block--session-context ${activeSessionSubpage === "sessionSettings" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionContext')} aria-expanded={analysisAccordionState.sessionContext}>
               <span>{t.sessionContextTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.sessionContext ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -4569,13 +4707,24 @@ export function App() {
             )}
           </div>
 
-          <section className={`session-processing-settings analysis-disclosure analysis-block--settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('processingSettings')} aria-expanded={analysisAccordionState.processingSettings}>
-              <span>{t.sessionProcessingTitle}</span>
-              <span className="analysis-disclosure__action">{analysisAccordionState.processingSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+          <section className={`analysis-disclosure analysis-block--display-settings ${activeSessionSubpage === "sessionSettings" ? "" : "is-hidden"}`}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('displaySettings')} aria-expanded={analysisAccordionState.displaySettings}>
+              <span>{t.sessionDisplaySettingsTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.displaySettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
-            {analysisAccordionState.processingSettings && (
+            {analysisAccordionState.displaySettings && (
             <div className="analysis-disclosure__content">
+            <label className="form-label" htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
+            <select className="form-select"
+              id="comparison-mode-selector"
+              value={compareMode}
+              disabled={!selectedSession.summary.hasGpsData}
+              onChange={(event) => setCompareMode(event.target.value as CompareMode)}
+            >
+              <option value="raw">{t.compareModeRaw}</option>
+              <option value="smoothed">{t.compareModeSmoothed}</option>
+            </select>
+            {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
             <label className="form-label" htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
             <select className="form-select" id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
               <option value="km/h">km/h</option>
@@ -4587,20 +4736,13 @@ export function App() {
             )}
           </section>
 
-          <section className={`analysis-disclosure analysis-block--recalculation-history ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('recalculationHistory')} aria-expanded={analysisAccordionState.recalculationHistory}>
-              <span>{t.sessionRecalculateHistoryTitle}</span>
-              <span className="analysis-disclosure__action">{analysisAccordionState.recalculationHistory ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+          <section className={`session-processing-settings analysis-disclosure analysis-block--settings ${activeSessionSubpage === "sessionSettings" ? "" : "is-hidden"}`}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('processingSettings')} aria-expanded={analysisAccordionState.processingSettings}>
+              <span>{t.sessionProcessingTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.processingSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
-            {analysisAccordionState.recalculationHistory && (
+            {analysisAccordionState.processingSettings && (
             <div className="analysis-disclosure__content">
-              {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className="metrics-list list-group">{selectedSession.recalculationHistory.map((entry) => <li className="list-group-item" key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
-            </div>
-            )}
-          </section>
-
-          <div className={`comparison-controls ${activeSessionSubpage === "compare" ? "" : "is-hidden"}`}>
-            <h3>{t.compareTitle}</h3>
             <label className="form-label" htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
             <select className="form-select"
               id="session-filter-selector"
@@ -4619,19 +4761,25 @@ export function App() {
               <p>{t.filterRecommendationImpact}</p>
               <p>{selectedFilterDescription}</p>
             </div>
-            <label className="form-label" htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
-            <select className="form-select"
-              id="comparison-mode-selector"
-              value={compareMode}
-              disabled={!selectedSession.summary.hasGpsData}
-              onChange={(event) => setCompareMode(event.target.value as CompareMode)}
-            >
-              <option value="raw">{t.compareModeRaw}</option>
-              <option value="smoothed">{t.compareModeSmoothed}</option>
-            </select>
-            {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
-          </div>
-          <section className={`core-metrics-section analysis-disclosure analysis-block--core ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+            <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
+            <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
+            </div>
+            )}
+          </section>
+
+          <section className={`analysis-disclosure analysis-block--recalculation-history ${activeSessionSubpage === "technicalInfo" ? "" : "is-hidden"}`}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('recalculationHistory')} aria-expanded={analysisAccordionState.recalculationHistory}>
+              <span>{t.sessionRecalculateHistoryTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.recalculationHistory ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+            </button>
+            {analysisAccordionState.recalculationHistory && (
+            <div className="analysis-disclosure__content">
+              {selectedSession.recalculationHistory.length === 0 ? <p>{t.sessionRecalculateHistoryEmpty}</p> : <ul className="metrics-list list-group">{selectedSession.recalculationHistory.map((entry) => <li className="list-group-item" key={entry.recalculatedAtUtc}>{formatLocalDateTime(entry.recalculatedAtUtc)}: v{entry.previousProfile.thresholdVersion} → v{entry.newProfile.thresholdVersion}</li>)}</ul>}
+            </div>
+            )}
+          </section>
+
+          <section className={`core-metrics-section analysis-disclosure analysis-block--core ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'overview' ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('coreMetrics')} aria-expanded={analysisAccordionState.coreMetrics}>
               <span>{t.coreMetricsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.coreMetrics ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -4704,7 +4852,8 @@ export function App() {
             </div>
             )}
           </section>
-          <section className={`interval-aggregation analysis-disclosure analysis-block--interval ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+          <section className={`analysis-disclosure analysis-block--peak-demand ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'peakDemand' ? "" : "is-hidden"}`}><div className="analysis-disclosure__content"><h3>{t.sessionTabPeakDemand}</h3><p>{t.intervalAggregationNoData}</p></div></section>
+          <section className={`interval-aggregation analysis-disclosure analysis-block--interval ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'timeline' ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('intervalAggregation')} aria-expanded={analysisAccordionState.intervalAggregation}>
               <span>{t.intervalAggregationTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.intervalAggregation ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -4854,9 +5003,11 @@ export function App() {
             </div>
           )}
 
+          {activeSessionSubpage === "technicalInfo" && <section className="analysis-disclosure analysis-block--quality" id="session-technical-info"><div className="analysis-disclosure__content"><h3>{t.qualityDetailsSidebarTitle}</h3>{renderQualityDetailsContent()}</div></section>}
+
           {activeSessionSubpage === "analysis" && <button type="button" className="analysis-disclosure__toggle analysis-disclosure__toggle--quality analysis-block--quality" onClick={() => setIsQualityDetailsSidebarOpen(true)}>{t.sessionQualityDetailsButton}</button>}
 
-          <section className={`analysis-disclosure analysis-block--danger-zone ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
+          <section className={`analysis-disclosure analysis-block--danger-zone ${activeSessionSubpage === "sessionSettings" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('dangerZone')} aria-expanded={analysisAccordionState.dangerZone}>
               <span>{t.sessionDangerZoneTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.dangerZone ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>

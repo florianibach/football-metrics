@@ -293,6 +293,13 @@ button:disabled {
   margin-bottom: 0.5rem;
 }
 
+.session-analysis-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0 1rem;
+}
+
 .tab-button {
   background: #e4e7ec;
   color: #1d3229;
@@ -810,6 +817,17 @@ button:disabled {
   display: none;
 }
 
+.side-nav-overlay {
+  display: none;
+}
+
+
+.mobile-session-nav {
+  display: none;
+  margin: 0.75rem 0;
+}
+
+
 .burger-menu {
   background: #232734;
   color: #e7f8f0;
@@ -844,19 +862,40 @@ button:focus-visible {
     margin-bottom: 0.75rem;
   }
 
+  .mobile-session-nav {
+    display: block;
+  }
+
   .side-nav {
     position: fixed;
     inset: 0 auto 0 0;
     width: min(82vw, 320px);
-    z-index: 40;
+    height: 100dvh;
+    overflow-y: auto;
+    z-index: 50;
     transform: translateX(-105%);
     transition: transform 0.2s ease;
-    box-shadow: 0 0 0 9999px rgba(15, 23, 18, 0);
+    box-shadow: none;
   }
 
   .side-nav--open {
     transform: translateX(0);
-    box-shadow: 0 0 0 9999px rgba(15, 23, 18, 0.52);
+  }
+
+  .side-nav-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 18, 0.52);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 45;
+    transition: opacity 0.2s ease;
+  }
+
+  .side-nav-overlay--open {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .side-nav__close {
