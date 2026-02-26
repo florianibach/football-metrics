@@ -306,40 +306,6 @@ button:disabled {
 }
 
 
-.overview-dimension {
-  margin: 0.9rem 0;
-}
-
-.overview-dimension > summary {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 0.25rem 0;
-}
-
-.overview-dimension > p {
-  margin: 0.35rem 0 0.65rem;
-}
-
-@media (min-width: 769px) {
-  .overview-dimension > summary {
-    pointer-events: none;
-    list-style: none;
-  }
-
-  .overview-dimension > summary::-webkit-details-marker {
-    display: none;
-  }
-}
-
-@media (max-width: 768px) {
-  .overview-dimension {
-    border-top: 1px solid #d0d5dd;
-    padding-top: 0.35rem;
-  }
-}
-
 .session-analysis-tabs {
   display: flex;
   gap: 0.5rem;

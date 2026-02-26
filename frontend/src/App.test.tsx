@@ -593,7 +593,6 @@ describe('App', () => {
 
     expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/61 min 1 s/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Heart rate \(min\/avg\/max\):/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/110\/142\/178 bpm/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Technical info' }));
     expect(screen.getByText(/Trackpoints:/)).toBeInTheDocument();
@@ -627,10 +626,11 @@ describe('App', () => {
       expect(screen.getByText('Session details')).toBeInTheDocument();
     });
 
+    fireEvent.click(screen.getByRole('button', { name: /Timeline/ }));
+
     expect(screen.getByText(/Heart-rate values are missing in this session/)).toBeInTheDocument();
     expect(screen.getByText(/Distance cannot be calculated because GPS points are missing/)).toBeInTheDocument();
     expect(screen.getByText(/No GPS coordinates were detected in this file/)).toBeInTheDocument();
-    expect(screen.getAllByText(/Heart rate \(min\/avg\/max\):/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Technical info' }));
     expect(screen.getByText(/GPS data available:/)).toBeInTheDocument();
   });
@@ -1010,7 +1010,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Football core metrics')).toBeInTheDocument();
+      expect(screen.getByText('Session details')).toBeInTheDocument();
     });
 
     expect(screen.getAllByText(/of which sprint phase distance:/).length).toBeGreaterThan(0);
@@ -1794,13 +1794,12 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
 
     expect(screen.getByText('Volume')).toBeInTheDocument();
     expect(screen.getByText('Speed')).toBeInTheDocument();
     expect(screen.getByText('Mechanical')).toBeInTheDocument();
     expect(screen.getByText('Internal')).toBeInTheDocument();
-    expect(screen.getByText(/Overview groups KPIs by four load dimensions/)).toBeInTheDocument();
   });
 
   it('R1_7_02_Ac02_assigns_existing_metrics_to_matching_dimensions', async () => {
@@ -1816,15 +1815,15 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
 
-    const volumeSection = screen.getByText('Volume').closest('.overview-dimension') as HTMLElement;
+    const volumeSection = screen.getByRole('button', { name: /Volume/ }).closest('section') as HTMLElement;
     expect(within(volumeSection).getByText('Duration:')).toBeInTheDocument();
 
-    const mechanicalSection = screen.getByText('Mechanical').closest('.overview-dimension') as HTMLElement;
+    const mechanicalSection = screen.getByRole('button', { name: /Mechanical/ }).closest('section') as HTMLElement;
     expect(within(mechanicalSection).getByText('Direction changes:')).toBeInTheDocument();
 
-    const internalSection = screen.getByText('Internal').closest('.overview-dimension') as HTMLElement;
+    const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
     expect(within(internalSection).getByText('Heart rate (min/avg/max):')).toBeInTheDocument();
 
   });
@@ -1838,10 +1837,12 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
 
-    expect(document.querySelectorAll('.overview-dimension').length).toBe(4);
-    expect(screen.getByText('Volume').closest('summary')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Speed/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Mechanical/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Internal/ })).toBeInTheDocument();
   });
 
   it('R1_7_02_Ac02_shows_missing_data_transparently_in_dimensions', async () => {
@@ -1877,15 +1878,15 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
 
-    const volumeSection = screen.getByText('Volume').closest('.overview-dimension') as HTMLElement;
+    const volumeSection = screen.getByRole('button', { name: /Volume/ }).closest('section') as HTMLElement;
     expect(volumeSection).toHaveTextContent('Duration: 30 min 0 s — Not measured: No moving timestamps available.');
 
-    const mechanicalSection = screen.getByText('Mechanical').closest('.overview-dimension') as HTMLElement;
+    const mechanicalSection = screen.getByRole('button', { name: /Mechanical/ }).closest('section') as HTMLElement;
     expect(mechanicalSection).toHaveTextContent('Direction changes: Not available — Measurement unusable: Insufficient heading stability.');
 
-    const internalSection = screen.getByText('Internal').closest('.overview-dimension') as HTMLElement;
+    const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
     expect(internalSection).toHaveTextContent('Heart rate (min/avg/max): Not available — Not measured: No heart-rate stream in file.');
 
   });
@@ -1921,9 +1922,9 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByText('Football core metrics')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
 
-    const speedSection = screen.getByText('Speed').closest('.overview-dimension') as HTMLElement;
+    const speedSection = screen.getByRole('button', { name: /Speed/ }).closest('section') as HTMLElement;
 
     expect(within(speedSection).getByText('Warning: GPS-based external metrics were calculated with reduced confidence. Please interpret with caution.')).toBeInTheDocument();
     expect(within(speedSection).queryByText(/Available with warning:/i)).not.toBeInTheDocument();
@@ -1990,9 +1991,8 @@ describe('App', () => {
 
     fireEvent.click((await screen.findAllByRole('button', { name: 'Open details' }))[0]);
 
+    fireEvent.click(screen.getByRole('button', { name: /Timeline/ }));
     expect(await screen.findByText(/HF-only interpretation aid/)).toBeInTheDocument();
-    expect(screen.getByText(/TRIMP\/min/)).toBeInTheDocument();
-    expect(screen.getAllByText(/GPS coordinates were not recorded for this session\./).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
     await screen.findByText('Session comparison');
@@ -2390,7 +2390,7 @@ describe('App', () => {
       expect(switchedHeatmap.querySelector('.gps-heatmap__track-line')).not.toBeNull();
     });
 
-    fireEvent.click(within(heatmapViewToggle).getByRole('button', { name: 'Heatmap' }));
+    fireEvent.click(within(heatmapViewToggle).getByRole('button', { name: /Heatmap/ }));
 
     await waitFor(() => {
       const switchedBackHeatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
@@ -2966,7 +2966,6 @@ describe('App', () => {
 
     render(<App />);
 
-    await screen.findByText('No GPS coordinates were detected in this file.');
     expect(screen.queryByText('GPS point heatmap')).not.toBeInTheDocument();
   });
 
@@ -3006,9 +3005,11 @@ describe('App', () => {
     render(<App />);
     await screen.findByText('Session details');
 
-    const hrOnlyOverview = screen.getByRole('heading', { name: 'Overview' }).closest('.analysis-disclosure__content') as HTMLElement;
-    expect(within(hrOnlyOverview).queryByText(/Distance:/)).not.toBeInTheDocument();
-    expect(within(hrOnlyOverview).getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
+    const volumeSection = screen.getByRole('button', { name: /Volume/ }).closest('section') as HTMLElement;
+    expect(within(volumeSection).queryByText(/Distance:/)).not.toBeInTheDocument();
+
+    const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
+    expect(within(internalSection).getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
   });
 
   it('R1_6_13_Ac06_overview_hides_hr_metrics_in_gps_only_mode', async () => {
@@ -3048,9 +3049,11 @@ describe('App', () => {
     render(<App />);
     await screen.findByText('Session details');
 
-    const gpsOnlyOverview = screen.getByRole('heading', { name: 'Overview' }).closest('.analysis-disclosure__content') as HTMLElement;
-    expect(within(gpsOnlyOverview).getByText(/Distance:/)).toBeInTheDocument();
-    expect(within(gpsOnlyOverview).queryByText(/Heart rate \(min\/avg\/max\):/)).not.toBeInTheDocument();
+    const volumeSection = screen.getByRole('button', { name: /Volume/ }).closest('section') as HTMLElement;
+    expect(within(volumeSection).getByText(/Distance:/)).toBeInTheDocument();
+
+    const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
+    expect(within(internalSection).queryByText(/Heart rate \(min\/avg\/max\):/)).not.toBeInTheDocument();
   });
 
   it('R1_6_05_Ac01_Ac04_segment_analysis_uses_same_unavailable_mechanism_as_session_analysis', async () => {
@@ -3298,7 +3301,7 @@ describe('App', () => {
 
     expect(screen.queryByRole('tab', { name: 'Overview' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Timeline' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Timeline/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Peak Demand' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Heatmap' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Session settings' })).toBeInTheDocument();

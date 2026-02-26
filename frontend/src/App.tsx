@@ -630,7 +630,7 @@ type TranslationKey =
   | 'analysisSectionCollapse'
   | 'qualityDetailsWarning';
 
-type AnalysisAccordionKey = 'coreMetrics' | 'intervalAggregation' | 'gpsHeatmap' | 'gpsRunsMap' | 'sessionContext' | 'displaySettings' | 'processingSettings' | 'recalculationHistory' | 'qualityDetails' | 'dangerZone';
+type AnalysisAccordionKey = 'overviewVolume' | 'overviewSpeed' | 'overviewMechanical' | 'overviewInternal' | 'intervalAggregation' | 'gpsHeatmap' | 'gpsRunsMap' | 'sessionContext' | 'displaySettings' | 'processingSettings' | 'recalculationHistory' | 'qualityDetails' | 'thresholds' | 'dangerZone';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
 const normalizedApiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, '');
@@ -2143,7 +2143,6 @@ export function App() {
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [isOverviewMobileLayout, setIsOverviewMobileLayout] = useState<boolean>(() => typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>('overview');
   const [activeMainPage, setActiveMainPage] = useState<MainPage>(initialRoute.mainPage);
@@ -2157,7 +2156,10 @@ export function App() {
     const expandedByDefault = import.meta.env.MODE === 'test';
 
     return {
-      coreMetrics: expandedByDefault,
+      overviewVolume: expandedByDefault,
+      overviewSpeed: expandedByDefault,
+      overviewMechanical: expandedByDefault,
+      overviewInternal: expandedByDefault,
       intervalAggregation: expandedByDefault,
       gpsHeatmap: expandedByDefault,
       gpsRunsMap: expandedByDefault,
@@ -2166,6 +2168,7 @@ export function App() {
       displaySettings: expandedByDefault,
       recalculationHistory: expandedByDefault,
       qualityDetails: expandedByDefault,
+      thresholds: expandedByDefault,
       dangerZone: expandedByDefault
     };
   });
@@ -2237,16 +2240,6 @@ export function App() {
     + (dateFromFilter && dateFromFilter !== defaultDateBounds.from ? 1 : 0)
     + (dateToFilter && dateToFilter !== defaultDateBounds.to ? 1 : 0)
     + (sortDirection !== 'desc' ? 1 : 0);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return undefined;
-    }
-
-    const handleResize = () => setIsOverviewMobileLayout(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   useEffect(() => {
     const onPopState = () => {
@@ -3714,6 +3707,7 @@ export function App() {
 
   const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
   const shouldShowSessionOverviewHeader = activeSessionSubpage === 'analysis' && !isQualityDetailsPageVisible;
+  const activeDataMode = selectedSession ? resolveDataAvailability(selectedSession.summary).mode : null;
 
   useEffect(() => {
     if (activeSessionSubpage === 'segments') {
@@ -4420,28 +4414,6 @@ export function App() {
               {shouldShowSessionOverviewHeader && isSegmentScopeActive && selectedSegment?.notes && <p><strong>{t.segmentNotes}:</strong> {selectedSegment.notes}</p>}
               {activeSessionSubpage === 'sessionSettings' && <h3>{t.sessionSubpageSessionSettings}</h3>}
               {activeSessionSubpage === 'technicalInfo' && <h3>{t.sessionSubpageTechnicalInfo}</h3>}
-              {shouldShowSessionOverviewHeader && displayedCoreMetrics && activeAnalysisTab === 'overview' && (
-                <div className="analysis-disclosure__content">
-                  <h3>{isSegmentScopeActive ? t.segmentDerivedMetricsTitle : t.analysisOverviewTitle}</h3>
-                  <ul className="metrics-list list-group">
-                    <li className="list-group-item"><strong>{t.metricDuration}:</strong> {formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable)}</li>
-                    {resolveDataAvailability(selectedSession.summary).mode !== 'HeartRateOnly' && (
-                      <>
-                        <li className="list-group-item"><strong>{t.metricDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable)}</li>
-                        <li className="list-group-item"><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
-                        <li className="list-group-item"><strong>{t.metricOfWhichSprintPhasesDistance}:</strong> {formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                        <li className="list-group-item"><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
-                        <li className="list-group-item"><strong>{t.metricHighIntensityRunCount}:</strong> {detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
-                        <li className="list-group-item"><strong>{t.metricOfWhichSprintPhasesCount}:</strong> {detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable}</li>
-                        <li className="list-group-item"><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
-                      </>
-                    )}
-                    {resolveDataAvailability(selectedSession.summary).mode !== 'GpsOnly' && (
-                      <li className="list-group-item"><strong>{t.metricHeartRate}:</strong> {formatHeartRate(selectedSession.summary, t.notAvailable)}</li>
-                    )}
-                  </ul>
-                </div>
-              )}
             </>
           )}
 
@@ -4779,83 +4751,129 @@ export function App() {
             )}
           </section>
 
-          <section className={`core-metrics-section analysis-disclosure analysis-block--core ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'overview' ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('coreMetrics')} aria-expanded={analysisAccordionState.coreMetrics}>
-              <span>{t.coreMetricsTitle}</span>
-              <span className="analysis-disclosure__action">{analysisAccordionState.coreMetrics ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+          <section className={`analysis-disclosure analysis-block--thresholds ${activeSessionSubpage === "technicalInfo" ? "" : "is-hidden"}`}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('thresholds')} aria-expanded={analysisAccordionState.thresholds}>
+              <span>{t.metricCoreThresholds}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.thresholds ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
-            {analysisAccordionState.coreMetrics && displayedCoreMetrics && (
+            {analysisAccordionState.thresholds && displayedCoreMetrics && (
             <div className="analysis-disclosure__content">
-            {!displayedCoreMetrics.isAvailable && !isSegmentScopeActive && (
-              <p>{t.coreMetricsUnavailable.replace('{reason}', displayedCoreMetrics.unavailableReason ?? t.notAvailable)}</p>
-            )}
-            <p>{t.overviewDimensionStructureHint}</p>
-            {(() => {
-              const speedMetricKeys = ['maxSpeedMetersPerSecond', 'highIntensityTimeSeconds', 'highIntensityRunCount', 'sprintCount', 'highSpeedDistanceMeters', 'sprintDistanceMeters'];
-              const mechanicalMetricKeys = ['accelerationCount', 'decelerationCount', 'directionChanges'];
-              const showSpeedWarning = !isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, speedMetricKeys);
-              const showMechanicalWarning = !isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, mechanicalMetricKeys);
-
-              return (
-                <>
-                  <details className="overview-dimension" open={!isOverviewMobileLayout}>
-                    <summary>{t.overviewDimensionVolumeTitle}</summary>
-                    <p>{t.overviewDimensionVolumeHelp}</p>
-                    <ul className="metrics-list list-group">
-                      <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />
-                      <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
-                      <MetricListItem label={t.metricRunningDensity} value={withMetricStatus(formatNumber(displayedCoreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', displayedCoreMetrics, t)} helpText={metricHelp.runningDensity} />
-                    </ul>
-                  </details>
-
-                  <details className="overview-dimension" open={!isOverviewMobileLayout}>
-                    <summary>{t.overviewDimensionSpeedTitle}</summary>
-                    <p>{t.overviewDimensionSpeedHelp}</p>
-                    {showSpeedWarning && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
-                    <ul className="metrics-list list-group">
-                      <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)} helpText={metricHelp.maxSpeed} />
-                      <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityTime} />
-                      <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
-                      <MetricListItem label={t.metricOfWhichSprintPhasesCount} value={withMetricStatus(String(detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)} helpText={metricHelp.sprintCount} />
-                      <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
-                      <MetricListItem label={t.metricOfWhichSprintPhasesDistance} value={withMetricStatus(formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.sprintDistance} />
-                    </ul>
-                  </details>
-
-                  <details className="overview-dimension" open={!isOverviewMobileLayout}>
-                    <summary>{t.overviewDimensionMechanicalTitle}</summary>
-                    <p>{t.overviewDimensionMechanicalHelp}</p>
-                    {showMechanicalWarning && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
-                    <ul className="metrics-list list-group">
-                      <MetricListItem label={t.metricAccelerationCount} value={withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
-                      <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
-                      <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
-                    </ul>
-                  </details>
-
-                  <details className="overview-dimension" open={!isOverviewMobileLayout}>
-                    <summary>{t.overviewDimensionInternalTitle}</summary>
-                    <p>{t.overviewDimensionInternalHelp}</p>
-                    <ul className="metrics-list list-group">
-                      <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', displayedCoreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
-                      <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneLow} />
-                      <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
-                      <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
-                      <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(displayedCoreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', displayedCoreMetrics, t)} helpText={metricHelp.trimpEdwards} />
-                      <MetricListItem label={t.metricTrimpPerMinute} value={formatNumber(displayedCoreMetrics.trainingImpulseEdwards !== null ? displayedCoreMetrics.trainingImpulseEdwards / ((isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : Math.max(1, selectedSession.summary.durationSeconds ?? 0)) / 60) : null, locale, t.notAvailable, 2)} helpText={metricHelp.trimpEdwards} />
-                      <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(displayedCoreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)} helpText={metricHelp.hrRecovery60} />
-                    </ul>
-                  </details>
-                </>
-              );
-            })()}
-            <ul className="metrics-list list-group">
-              <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(displayedCoreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
-              <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (displayedCoreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (displayedCoreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (displayedCoreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (displayedCoreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (displayedCoreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (displayedCoreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
-            </ul>
+              <ul className="metrics-list list-group">
+                <MetricListItem label={t.metricCoreThresholds} value={formatThresholds(displayedCoreMetrics.thresholds)} helpText={metricHelp.coreThresholds} />
+                <MetricListItem label={t.sessionThresholdTransparencyTitle} value={['MaxSpeedBase=' + (displayedCoreMetrics.thresholds.MaxSpeedEffectiveMps ?? t.notAvailable) + ' m/s (' + (displayedCoreMetrics.thresholds.MaxSpeedSource ?? t.notAvailable) + ')', 'MaxHeartRateBase=' + (displayedCoreMetrics.thresholds.MaxHeartRateEffectiveBpm ?? t.notAvailable) + ' bpm (' + (displayedCoreMetrics.thresholds.MaxHeartRateSource ?? t.notAvailable) + ')', 'Sprint=' + (displayedCoreMetrics.thresholds.SprintSpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.SprintSpeedThresholdMps ?? t.notAvailable) + ' m/s', 'HighIntensity=' + (displayedCoreMetrics.thresholds.HighIntensitySpeedPercentOfMaxSpeed ?? t.notAvailable) + '% → ' + (displayedCoreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? t.notAvailable) + ' m/s'].join(' | ')} helpText={metricHelp.coreThresholds} />
+              </ul>
             </div>
             )}
           </section>
+
+          {activeSessionSubpage === "analysis" && activeAnalysisTab === 'overview' && displayedCoreMetrics && (
+            <>
+              {isSegmentScopeActive && (
+                <section className="analysis-disclosure analysis-block--core">
+                  <div className="analysis-disclosure__content">
+                    <h3>{t.segmentDerivedMetricsTitle}</h3>
+                  </div>
+                </section>
+              )}
+              {!displayedCoreMetrics.isAvailable && !isSegmentScopeActive && (
+                <section className="analysis-disclosure analysis-block--core">
+                  <div className="analysis-disclosure__content">
+                    <p>{t.coreMetricsUnavailable.replace('{reason}', displayedCoreMetrics.unavailableReason ?? t.notAvailable)}</p>
+                  </div>
+                </section>
+              )}
+
+              <section className="analysis-disclosure analysis-block--core" id="overview-volume">
+                <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('overviewVolume')} aria-expanded={analysisAccordionState.overviewVolume}>
+                  <span>{t.overviewDimensionVolumeTitle}</span>
+                  <span className="analysis-disclosure__action">{analysisAccordionState.overviewVolume ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+                </button>
+                {analysisAccordionState.overviewVolume && (
+                  <div className="analysis-disclosure__content">
+                    <p>{t.overviewDimensionVolumeHelp}</p>
+                    <ul className="metrics-list list-group">
+                      {activeDataMode !== 'HeartRateOnly' && <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />}
+                      <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
+                      {activeDataMode !== 'HeartRateOnly' && <MetricListItem label={t.metricRunningDensity} value={withMetricStatus(formatNumber(displayedCoreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', displayedCoreMetrics, t)} helpText={metricHelp.runningDensity} />}
+                    </ul>
+                  </div>
+                )}
+              </section>
+
+              <section className="analysis-disclosure analysis-block--core" id="overview-speed">
+                <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('overviewSpeed')} aria-expanded={analysisAccordionState.overviewSpeed}>
+                  <span>{t.overviewDimensionSpeedTitle}</span>
+                  <span className="analysis-disclosure__action">{analysisAccordionState.overviewSpeed ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+                </button>
+                {analysisAccordionState.overviewSpeed && (
+                  <div className="analysis-disclosure__content">
+                    <p>{t.overviewDimensionSpeedHelp}</p>
+                    {!isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, ['maxSpeedMetersPerSecond', 'highIntensityTimeSeconds', 'highIntensityRunCount', 'sprintCount', 'highSpeedDistanceMeters', 'sprintDistanceMeters']) && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
+                    <ul className="metrics-list list-group">
+                      {activeDataMode !== 'HeartRateOnly' && (
+                        <>
+                          <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)} helpText={metricHelp.maxSpeed} />
+                          <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityTime} />
+                          <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
+                          <MetricListItem label={t.metricOfWhichSprintPhasesCount} value={withMetricStatus(String(detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)} helpText={metricHelp.sprintCount} />
+                          <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
+                          <MetricListItem label={t.metricOfWhichSprintPhasesDistance} value={withMetricStatus(formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.sprintDistance} />
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </section>
+
+              <section className="analysis-disclosure analysis-block--core" id="overview-mechanical">
+                <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('overviewMechanical')} aria-expanded={analysisAccordionState.overviewMechanical}>
+                  <span>{t.overviewDimensionMechanicalTitle}</span>
+                  <span className="analysis-disclosure__action">{analysisAccordionState.overviewMechanical ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+                </button>
+                {analysisAccordionState.overviewMechanical && (
+                  <div className="analysis-disclosure__content">
+                    <p>{t.overviewDimensionMechanicalHelp}</p>
+                    {!isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, ['accelerationCount', 'decelerationCount', 'directionChanges']) && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
+                    <ul className="metrics-list list-group">
+                      {activeDataMode !== 'HeartRateOnly' && (
+                        <>
+                          <MetricListItem label={t.metricAccelerationCount} value={withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
+                          <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
+                          <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </section>
+
+              <section className="analysis-disclosure analysis-block--core" id="overview-internal">
+                <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('overviewInternal')} aria-expanded={analysisAccordionState.overviewInternal}>
+                  <span>{t.overviewDimensionInternalTitle}</span>
+                  <span className="analysis-disclosure__action">{analysisAccordionState.overviewInternal ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+                </button>
+                {analysisAccordionState.overviewInternal && (
+                  <div className="analysis-disclosure__content">
+                    <p>{t.overviewDimensionInternalHelp}</p>
+                    <ul className="metrics-list list-group">
+                      {activeDataMode !== 'GpsOnly' && (
+                        <>
+                          <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', displayedCoreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
+                          <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneLow} />
+                          <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
+                          <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
+                          <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(displayedCoreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', displayedCoreMetrics, t)} helpText={metricHelp.trimpEdwards} />
+                          <MetricListItem label={t.metricTrimpPerMinute} value={formatNumber(displayedCoreMetrics.trainingImpulseEdwards !== null ? displayedCoreMetrics.trainingImpulseEdwards / ((isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : Math.max(1, selectedSession.summary.durationSeconds ?? 0)) / 60) : null, locale, t.notAvailable, 2)} helpText={metricHelp.trimpEdwards} />
+                          <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(displayedCoreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)} helpText={metricHelp.hrRecovery60} />
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+
           <section className={`analysis-disclosure analysis-block--peak-demand ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'peakDemand' ? "" : "is-hidden"}`}><div className="analysis-disclosure__content"><h3>{t.sessionTabPeakDemand}</h3><p>{t.intervalAggregationNoData}</p></div></section>
           <section className={`interval-aggregation analysis-disclosure analysis-block--interval ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'timeline' ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('intervalAggregation')} aria-expanded={analysisAccordionState.intervalAggregation}>
@@ -4921,7 +4939,7 @@ export function App() {
           </section>
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && (
-            <section className={`gps-heatmap-section analysis-disclosure analysis-block--heatmap ${activeAnalysisTab === 'overview' || activeAnalysisTab === 'heatmap' ? '' : 'is-hidden'}`}>
+            <section className={`gps-heatmap-section analysis-disclosure analysis-block--heatmap ${activeAnalysisTab === 'heatmap' ? '' : 'is-hidden'}`}>
               <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('gpsHeatmap')} aria-expanded={analysisAccordionState.gpsHeatmap}>
                 <span>{t.gpsHeatmapTitle}</span>
                 <span className="analysis-disclosure__action">{analysisAccordionState.gpsHeatmap ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -4952,7 +4970,7 @@ export function App() {
           )}
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && heatmapData && (
-            <section className={`gps-heatmap-section gps-runs-section analysis-disclosure analysis-block--runs ${activeAnalysisTab === 'overview' || activeAnalysisTab === 'heatmap' ? '' : 'is-hidden'}`}>
+            <section className={`gps-heatmap-section gps-runs-section analysis-disclosure analysis-block--runs ${activeAnalysisTab === 'heatmap' ? '' : 'is-hidden'}`}>
               <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('gpsRunsMap')} aria-expanded={analysisAccordionState.gpsRunsMap}>
                 <span>{t.gpsRunsMapTitle}</span>
                 <span className="analysis-disclosure__action">{analysisAccordionState.gpsRunsMap ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -4993,13 +5011,13 @@ export function App() {
             </section>
           )}
 
-          {activeSessionSubpage === 'analysis' && resolveDataAvailability(selectedSession.summary).mode === 'HeartRateOnly' && (
+          {activeSessionSubpage === 'analysis' && activeAnalysisTab !== 'overview' && resolveDataAvailability(selectedSession.summary).mode === 'HeartRateOnly' && (
             <div className="detail-hints" role="note" aria-label={t.hfOnlyInsightTitle}>
               <p><strong>{t.hfOnlyInsightTitle}:</strong> {t.hfOnlyInsightInterpretation}</p>
             </div>
           )}
 
-          {activeSessionSubpage === "analysis" && (showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
+          {activeSessionSubpage === "analysis" && activeAnalysisTab !== 'overview' && (showMissingHeartRateHint || showMissingDistanceHint || showMissingGpsHint) && (
             <div className="detail-hints" role="status">
               {showMissingHeartRateHint && <p>{t.detailMissingHeartRateHint}</p>}
               {showMissingDistanceHint && <p>{t.detailMissingDistanceHint}</p>}
