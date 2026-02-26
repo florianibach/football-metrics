@@ -219,6 +219,7 @@ type UploadRecord = {
   recalculationHistory: SessionRecalculationEntry[];
   segments: SessionSegment[];
   segmentChangeHistory: SegmentChangeEntry[];
+  isDetailed: boolean;
 };
 
 
@@ -365,6 +366,7 @@ type TranslationKey =
   | 'historyFilterClose'
   | 'historyFilterDefaultsHint'
   | 'historyOpenDetails'
+  | 'sessionDetailsLoading'
   | 'uploadQualityStepTitle'
   | 'uploadQualityStepIntro'
   | 'uploadQualityOverall'
@@ -751,6 +753,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterClose: 'Close',
     historyFilterDefaultsHint: 'Defaults: Newest first, all quality states, all session types, full date range.',
     historyOpenDetails: 'Open details',
+    sessionDetailsLoading: 'Loading session details...',
     uploadQualityStepTitle: 'Quality check',
     uploadQualityStepIntro: 'Review this compact quality summary before jumping into session analysis.',
     uploadQualityOverall: 'Overall quality',
@@ -1131,6 +1134,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     historyFilterClose: 'Schließen',
     historyFilterDefaultsHint: 'Standard: Neueste zuerst, alle Qualitätsstufen, alle Session-Typen, voller Datumsbereich.',
     historyOpenDetails: 'Details öffnen',
+    sessionDetailsLoading: 'Session-Details werden geladen...',
     uploadQualityStepTitle: 'Qualitätscheck',
     uploadQualityStepIntro: 'Prüfe diese kompakte Qualitätsübersicht, bevor du in die Session-Analyse wechselst.',
     uploadQualityOverall: 'Gesamtqualität',
@@ -1812,6 +1816,7 @@ function normalizeUploadRecord(record: UploadRecord): UploadRecord {
     ...record,
     segments,
     segmentChangeHistory: record.segmentChangeHistory ?? [],
+    isDetailed: record.isDetailed ?? true,
     summary: {
       ...record.summary,
       dataAvailability: resolveDataAvailability(record.summary)
@@ -2043,6 +2048,7 @@ export function App() {
   const [message, setMessage] = useState<string>(translations[browserLocale].defaultMessage);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSessionDetailLoading, setIsSessionDetailLoading] = useState(false);
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
   const [coreMetricsCategoryFilter, setCoreMetricsCategoryFilter] = useState<CoreMetricsCategoryFilter>('all');
@@ -2330,6 +2336,10 @@ export function App() {
     setSessionContextForm(matchedSession.sessionContext);
     setIsSessionMenuVisible(true);
     setShowUploadQualityStep(false);
+
+    if (!matchedSession.isDetailed) {
+      void loadSessionDetailsById(matchedSession.id);
+    }
   }, [activeMainPage, activeSessionIdFromRoute, selectedSession?.id, uploadHistory]);
 
   useEffect(() => {
@@ -2397,10 +2407,16 @@ export function App() {
             setIsSessionMenuVisible(true);
             setActiveMainPage('session');
             setActiveSessionIdFromRoute(preferredSession.id);
+            if (!preferredSession.isDetailed) {
+              void loadSessionDetailsById(preferredSession.id);
+            }
           } else if (initialRoute.mainPage === 'sessions' && shouldAutoOpenFirstSession) {
             setIsSessionMenuVisible(true);
             setActiveMainPage('session');
             setActiveSessionIdFromRoute(preferredSession.id);
+            if (!preferredSession.isDetailed) {
+              void loadSessionDetailsById(preferredSession.id);
+            }
           } else {
             setIsSessionMenuVisible(false);
           }
@@ -2455,6 +2471,44 @@ export function App() {
     handleFileSelection(droppedFile);
   }
 
+
+
+  async function loadSessionDetailsById(sessionId: string): Promise<UploadRecord | null> {
+    setIsSessionDetailLoading(true);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/tcx/${sessionId}`);
+      if (!response.ok) {
+        return null;
+      }
+
+      const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
+      setUploadHistory((previous) => previous.map((item) => (item.id === payload.id ? payload : item)));
+      setSelectedSession((current) => (current && current.id === payload.id ? payload : current));
+      setSelectedFilter(payload.summary.smoothing.selectedStrategy as SmoothingFilter);
+      setSessionContextForm(payload.sessionContext);
+      return payload;
+    } finally {
+      setIsSessionDetailLoading(false);
+    }
+  }
+
+  function openSessionDetails(session: UploadRecord) {
+    setSelectedSession(session);
+    setCompareMode('smoothed');
+    setSelectedFilter(session.summary.smoothing.selectedStrategy as SmoothingFilter);
+    setSessionContextForm(session.sessionContext);
+    setShowUploadQualityStep(false);
+    setAnalysisScope('session');
+    setActiveSessionSubpage('analysis');
+    setActiveSessionIdFromRoute(session.id);
+    setActiveMainPage('session');
+    setIsSessionMenuVisible(true);
+
+    if (!session.isDetailed) {
+      void loadSessionDetailsById(session.id);
+    }
+  }
 
   function applyUpdatedSession(payload: UploadRecord) {
     setSelectedSession(payload);
@@ -4100,16 +4154,7 @@ export function App() {
                       type="button"
                       className="secondary-button"
                       onClick={() => {
-                        setSelectedSession(record);
-                        setCompareMode('smoothed');
-                        setSelectedFilter(record.summary.smoothing.selectedStrategy as SmoothingFilter);
-                        setSessionContextForm(record.sessionContext);
-                        setShowUploadQualityStep(false);
-                        setAnalysisScope('session');
-                        setActiveSessionSubpage('analysis');
-                        setActiveSessionIdFromRoute(record.id);
-                        setActiveMainPage('session');
-                        setIsSessionMenuVisible(true);
+                        openSessionDetails(record);
                       }}
                     >
                       {t.historyOpenDetails}
@@ -4206,7 +4251,11 @@ export function App() {
 
       {selectedSession && (
         <section className={`session-details ${activeMainPage === "session" ? "" : "is-hidden"}`} aria-live="polite" id="session-analysis">
-          {isQualityDetailsPageVisible ? (
+          {(!selectedSession.isDetailed || isSessionDetailLoading) ? (
+            <div className="analysis-disclosure__content">
+              <p>{t.sessionDetailsLoading}</p>
+            </div>
+          ) : isQualityDetailsPageVisible ? (
             <section data-testid="upload-quality-step" className="upload-quality-step">
               <h3>{t.qualityDetailsSidebarTitle}</h3>
               <p>{t.uploadQualityStepIntro}</p>
@@ -4250,7 +4299,7 @@ export function App() {
             </>
           )}
 
-          {!isQualityDetailsPageVisible && (
+          {!isQualityDetailsPageVisible && selectedSession.isDetailed && !isSessionDetailLoading && (
           <div className="session-analysis-flow">
           <section className={`analysis-disclosure analysis-block--session-settings ${activeSessionSubpage === "analysis" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionSettings')} aria-expanded={analysisAccordionState.sessionSettings}>
