@@ -4451,19 +4451,7 @@ export function App() {
 
           {!isQualityDetailsPageVisible && !isSessionDetailLoading && (
           <div className="session-analysis-flow">
-          <section id="session-settings" className={`analysis-disclosure analysis-block--session-settings ${(activeSessionSubpage === "analysis" || activeSessionSubpage === "sessionSettings" || activeSessionSubpage === "compare") ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionSettings')} aria-expanded={analysisAccordionState.sessionSettings}>
-              <span>{t.sessionSettingsTitle}</span>
-              <span className="analysis-disclosure__action">{analysisAccordionState.sessionSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
-            </button>
-            {analysisAccordionState.sessionSettings && (
-            <div className="analysis-disclosure__content">
-              <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
-              <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
-            </div>
-            )}
-          </section>
-          <section className={`analysis-disclosure analysis-block--session-context ${activeSessionSubpage === "sessionSettings" ? "" : "is-hidden"}`}>
+          <section id="session-settings" className={`analysis-disclosure analysis-block--session-context ${activeSessionSubpage === "sessionSettings" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionContext')} aria-expanded={analysisAccordionState.sessionContext}>
               <span>{t.sessionContextTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.sessionContext ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -4719,36 +4707,7 @@ export function App() {
             )}
           </div>
 
-          <section className={`session-processing-settings analysis-disclosure analysis-block--settings ${(activeSessionSubpage === "analysis" || activeSessionSubpage === "sessionSettings" || activeSessionSubpage === "compare") ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('processingSettings')} aria-expanded={analysisAccordionState.processingSettings}>
-              <span>{t.sessionProcessingTitle}</span>
-              <span className="analysis-disclosure__action">{analysisAccordionState.processingSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
-            </button>
-            {analysisAccordionState.processingSettings && (
-            <div className="analysis-disclosure__content">
-            <label className="form-label" htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
-            <select className="form-select"
-              id="session-filter-selector"
-              value={selectedFilter}
-              disabled={!selectedSession.summary.hasGpsData}
-              onChange={onFilterChange}
-            >
-              <option value="Raw">{t.filterRaw}</option>
-              <option value="AdaptiveMedian">{`${t.filterAdaptiveMedian} (${t.filterRecommendedBadge})`}</option>
-              <option value="Savitzky-Golay">{t.filterSavitzkyGolay}</option>
-              <option value="Butterworth">{t.filterButterworth}</option>
-            </select>
-            {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.filterDisabledNoGps}</p>}
-            <div className="filter-guidance" role="note" aria-label={t.filterRecommendationTitle}>
-              <p><strong>{t.filterRecommendationTitle}:</strong> {t.filterRecommendationIntro}</p>
-              <p>{t.filterRecommendationImpact}</p>
-              <p>{selectedFilterDescription}</p>
-            </div>
-            </div>
-            )}
-          </section>
-
-          <section className={`analysis-disclosure analysis-block--display-settings ${(activeSessionSubpage === "analysis" || activeSessionSubpage === "sessionSettings" || activeSessionSubpage === "compare") ? "" : "is-hidden"}`}>
+          <section className={`analysis-disclosure analysis-block--display-settings ${activeSessionSubpage === "sessionSettings" ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('displaySettings')} aria-expanded={analysisAccordionState.displaySettings}>
               <span>{t.sessionDisplaySettingsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.displaySettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
@@ -4773,6 +4732,37 @@ export function App() {
               <option value="min/km">min/km</option>
             </select>
             <p><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</p>
+            </div>
+            )}
+          </section>
+
+          <section className={`session-processing-settings analysis-disclosure analysis-block--settings ${activeSessionSubpage === "sessionSettings" ? "" : "is-hidden"}`}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('processingSettings')} aria-expanded={analysisAccordionState.processingSettings}>
+              <span>{t.sessionProcessingTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.processingSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+            </button>
+            {analysisAccordionState.processingSettings && (
+            <div className="analysis-disclosure__content">
+            <label className="form-label" htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
+            <select className="form-select"
+              id="session-filter-selector"
+              value={selectedFilter}
+              disabled={!selectedSession.summary.hasGpsData}
+              onChange={onFilterChange}
+            >
+              <option value="Raw">{t.filterRaw}</option>
+              <option value="AdaptiveMedian">{`${t.filterAdaptiveMedian} (${t.filterRecommendedBadge})`}</option>
+              <option value="Savitzky-Golay">{t.filterSavitzkyGolay}</option>
+              <option value="Butterworth">{t.filterButterworth}</option>
+            </select>
+            {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.filterDisabledNoGps}</p>}
+            <div className="filter-guidance" role="note" aria-label={t.filterRecommendationTitle}>
+              <p><strong>{t.filterRecommendationTitle}:</strong> {t.filterRecommendationIntro}</p>
+              <p>{t.filterRecommendationImpact}</p>
+              <p>{selectedFilterDescription}</p>
+            </div>
+            <button className="btn btn-sm btn-outline-secondary" type="button" onClick={onRecalculateWithCurrentProfile}>{t.sessionRecalculateButton}</button>
+            <p>{interpolate(t.sessionRecalculateProfileInfo, { version: String(selectedSession.appliedProfileSnapshot.thresholdVersion), thresholdUpdated: formatLocalDateTime(selectedSession.appliedProfileSnapshot.thresholdUpdatedAtUtc), filter: selectedSession.appliedProfileSnapshot.smoothingFilter, capturedAt: formatLocalDateTime(selectedSession.appliedProfileSnapshot.capturedAtUtc) })}</p>
             </div>
             )}
           </section>
