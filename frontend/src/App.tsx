@@ -626,12 +626,13 @@ type TranslationKey =
   | 'profileRecalculationStatusCompleted'
   | 'profileRecalculationStatusFailed'
   | 'sessionProcessingTitle'
+  | 'sessionDisplaySettingsTitle'
   | 'sessionSettingsTitle'
   | 'analysisSectionExpand'
   | 'analysisSectionCollapse'
   | 'qualityDetailsWarning';
 
-type AnalysisAccordionKey = 'sessionSettings' | 'coreMetrics' | 'intervalAggregation' | 'gpsHeatmap' | 'gpsRunsMap' | 'sessionContext' | 'processingSettings' | 'recalculationHistory' | 'dangerZone';
+type AnalysisAccordionKey = 'sessionSettings' | 'coreMetrics' | 'intervalAggregation' | 'gpsHeatmap' | 'gpsRunsMap' | 'sessionContext' | 'processingSettings' | 'displaySettings' | 'recalculationHistory' | 'dangerZone';
 
 const configuredApiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api/v1').trim();
 const normalizedApiBaseUrl = configuredApiBaseUrl.replace(/\/+$/, '');
@@ -838,6 +839,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     hfOnlyInsightInterpretation: 'This session was analyzed only with heart-rate data. Focus on average/max heart rate, HR zones, time above 85% HRmax, and TRIMP/TRIMP per minute to interpret internal load. GPS metrics are intentionally hidden or marked as not available.',
     coreMetricsTitle: 'Football core metrics',
     sessionProcessingTitle: 'Processing settings',
+    sessionDisplaySettingsTitle: 'Display settings',
     sessionSettingsTitle: 'Session settings',
     analysisSectionExpand: 'Show section',
     analysisSectionCollapse: 'Hide section',
@@ -1231,6 +1233,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     hfOnlyInsightInterpretation: 'Diese Session wurde ausschließlich mit Herzfrequenzdaten analysiert. Nutze vor allem durchschnittliche/maximale Herzfrequenz, HF-Zonen, Zeit über 85% HFmax sowie TRIMP/TRIMP pro Minute zur Einordnung der internen Belastung. GPS-Metriken werden bewusst ausgeblendet oder als nicht verfügbar markiert.',
     coreMetricsTitle: 'Fußball-Kernmetriken',
     sessionProcessingTitle: 'Verarbeitungseinstellungen',
+    sessionDisplaySettingsTitle: 'Anzeigeeinstellungen',
     sessionSettingsTitle: 'Session-Einstellungen',
     analysisSectionExpand: 'Bereich anzeigen',
     analysisSectionCollapse: 'Bereich ausblenden',
@@ -2163,7 +2166,8 @@ export function App() {
       gpsHeatmap: expandedByDefault,
       gpsRunsMap: expandedByDefault,
       sessionContext: true,
-      processingSettings: true,
+      processingSettings: expandedByDefault,
+      displaySettings: expandedByDefault,
       recalculationHistory: expandedByDefault,
       dangerZone: expandedByDefault
     };
@@ -3886,6 +3890,7 @@ export function App() {
         )}
         <div className="side-nav__meta" aria-label="Application version">v{appVersion}</div>
       </aside>
+      <div className={`side-nav-overlay ${isMobileNavOpen ? 'side-nav-overlay--open' : ''}`} onClick={() => setIsMobileNavOpen(false)} />
       <main className="container">
       <div className="mobile-topbar">
         <button type="button" className="burger-menu" onClick={() => setIsMobileNavOpen((current) => !current)} aria-label="Open navigation menu">☰</button>
@@ -4446,9 +4451,9 @@ export function App() {
 
           {!isQualityDetailsPageVisible && !isSessionDetailLoading && (
           <div className="session-analysis-flow">
-          <section id="session-settings" className={`analysis-disclosure analysis-block--session-settings ${activeSessionSubpage === "sessionSettings" ? "" : "is-hidden"}`}>
+          <section id="session-settings" className={`analysis-disclosure analysis-block--session-settings ${(activeSessionSubpage === "analysis" || activeSessionSubpage === "sessionSettings" || activeSessionSubpage === "compare") ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('sessionSettings')} aria-expanded={analysisAccordionState.sessionSettings}>
-              <span>{t.sessionProcessingTitle}</span>
+              <span>{t.sessionSettingsTitle}</span>
               <span className="analysis-disclosure__action">{analysisAccordionState.sessionSettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
             </button>
             {analysisAccordionState.sessionSettings && (
@@ -4721,26 +4726,6 @@ export function App() {
             </button>
             {analysisAccordionState.processingSettings && (
             <div className="analysis-disclosure__content">
-            <h3>{t.compareTitle}</h3>
-            <h4>Display settings</h4>
-            <label className="form-label" htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
-            <select className="form-select"
-              id="comparison-mode-selector"
-              value={compareMode}
-              disabled={!selectedSession.summary.hasGpsData}
-              onChange={(event) => setCompareMode(event.target.value as CompareMode)}
-            >
-              <option value="raw">{t.compareModeRaw}</option>
-              <option value="smoothed">{t.compareModeSmoothed}</option>
-            </select>
-            {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
-            <label className="form-label" htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
-            <select className="form-select" id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
-              <option value="km/h">km/h</option>
-              <option value="m/s">m/s</option>
-              <option value="min/km">min/km</option>
-            </select>
-            <p><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</p>
             <label className="form-label" htmlFor="session-filter-selector">{t.filterSelectLabel}</label>
             <select className="form-select"
               id="session-filter-selector"
@@ -4759,6 +4744,35 @@ export function App() {
               <p>{t.filterRecommendationImpact}</p>
               <p>{selectedFilterDescription}</p>
             </div>
+            </div>
+            )}
+          </section>
+
+          <section className={`analysis-disclosure analysis-block--display-settings ${(activeSessionSubpage === "analysis" || activeSessionSubpage === "sessionSettings" || activeSessionSubpage === "compare") ? "" : "is-hidden"}`}>
+            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('displaySettings')} aria-expanded={analysisAccordionState.displaySettings}>
+              <span>{t.sessionDisplaySettingsTitle}</span>
+              <span className="analysis-disclosure__action">{analysisAccordionState.displaySettings ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
+            </button>
+            {analysisAccordionState.displaySettings && (
+            <div className="analysis-disclosure__content">
+            <label className="form-label" htmlFor="comparison-mode-selector">{t.compareModeLabel}</label>
+            <select className="form-select"
+              id="comparison-mode-selector"
+              value={compareMode}
+              disabled={!selectedSession.summary.hasGpsData}
+              onChange={(event) => setCompareMode(event.target.value as CompareMode)}
+            >
+              <option value="raw">{t.compareModeRaw}</option>
+              <option value="smoothed">{t.compareModeSmoothed}</option>
+            </select>
+            {!selectedSession.summary.hasGpsData && <p className="comparison-disabled-hint">{t.compareDisabledNoGps}</p>}
+            <label className="form-label" htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
+            <select className="form-select" id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
+              <option value="km/h">km/h</option>
+              <option value="m/s">m/s</option>
+              <option value="min/km">min/km</option>
+            </select>
+            <p><strong>{t.sessionSpeedUnitSourceLabel}:</strong> {selectedSession.selectedSpeedUnitSource === 'ManualOverride' ? t.speedUnitSourceManualOverride : selectedSession.selectedSpeedUnitSource === 'ProfileRecalculation' ? t.speedUnitSourceProfileRecalculation : t.speedUnitSourceProfileDefault}</p>
             </div>
             )}
           </section>

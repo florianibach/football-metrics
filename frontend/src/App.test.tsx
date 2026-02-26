@@ -735,7 +735,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Raw vs. smoothed comparison')).toBeInTheDocument();
+      expect(screen.getByLabelText('Display mode')).toBeInTheDocument();
     });
 
     expect(screen.getByText(/Data change due to smoothing:/)).toBeInTheDocument();
@@ -851,7 +851,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Raw vs. smoothed comparison')).toBeInTheDocument();
+      expect(screen.getByLabelText('Display mode')).toBeInTheDocument();
     });
 
     expect(screen.getByText(/distance delta 0\.244 m/)).toBeInTheDocument();
@@ -960,7 +960,7 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByText('Raw vs. smoothed comparison')).toBeInTheDocument();
+      expect(screen.getByLabelText('Display mode')).toBeInTheDocument();
     });
 
     expect(screen.getByLabelText('Display mode')).toBeDisabled();
