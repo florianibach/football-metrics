@@ -2391,7 +2391,8 @@ describe('App', () => {
     const heatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
     expect(heatmap.querySelectorAll('.gps-heatmap__cell').length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Track points' }));
+    const heatmapViewToggle = screen.getByRole('group', { name: 'Heatmap view mode' });
+    fireEvent.click(within(heatmapViewToggle).getByRole('button', { name: 'Track points' }));
 
     await waitFor(() => {
       const switchedHeatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
@@ -2399,7 +2400,7 @@ describe('App', () => {
       expect(switchedHeatmap.querySelector('.gps-heatmap__track-line')).not.toBeNull();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Heatmap' }));
+    fireEvent.click(within(heatmapViewToggle).getByRole('button', { name: 'Heatmap' }));
 
     await waitFor(() => {
       const switchedBackHeatmap = screen.getByRole('img', { name: 'GPS point heatmap' });
@@ -3229,7 +3230,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Compare|Vergleich/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/compare'));
 
-    fireEvent.click(screen.getByRole('button', { name: /Analysis|Analyse/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Overview|Übersicht/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
@@ -3287,7 +3288,7 @@ describe('App', () => {
   });
 
 
-  it('R1_7_01_Ac01_displays_session_detail_tabs_and_switches_between_views', async () => {
+  it('R1_7_01_Ac01_uses_side_navigation_and_mobile_dropdown_for_session_views', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
       if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
@@ -3305,20 +3306,23 @@ describe('App', () => {
 
     await screen.findByText('Session details');
 
-    expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Timeline' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Peak Demand' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Segments' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Heatmap' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Overview' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Timeline' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Peak Demand' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Heatmap' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Session settings' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Technical info' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Timeline' }));
+    const mobileNav = screen.getByLabelText('Session navigation');
+    fireEvent.change(mobileNav, { target: { value: 'timeline' } });
     expect(await screen.findByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Peak Demand' }));
-    expect(await screen.findByRole('heading', { name: 'Peak Demand' })).toBeInTheDocument();
+    fireEvent.change(mobileNav, { target: { value: 'sessionSettings' } });
+    expect(await screen.findByText('Session context')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Heatmap' }));
-    expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Technical info' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/technical-info'));
   });
 
 

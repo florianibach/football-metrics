@@ -817,6 +817,13 @@ button:disabled {
   display: none;
 }
 
+
+.mobile-session-nav {
+  display: none;
+  margin: 0.75rem 0;
+}
+
+
 .burger-menu {
   background: #232734;
   color: #e7f8f0;
@@ -849,6 +856,10 @@ button:focus-visible {
     display: flex;
     justify-content: flex-start;
     margin-bottom: 0.75rem;
+  }
+
+  .mobile-session-nav {
+    display: block;
   }
 
   .side-nav {
