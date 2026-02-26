@@ -9,16 +9,16 @@ R1.7 fokussiert auf ein **UI-Rework der Session-Detailseite**: bestehende Metrik
 
 ## Must-have
 
-## Story R1.7-01: Session-Detail als tab-basierte Analysefläche strukturieren
+## Story R1.7-01: Session-Detail als tab-basierte Analysefläche strukturieren ✅ done
 **Als** Nutzer
 **möchte ich** die Session-Detailseite in klar getrennten Bereichen nutzen (Overview, Timeline, Peak Demand, Segments, Heatmap)
 **damit** ich schnell zwischen Überblick und Tiefenanalyse wechseln kann.
 
 ### Acceptance Criteria
-- [ ] Die Session-Detailseite enthält die Tabs `Overview`, `Timeline`, `Peak Demand`, `Segments`, `Heatmap`.
-- [ ] Der Header bleibt tab-übergreifend konstant (Datum, Session-Typ, Gegner optional, Kern-KPIs).
-- [ ] Bereits vorhandene Metriken werden in die neue Struktur überführt (keine fachliche Neuberechnung allein durch das Rework).
-- [ ] Leere/nicht verfügbare Inhalte pro Tab werden konsistent mit bestehenden Availability-Hinweisen dargestellt.
+- [x] Die Session-Detailseite enthält die Tabs `Overview`, `Timeline`, `Peak Demand`, `Segments`, `Heatmap`.
+- [x] Der Header bleibt tab-übergreifend konstant (Datum, Session-Typ, Gegner optional, Kern-KPIs).
+- [x] Bereits vorhandene Metriken werden in die neue Struktur überführt (keine fachliche Neuberechnung allein durch das Rework).
+- [x] Leere/nicht verfügbare Inhalte pro Tab werden konsistent mit bestehenden Availability-Hinweisen dargestellt.
 
 ---
 

@@ -293,6 +293,13 @@ button:disabled {
   margin-bottom: 0.5rem;
 }
 
+.session-analysis-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0 1rem;
+}
+
 .tab-button {
   background: #e4e7ec;
   color: #1d3229;

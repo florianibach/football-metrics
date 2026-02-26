@@ -2707,7 +2707,7 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByText('Overview')).toBeInTheDocument();
+    expect((await screen.findAllByText('Overview')).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/High-intensity runs:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/of which sprint phases:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/of which sprint phase distance:/).length).toBeGreaterThan(0);
@@ -3221,7 +3221,7 @@ describe('App', () => {
 
     await screen.findByText('Session details');
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
-    expect(screen.getByText('Overview')).toBeInTheDocument();
+    expect(screen.getAllByText('Overview').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments'));
@@ -3284,6 +3284,41 @@ describe('App', () => {
       expect(window.location.pathname).toBe('/sessions');
       expect(screen.getByText('Upload history')).toBeInTheDocument();
     });
+  });
+
+
+  it('R1_7_01_Ac01_displays_session_detail_tabs_and_switches_between_views', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+
+    expect(screen.getByRole('tab', { name: 'Overview' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Timeline' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Peak Demand' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Segments' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Heatmap' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Timeline' }));
+    expect(await screen.findByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Peak Demand' }));
+    expect(await screen.findByRole('heading', { name: 'Peak Demand' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Heatmap' }));
+    expect(await screen.findByText('GPS point heatmap')).toBeInTheDocument();
   });
 
 
