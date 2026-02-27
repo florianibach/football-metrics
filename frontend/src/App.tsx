@@ -30,6 +30,12 @@ type FootballCoreMetrics = {
   runningDensityMetersPerMinute: number | null;
   accelerationCount: number | null;
   decelerationCount: number | null;
+  moderateAccelerationCount: number | null;
+  highAccelerationCount: number | null;
+  veryHighAccelerationCount: number | null;
+  moderateDecelerationCount: number | null;
+  highDecelerationCount: number | null;
+  veryHighDecelerationCount: number | null;
   heartRateZoneLowSeconds: number | null;
   heartRateZoneMediumSeconds: number | null;
   heartRateZoneHighSeconds: number | null;
@@ -458,6 +464,8 @@ type TranslationKey =
   | 'metricRunningDensity'
   | 'metricAccelerationCount'
   | 'metricDecelerationCount'
+  | 'metricAccelerationBandsCount'
+  | 'metricDecelerationBandsCount'
   | 'metricHrZoneLow'
   | 'metricHrZoneMedium'
   | 'metricHrZoneHigh'
@@ -499,10 +507,6 @@ type TranslationKey =
   | 'profileDerivedSprintThreshold'
   | 'profileDerivedHighIntensityThreshold'
   | 'sessionThresholdTransparencyTitle'
-  | 'profileThresholdAcceleration'
-  | 'profileThresholdAccelerationMode'
-  | 'profileThresholdDeceleration'
-  | 'profileThresholdDecelerationMode'
   | 'profileAccelBandsTitle'
   | 'profileDecelBandsTitle'
   | 'profileThresholdModerateAccel'
@@ -877,6 +881,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     metricRunningDensity: 'Running density (m/min)',
     metricAccelerationCount: 'Accelerations',
     metricDecelerationCount: 'Decelerations',
+    metricAccelerationBandsCount: 'Accelerations (Moderate/High/Very high)',
+    metricDecelerationBandsCount: 'Decelerations (Moderate/High/Very high)',
     metricHrZoneLow: 'HR zone <70%',
     metricHrZoneMedium: 'HR zone 70-85%',
     metricHrZoneHigh: 'HR zone >85%',
@@ -913,10 +919,6 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdHighIntensityMode: 'High-intensity speed threshold (% of max speed)',
     profileThresholdMaxSpeedMode: 'Max speed mode',
     profileThresholdMaxHeartRateMode: 'Max heartrate mode',
-    profileThresholdAcceleration: 'Acceleration threshold (m/s²)',
-    profileThresholdAccelerationMode: 'Effective max speed (read-only in adaptive mode)',
-    profileThresholdDeceleration: 'Deceleration threshold (m/s²)',
-    profileThresholdDecelerationMode: 'Effective max heartrate (read-only in adaptive mode)',
     profileAccelBandsTitle: 'Acceleration bands (m/s²)',
     profileDecelBandsTitle: 'Deceleration bands (m/s²)',
     profileThresholdModerateAccel: 'Moderate acceleration threshold (>=)',
@@ -1319,10 +1321,6 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdHighIntensityMode: 'High-Intensity-Schwelle (% von Max Speed)',
     profileThresholdMaxSpeedMode: 'Modus Max Speed',
     profileThresholdMaxHeartRateMode: 'Modus Max Heartrate',
-    profileThresholdAcceleration: 'Beschleunigungs-Schwelle (m/s²)',
-    profileThresholdAccelerationMode: 'Effektive Max Speed (read-only bei adaptiv)',
-    profileThresholdDeceleration: 'Verzögerungs-Schwelle (m/s²)',
-    profileThresholdDecelerationMode: 'Effektive Max Heartrate (read-only bei adaptiv)',
     profileAccelBandsTitle: 'Beschleunigungsbänder (m/s²)',
     profileDecelBandsTitle: 'Verzögerungsbänder (m/s²)',
     profileThresholdModerateAccel: 'Moderate Beschleunigungs-Schwelle (>=)',
@@ -1793,6 +1791,14 @@ function formatNumber(value: number | null, locale: Locale, notAvailable: string
 function formatSignedNumber(value: number, locale: Locale, digits = 1): string {
   const sign = value > 0 ? '+' : '';
   return `${sign}${value.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+}
+
+function formatBandTriplet(moderate: number | null | undefined, high: number | null | undefined, veryHigh: number | null | undefined, notAvailable: string): string {
+  if (moderate === null || moderate === undefined || high === null || high === undefined || veryHigh === null || veryHigh === undefined) {
+    return notAvailable;
+  }
+
+  return `${moderate} / ${high} / ${veryHigh}`;
 }
 
 function formatThresholds(thresholds: Record<string, string>): string {
@@ -3851,6 +3857,12 @@ export function App() {
         runningDensityMetersPerMinute: null,
         accelerationCount: null,
         decelerationCount: null,
+        moderateAccelerationCount: null,
+        highAccelerationCount: null,
+        veryHighAccelerationCount: null,
+        moderateDecelerationCount: null,
+        highDecelerationCount: null,
+        veryHighDecelerationCount: null,
         heartRateZoneLowSeconds: null,
         heartRateZoneMediumSeconds: null,
         heartRateZoneHighSeconds: null,
@@ -3939,6 +3951,12 @@ export function App() {
         : (distanceMeters / durationSeconds) * 60,
       accelerationCount: sumMetric('accelerationCount', (metrics) => metrics.accelerationCount, { round: true }),
       decelerationCount: sumMetric('decelerationCount', (metrics) => metrics.decelerationCount, { round: true }),
+      moderateAccelerationCount: sumMetric('moderateAccelerationCount', (metrics) => metrics.moderateAccelerationCount, { round: true }),
+      highAccelerationCount: sumMetric('highAccelerationCount', (metrics) => metrics.highAccelerationCount, { round: true }),
+      veryHighAccelerationCount: sumMetric('veryHighAccelerationCount', (metrics) => metrics.veryHighAccelerationCount, { round: true }),
+      moderateDecelerationCount: sumMetric('moderateDecelerationCount', (metrics) => metrics.moderateDecelerationCount, { round: true }),
+      highDecelerationCount: sumMetric('highDecelerationCount', (metrics) => metrics.highDecelerationCount, { round: true }),
+      veryHighDecelerationCount: sumMetric('veryHighDecelerationCount', (metrics) => metrics.veryHighDecelerationCount, { round: true }),
       heartRateZoneLowSeconds: sumMetric('heartRateZoneLowSeconds', (metrics) => metrics.heartRateZoneLowSeconds),
       heartRateZoneMediumSeconds: sumMetric('heartRateZoneMediumSeconds', (metrics) => metrics.heartRateZoneMediumSeconds),
       heartRateZoneHighSeconds: sumMetric('heartRateZoneHighSeconds', (metrics) => metrics.heartRateZoneHighSeconds),
@@ -4289,146 +4307,132 @@ export function App() {
           </select>
           <p>{t.profilePreferredAggregationWindowHelp}</p>
 
-          <h3>{t.profileThresholdsTitle}</h3>
-          <label className="form-label" htmlFor="profile-threshold-max-speed">Max speed ({profileForm.preferredSpeedUnit})</label>
-          <input className="form-control"
-            id="profile-threshold-max-speed"
-            type="number"
-            step={profileForm.preferredSpeedUnit === "min/km" ? "0.01" : "0.1"}
-            value={displayedMaxSpeedByPreferredUnit.toFixed(profileForm.preferredSpeedUnit === "min/km" ? 2 : 1)}
-            readOnly={profileForm.metricThresholds.maxSpeedMode === 'Adaptive'}
-            onChange={(event) => setProfileForm((current) => ({
-              ...current,
-              metricThresholds: { ...current.metricThresholds, maxSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit) }
-            }))}
-          />
-          <label className="form-label" htmlFor="profile-threshold-sprint-mode">{t.profileThresholdMaxSpeedMode}</label>
-          <select className="form-select"
-            id="profile-threshold-sprint-mode"
-            value={profileForm.metricThresholds.maxSpeedMode}
-            onChange={(event) => setProfileForm((current) => ({
-              ...current,
-              metricThresholds: { ...current.metricThresholds, maxSpeedMode: event.target.value as 'Fixed' | 'Adaptive' }
-            }))}
-          >
-            <option value="Fixed">{t.profileThresholdModeFixed}</option>
-            <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
-          </select>
+          <details className="analysis-disclosure" open>
+            <summary className="analysis-disclosure__toggle"><span>{t.profileThresholdsTitle}</span></summary>
+            <div className="analysis-disclosure__content">
+              <label className="form-label" htmlFor="profile-threshold-max-speed">Max speed ({profileForm.preferredSpeedUnit})</label>
+              <input className="form-control"
+                id="profile-threshold-max-speed"
+                type="number"
+                step={profileForm.preferredSpeedUnit === "min/km" ? "0.01" : "0.1"}
+                value={displayedMaxSpeedByPreferredUnit.toFixed(profileForm.preferredSpeedUnit === "min/km" ? 2 : 1)}
+                readOnly={profileForm.metricThresholds.maxSpeedMode === 'Adaptive'}
+                onChange={(event) => setProfileForm((current) => ({
+                  ...current,
+                  metricThresholds: { ...current.metricThresholds, maxSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit) }
+                }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-sprint-mode">{t.profileThresholdMaxSpeedMode}</label>
+              <select className="form-select"
+                id="profile-threshold-sprint-mode"
+                value={profileForm.metricThresholds.maxSpeedMode}
+                onChange={(event) => setProfileForm((current) => ({
+                  ...current,
+                  metricThresholds: { ...current.metricThresholds, maxSpeedMode: event.target.value as 'Fixed' | 'Adaptive' }
+                }))}
+              >
+                <option value="Fixed">{t.profileThresholdModeFixed}</option>
+                <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
+              </select>
 
-          <label className="form-label" htmlFor="profile-threshold-max-heartrate">Max heartrate (bpm)</label>
-          <input className="form-control"
-            id="profile-threshold-max-heartrate"
-            type="number"
-            step="1"
-            value={displayedMaxHeartRateBpm}
-            readOnly={profileForm.metricThresholds.maxHeartRateMode === 'Adaptive'}
-            onChange={(event) => setProfileForm((current) => ({
-              ...current,
-              metricThresholds: { ...current.metricThresholds, maxHeartRateBpm: Number(event.target.value) }
-            }))}
-          />
-          <label className="form-label" htmlFor="profile-threshold-high-intensity-mode">{t.profileThresholdMaxHeartRateMode}</label>
-          <select className="form-select"
-            id="profile-threshold-high-intensity-mode"
-            value={profileForm.metricThresholds.maxHeartRateMode}
-            onChange={(event) => setProfileForm((current) => ({
-              ...current,
-              metricThresholds: { ...current.metricThresholds, maxHeartRateMode: event.target.value as 'Fixed' | 'Adaptive' }
-            }))}
-          >
-            <option value="Fixed">{t.profileThresholdModeFixed}</option>
-            <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
-          </select>
+              <label className="form-label" htmlFor="profile-threshold-max-heartrate">Max heartrate (bpm)</label>
+              <input className="form-control"
+                id="profile-threshold-max-heartrate"
+                type="number"
+                step="1"
+                value={displayedMaxHeartRateBpm}
+                readOnly={profileForm.metricThresholds.maxHeartRateMode === 'Adaptive'}
+                onChange={(event) => setProfileForm((current) => ({
+                  ...current,
+                  metricThresholds: { ...current.metricThresholds, maxHeartRateBpm: Number(event.target.value) }
+                }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-high-intensity-mode">{t.profileThresholdMaxHeartRateMode}</label>
+              <select className="form-select"
+                id="profile-threshold-high-intensity-mode"
+                value={profileForm.metricThresholds.maxHeartRateMode}
+                onChange={(event) => setProfileForm((current) => ({
+                  ...current,
+                  metricThresholds: { ...current.metricThresholds, maxHeartRateMode: event.target.value as 'Fixed' | 'Adaptive' }
+                }))}
+              >
+                <option value="Fixed">{t.profileThresholdModeFixed}</option>
+                <option value="Adaptive">{t.profileThresholdModeAdaptive}</option>
+              </select>
 
-          <label className="form-label" htmlFor="profile-threshold-sprint">{t.profileThresholdSprint}</label>
-          <input className="form-control"
-            id="profile-threshold-sprint"
-            type="number"
-            step="0.1"
-            value={profileForm.metricThresholds.sprintSpeedPercentOfMaxSpeed}
-            onChange={(event) => setProfileForm((current) => ({
-              ...current,
-              metricThresholds: { ...current.metricThresholds, sprintSpeedPercentOfMaxSpeed: Number(event.target.value) }
-            }))}
-          />
-          <p>{t.profileDerivedSprintThreshold}: {formatSpeed(sprintThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
-          <label className="form-label" htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
-          <input className="form-control"
-            id="profile-threshold-high-intensity"
-            type="number"
-            step="0.1"
-            value={profileForm.metricThresholds.highIntensitySpeedPercentOfMaxSpeed}
-            onChange={(event) => setProfileForm((current) => ({
-              ...current,
-              metricThresholds: { ...current.metricThresholds, highIntensitySpeedPercentOfMaxSpeed: Number(event.target.value) }
-            }))}
-          />
-          <p>{t.profileDerivedHighIntensityThreshold}: {formatSpeed(highIntensityThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
-          <label className="form-label" htmlFor="profile-threshold-acceleration">{t.profileThresholdAcceleration}</label>
-          <input className="form-control"
-            id="profile-threshold-acceleration"
-            type="number"
-            step="0.1"
-            value={profileForm.metricThresholds.accelerationThresholdMps2}
-            onChange={(event) => setProfileForm((current) => ({
-              ...current,
-              metricThresholds: { ...current.metricThresholds, accelerationThresholdMps2: Number(event.target.value) }
-            }))}
-          />
-          <label className="form-label" htmlFor="profile-threshold-deceleration">{t.profileThresholdDeceleration}</label>
-          <input className="form-control"
-            id="profile-threshold-deceleration"
-            type="number"
-            step="0.1"
-            value={profileForm.metricThresholds.decelerationThresholdMps2}
-            onChange={(event) => setProfileForm((current) => ({
-              ...current,
-              metricThresholds: { ...current.metricThresholds, decelerationThresholdMps2: Number(event.target.value) }
-            }))}
-          />
+              <label className="form-label" htmlFor="profile-threshold-sprint">{t.profileThresholdSprint}</label>
+              <input className="form-control"
+                id="profile-threshold-sprint"
+                type="number"
+                step="0.1"
+                value={profileForm.metricThresholds.sprintSpeedPercentOfMaxSpeed}
+                onChange={(event) => setProfileForm((current) => ({
+                  ...current,
+                  metricThresholds: { ...current.metricThresholds, sprintSpeedPercentOfMaxSpeed: Number(event.target.value) }
+                }))}
+              />
+              <p>{t.profileDerivedSprintThreshold}: {formatSpeed(sprintThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
+              <label className="form-label" htmlFor="profile-threshold-high-intensity">{t.profileThresholdHighIntensity}</label>
+              <input className="form-control"
+                id="profile-threshold-high-intensity"
+                type="number"
+                step="0.1"
+                value={profileForm.metricThresholds.highIntensitySpeedPercentOfMaxSpeed}
+                onChange={(event) => setProfileForm((current) => ({
+                  ...current,
+                  metricThresholds: { ...current.metricThresholds, highIntensitySpeedPercentOfMaxSpeed: Number(event.target.value) }
+                }))}
+              />
+              <p>{t.profileDerivedHighIntensityThreshold}: {formatSpeed(highIntensityThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
+            </div>
+          </details>
 
-          <h3>{t.profileAccelBandsTitle}</h3>
-          <label className="form-label" htmlFor="profile-threshold-accel-moderate">{t.profileThresholdModerateAccel}</label>
-          <input className="form-control" id="profile-threshold-accel-moderate" type="number" step="0.1" value={profileForm.metricThresholds.moderateAccelerationThresholdMps2}
-            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, moderateAccelerationThresholdMps2: Number(event.target.value) } }))}
-          />
-          <label className="form-label" htmlFor="profile-threshold-accel-high">{t.profileThresholdHighAccel}</label>
-          <input className="form-control" id="profile-threshold-accel-high" type="number" step="0.1" value={profileForm.metricThresholds.highAccelerationThresholdMps2}
-            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, highAccelerationThresholdMps2: Number(event.target.value) } }))}
-          />
-          <label className="form-label" htmlFor="profile-threshold-accel-veryhigh">{t.profileThresholdVeryHighAccel}</label>
-          <input className="form-control" id="profile-threshold-accel-veryhigh" type="number" step="0.1" value={profileForm.metricThresholds.veryHighAccelerationThresholdMps2}
-            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, veryHighAccelerationThresholdMps2: Number(event.target.value) } }))}
-          />
+          <details className="analysis-disclosure" open>
+            <summary className="analysis-disclosure__toggle"><span>{t.profileAccelBandsTitle}</span></summary>
+            <div className="analysis-disclosure__content">
+              <label className="form-label" htmlFor="profile-threshold-accel-moderate">{t.profileThresholdModerateAccel}</label>
+              <input className="form-control" id="profile-threshold-accel-moderate" type="number" step="0.1" value={profileForm.metricThresholds.moderateAccelerationThresholdMps2}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, moderateAccelerationThresholdMps2: Number(event.target.value) } }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-accel-high">{t.profileThresholdHighAccel}</label>
+              <input className="form-control" id="profile-threshold-accel-high" type="number" step="0.1" value={profileForm.metricThresholds.highAccelerationThresholdMps2}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, highAccelerationThresholdMps2: Number(event.target.value) } }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-accel-veryhigh">{t.profileThresholdVeryHighAccel}</label>
+              <input className="form-control" id="profile-threshold-accel-veryhigh" type="number" step="0.1" value={profileForm.metricThresholds.veryHighAccelerationThresholdMps2}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, veryHighAccelerationThresholdMps2: Number(event.target.value) } }))}
+              />
 
-          <h3>{t.profileDecelBandsTitle}</h3>
-          <label className="form-label" htmlFor="profile-threshold-decel-moderate">{t.profileThresholdModerateDecel}</label>
-          <input className="form-control" id="profile-threshold-decel-moderate" type="number" step="0.1" value={profileForm.metricThresholds.moderateDecelerationThresholdMps2}
-            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, moderateDecelerationThresholdMps2: Number(event.target.value) } }))}
-          />
-          <label className="form-label" htmlFor="profile-threshold-decel-high">{t.profileThresholdHighDecel}</label>
-          <input className="form-control" id="profile-threshold-decel-high" type="number" step="0.1" value={profileForm.metricThresholds.highDecelerationThresholdMps2}
-            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, highDecelerationThresholdMps2: Number(event.target.value) } }))}
-          />
-          <label className="form-label" htmlFor="profile-threshold-decel-veryhigh">{t.profileThresholdVeryHighDecel}</label>
-          <input className="form-control" id="profile-threshold-decel-veryhigh" type="number" step="0.1" value={profileForm.metricThresholds.veryHighDecelerationThresholdMps2}
-            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, veryHighDecelerationThresholdMps2: Number(event.target.value) } }))}
-          />
+              <h3>{t.profileDecelBandsTitle}</h3>
+              <label className="form-label" htmlFor="profile-threshold-decel-moderate">{t.profileThresholdModerateDecel}</label>
+              <input className="form-control" id="profile-threshold-decel-moderate" type="number" step="0.1" value={profileForm.metricThresholds.moderateDecelerationThresholdMps2}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, moderateDecelerationThresholdMps2: Number(event.target.value) } }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-decel-high">{t.profileThresholdHighDecel}</label>
+              <input className="form-control" id="profile-threshold-decel-high" type="number" step="0.1" value={profileForm.metricThresholds.highDecelerationThresholdMps2}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, highDecelerationThresholdMps2: Number(event.target.value) } }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-decel-veryhigh">{t.profileThresholdVeryHighDecel}</label>
+              <input className="form-control" id="profile-threshold-decel-veryhigh" type="number" step="0.1" value={profileForm.metricThresholds.veryHighDecelerationThresholdMps2}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, veryHighDecelerationThresholdMps2: Number(event.target.value) } }))}
+              />
 
-          <label className="form-label" htmlFor="profile-threshold-accel-decel-min-speed">{t.profileThresholdAccelDecelMinSpeed} ({profileForm.preferredSpeedUnit})</label>
-          <input className="form-control"
-            id="profile-threshold-accel-decel-min-speed"
-            type="number"
-            step={profileForm.preferredSpeedUnit === "min/km" ? "0.01" : "0.1"}
-            value={displayedAccelDecelMinSpeedByPreferredUnit.toFixed(profileForm.preferredSpeedUnit === "min/km" ? 2 : 1)}
-            onChange={(event) => setProfileForm((current) => ({
-              ...current,
-              metricThresholds: {
-                ...current.metricThresholds,
-                accelDecelMinimumSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit)
-              }
-            }))}
-          />
+              <label className="form-label" htmlFor="profile-threshold-accel-decel-min-speed">{t.profileThresholdAccelDecelMinSpeed} ({profileForm.preferredSpeedUnit})</label>
+              <input className="form-control"
+                id="profile-threshold-accel-decel-min-speed"
+                type="number"
+                step={profileForm.preferredSpeedUnit === "min/km" ? "0.01" : "0.1"}
+                value={displayedAccelDecelMinSpeedByPreferredUnit.toFixed(profileForm.preferredSpeedUnit === "min/km" ? 2 : 1)}
+                onChange={(event) => setProfileForm((current) => ({
+                  ...current,
+                  metricThresholds: {
+                    ...current.metricThresholds,
+                    accelDecelMinimumSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit)
+                  }
+                }))}
+              />
+            </div>
+          </details>
 
           <p>{t.profileEffectiveMaxSpeed}: {formatSpeed(profileForm.metricThresholds.effectiveMaxSpeedMps, profileForm.preferredSpeedUnit, t.notAvailable)} ({profileForm.metricThresholds.maxSpeedMode})</p>
           <p>{t.profileEffectiveMaxHeartRate}: {profileForm.metricThresholds.effectiveMaxHeartRateBpm} bpm ({profileForm.metricThresholds.maxHeartRateMode})</p>
@@ -5156,8 +5160,8 @@ export function App() {
                     <ul className="metrics-list list-group">
                       {activeDataMode !== 'HeartRateOnly' && (
                         <>
-                          <MetricListItem label={t.metricAccelerationCount} value={withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
-                          <MetricListItem label={t.metricDecelerationCount} value={withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
+                          <MetricListItem label={t.metricAccelerationBandsCount} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateAccelerationCount, displayedCoreMetrics.highAccelerationCount, displayedCoreMetrics.veryHighAccelerationCount, t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
+                          <MetricListItem label={t.metricDecelerationBandsCount} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDecelerationCount, displayedCoreMetrics.highDecelerationCount, displayedCoreMetrics.veryHighDecelerationCount, t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
                           <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
                         </>
                       )}
