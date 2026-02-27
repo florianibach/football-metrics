@@ -775,7 +775,7 @@ describe('App', () => {
 
     expect(screen.getByText(/Data change due to smoothing:/)).toBeInTheDocument();
     expect(screen.getByText(/4.0% corrected points \(1\/25\), distance delta 100(\.000)? m/)).toBeInTheDocument();
-    expect(screen.getByText(/High intensity directory changes \(Moderate\/High\/Very high\):/)).toBeInTheDocument();
+    expect(screen.getAllByText(/High intensity directory changes \(Moderate\/High\/Very high\):/).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Display mode'), { target: { value: 'raw' } });
 
     expect(screen.getByText(/5.200 km \(5,200(\.0)? m\)/)).toBeInTheDocument();
@@ -1124,7 +1124,7 @@ describe('App', () => {
       expect(screen.getByText('Session details')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Not measured: GPS coordinates were not recorded/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Not measured: GPS coordinates were not recorded/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Measurement unusable: GPS measurements are present/).length).toBeGreaterThan(0);
   });
 
@@ -1875,13 +1875,13 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
 
     const volumeSection = screen.getByRole('button', { name: /Volume/ }).closest('section') as HTMLElement;
-    expect(within(volumeSection).getByText('Duration:')).toBeInTheDocument();
+    expect(within(volumeSection).getByRole('article', { name: 'Duration' })).toBeInTheDocument();
 
     const mechanicalSection = screen.getByRole('button', { name: /Mechanical/ }).closest('section') as HTMLElement;
-    expect(within(mechanicalSection).getByText('High intensity directory changes (Moderate/High/Very high):')).toBeInTheDocument();
+    expect(within(mechanicalSection).getByRole('article', { name: 'Load Summary' })).toBeInTheDocument();
 
     const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
-    expect(within(internalSection).getByText('Heart rate (min/avg/max):')).toBeInTheDocument();
+    expect(within(internalSection).getByRole('article', { name: 'Heart Rate' })).toBeInTheDocument();
 
   });
 
