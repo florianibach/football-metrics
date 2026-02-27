@@ -3258,11 +3258,16 @@ export function App() {
       .map((point) => point.elapsedSeconds)
       .filter((value): value is number => value !== null);
 
-    const fallbackEndSecond = selectedSession.summary.durationSeconds
-      ?? (elapsedSeconds.length > 0 ? Math.max(...elapsedSeconds) : 0);
+    const durationEndSecond = selectedSession.summary.durationSeconds ?? 0;
+    const maxElapsedSecond = elapsedSeconds.length > 0 ? Math.max(...elapsedSeconds) : 0;
+    const fallbackEndSecond = Math.max(durationEndSecond, maxElapsedSecond);
 
     return { startSecond: 0, endSecond: Math.max(0, fallbackEndSecond) };
   }, [selectedSession, isSegmentScopeActive, selectedSegment]);
+
+  const normalizedGpsTrackpoints = useMemo(() => (selectedSession?.summary.gpsTrackpoints ?? [])
+    .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+    .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds), [selectedSession]);
 
   const analysisTrackpointSelection = useMemo(() => {
     if (!selectedSession) {
@@ -3272,16 +3277,15 @@ export function App() {
       };
     }
 
-    const allPoints = selectedSession.summary.gpsTrackpoints ?? [];
     const pointIndexToAnalysisIndex = new Map<number, number>();
     const points: GpsTrackpoint[] = [];
 
-    allPoints.forEach((point, pointIndex) => {
-      if (point.elapsedSeconds === null) {
-        return;
-      }
-
-      if (point.elapsedSeconds < analysisTimeRange.startSecond || point.elapsedSeconds > analysisTimeRange.endSecond) {
+    normalizedGpsTrackpoints.forEach((point, pointIndex) => {
+      const isBeforeRange = point.elapsedSeconds < analysisTimeRange.startSecond;
+      const isAfterOrAtEnd = isSegmentScopeActive
+        ? point.elapsedSeconds >= analysisTimeRange.endSecond
+        : point.elapsedSeconds > analysisTimeRange.endSecond;
+      if (isBeforeRange || isAfterOrAtEnd) {
         return;
       }
 
@@ -3293,7 +3297,7 @@ export function App() {
       points,
       pointIndexToAnalysisIndex
     };
-  }, [selectedSession, analysisTimeRange]);
+  }, [selectedSession, analysisTimeRange, normalizedGpsTrackpoints]);
 
   const selectedGpsTrackpoints = analysisTrackpointSelection.points;
 
@@ -3307,11 +3311,38 @@ export function App() {
       return [] as DetectedRun[];
     }
 
+    const isPointInActiveAnalysisRange = (pointIndex: number) => analysisTrackpointSelection.pointIndexToAnalysisIndex.has(pointIndex);
+    const pointElapsedByIndex = (pointIndex: number) => normalizedGpsTrackpoints[pointIndex]?.elapsedSeconds;
+
+    const isRunOwnedByActiveSegment = (run: DetectedRun) => {
+      if (!isSegmentScopeActive || !selectedSegment) {
+        return true;
+      }
+
+      const earliestPointElapsed = run.pointIndices
+        .map((pointIndex) => pointElapsedByIndex(pointIndex))
+        .filter((elapsed): elapsed is number => Number.isFinite(elapsed))
+        .sort((a, b) => a - b)[0];
+
+      if (Number.isFinite(earliestPointElapsed)) {
+        return earliestPointElapsed >= selectedSegment.startSecond
+          && earliestPointElapsed < selectedSegment.endSecond;
+      }
+
+      if (Number.isFinite(run.startElapsedSeconds)) {
+        return run.startElapsedSeconds >= selectedSegment.startSecond
+          && run.startElapsedSeconds < selectedSegment.endSecond;
+      }
+
+      return false;
+    };
+
     const remapPointIndices = (indices: number[]) => indices
       .map((index) => analysisTrackpointSelection.pointIndexToAnalysisIndex.get(index))
       .filter((index): index is number => index !== undefined);
 
     return detectedRuns
+      .filter((run) => isRunOwnedByActiveSegment(run))
       .map((run) => {
         const remappedPointIndices = remapPointIndices(run.pointIndices);
         if (remappedPointIndices.length === 0) {
@@ -3320,6 +3351,36 @@ export function App() {
 
         const remappedSprintPhases = (run.sprintPhases ?? [])
           .map((phase) => {
+            if (isSegmentScopeActive && selectedSegment) {
+              const earliestPhasePointElapsed = phase.pointIndices
+                .map((pointIndex) => pointElapsedByIndex(pointIndex))
+                .filter((elapsed): elapsed is number => Number.isFinite(elapsed))
+                .sort((a, b) => a - b)[0];
+
+              if (Number.isFinite(earliestPhasePointElapsed)) {
+                const isPhaseOwnedBySegment = earliestPhasePointElapsed >= selectedSegment.startSecond
+                  && earliestPhasePointElapsed < selectedSegment.endSecond;
+                if (!isPhaseOwnedBySegment) {
+                  return null;
+                }
+              } else if (Number.isFinite(phase.startElapsedSeconds)) {
+                const isPhaseOwnedBySegment = phase.startElapsedSeconds >= selectedSegment.startSecond
+                  && phase.startElapsedSeconds < selectedSegment.endSecond;
+                if (!isPhaseOwnedBySegment) {
+                  return null;
+                }
+              } else {
+                if (phase.pointIndices.length === 0) {
+                  return null;
+                }
+
+                const earliestPhasePointIndex = Math.min(...phase.pointIndices);
+                if (!isPointInActiveAnalysisRange(earliestPhasePointIndex)) {
+                  return null;
+                }
+              }
+            }
+
             const remappedPhaseIndices = remapPointIndices(phase.pointIndices);
             if (remappedPhaseIndices.length === 0) {
               return null;
@@ -3339,7 +3400,89 @@ export function App() {
         } satisfies DetectedRun;
       })
       .filter((run): run is DetectedRun => run !== null);
-  }, [selectedSession, analysisTrackpointSelection]);
+  }, [selectedSession, analysisTrackpointSelection, isSegmentScopeActive, selectedSegment, normalizedGpsTrackpoints]);
+
+
+  const segmentRunDerivedMetrics = useMemo(() => {
+    if (!isSegmentScopeActive) {
+      return null;
+    }
+
+    const highIntensityRuns = selectedDetectedRuns.filter((run) => run.runType === 'highIntensity');
+    const sprintPhases = highIntensityRuns.flatMap((run) => run.sprintPhases ?? []);
+
+    return {
+      highIntensityRunCount: highIntensityRuns.length,
+      highIntensityTimeSeconds: highIntensityRuns.reduce((sum, run) => sum + Math.max(0, run.durationSeconds), 0),
+      highSpeedDistanceMeters: highIntensityRuns.reduce((sum, run) => sum + run.distanceMeters, 0),
+      sprintCount: sprintPhases.length,
+      sprintDistanceMeters: sprintPhases.reduce((sum, phase) => sum + phase.distanceMeters, 0)
+    };
+  }, [isSegmentScopeActive, selectedDetectedRuns]);
+
+
+  const segmentSpeedDerivedMetrics = useMemo(() => {
+    if (!isSegmentScopeActive || !selectedSession) {
+      return null;
+    }
+
+    const orderedPoints = selectedGpsTrackpoints
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+
+    if (orderedPoints.length < 2) {
+      return {
+        maxSpeedMetersPerSecond: null,
+        highIntensityTimeSeconds: segmentRunDerivedMetrics?.highIntensityTimeSeconds ?? null,
+        highSpeedDistanceMeters: segmentRunDerivedMetrics?.highSpeedDistanceMeters ?? null
+      };
+    }
+
+    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+    const distanceMetersBetween = (first: GpsTrackpoint, second: GpsTrackpoint) => {
+      const dLat = toRadians(second.latitude - first.latitude);
+      const dLon = toRadians(second.longitude - first.longitude);
+      const lat1 = toRadians(first.latitude);
+      const lat2 = toRadians(second.latitude);
+      const a = (Math.sin(dLat / 2) ** 2)
+        + (Math.cos(lat1) * Math.cos(lat2) * (Math.sin(dLon / 2) ** 2));
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return 6371000 * c;
+    };
+
+    let maxSpeedMetersPerSecond = 0;
+    let highIntensityTimeSeconds = 0;
+    let highSpeedDistanceMeters = 0;
+    const highIntensityThresholdRaw = selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps;
+    const parsedHighIntensityThreshold = highIntensityThresholdRaw ? Number(highIntensityThresholdRaw) : Number.NaN;
+    const highIntensityThresholdMps = Number.isFinite(parsedHighIntensityThreshold) ? parsedHighIntensityThreshold : null;
+
+    for (let index = 1; index < orderedPoints.length; index += 1) {
+      const previous = orderedPoints[index - 1];
+      const current = orderedPoints[index];
+      const elapsed = current.elapsedSeconds - previous.elapsedSeconds;
+      if (elapsed <= 0) {
+        continue;
+      }
+
+      const distanceMeters = distanceMetersBetween(previous, current);
+      const speedMetersPerSecond = distanceMeters / elapsed;
+      if (speedMetersPerSecond > maxSpeedMetersPerSecond) {
+        maxSpeedMetersPerSecond = speedMetersPerSecond;
+      }
+
+      if (highIntensityThresholdMps !== null && speedMetersPerSecond >= highIntensityThresholdMps) {
+        highIntensityTimeSeconds += elapsed;
+        highSpeedDistanceMeters += distanceMeters;
+      }
+    }
+
+    return {
+      maxSpeedMetersPerSecond: maxSpeedMetersPerSecond > 0 ? maxSpeedMetersPerSecond : null,
+      highIntensityTimeSeconds,
+      highSpeedDistanceMeters
+    };
+  }, [isSegmentScopeActive, selectedSession, selectedGpsTrackpoints, segmentRunDerivedMetrics]);
 
   const dataChangeMetric = selectedSession
     ? (() => {
@@ -3575,23 +3718,40 @@ export function App() {
       .sort((a, b) => a.windowIndex - b.windowIndex);
   }, [selectedSession, aggregationWindowMinutes]);
 
-  const selectedAnalysisAggregates = useMemo(() => {
+  const selectedAnalysisAggregateSlices = useMemo(() => {
     if (!isSegmentScopeActive || !selectedSegment) {
-      return selectedSessionAggregates;
+      return selectedSessionAggregates.map((aggregate) => ({
+        aggregate,
+        overlapSeconds: Math.max(0, aggregate.windowDurationSeconds)
+      }));
     }
 
-    return selectedSessionAggregates.filter((aggregate) => {
-      const windowStart = new Date(aggregate.windowStartUtc).getTime();
-      const activityStart = selectedSession?.summary.activityStartTimeUtc ? new Date(selectedSession.summary.activityStartTimeUtc).getTime() : Number.NaN;
-      if (!Number.isFinite(windowStart) || !Number.isFinite(activityStart)) {
-        return true;
-      }
+    const activityStart = selectedSession?.summary.activityStartTimeUtc ? new Date(selectedSession.summary.activityStartTimeUtc).getTime() : Number.NaN;
 
-      const offsetSeconds = (windowStart - activityStart) / 1000;
-      const windowEnd = offsetSeconds + aggregate.windowDurationSeconds;
-      return offsetSeconds < selectedSegment.endSecond && windowEnd > selectedSegment.startSecond;
-    });
+    return selectedSessionAggregates
+      .map((aggregate) => {
+        const windowStart = new Date(aggregate.windowStartUtc).getTime();
+        if (!Number.isFinite(windowStart) || !Number.isFinite(activityStart)) {
+          return {
+            aggregate,
+            overlapSeconds: Math.max(0, aggregate.windowDurationSeconds)
+          };
+        }
+
+        const offsetSeconds = (windowStart - activityStart) / 1000;
+        const windowEnd = offsetSeconds + aggregate.windowDurationSeconds;
+        const overlapStart = Math.max(offsetSeconds, selectedSegment.startSecond);
+        const overlapEnd = Math.min(windowEnd, selectedSegment.endSecond);
+
+        return {
+          aggregate,
+          overlapSeconds: Math.max(0, overlapEnd - overlapStart)
+        };
+      })
+      .filter((slice) => slice.overlapSeconds > 0);
   }, [isSegmentScopeActive, selectedSegment, selectedSessionAggregates, selectedSession?.summary.activityStartTimeUtc]);
+
+  const selectedAnalysisAggregates = useMemo(() => selectedAnalysisAggregateSlices.map((slice) => slice.aggregate), [selectedAnalysisAggregateSlices]);
 
   const displayedCoreMetrics = useMemo(() => {
     // Backend delivers a single session summary + interval aggregates.
@@ -3605,7 +3765,8 @@ export function App() {
       return selectedSession.summary.coreMetrics;
     }
 
-    const source = selectedAnalysisAggregates;
+    const sourceSlices = selectedAnalysisAggregateSlices;
+    const source = sourceSlices.map((slice) => slice.aggregate);
     const durationSeconds = selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : 1;
     const sourceMetricAvailability = source.map((item) => item.coreMetrics.metricAvailability ?? {});
     const baseMetricAvailability = selectedSession.summary.coreMetrics.metricAvailability ?? {};
@@ -3632,12 +3793,22 @@ export function App() {
       return accumulator;
     }, {});
 
-    const sumMetric = (metricKey: string, getter: (metrics: FootballCoreMetrics) => number | null): number | null => {
+    const sumMetric = (
+      metricKey: string,
+      getter: (metrics: FootballCoreMetrics) => number | null,
+      options?: { round?: boolean }
+    ): number | null => {
       if (!isMetricAvailableForAggregation(combinedMetricAvailability, metricKey)) {
         return null;
       }
 
-      return source.reduce((sum, item) => sum + (getter(item.coreMetrics) ?? 0), 0);
+      const weightedSum = sourceSlices.reduce((sum, slice) => {
+        const windowDuration = Math.max(1, slice.aggregate.windowDurationSeconds);
+        const overlapFactor = Math.min(1, Math.max(0, slice.overlapSeconds / windowDuration));
+        return sum + ((getter(slice.aggregate.coreMetrics) ?? 0) * overlapFactor);
+      }, 0);
+
+      return options?.round ? Math.round(weightedSum) : weightedSum;
     };
 
     const maxMetric = (metricKey: string, getter: (metrics: FootballCoreMetrics) => number | null): number | null => {
@@ -3654,17 +3825,25 @@ export function App() {
       ...selectedSession.summary.coreMetrics,
       metricAvailability: combinedMetricAvailability,
       distanceMeters,
-      sprintDistanceMeters: sumMetric('sprintDistanceMeters', (metrics) => metrics.sprintDistanceMeters),
-      sprintCount: sumMetric('sprintCount', (metrics) => metrics.sprintCount),
-      maxSpeedMetersPerSecond: maxMetric('maxSpeedMetersPerSecond', (metrics) => metrics.maxSpeedMetersPerSecond),
-      highIntensityTimeSeconds: sumMetric('highIntensityTimeSeconds', (metrics) => metrics.highIntensityTimeSeconds),
-      highIntensityRunCount: sumMetric('highIntensityRunCount', (metrics) => metrics.highIntensityRunCount),
-      highSpeedDistanceMeters: sumMetric('highSpeedDistanceMeters', (metrics) => metrics.highSpeedDistanceMeters),
+      sprintDistanceMeters: segmentRunDerivedMetrics?.sprintDistanceMeters ?? sumMetric('sprintDistanceMeters', (metrics) => metrics.sprintDistanceMeters),
+      sprintCount: segmentRunDerivedMetrics?.sprintCount ?? sumMetric('sprintCount', (metrics) => metrics.sprintCount, { round: true }),
+      maxSpeedMetersPerSecond: !isMetricAvailableForAggregation(combinedMetricAvailability, 'maxSpeedMetersPerSecond')
+        ? null
+        : (segmentSpeedDerivedMetrics?.maxSpeedMetersPerSecond ?? maxMetric('maxSpeedMetersPerSecond', (metrics) => metrics.maxSpeedMetersPerSecond)),
+      highIntensityTimeSeconds: !isMetricAvailableForAggregation(combinedMetricAvailability, 'highIntensityTimeSeconds')
+        ? null
+        : (segmentSpeedDerivedMetrics?.highIntensityTimeSeconds ?? segmentRunDerivedMetrics?.highIntensityTimeSeconds ?? sumMetric('highIntensityTimeSeconds', (metrics) => metrics.highIntensityTimeSeconds)),
+      highIntensityRunCount: !isMetricAvailableForAggregation(combinedMetricAvailability, 'highIntensityRunCount')
+        ? null
+        : (segmentRunDerivedMetrics?.highIntensityRunCount ?? sumMetric('highIntensityRunCount', (metrics) => metrics.highIntensityRunCount, { round: true })),
+      highSpeedDistanceMeters: !isMetricAvailableForAggregation(combinedMetricAvailability, 'highSpeedDistanceMeters')
+        ? null
+        : (segmentSpeedDerivedMetrics?.highSpeedDistanceMeters ?? segmentRunDerivedMetrics?.highSpeedDistanceMeters ?? sumMetric('highSpeedDistanceMeters', (metrics) => metrics.highSpeedDistanceMeters)),
       runningDensityMetersPerMinute: distanceMeters === null || !isMetricAvailableForAggregation(combinedMetricAvailability, 'runningDensityMetersPerMinute')
         ? null
         : (distanceMeters / durationSeconds) * 60,
-      accelerationCount: sumMetric('accelerationCount', (metrics) => metrics.accelerationCount),
-      decelerationCount: sumMetric('decelerationCount', (metrics) => metrics.decelerationCount),
+      accelerationCount: sumMetric('accelerationCount', (metrics) => metrics.accelerationCount, { round: true }),
+      decelerationCount: sumMetric('decelerationCount', (metrics) => metrics.decelerationCount, { round: true }),
       heartRateZoneLowSeconds: sumMetric('heartRateZoneLowSeconds', (metrics) => metrics.heartRateZoneLowSeconds),
       heartRateZoneMediumSeconds: sumMetric('heartRateZoneMediumSeconds', (metrics) => metrics.heartRateZoneMediumSeconds),
       heartRateZoneHighSeconds: sumMetric('heartRateZoneHighSeconds', (metrics) => metrics.heartRateZoneHighSeconds),
@@ -3682,7 +3861,7 @@ export function App() {
             return null;
           })()
     } satisfies FootballCoreMetrics;
-  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedSegment]);
+  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics, segmentSpeedDerivedMetrics]);
 
   const detectedRunHierarchySummary = useMemo(() => {
     if (!selectedSession) {
