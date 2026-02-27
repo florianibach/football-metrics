@@ -28,6 +28,10 @@ describe('App', () => {
       moderateDecelerationCount: 7,
       highDecelerationCount: 4,
       veryHighDecelerationCount: 2,
+      directionChanges: 9,
+      moderateDirectionChangeCount: 5,
+      highDirectionChangeCount: 3,
+      veryHighDirectionChangeCount: 1,
       heartRateZoneLowSeconds: 180,
       heartRateZoneMediumSeconds: 900,
       heartRateZoneHighSeconds: 720,
@@ -50,6 +54,10 @@ describe('App', () => {
         moderateDecelerationCount: { state: 'Available', reason: null },
         highDecelerationCount: { state: 'Available', reason: null },
         veryHighDecelerationCount: { state: 'Available', reason: null },
+        directionChanges: { state: 'Available', reason: null },
+        moderateDirectionChangeCount: { state: 'Available', reason: null },
+        highDirectionChangeCount: { state: 'Available', reason: null },
+        veryHighDirectionChangeCount: { state: 'Available', reason: null },
         heartRateZoneLowSeconds: { state: 'Available', reason: null },
         heartRateZoneMediumSeconds: { state: 'Available', reason: null },
         heartRateZoneHighSeconds: { state: 'Available', reason: null },
@@ -184,6 +192,11 @@ describe('App', () => {
       highDecelerationThresholdMps2: -1.8,
       veryHighDecelerationThresholdMps2: -2.5,
       accelDecelMinimumSpeedMps: 10 / 3.6,
+      codModerateThresholdDegrees: 45,
+      codHighThresholdDegrees: 60,
+      codVeryHighThresholdDegrees: 90,
+      codMinimumSpeedMps: 10 / 3.6,
+      codConsecutiveSamplesRequired: 2,
       effectiveMaxSpeedMps: 8.0,
       effectiveMaxHeartRateBpm: 190,
       version: 1,
@@ -762,13 +775,10 @@ describe('App', () => {
 
     expect(screen.getByText(/Data change due to smoothing:/)).toBeInTheDocument();
     expect(screen.getByText(/4.0% corrected points \(1\/25\), distance delta 100(\.000)? m/)).toBeInTheDocument();
-    expect(screen.getByText(/Direction changes:/)).toBeInTheDocument();
-    expect(screen.getByText('9')).toBeInTheDocument();
-
+    expect(screen.getByText(/High intensity directory changes \(Moderate\/High\/Very high\):/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Display mode'), { target: { value: 'raw' } });
 
     expect(screen.getByText(/5.200 km \(5,200(\.0)? m\)/)).toBeInTheDocument();
-    expect(screen.getByText('10')).toBeInTheDocument();
   });
 
 
@@ -1554,6 +1564,11 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Metric thresholds')).toBeInTheDocument());
     expect((screen.getByLabelText('Max speed (km/h)') as HTMLInputElement).value).toBe('28.1');
+    expect(screen.getByLabelText('Moderate COD threshold (>=)')).toBeInTheDocument();
+    expect(screen.getByLabelText('High COD threshold (>=)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Very high COD threshold (>=)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Minimum speed for COD detection (km/h)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Consecutive COD samples required')).toBeInTheDocument();
     expect(screen.getByText('Threshold version: 3')).toBeInTheDocument();
   });
 
@@ -1589,6 +1604,10 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/profile', expect.objectContaining({ method: 'PUT' }));
+    const putCall = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/profile') && init?.method === 'PUT');
+    const putBody = JSON.parse(String(putCall?.[1]?.body));
+    expect(putBody.metricThresholds.codConsecutiveSamplesRequired).toBeDefined();
+    expect(putBody.metricThresholds.codModerateThresholdDegrees).toBeDefined();
     expect(screen.getByText('Threshold version: 2')).toBeInTheDocument();
   });
   it('R1_5_08_Ac01_shows_profile_default_filter_setting_and_saves_it', async () => {
@@ -1859,7 +1878,7 @@ describe('App', () => {
     expect(within(volumeSection).getByText('Duration:')).toBeInTheDocument();
 
     const mechanicalSection = screen.getByRole('button', { name: /Mechanical/ }).closest('section') as HTMLElement;
-    expect(within(mechanicalSection).getByText('Direction changes:')).toBeInTheDocument();
+    expect(within(mechanicalSection).getByText('High intensity directory changes (Moderate/High/Very high):')).toBeInTheDocument();
 
     const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
     expect(within(internalSection).getByText('Heart rate (min/avg/max):')).toBeInTheDocument();
@@ -1922,7 +1941,7 @@ describe('App', () => {
     expect(volumeSection).toHaveTextContent('Duration: 30 min 0 s — Not measured: No moving timestamps available.');
 
     const mechanicalSection = screen.getByRole('button', { name: /Mechanical/ }).closest('section') as HTMLElement;
-    expect(mechanicalSection).toHaveTextContent('Direction changes: Not available — Measurement unusable: Insufficient heading stability.');
+    expect(mechanicalSection).toHaveTextContent('High intensity directory changes (Moderate/High/Very high): 5 / 3 / 1 — Measurement unusable: Insufficient heading stability.');
 
     const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
     expect(internalSection).toHaveTextContent('Heart rate (min/avg/max): Not available — Not measured: No heart-rate stream in file.');

@@ -63,7 +63,12 @@ public class ProfileUseCase : IProfileUseCase
             existingProfile.MetricThresholds.ModerateDecelerationThresholdMps2 != submittedThresholds.ModerateDecelerationThresholdMps2 ||
             existingProfile.MetricThresholds.HighDecelerationThresholdMps2 != submittedThresholds.HighDecelerationThresholdMps2 ||
             existingProfile.MetricThresholds.VeryHighDecelerationThresholdMps2 != submittedThresholds.VeryHighDecelerationThresholdMps2 ||
-            existingProfile.MetricThresholds.AccelDecelMinimumSpeedMps != submittedThresholds.AccelDecelMinimumSpeedMps;
+            existingProfile.MetricThresholds.AccelDecelMinimumSpeedMps != submittedThresholds.AccelDecelMinimumSpeedMps ||
+            existingProfile.MetricThresholds.CodModerateThresholdDegrees != submittedThresholds.CodModerateThresholdDegrees ||
+            existingProfile.MetricThresholds.CodHighThresholdDegrees != submittedThresholds.CodHighThresholdDegrees ||
+            existingProfile.MetricThresholds.CodVeryHighThresholdDegrees != submittedThresholds.CodVeryHighThresholdDegrees ||
+            existingProfile.MetricThresholds.CodMinimumSpeedMps != submittedThresholds.CodMinimumSpeedMps ||
+            existingProfile.MetricThresholds.CodConsecutiveSamplesRequired != submittedThresholds.CodConsecutiveSamplesRequired;
 
         var normalizedThresholds = new MetricThresholdProfile
         {
@@ -80,6 +85,11 @@ public class ProfileUseCase : IProfileUseCase
             HighDecelerationThresholdMps2 = submittedThresholds.HighDecelerationThresholdMps2,
             VeryHighDecelerationThresholdMps2 = submittedThresholds.VeryHighDecelerationThresholdMps2,
             AccelDecelMinimumSpeedMps = submittedThresholds.AccelDecelMinimumSpeedMps,
+            CodModerateThresholdDegrees = submittedThresholds.CodModerateThresholdDegrees,
+            CodHighThresholdDegrees = submittedThresholds.CodHighThresholdDegrees,
+            CodVeryHighThresholdDegrees = submittedThresholds.CodVeryHighThresholdDegrees,
+            CodMinimumSpeedMps = submittedThresholds.CodMinimumSpeedMps,
+            CodConsecutiveSamplesRequired = submittedThresholds.CodConsecutiveSamplesRequired,
             EffectiveMaxSpeedMps = submittedThresholds.EffectiveMaxSpeedMps,
             EffectiveMaxHeartRateBpm = submittedThresholds.EffectiveMaxHeartRateBpm,
             Version = thresholdsChanged ? existingProfile.MetricThresholds.Version + 1 : existingProfile.MetricThresholds.Version,

@@ -401,49 +401,49 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - [ ] MinSpeed Default wird gesetzt (z. B. 10 km/h oder 6 mph je nach Preferred unit).
 - [ ] Migration wird versioniert (Threshold version wird erhöht) und ist idempotent.
 
-## Story R1.6-20: Direction Change Detection basierend auf Winkeländerung
+## Story R1.6-20: Direction Change Detection basierend auf Winkeländerung ✅ DONE
 **Als** Nutzer  
 **möchte ich** dass Richtungswechsel (Change of Direction, COD) nur ab einer definierten Winkeländerung erkannt werden  
 **damit** kleine Kurven oder GPS-Abweichungen nicht als Richtungswechsel gezählt werden.
 
 ### Acceptance Criteria
 
-- [ ] Für jedes Sample wird die Bewegungsrichtung (Heading) aus den Positionsdaten berechnet.
-- [ ] Die Winkeländerung wird aus drei aufeinanderfolgenden Punkten berechnet:
+- [x] Für jedes Sample wird die Bewegungsrichtung (Heading) aus den Positionsdaten berechnet.
+- [x] Die Winkeländerung wird aus drei aufeinanderfolgenden Punkten berechnet:
       - Richtung A: Punkt1 → Punkt2
       - Richtung B: Punkt2 → Punkt3
       - DeltaAngle = absolute Differenz (normalisiert auf 0–180°).
-- [ ] Ein Direction Change Event wird erkannt, wenn:
+- [x] Ein Direction Change Event wird erkannt, wenn:
       - DeltaAngle ≥ 45° (konfigurierbar) UND
       - Geschwindigkeit ≥ 10 km/h (Mindestgeschwindigkeit zur Rauschreduktion).
-- [ ] Direction Changes werden nicht erkannt, wenn die Mindestgeschwindigkeit unterschritten ist.
-- [ ] Einzelne Winkelspitzen durch GPS-Rauschen dürfen nicht als Event zählen.
-- [ ] Optional: Zwei consecutive Samples mit DeltaAngle ≥ Threshold erforderlich.
-- [ ] Unit-Test-Fall: DeltaAngle 20° → kein Event.
-- [ ] Unit-Test-Fall: DeltaAngle 50° bei ≥10 km/h → Event.
-- [ ] Unit-Test-Fall: DeltaAngle 60° bei 5 km/h → kein Event.
+- [x] Direction Changes werden nicht erkannt, wenn die Mindestgeschwindigkeit unterschritten ist.
+- [x] Einzelne Winkelspitzen durch GPS-Rauschen dürfen nicht als Event zählen.
+- [x] Optional: Zwei consecutive Samples mit DeltaAngle ≥ Threshold erforderlich.
+- [x] Unit-Test-Fall: DeltaAngle 20° → kein Event.
+- [x] Unit-Test-Fall: DeltaAngle 50° bei ≥10 km/h → Event.
+- [x] Unit-Test-Fall: DeltaAngle 60° bei 5 km/h → kein Event.
 
 
-## Story R1.6-21: Kategorisierung von Direction Changes nach Intensität
+## Story R1.6-21: Kategorisierung von Direction Changes nach Intensität ✅ DONE
 **Als** Nutzer  
 **möchte ich** dass Richtungswechsel in Intensitätskategorien eingeteilt werden  
 **damit** ich zwischen moderaten und starken Richtungswechseln unterscheiden kann.
 
 ### Acceptance Criteria
 
-- [ ] Direction Changes werden anhand der Winkeländerung kategorisiert:
+- [x] Direction Changes werden anhand der Winkeländerung kategorisiert:
       - Moderate COD: 45°–59°
       - High COD: 60°–89°
       - Very High COD: ≥90°
-- [ ] Kategorien sind konfigurierbar.
-- [ ] Jede COD-Kategorie wird separat gezählt.
-- [ ] In der Mechanical Summary werden ausgewiesen:
+- [x] Kategorien sind konfigurierbar.
+- [x] Jede COD-Kategorie wird separat gezählt.
+- [x] In der Mechanical Summary werden ausgewiesen:
       - Anzahl Moderate COD
       - Anzahl High COD
       - Anzahl Very High COD
-- [ ] Unit-Test-Fall: 50° → Moderate COD.
-- [ ] Unit-Test-Fall: 75° → High COD.
-- [ ] Unit-Test-Fall: 120° → Very High COD.
+- [x] Unit-Test-Fall: 50° → Moderate COD.
+- [x] Unit-Test-Fall: 75° → High COD.
+- [x] Unit-Test-Fall: 120° → Very High COD.
 
 
 ## Priorisierung für R1.6

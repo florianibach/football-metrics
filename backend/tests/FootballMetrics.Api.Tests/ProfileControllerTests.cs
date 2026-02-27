@@ -358,6 +358,31 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
         payload.MetricThresholds.AccelDecelMinimumSpeedMps.Should().BeApproximately(6 / 2.2369362921, 0.01);
     }
 
+
+    [Fact]
+    public async Task R1_6_21_Ac02_UpdateProfile_ShouldPersistCodThresholdSettings()
+    {
+        var client = _factory.CreateClient();
+
+        var thresholds = MetricThresholdProfile.CreateDefault();
+        thresholds.CodModerateThresholdDegrees = 40;
+        thresholds.CodHighThresholdDegrees = 55;
+        thresholds.CodVeryHighThresholdDegrees = 85;
+        thresholds.CodMinimumSpeedMps = 2.0;
+        thresholds.CodConsecutiveSamplesRequired = 1;
+
+        var response = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, thresholds, null, null, null));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var payload = await response.Content.ReadFromJsonAsync<UserProfileResponse>();
+        payload.Should().NotBeNull();
+        payload!.MetricThresholds.CodModerateThresholdDegrees.Should().Be(40);
+        payload.MetricThresholds.CodHighThresholdDegrees.Should().Be(55);
+        payload.MetricThresholds.CodVeryHighThresholdDegrees.Should().Be(85);
+        payload.MetricThresholds.CodMinimumSpeedMps.Should().BeApproximately(2.0, 0.001);
+        payload.MetricThresholds.CodConsecutiveSamplesRequired.Should().Be(1);
+    }
+
     private sealed record ProfileResponseWithRecalculation(ProfileRecalculationJobResponse? LatestRecalculationJob);
     private sealed record ProfileRecalculationJobResponse(string Status, string Trigger);
 

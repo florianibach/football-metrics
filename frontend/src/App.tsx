@@ -36,6 +36,10 @@ type FootballCoreMetrics = {
   moderateDecelerationCount: number | null;
   highDecelerationCount: number | null;
   veryHighDecelerationCount: number | null;
+  directionChanges: number | null;
+  moderateDirectionChangeCount: number | null;
+  highDirectionChangeCount: number | null;
+  veryHighDirectionChangeCount: number | null;
   heartRateZoneLowSeconds: number | null;
   heartRateZoneMediumSeconds: number | null;
   heartRateZoneHighSeconds: number | null;
@@ -149,6 +153,11 @@ type MetricThresholdProfile = {
   highDecelerationThresholdMps2: number;
   veryHighDecelerationThresholdMps2: number;
   accelDecelMinimumSpeedMps: number;
+  codModerateThresholdDegrees: number;
+  codHighThresholdDegrees: number;
+  codVeryHighThresholdDegrees: number;
+  codMinimumSpeedMps: number;
+  codConsecutiveSamplesRequired: number;
   effectiveMaxSpeedMps: number;
   effectiveMaxHeartRateBpm: number;
   version: number;
@@ -514,6 +523,12 @@ type TranslationKey =
   | 'profileThresholdHighDecel'
   | 'profileThresholdVeryHighDecel'
   | 'profileThresholdAccelDecelMinSpeed'
+  | 'profileCodBandsTitle'
+  | 'profileThresholdCodModerate'
+  | 'profileThresholdCodHigh'
+  | 'profileThresholdCodVeryHigh'
+  | 'profileThresholdCodMinSpeed'
+  | 'profileThresholdCodConsecutive'
   | 'profileThresholdModeLabel'
   | 'profileThresholdModeFixed'
   | 'profileThresholdModeAdaptive'
@@ -728,7 +743,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterDescriptionSavitzkyGolay: 'Savitzky-Golay: Purpose: polynomial smoothing for stable trajectories. Strengths: clean curve shape for trend viewing. Limits: can flatten very abrupt actions. Typical use: tactical pattern review with moderate noise.',
     filterDescriptionButterworth: 'Butterworth: Purpose: low-pass filtering for strong noise suppression. Strengths: robust against high-frequency jitter. Limits: highest risk of smoothing away short explosive actions. Typical use: noisy device traces requiring stronger cleanup.',
     compareDisabledNoGps: 'Comparison is disabled because this session does not contain GPS coordinates.',
-    metricDirectionChanges: 'Direction changes',
+    metricDirectionChanges: 'High intensity directory changes (Moderate/High/Very high)',
     metricDataChange: 'Data change due to smoothing',
     metricDataChangeHelp: '{correctedShare}% corrected points ({correctedPoints}/{trackpoints}), distance delta {distanceDelta}',
     qualityStatusHigh: 'high',
@@ -926,6 +941,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdHighDecel: 'High deceleration threshold (<=)',
     profileThresholdVeryHighDecel: 'Very high deceleration threshold (<=)',
     profileThresholdAccelDecelMinSpeed: 'Minimum speed for accel/decel detection',
+    profileCodBandsTitle: 'Direction change bands (COD, degrees)',
+    profileThresholdCodModerate: 'Moderate COD threshold (>=)',
+    profileThresholdCodHigh: 'High COD threshold (>=)',
+    profileThresholdCodVeryHigh: 'Very high COD threshold (>=)',
+    profileThresholdCodMinSpeed: 'Minimum speed for COD detection',
+    profileThresholdCodConsecutive: 'Consecutive COD samples required',
     profileEffectiveMaxSpeed: 'Effective max speed',
     profileEffectiveMaxHeartRate: 'Effective max heartrate',
     profileDerivedSprintThreshold: 'Derived sprint threshold',
@@ -1132,7 +1153,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterDescriptionSavitzkyGolay: 'Savitzky-Golay: Zweck: polynomiale Glättung für stabile Trajektorien. Stärken: ruhiger Kurvenverlauf für Trendbetrachtung. Grenzen: sehr abrupte Aktionen können abgeflacht werden. Typische Nutzung: Musteranalyse bei moderatem Rauschen.',
     filterDescriptionButterworth: 'Butterworth: Zweck: Tiefpassfilter für starke Rauschunterdrückung. Stärken: robust bei hochfrequentem GPS-Jitter. Grenzen: größtes Risiko, kurze explosive Aktionen zu glätten. Typische Nutzung: stark verrauschte Aufzeichnungen mit höherem Bereinigungsbedarf.',
     compareDisabledNoGps: 'Der Vergleich ist deaktiviert, weil diese Session keine GPS-Koordinaten enthält.',
-    metricDirectionChanges: 'Richtungswechsel',
+    metricDirectionChanges: 'High intensity directory changes (Moderate/High/Very high)',
     metricDataChange: 'Datenänderung durch Glättung',
     metricDataChangeHelp: '{correctedShare}% korrigierte Punkte ({correctedPoints}/{trackpoints}), Distanzabweichung {distanceDelta}',
     qualityStatusHigh: 'hoch',
@@ -1328,6 +1349,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdHighDecel: 'Hohe Verzögerungs-Schwelle (<=)',
     profileThresholdVeryHighDecel: 'Sehr hohe Verzögerungs-Schwelle (<=)',
     profileThresholdAccelDecelMinSpeed: 'Mindestgeschwindigkeit für Accel/Decel-Erkennung',
+    profileCodBandsTitle: 'Richtungswechsel-Bänder (COD, Grad)',
+    profileThresholdCodModerate: 'Moderate COD-Schwelle (>=)',
+    profileThresholdCodHigh: 'Hohe COD-Schwelle (>=)',
+    profileThresholdCodVeryHigh: 'Sehr hohe COD-Schwelle (>=)',
+    profileThresholdCodMinSpeed: 'Mindestgeschwindigkeit für COD-Erkennung',
+    profileThresholdCodConsecutive: 'Erforderliche aufeinanderfolgende COD-Samples',
     profileEffectiveMaxSpeed: 'Effektive Max Speed',
     profileEffectiveMaxHeartRate: 'Effektive Max Heartrate',
     profileDerivedSprintThreshold: 'Abgeleitete Sprint-Schwelle',
@@ -1509,7 +1536,7 @@ const metricExplanations: Record<Locale, Record<string, string>> = {
     dataChange: 'Purpose: shows smoothing impact. Interpretation: larger deltas indicate stronger correction of raw data. Unit: percent and meters.',
     smoothingStrategy: 'Purpose: makes preprocessing transparent. Interpretation: selected method influences downstream metric values. Unit: strategy name.',
     smoothingOutlier: 'Purpose: documents outlier handling. Interpretation: threshold/mode defines when points are corrected. Unit: mode and m/s threshold.',
-    directionChanges: 'Purpose: captures directional variability. Interpretation: higher value can indicate more stop-and-go movement. Unit: count.',
+    directionChanges: 'Purpose: captures Change of Direction (COD) actions and directional variability. Interpretation: higher values can indicate more stop-and-go movement and cutting actions. Unit: count.',
     sprintDistance: 'Purpose: measures high-intensity running distance above a defined speed threshold. Interpretation: this is a key indicator for intensive load (sprints and fast tempo runs), not just total movement volume. Very low values usually mean little sprint exposure, while high values indicate repeated sprint load and stronger external stress. Unit: km and m. If unavailable, GPS quality was not sufficient.',
     sprintCount: 'Purpose: counts how often the athlete enters the sprint zone above the configured speed threshold. Interpretation: this metric represents high-intensity actions and sprint stress; orientation for typical amateur sessions: 0-2 low, 3-6 moderate, >6 high. Read it together with sprint distance to distinguish many short sprint actions from fewer but longer high-speed phases. Unit: count. If unavailable, GPS quality was not sufficient.',
     maxSpeed: 'Purpose: captures the highest measured speed during the unit and reflects current sprint capability. Interpretation: <6.0 m/s is rather low, 6.0-7.5 m/s typical, and >7.5 m/s very high for many amateur players. Track this over time as a performance marker and combine it with high-speed distance to see whether top speed is reached only briefly or repeatedly. Unit: m/s. If unavailable, GPS quality was not sufficient.',
@@ -1538,7 +1565,7 @@ const metricExplanations: Record<Locale, Record<string, string>> = {
     dataChange: 'Zweck: zeigt den Effekt der Glättung. Interpretation: größere Abweichungen bedeuten stärkere Korrektur der Rohdaten. Einheit: Prozent und Meter.',
     smoothingStrategy: 'Zweck: macht die Vorverarbeitung transparent. Interpretation: die Methode beeinflusst nachgelagerte Metrikwerte. Einheit: Strategiename.',
     smoothingOutlier: 'Zweck: dokumentiert die Ausreißerbehandlung. Interpretation: Modus/Schwelle definieren, wann Punkte korrigiert werden. Einheit: Modus und m/s-Schwelle.',
-    directionChanges: 'Zweck: erfasst Richtungsvariabilität. Interpretation: höhere Werte können mehr Stop-and-Go anzeigen. Einheit: Anzahl.',
+    directionChanges: 'Zweck: erfasst Change of Direction (COD)-Aktionen und Richtungsvariabilität. Interpretation: höhere Werte können mehr Stop-and-Go und Richtungswechsel anzeigen. Einheit: Anzahl.',
     sprintDistance: 'Zweck: misst die hochintensive Laufdistanz oberhalb einer definierten Geschwindigkeitsschwelle. Interpretation: sie ist ein zentraler Indikator für intensive Belastung (Sprints/Tempoläufe) und nicht nur für allgemeines Laufvolumen. Sehr niedrige Werte deuten meist auf wenige Sprintphasen hin, hohe Werte auf ausgeprägte Sprintbelastung und stärkere äußere Last. Einheit: km und m. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
     sprintCount: 'Zweck: zählt, wie oft ein Spieler den Sprintbereich oberhalb der konfigurierten Geschwindigkeitsschwelle erreicht. Interpretation: die Metrik steht für hochintensive Aktionen und Sprintstress; Orientierung für typische Amateur-Sessions: 0-2 niedrig, 3-6 mittel, >6 hoch. Gemeinsam mit der Sprintdistanz lässt sich unterscheiden, ob eher viele kurze oder wenige längere Sprintphasen vorlagen. Einheit: Anzahl. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
     maxSpeed: 'Zweck: erfasst die höchste gemessene Geschwindigkeit der Einheit und damit das aktuelle Sprintvermögen. Interpretation: <6,0 m/s eher niedrig, 6,0-7,5 m/s typisch und >7,5 m/s für viele Amateurspieler sehr hoch. Über die Zeit ist der Wert ein Performance-Marker; in Kombination mit High-Speed-Distanz sieht man, ob Top-Speed nur kurz oder wiederholt erreicht wurde. Einheit: m/s. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
@@ -1778,8 +1805,8 @@ function formatSpeed(valueMetersPerSecond: number | null, unit: SpeedUnit, notAv
 }
 
 
-function formatNumber(value: number | null, locale: Locale, notAvailable: string, digits = 1): string {
-  if (value === null) {
+function formatNumber(value: number | null | undefined, locale: Locale, notAvailable: string, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
     return notAvailable;
   }
 
@@ -1799,6 +1826,139 @@ function formatBandTriplet(moderate: number | null | undefined, high: number | n
   return `${moderate} / ${high} / ${veryHigh}`;
 }
 
+
+
+type CodDetectionInput = {
+  moderateThresholdDegrees: number;
+  highThresholdDegrees: number;
+  veryHighThresholdDegrees: number;
+  minSpeedMps: number;
+  consecutiveSamplesRequired: number;
+  minStepDistanceMeters?: number;
+};
+
+type CodBandCounts = {
+  moderate: number;
+  high: number;
+  veryHigh: number;
+  total: number;
+};
+
+function computeCodBandCounts(
+  points: Array<GpsTrackpoint & { elapsedSeconds: number }>,
+  config: CodDetectionInput
+): CodBandCounts {
+  if (points.length < 3) {
+    return { moderate: 0, high: 0, veryHigh: 0, total: 0 };
+  }
+
+  const ordered = [...points].sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+  let consecutive = 0;
+  let inEvent = false;
+  let eventDirection: number | null = null;
+  let highestBand: 'moderate' | 'high' | 'veryHigh' | null = null;
+
+  const counts: CodBandCounts = { moderate: 0, high: 0, veryHigh: 0, total: 0 };
+
+  const classifyBand = (delta: number): 'moderate' | 'high' | 'veryHigh' | null => {
+    if (delta >= config.veryHighThresholdDegrees) return 'veryHigh';
+    if (delta >= config.highThresholdDegrees) return 'high';
+    if (delta >= config.moderateThresholdDegrees) return 'moderate';
+    return null;
+  };
+
+  const bandPriority = (band: 'moderate' | 'high' | 'veryHigh') => (band === 'veryHigh' ? 3 : band === 'high' ? 2 : 1);
+
+  for (let index = 1; index < ordered.length - 1; index += 1) {
+    const previous = ordered[index - 1];
+    const current = ordered[index];
+    const next = ordered[index + 1];
+
+    const incoming = calculateBearingDegrees(previous, current);
+    const outgoing = calculateBearingDegrees(current, next);
+    if (incoming === null || outgoing === null) {
+      consecutive = 0; inEvent = false; eventDirection = null; highestBand = null;
+      continue;
+    }
+
+    const signedTurn = calculateSignedDeltaDegrees(incoming, outgoing);
+    const deltaAngle = Math.abs(signedTurn);
+
+    const incomingStepDistance = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude);
+    const outgoingStepDistance = haversineMeters(current.latitude, current.longitude, next.latitude, next.longitude);
+
+    const incomingDeltaSeconds = current.elapsedSeconds - previous.elapsedSeconds;
+    const outgoingDeltaSeconds = next.elapsedSeconds - current.elapsedSeconds;
+    if (incomingDeltaSeconds <= 0 || outgoingDeltaSeconds <= 0) {
+      consecutive = 0; inEvent = false; eventDirection = null; highestBand = null;
+      continue;
+    }
+
+    const incomingSpeed = incomingStepDistance / incomingDeltaSeconds;
+    const outgoingSpeed = outgoingStepDistance / outgoingDeltaSeconds;
+
+    const minStepDistance = config.minStepDistanceMeters ?? 0;
+    const isSpeedValid = incomingSpeed >= config.minSpeedMps && outgoingSpeed >= config.minSpeedMps;
+    const isStepDistanceValid = incomingStepDistance >= minStepDistance && outgoingStepDistance >= minStepDistance;
+    const band = classifyBand(deltaAngle);
+
+    if (!isSpeedValid || !isStepDistanceValid || !band) {
+      consecutive = 0; inEvent = false; eventDirection = null; highestBand = null;
+      continue;
+    }
+
+    const direction = Math.sign(signedTurn) || 1;
+    if (consecutive === 0 || eventDirection === direction) {
+      eventDirection = direction;
+      highestBand = !highestBand || bandPriority(band) > bandPriority(highestBand) ? band : highestBand;
+      consecutive += 1;
+    } else {
+      eventDirection = direction;
+      highestBand = band;
+      consecutive = 1;
+      inEvent = false;
+    }
+
+    if (!inEvent && consecutive >= Math.max(1, config.consecutiveSamplesRequired)) {
+      const classified = highestBand ?? band;
+      counts[classified] += 1;
+      counts.total += 1;
+      inEvent = true;
+    }
+  }
+
+  return counts;
+}
+
+function calculateBearingDegrees(from: GpsTrackpoint, to: GpsTrackpoint): number | null {
+  if (!Number.isFinite(from.latitude) || !Number.isFinite(from.longitude) || !Number.isFinite(to.latitude) || !Number.isFinite(to.longitude)) {
+    return null;
+  }
+
+  const lat1 = (from.latitude * Math.PI) / 180;
+  const lat2 = (to.latitude * Math.PI) / 180;
+  const deltaLon = ((to.longitude - from.longitude) * Math.PI) / 180;
+
+  const y = Math.sin(deltaLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
+  const bearing = (Math.atan2(y, x) * 180) / Math.PI;
+  return (bearing + 360) % 360;
+}
+
+function calculateSignedDeltaDegrees(firstBearing: number, secondBearing: number): number {
+  return (secondBearing - firstBearing + 540) % 360 - 180;
+}
+
+function haversineMeters(lat1Deg: number, lon1Deg: number, lat2Deg: number, lon2Deg: number): number {
+  const earthRadius = 6_371_000;
+  const lat1 = (lat1Deg * Math.PI) / 180;
+  const lat2 = (lat2Deg * Math.PI) / 180;
+  const deltaLat = ((lat2Deg - lat1Deg) * Math.PI) / 180;
+  const deltaLon = ((lon2Deg - lon1Deg) * Math.PI) / 180;
+  const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadius * c;
+}
 function formatThresholds(thresholds: Record<string, string>): string {
   return Object.entries(thresholds)
     .map(([key, value]) => `${key}=${value}`)
@@ -3236,12 +3396,6 @@ export function App() {
       : selectedSession.summary.smoothing.smoothedDistanceMeters ?? selectedSession.summary.distanceMeters
     : null;
 
-  const activeDirectionChanges = selectedSession
-    ? compareMode === 'raw'
-      ? selectedSession.summary.smoothing.rawDirectionChanges
-      : selectedSession.summary.smoothing.smoothedDirectionChanges
-    : null;
-
   const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
   const segmentAssistantPoints = useMemo(() => {
     const allPoints = (selectedSession?.summary.gpsTrackpoints ?? [])
@@ -3639,7 +3793,7 @@ export function App() {
     {
       key: 'directionChanges',
       label: t.sessionCompareMetricDirectionChanges,
-      getter: (session: UploadRecord) => session.summary.directionChangeCount ?? null,
+      getter: (session: UploadRecord) => session.summary.coreMetrics.directionChanges ?? null,
       formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatNumber(value, currentLocale, notAvailable, 1)
     },
     {
@@ -3818,6 +3972,32 @@ export function App() {
 
   const selectedAnalysisAggregates = useMemo(() => selectedAnalysisAggregateSlices.map((slice) => slice.aggregate), [selectedAnalysisAggregateSlices]);
 
+  const codBandCountsByScope = useMemo(() => {
+    if (!selectedSession) {
+      return { moderate: 0, high: 0, veryHigh: 0, total: 0 };
+    }
+
+    const thresholds = selectedSession.summary.coreMetrics.thresholds ?? {};
+    const moderateThreshold = Number(thresholds.CodModerateThresholdDegrees ?? 45);
+    const highThreshold = Number(thresholds.CodHighThresholdDegrees ?? 60);
+    const veryHighThreshold = Number(thresholds.CodVeryHighThresholdDegrees ?? 90);
+    const minSpeed = Number(thresholds.CodMinimumSpeedMps ?? (10 / 3.6));
+    const consecutiveSamples = Number(thresholds.CodConsecutiveSamplesRequired ?? 2);
+
+    const points = (selectedSession.summary.gpsTrackpoints ?? [])
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+      .filter((point) => !isSegmentScopeActive || !selectedSegment || (point.elapsedSeconds >= selectedSegment.startSecond && point.elapsedSeconds <= selectedSegment.endSecond));
+
+    return computeCodBandCounts(points, {
+      moderateThresholdDegrees: Number.isFinite(moderateThreshold) ? moderateThreshold : 45,
+      highThresholdDegrees: Number.isFinite(highThreshold) ? highThreshold : 60,
+      veryHighThresholdDegrees: Number.isFinite(veryHighThreshold) ? veryHighThreshold : 90,
+      minSpeedMps: Number.isFinite(minSpeed) ? minSpeed : (10 / 3.6),
+      consecutiveSamplesRequired: Number.isFinite(consecutiveSamples) ? Math.max(1, Math.round(consecutiveSamples)) : 2,
+      minStepDistanceMeters: 2
+    });
+  }, [selectedSession, isSegmentScopeActive, selectedSegment]);
+
   const displayedCoreMetrics = useMemo(() => {
     // Backend delivers a single session summary + interval aggregates.
     // Segment analysis is currently created by slicing these intervals in the UI by time range,
@@ -3859,6 +4039,10 @@ export function App() {
         moderateDecelerationCount: null,
         highDecelerationCount: null,
         veryHighDecelerationCount: null,
+        directionChanges: 0,
+        moderateDirectionChangeCount: 0,
+        highDirectionChangeCount: 0,
+        veryHighDirectionChangeCount: 0,
         heartRateZoneLowSeconds: null,
         heartRateZoneMediumSeconds: null,
         heartRateZoneHighSeconds: null,
@@ -3953,6 +4137,10 @@ export function App() {
       moderateDecelerationCount: sumMetric('moderateDecelerationCount', (metrics) => metrics.moderateDecelerationCount, { round: true }),
       highDecelerationCount: sumMetric('highDecelerationCount', (metrics) => metrics.highDecelerationCount, { round: true }),
       veryHighDecelerationCount: sumMetric('veryHighDecelerationCount', (metrics) => metrics.veryHighDecelerationCount, { round: true }),
+      directionChanges: codBandCountsByScope.total,
+      moderateDirectionChangeCount: codBandCountsByScope.moderate,
+      highDirectionChangeCount: codBandCountsByScope.high,
+      veryHighDirectionChangeCount: codBandCountsByScope.veryHigh,
       heartRateZoneLowSeconds: sumMetric('heartRateZoneLowSeconds', (metrics) => metrics.heartRateZoneLowSeconds),
       heartRateZoneMediumSeconds: sumMetric('heartRateZoneMediumSeconds', (metrics) => metrics.heartRateZoneMediumSeconds),
       heartRateZoneHighSeconds: sumMetric('heartRateZoneHighSeconds', (metrics) => metrics.heartRateZoneHighSeconds),
@@ -3970,7 +4158,7 @@ export function App() {
             return null;
           })()
     } satisfies FootballCoreMetrics;
-  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics, segmentSpeedDerivedMetrics, t.segmentScopeNoTimelineDataHint]);
+  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics, segmentSpeedDerivedMetrics, codBandCountsByScope, t.segmentScopeNoTimelineDataHint]);
 
   const detectedRunHierarchySummary = useMemo(() => {
     if (!selectedSession) {
@@ -4422,6 +4610,39 @@ export function App() {
                     accelDecelMinimumSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit)
                   }
                 }))}
+              />
+
+
+              <p className="profile-thresholds__group-title">{t.profileCodBandsTitle}</p>
+              <label className="form-label" htmlFor="profile-threshold-cod-moderate">{t.profileThresholdCodModerate}</label>
+              <input className="form-control" id="profile-threshold-cod-moderate" type="number" step="1" value={profileForm.metricThresholds.codModerateThresholdDegrees}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, codModerateThresholdDegrees: Number(event.target.value) } }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-cod-high">{t.profileThresholdCodHigh}</label>
+              <input className="form-control" id="profile-threshold-cod-high" type="number" step="1" value={profileForm.metricThresholds.codHighThresholdDegrees}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, codHighThresholdDegrees: Number(event.target.value) } }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-cod-veryhigh">{t.profileThresholdCodVeryHigh}</label>
+              <input className="form-control" id="profile-threshold-cod-veryhigh" type="number" step="1" value={profileForm.metricThresholds.codVeryHighThresholdDegrees}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, codVeryHighThresholdDegrees: Number(event.target.value) } }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-cod-min-speed">{t.profileThresholdCodMinSpeed} ({profileForm.preferredSpeedUnit})</label>
+              <input className="form-control"
+                id="profile-threshold-cod-min-speed"
+                type="number"
+                step={profileForm.preferredSpeedUnit === "min/km" ? "0.01" : "0.1"}
+                value={convertSpeedFromMetersPerSecond(profileForm.metricThresholds.codMinimumSpeedMps, profileForm.preferredSpeedUnit).toFixed(profileForm.preferredSpeedUnit === "min/km" ? 2 : 1)}
+                onChange={(event) => setProfileForm((current) => ({
+                  ...current,
+                  metricThresholds: {
+                    ...current.metricThresholds,
+                    codMinimumSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit)
+                  }
+                }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-cod-consecutive">{t.profileThresholdCodConsecutive}</label>
+              <input className="form-control" id="profile-threshold-cod-consecutive" type="number" min="1" max="5" step="1" value={profileForm.metricThresholds.codConsecutiveSamplesRequired}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, codConsecutiveSamplesRequired: Number(event.target.value) } }))}
               />
             </div>
           </details>
@@ -5154,7 +5375,7 @@ export function App() {
                         <>
                           <MetricListItem label={t.metricAccelerationBandsCount} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateAccelerationCount, displayedCoreMetrics.highAccelerationCount, displayedCoreMetrics.veryHighAccelerationCount, t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
                           <MetricListItem label={t.metricDecelerationBandsCount} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDecelerationCount, displayedCoreMetrics.highDecelerationCount, displayedCoreMetrics.veryHighDecelerationCount, t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
-                          <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
+                          <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDirectionChangeCount, displayedCoreMetrics.highDirectionChangeCount, displayedCoreMetrics.veryHighDirectionChangeCount, t.notAvailable), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
                         </>
                       )}
                     </ul>

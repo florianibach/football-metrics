@@ -8,6 +8,10 @@ public static partial class TcxMetricsExtractor
 {
     private const double EarthRadiusMeters = 6_371_000;
     private const double MaxPlausibleSpeedMetersPerSecond = 12.5;
+    private const double DirectionChangeThresholdDegrees = 45.0;
+    private const double BaselineDirectionChangeThresholdDegrees = 65.0;
+    private const double DirectionChangeMinimumSpeedMetersPerSecond = 10.0 / 3.6;
+    private const int DirectionChangeConsecutiveSamplesRequired = 2;
     private const double SprintSpeedThresholdMetersPerSecond = 7.0;
     private const double HighIntensitySpeedThresholdMetersPerSecond = 5.5;
     private const double AccelerationThresholdMetersPerSecondSquared = 2.0;
@@ -203,9 +207,9 @@ public static partial class TcxMetricsExtractor
         int correctedOutlierCount,
         double outlierSpeedThresholdMps)
     {
-        var rawDirectionChanges = CountDirectionChanges(rawTrackpoints, 25);
-        var baselineDirectionChanges = CountDirectionChanges(rawTrackpoints, 65);
-        var smoothedDirectionChanges = CountDirectionChanges(smoothedTrackpoints, 25);
+        var rawDirectionChanges = CountDirectionChanges(rawTrackpoints, DirectionChangeThresholdDegrees, DirectionChangeMinimumSpeedMetersPerSecond, DirectionChangeConsecutiveSamplesRequired);
+        var baselineDirectionChanges = CountDirectionChanges(rawTrackpoints, BaselineDirectionChangeThresholdDegrees, DirectionChangeMinimumSpeedMetersPerSecond, DirectionChangeConsecutiveSamplesRequired);
+        var smoothedDirectionChanges = CountDirectionChanges(smoothedTrackpoints, DirectionChangeThresholdDegrees, DirectionChangeMinimumSpeedMetersPerSecond, DirectionChangeConsecutiveSamplesRequired);
 
         var parameters = selectedStrategy switch
         {
@@ -226,6 +230,9 @@ public static partial class TcxMetricsExtractor
             _ => new Dictionary<string, string>
             {
                 ["AdaptiveTurnThresholdDegrees"] = "25",
+                ["DirectionChangeThresholdDegrees"] = DirectionChangeThresholdDegrees.ToString("0", CultureInfo.InvariantCulture),
+                ["DirectionChangeMinSpeedMps"] = DirectionChangeMinimumSpeedMetersPerSecond.ToString("0.###", CultureInfo.InvariantCulture),
+                ["DirectionChangeConsecutiveSamplesRequired"] = DirectionChangeConsecutiveSamplesRequired.ToString(CultureInfo.InvariantCulture),
                 ["BaseWindowSize"] = "5",
                 ["SharpTurnWindowSize"] = "3",
                 ["OutlierDetectionMode"] = "AdaptiveMadWithAbsoluteCap",
@@ -429,10 +436,143 @@ public static partial class TcxMetricsExtractor
         return ordered[middle];
     }
 
-    private static int CountDirectionChanges(IReadOnlyList<TrackpointSnapshot> points, double thresholdDegrees)
+    private static (int TotalCount, int ModerateCount, int HighCount, int VeryHighCount) DetectDirectionChangeBands(
+        IReadOnlyList<TrackpointSnapshot> points,
+        double moderateThresholdDegrees,
+        double highThresholdDegrees,
+        double veryHighThresholdDegrees,
+        double minimumSpeedMetersPerSecond,
+        int consecutiveSamplesRequired)
     {
         var pointsWithGps = points
-            .Where(point => HasGps(point))
+            .Where(point => HasGps(point) && HasTimestamp(point))
+            .OrderBy(point => point.TimeUtc)
+            .ToList();
+
+        if (pointsWithGps.Count < 3)
+        {
+            return (0, 0, 0, 0);
+        }
+
+        var events = 0;
+        var moderate = 0;
+        var high = 0;
+        var veryHigh = 0;
+        var consecutiveCandidates = 0;
+        var inEvent = false;
+        int? candidateTurnDirection = null;
+        CodBand? highestBandInStreak = null;
+
+        for (var index = 1; index < pointsWithGps.Count - 1; index++)
+        {
+            var previous = pointsWithGps[index - 1];
+            var current = pointsWithGps[index];
+            var next = pointsWithGps[index + 1];
+
+            var incoming = CalculateBearingDegrees(previous, current);
+            var outgoing = CalculateBearingDegrees(current, next);
+            var signedTurn = CalculateSignedTurnDeltaDegrees(incoming, outgoing);
+            var turn = Math.Abs(signedTurn);
+            var incomingSpeed = CalculateSegmentSpeedMetersPerSecond(previous, current);
+            var outgoingSpeed = CalculateSegmentSpeedMetersPerSecond(current, next);
+
+            var isSpeedValid = incomingSpeed.HasValue
+                && outgoingSpeed.HasValue
+                && incomingSpeed.Value >= minimumSpeedMetersPerSecond
+                && outgoingSpeed.Value >= minimumSpeedMetersPerSecond;
+
+            if (!isSpeedValid)
+            {
+                consecutiveCandidates = 0;
+                candidateTurnDirection = null;
+                highestBandInStreak = null;
+                inEvent = false;
+                continue;
+            }
+
+            var band = ResolveCodBand(turn, moderateThresholdDegrees, highThresholdDegrees, veryHighThresholdDegrees);
+            if (!band.HasValue)
+            {
+                consecutiveCandidates = 0;
+                candidateTurnDirection = null;
+                highestBandInStreak = null;
+                inEvent = false;
+                continue;
+            }
+
+            var turnDirection = Math.Sign(signedTurn);
+            if (consecutiveCandidates == 0 || candidateTurnDirection == turnDirection)
+            {
+                candidateTurnDirection = turnDirection;
+                highestBandInStreak = !highestBandInStreak.HasValue || band.Value > highestBandInStreak.Value
+                    ? band.Value
+                    : highestBandInStreak;
+                consecutiveCandidates++;
+            }
+            else
+            {
+                candidateTurnDirection = turnDirection;
+                highestBandInStreak = band.Value;
+                consecutiveCandidates = 1;
+                inEvent = false;
+            }
+
+            if (!inEvent && consecutiveCandidates >= consecutiveSamplesRequired)
+            {
+                events++;
+                inEvent = true;
+                var classifiedBand = highestBandInStreak ?? band.Value;
+                switch (classifiedBand)
+                {
+                    case CodBand.Moderate:
+                        moderate++;
+                        break;
+                    case CodBand.High:
+                        high++;
+                        break;
+                    case CodBand.VeryHigh:
+                        veryHigh++;
+                        break;
+                }
+            }
+        }
+
+        return (events, moderate, high, veryHigh);
+    }
+
+    private static CodBand? ResolveCodBand(
+        double deltaAngleDegrees,
+        double moderateThresholdDegrees,
+        double highThresholdDegrees,
+        double veryHighThresholdDegrees)
+    {
+        if (deltaAngleDegrees >= veryHighThresholdDegrees)
+        {
+            return CodBand.VeryHigh;
+        }
+
+        if (deltaAngleDegrees >= highThresholdDegrees)
+        {
+            return CodBand.High;
+        }
+
+        if (deltaAngleDegrees >= moderateThresholdDegrees)
+        {
+            return CodBand.Moderate;
+        }
+
+        return null;
+    }
+
+    private static int CountDirectionChanges(
+        IReadOnlyList<TrackpointSnapshot> points,
+        double thresholdDegrees,
+        double minimumSpeedMetersPerSecond,
+        int consecutiveSamplesRequired)
+    {
+        var pointsWithGps = points
+            .Where(point => HasGps(point) && HasTimestamp(point))
+            .OrderBy(point => point.TimeUtc)
             .ToList();
 
         if (pointsWithGps.Count < 3)
@@ -440,21 +580,76 @@ public static partial class TcxMetricsExtractor
             return 0;
         }
 
-        var changes = 0;
+        var events = 0;
+        var consecutiveCandidates = 0;
+        var inEvent = false;
+        int? candidateTurnDirection = null;
 
         for (var index = 1; index < pointsWithGps.Count - 1; index++)
         {
-            var incoming = CalculateBearingDegrees(pointsWithGps[index - 1], pointsWithGps[index]);
-            var outgoing = CalculateBearingDegrees(pointsWithGps[index], pointsWithGps[index + 1]);
-            var turn = CalculateTurnDeltaDegrees(incoming, outgoing);
+            var previous = pointsWithGps[index - 1];
+            var current = pointsWithGps[index];
+            var next = pointsWithGps[index + 1];
+            var incoming = CalculateBearingDegrees(previous, current);
+            var outgoing = CalculateBearingDegrees(current, next);
+            var signedTurn = CalculateSignedTurnDeltaDegrees(incoming, outgoing);
+            var turn = Math.Abs(signedTurn);
+            var incomingSpeed = CalculateSegmentSpeedMetersPerSecond(previous, current);
+            var outgoingSpeed = CalculateSegmentSpeedMetersPerSecond(current, next);
 
-            if (turn >= thresholdDegrees)
+            var isCandidate = turn >= thresholdDegrees
+                              && incomingSpeed.HasValue
+                              && outgoingSpeed.HasValue
+                              && incomingSpeed.Value >= minimumSpeedMetersPerSecond
+                              && outgoingSpeed.Value >= minimumSpeedMetersPerSecond;
+
+            if (isCandidate)
             {
-                changes++;
+                var turnDirection = Math.Sign(signedTurn);
+                if (consecutiveCandidates == 0 || candidateTurnDirection == turnDirection)
+                {
+                    candidateTurnDirection = turnDirection;
+                    consecutiveCandidates++;
+                }
+                else
+                {
+                    candidateTurnDirection = turnDirection;
+                    consecutiveCandidates = 1;
+                    inEvent = false;
+                }
+
+                if (!inEvent && consecutiveCandidates >= consecutiveSamplesRequired)
+                {
+                    events++;
+                    inEvent = true;
+                }
+            }
+            else
+            {
+                consecutiveCandidates = 0;
+                candidateTurnDirection = null;
+                inEvent = false;
             }
         }
 
-        return changes;
+        return events;
+    }
+
+    private static double? CalculateSegmentSpeedMetersPerSecond(TrackpointSnapshot from, TrackpointSnapshot to)
+    {
+        if (!from.TimeUtc.HasValue || !to.TimeUtc.HasValue || !HasGps(from) || !HasGps(to))
+        {
+            return null;
+        }
+
+        var elapsedSeconds = (to.TimeUtc.Value - from.TimeUtc.Value).TotalSeconds;
+        if (elapsedSeconds <= 0)
+        {
+            return null;
+        }
+
+        var distanceMeters = HaversineMeters((from.Latitude!.Value, from.Longitude!.Value), (to.Latitude!.Value, to.Longitude!.Value));
+        return distanceMeters / elapsedSeconds;
     }
 
     private static double CalculateBearingDegrees(TrackpointSnapshot from, TrackpointSnapshot to)
@@ -470,12 +665,17 @@ public static partial class TcxMetricsExtractor
         return (bearing + 360) % 360;
     }
 
+    private static double CalculateSignedTurnDeltaDegrees(double firstBearing, double secondBearing)
+    {
+        var delta = (secondBearing - firstBearing + 540) % 360 - 180;
+        return delta;
+    }
+
     private static double CalculateTurnDeltaDegrees(double firstBearing, double secondBearing)
     {
         var diff = Math.Abs(secondBearing - firstBearing) % 360;
         return diff > 180 ? 360 - diff : diff;
     }
-
 
     private static double ResolveOutlierSpeedThresholdMetersPerSecond(IReadOnlyList<TrackpointSnapshot> trackpoints)
     {
@@ -767,6 +967,11 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             ["HighDecelerationThresholdMps2"] = thresholdsProfile.HighDecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
             ["VeryHighDecelerationThresholdMps2"] = thresholdsProfile.VeryHighDecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
             ["AccelDecelMinimumSpeedMps"] = thresholdsProfile.AccelDecelMinimumSpeedMps.ToString("0.00", CultureInfo.InvariantCulture),
+            ["CodModerateThresholdDegrees"] = thresholdsProfile.CodModerateThresholdDegrees.ToString("0.0", CultureInfo.InvariantCulture),
+            ["CodHighThresholdDegrees"] = thresholdsProfile.CodHighThresholdDegrees.ToString("0.0", CultureInfo.InvariantCulture),
+            ["CodVeryHighThresholdDegrees"] = thresholdsProfile.CodVeryHighThresholdDegrees.ToString("0.0", CultureInfo.InvariantCulture),
+            ["CodMinimumSpeedMps"] = thresholdsProfile.CodMinimumSpeedMps.ToString("0.00", CultureInfo.InvariantCulture),
+            ["CodConsecutiveSamplesRequired"] = thresholdsProfile.CodConsecutiveSamplesRequired.ToString(CultureInfo.InvariantCulture),
             ["MaxHeartRateBpm"] = thresholdsProfile.MaxHeartRateBpm.ToString(CultureInfo.InvariantCulture),
             ["MaxHeartRateMode"] = thresholdsProfile.MaxHeartRateMode,
             ["MaxHeartRateEffectiveBpm"] = thresholdsProfile.EffectiveMaxHeartRateBpm.ToString(CultureInfo.InvariantCulture),
@@ -836,6 +1041,10 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         int? moderateDecelerationCount = null;
         int? highDecelerationCount = null;
         int? veryHighDecelerationCount = null;
+        int? directionChanges = null;
+        int? moderateDirectionChangeCount = null;
+        int? highDirectionChangeCount = null;
+        int? veryHighDirectionChangeCount = null;
         double? distanceMeters = null;
         var detectedRuns = new List<TcxDetectedRun>();
 
@@ -844,8 +1053,9 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
-                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount", "directionChanges",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount",
+                         "moderateDirectionChangeCount", "highDirectionChangeCount", "veryHighDirectionChangeCount"
                      })
             {
                 MarkMetric(key, "NotMeasured", "GPS coordinates were not recorded for this session.");
@@ -856,8 +1066,9 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
-                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount", "directionChanges",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount",
+                         "moderateDirectionChangeCount", "highDirectionChangeCount", "veryHighDirectionChangeCount"
                      })
             {
                 MarkMetric(key, "NotUsable", "GPS measurements are present but do not contain usable time segments.");
@@ -868,8 +1079,9 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
-                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount", "directionChanges",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount",
+                         "moderateDirectionChangeCount", "highDirectionChangeCount", "veryHighDirectionChangeCount"
                      })
             {
                 MarkMetric(key, "NotUsable", $"GPS-derived metric is unusable because data quality is {qualityStatus}.");
@@ -977,6 +1189,19 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             highDecelerationCount = highDecelerationEvents.EventCount;
             veryHighDecelerationCount = veryHighDecelerationEvents.EventCount;
 
+            var directionChangeEvents = DetectDirectionChangeBands(
+                gpsPoints,
+                thresholdsProfile.CodModerateThresholdDegrees,
+                thresholdsProfile.CodHighThresholdDegrees,
+                thresholdsProfile.CodVeryHighThresholdDegrees,
+                thresholdsProfile.CodMinimumSpeedMps,
+                thresholdsProfile.CodConsecutiveSamplesRequired);
+
+            moderateDirectionChangeCount = directionChangeEvents.ModerateCount;
+            highDirectionChangeCount = directionChangeEvents.HighCount;
+            veryHighDirectionChangeCount = directionChangeEvents.VeryHighCount;
+            directionChanges = directionChangeEvents.TotalCount;
+
             accelerationCount = moderateAccelerationEvents.EventCount + highAccelerationEvents.EventCount + veryHighAccelerationEvents.EventCount;
             decelerationCount = moderateDecelerationEvents.EventCount + highDecelerationEvents.EventCount + veryHighDecelerationEvents.EventCount;
             distanceMeters = totalDistanceMeters;
@@ -984,8 +1209,9 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
-                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount", "directionChanges",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount",
+                         "moderateDirectionChangeCount", "highDirectionChangeCount", "veryHighDirectionChangeCount"
                      })
             {
                 var metricState = string.Equals(qualityStatus, "Medium", StringComparison.OrdinalIgnoreCase)
@@ -1139,6 +1365,10 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             moderateDecelerationCount,
             highDecelerationCount,
             veryHighDecelerationCount,
+            directionChanges,
+            moderateDirectionChangeCount,
+            highDirectionChangeCount,
+            veryHighDirectionChangeCount,
             hrZoneLowSeconds,
             hrZoneMediumSeconds,
             hrZoneHighSeconds,
@@ -1249,6 +1479,13 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         Moderate = 1,
         High = 2,
         VeryHigh = 3
+    }
+
+    private enum CodBand
+    {
+        Moderate,
+        High,
+        VeryHigh
     }
 
     private readonly record struct SpeedSample(double ElapsedSeconds, double SpeedMps, double DistanceMeters);
