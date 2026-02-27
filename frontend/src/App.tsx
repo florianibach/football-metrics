@@ -323,9 +323,6 @@ type TranslationKey =
   | 'filterDescriptionButterworth'
   | 'compareDisabledNoGps'
   | 'metricDirectionChanges'
-  | 'metricModerateCodCount'
-  | 'metricHighCodCount'
-  | 'metricVeryHighCodCount'
   | 'metricDataChange'
   | 'metricDataChangeHelp'
   | 'qualityStatusHigh'
@@ -746,10 +743,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterDescriptionSavitzkyGolay: 'Savitzky-Golay: Purpose: polynomial smoothing for stable trajectories. Strengths: clean curve shape for trend viewing. Limits: can flatten very abrupt actions. Typical use: tactical pattern review with moderate noise.',
     filterDescriptionButterworth: 'Butterworth: Purpose: low-pass filtering for strong noise suppression. Strengths: robust against high-frequency jitter. Limits: highest risk of smoothing away short explosive actions. Typical use: noisy device traces requiring stronger cleanup.',
     compareDisabledNoGps: 'Comparison is disabled because this session does not contain GPS coordinates.',
-    metricDirectionChanges: 'Direction changes (COD)',
-    metricModerateCodCount: 'Moderate COD count',
-    metricHighCodCount: 'High COD count',
-    metricVeryHighCodCount: 'Very high COD count',
+    metricDirectionChanges: 'High intensity directory changes (Moderate/High/Very high)',
     metricDataChange: 'Data change due to smoothing',
     metricDataChangeHelp: '{correctedShare}% corrected points ({correctedPoints}/{trackpoints}), distance delta {distanceDelta}',
     qualityStatusHigh: 'high',
@@ -1159,10 +1153,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterDescriptionSavitzkyGolay: 'Savitzky-Golay: Zweck: polynomiale Glättung für stabile Trajektorien. Stärken: ruhiger Kurvenverlauf für Trendbetrachtung. Grenzen: sehr abrupte Aktionen können abgeflacht werden. Typische Nutzung: Musteranalyse bei moderatem Rauschen.',
     filterDescriptionButterworth: 'Butterworth: Zweck: Tiefpassfilter für starke Rauschunterdrückung. Stärken: robust bei hochfrequentem GPS-Jitter. Grenzen: größtes Risiko, kurze explosive Aktionen zu glätten. Typische Nutzung: stark verrauschte Aufzeichnungen mit höherem Bereinigungsbedarf.',
     compareDisabledNoGps: 'Der Vergleich ist deaktiviert, weil diese Session keine GPS-Koordinaten enthält.',
-    metricDirectionChanges: 'Richtungswechsel (COD)',
-    metricModerateCodCount: 'Moderate COD Anzahl',
-    metricHighCodCount: 'Hohe COD Anzahl',
-    metricVeryHighCodCount: 'Sehr hohe COD Anzahl',
+    metricDirectionChanges: 'High intensity directory changes (Moderate/High/Very high)',
     metricDataChange: 'Datenänderung durch Glättung',
     metricDataChangeHelp: '{correctedShare}% korrigierte Punkte ({correctedPoints}/{trackpoints}), Distanzabweichung {distanceDelta}',
     qualityStatusHigh: 'hoch',
@@ -5384,9 +5375,7 @@ export function App() {
                         <>
                           <MetricListItem label={t.metricAccelerationBandsCount} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateAccelerationCount, displayedCoreMetrics.highAccelerationCount, displayedCoreMetrics.veryHighAccelerationCount, t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
                           <MetricListItem label={t.metricDecelerationBandsCount} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDecelerationCount, displayedCoreMetrics.highDecelerationCount, displayedCoreMetrics.veryHighDecelerationCount, t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
-                          <MetricListItem label={t.metricModerateCodCount} value={withMetricStatus(formatNumber(displayedCoreMetrics.moderateDirectionChangeCount, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
-                          <MetricListItem label={t.metricHighCodCount} value={withMetricStatus(formatNumber(displayedCoreMetrics.highDirectionChangeCount, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
-                          <MetricListItem label={t.metricVeryHighCodCount} value={withMetricStatus(formatNumber(displayedCoreMetrics.veryHighDirectionChangeCount, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
+                          <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDirectionChangeCount, displayedCoreMetrics.highDirectionChangeCount, displayedCoreMetrics.veryHighDirectionChangeCount, t.notAvailable), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
                         </>
                       )}
                     </ul>
