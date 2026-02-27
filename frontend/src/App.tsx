@@ -153,6 +153,11 @@ type MetricThresholdProfile = {
   highDecelerationThresholdMps2: number;
   veryHighDecelerationThresholdMps2: number;
   accelDecelMinimumSpeedMps: number;
+  codModerateThresholdDegrees: number;
+  codHighThresholdDegrees: number;
+  codVeryHighThresholdDegrees: number;
+  codMinimumSpeedMps: number;
+  codConsecutiveSamplesRequired: number;
   effectiveMaxSpeedMps: number;
   effectiveMaxHeartRateBpm: number;
   version: number;
@@ -518,6 +523,12 @@ type TranslationKey =
   | 'profileThresholdHighDecel'
   | 'profileThresholdVeryHighDecel'
   | 'profileThresholdAccelDecelMinSpeed'
+  | 'profileCodBandsTitle'
+  | 'profileThresholdCodModerate'
+  | 'profileThresholdCodHigh'
+  | 'profileThresholdCodVeryHigh'
+  | 'profileThresholdCodMinSpeed'
+  | 'profileThresholdCodConsecutive'
   | 'profileThresholdModeLabel'
   | 'profileThresholdModeFixed'
   | 'profileThresholdModeAdaptive'
@@ -930,6 +941,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdHighDecel: 'High deceleration threshold (<=)',
     profileThresholdVeryHighDecel: 'Very high deceleration threshold (<=)',
     profileThresholdAccelDecelMinSpeed: 'Minimum speed for accel/decel detection',
+    profileCodBandsTitle: 'Direction change bands (COD, degrees)',
+    profileThresholdCodModerate: 'Moderate COD threshold (>=)',
+    profileThresholdCodHigh: 'High COD threshold (>=)',
+    profileThresholdCodVeryHigh: 'Very high COD threshold (>=)',
+    profileThresholdCodMinSpeed: 'Minimum speed for COD detection',
+    profileThresholdCodConsecutive: 'Consecutive COD samples required',
     profileEffectiveMaxSpeed: 'Effective max speed',
     profileEffectiveMaxHeartRate: 'Effective max heartrate',
     profileDerivedSprintThreshold: 'Derived sprint threshold',
@@ -1332,6 +1349,12 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdHighDecel: 'Hohe Verzögerungs-Schwelle (<=)',
     profileThresholdVeryHighDecel: 'Sehr hohe Verzögerungs-Schwelle (<=)',
     profileThresholdAccelDecelMinSpeed: 'Mindestgeschwindigkeit für Accel/Decel-Erkennung',
+    profileCodBandsTitle: 'Richtungswechsel-Bänder (COD, Grad)',
+    profileThresholdCodModerate: 'Moderate COD-Schwelle (>=)',
+    profileThresholdCodHigh: 'Hohe COD-Schwelle (>=)',
+    profileThresholdCodVeryHigh: 'Sehr hohe COD-Schwelle (>=)',
+    profileThresholdCodMinSpeed: 'Mindestgeschwindigkeit für COD-Erkennung',
+    profileThresholdCodConsecutive: 'Erforderliche aufeinanderfolgende COD-Samples',
     profileEffectiveMaxSpeed: 'Effektive Max Speed',
     profileEffectiveMaxHeartRate: 'Effektive Max Heartrate',
     profileDerivedSprintThreshold: 'Abgeleitete Sprint-Schwelle',
@@ -4420,6 +4443,39 @@ export function App() {
                     accelDecelMinimumSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit)
                   }
                 }))}
+              />
+
+
+              <p className="profile-thresholds__group-title">{t.profileCodBandsTitle}</p>
+              <label className="form-label" htmlFor="profile-threshold-cod-moderate">{t.profileThresholdCodModerate}</label>
+              <input className="form-control" id="profile-threshold-cod-moderate" type="number" step="1" value={profileForm.metricThresholds.codModerateThresholdDegrees}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, codModerateThresholdDegrees: Number(event.target.value) } }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-cod-high">{t.profileThresholdCodHigh}</label>
+              <input className="form-control" id="profile-threshold-cod-high" type="number" step="1" value={profileForm.metricThresholds.codHighThresholdDegrees}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, codHighThresholdDegrees: Number(event.target.value) } }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-cod-veryhigh">{t.profileThresholdCodVeryHigh}</label>
+              <input className="form-control" id="profile-threshold-cod-veryhigh" type="number" step="1" value={profileForm.metricThresholds.codVeryHighThresholdDegrees}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, codVeryHighThresholdDegrees: Number(event.target.value) } }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-cod-min-speed">{t.profileThresholdCodMinSpeed} ({profileForm.preferredSpeedUnit})</label>
+              <input className="form-control"
+                id="profile-threshold-cod-min-speed"
+                type="number"
+                step={profileForm.preferredSpeedUnit === "min/km" ? "0.01" : "0.1"}
+                value={convertSpeedFromMetersPerSecond(profileForm.metricThresholds.codMinimumSpeedMps, profileForm.preferredSpeedUnit).toFixed(profileForm.preferredSpeedUnit === "min/km" ? 2 : 1)}
+                onChange={(event) => setProfileForm((current) => ({
+                  ...current,
+                  metricThresholds: {
+                    ...current.metricThresholds,
+                    codMinimumSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit)
+                  }
+                }))}
+              />
+              <label className="form-label" htmlFor="profile-threshold-cod-consecutive">{t.profileThresholdCodConsecutive}</label>
+              <input className="form-control" id="profile-threshold-cod-consecutive" type="number" min="1" max="5" step="1" value={profileForm.metricThresholds.codConsecutiveSamplesRequired}
+                onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, codConsecutiveSamplesRequired: Number(event.target.value) } }))}
               />
             </div>
           </details>

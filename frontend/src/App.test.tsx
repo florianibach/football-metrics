@@ -192,6 +192,11 @@ describe('App', () => {
       highDecelerationThresholdMps2: -1.8,
       veryHighDecelerationThresholdMps2: -2.5,
       accelDecelMinimumSpeedMps: 10 / 3.6,
+      codModerateThresholdDegrees: 45,
+      codHighThresholdDegrees: 60,
+      codVeryHighThresholdDegrees: 90,
+      codMinimumSpeedMps: 10 / 3.6,
+      codConsecutiveSamplesRequired: 2,
       effectiveMaxSpeedMps: 8.0,
       effectiveMaxHeartRateBpm: 190,
       version: 1,
@@ -1559,6 +1564,11 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Metric thresholds')).toBeInTheDocument());
     expect((screen.getByLabelText('Max speed (km/h)') as HTMLInputElement).value).toBe('28.1');
+    expect(screen.getByLabelText('Moderate COD threshold (>=)')).toBeInTheDocument();
+    expect(screen.getByLabelText('High COD threshold (>=)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Very high COD threshold (>=)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Minimum speed for COD detection (km/h)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Consecutive COD samples required')).toBeInTheDocument();
     expect(screen.getByText('Threshold version: 3')).toBeInTheDocument();
   });
 

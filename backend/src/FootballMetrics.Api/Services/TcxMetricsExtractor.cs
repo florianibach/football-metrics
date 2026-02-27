@@ -461,7 +461,7 @@ public static partial class TcxMetricsExtractor
         var consecutiveCandidates = 0;
         var inEvent = false;
         int? candidateTurnDirection = null;
-        CodBand? currentBand = null;
+        CodBand? highestBandInStreak = null;
 
         for (var index = 1; index < pointsWithGps.Count - 1; index++)
         {
@@ -485,7 +485,7 @@ public static partial class TcxMetricsExtractor
             {
                 consecutiveCandidates = 0;
                 candidateTurnDirection = null;
-                currentBand = null;
+                highestBandInStreak = null;
                 inEvent = false;
                 continue;
             }
@@ -495,22 +495,24 @@ public static partial class TcxMetricsExtractor
             {
                 consecutiveCandidates = 0;
                 candidateTurnDirection = null;
-                currentBand = null;
+                highestBandInStreak = null;
                 inEvent = false;
                 continue;
             }
 
             var turnDirection = Math.Sign(signedTurn);
-            if (consecutiveCandidates == 0 || (candidateTurnDirection == turnDirection && currentBand == band.Value))
+            if (consecutiveCandidates == 0 || candidateTurnDirection == turnDirection)
             {
                 candidateTurnDirection = turnDirection;
-                currentBand = band.Value;
+                highestBandInStreak = !highestBandInStreak.HasValue || band.Value > highestBandInStreak.Value
+                    ? band.Value
+                    : highestBandInStreak;
                 consecutiveCandidates++;
             }
             else
             {
                 candidateTurnDirection = turnDirection;
-                currentBand = band.Value;
+                highestBandInStreak = band.Value;
                 consecutiveCandidates = 1;
                 inEvent = false;
             }
@@ -519,7 +521,8 @@ public static partial class TcxMetricsExtractor
             {
                 events++;
                 inEvent = true;
-                switch (band.Value)
+                var classifiedBand = highestBandInStreak ?? band.Value;
+                switch (classifiedBand)
                 {
                     case CodBand.Moderate:
                         moderate++;

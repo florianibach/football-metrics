@@ -960,6 +960,27 @@ public class TcxMetricsExtractorTests
         veryHigh.VeryHigh.Should().Be(1);
     }
 
+
+    [Fact]
+    public void R1_6_21_Qa_Extract_ShouldCountEventWhenConsecutiveCandidatesChangeBand()
+    {
+        var angle50 = 50.0 * Math.PI / 180.0;
+        var angle120 = 120.0 * Math.PI / 180.0;
+        var doc = BuildDirectionChangeDocumentFromSegments(new[]
+        {
+            (Math.Cos(0) * 6.0, Math.Sin(0) * 6.0, 3),
+            (Math.Cos(angle50) * 6.0, Math.Sin(angle50) * 6.0, 1),
+            (Math.Cos(angle120) * 6.0, Math.Sin(angle120) * 6.0, 3)
+        });
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.DirectionChanges.Should().Be(1);
+        ((summary.CoreMetrics.ModerateDirectionChangeCount ?? 0)
+         + (summary.CoreMetrics.HighDirectionChangeCount ?? 0)
+         + (summary.CoreMetrics.VeryHighDirectionChangeCount ?? 0)).Should().Be(1);
+    }
+
     [Fact]
     public void R1_6_21_Ac02_Extract_ShouldUseConfigurableDirectionChangeBandThresholds()
     {
