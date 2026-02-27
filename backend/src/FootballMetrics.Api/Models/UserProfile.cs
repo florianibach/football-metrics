@@ -110,6 +110,11 @@ public class MetricThresholdProfile
     public double HighDecelerationThresholdMps2 { get; set; } = -1.8;
     public double VeryHighDecelerationThresholdMps2 { get; set; } = -2.5;
     public double AccelDecelMinimumSpeedMps { get; set; } = 10.0 / 3.6;
+    public double CodModerateThresholdDegrees { get; set; } = 45.0;
+    public double CodHighThresholdDegrees { get; set; } = 60.0;
+    public double CodVeryHighThresholdDegrees { get; set; } = 90.0;
+    public double CodMinimumSpeedMps { get; set; } = 10.0 / 3.6;
+    public int CodConsecutiveSamplesRequired { get; set; } = 2;
 
     // Effective readonly values for UI transparency in adaptive mode
     public double EffectiveMaxSpeedMps { get; set; } = 8.0;
@@ -183,6 +188,29 @@ public class MetricThresholdProfile
         if (profile.AccelDecelMinimumSpeedMps < 0.5 || profile.AccelDecelMinimumSpeedMps > 12.0)
         {
             return "AccelDecelMinimumSpeedMps must be between 0.5 and 12.0.";
+        }
+
+        if (profile.CodModerateThresholdDegrees < 10 || profile.CodModerateThresholdDegrees > 170 ||
+            profile.CodHighThresholdDegrees < 10 || profile.CodHighThresholdDegrees > 170 ||
+            profile.CodVeryHighThresholdDegrees < 10 || profile.CodVeryHighThresholdDegrees > 180)
+        {
+            return "COD angle thresholds must be between 10 and 180 degrees.";
+        }
+
+        if (!(profile.CodModerateThresholdDegrees <= profile.CodHighThresholdDegrees &&
+              profile.CodHighThresholdDegrees <= profile.CodVeryHighThresholdDegrees))
+        {
+            return "COD bands must satisfy Moderate <= High <= Very High.";
+        }
+
+        if (profile.CodMinimumSpeedMps < 0.5 || profile.CodMinimumSpeedMps > 12.0)
+        {
+            return "CodMinimumSpeedMps must be between 0.5 and 12.0.";
+        }
+
+        if (profile.CodConsecutiveSamplesRequired < 1 || profile.CodConsecutiveSamplesRequired > 5)
+        {
+            return "CodConsecutiveSamplesRequired must be between 1 and 5.";
         }
 
         return null;

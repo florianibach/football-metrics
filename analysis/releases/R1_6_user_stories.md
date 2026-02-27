@@ -424,26 +424,26 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - [x] Unit-Test-Fall: DeltaAngle 60° bei 5 km/h → kein Event.
 
 
-## Story R1.6-21: Kategorisierung von Direction Changes nach Intensität
+## Story R1.6-21: Kategorisierung von Direction Changes nach Intensität ✅ DONE
 **Als** Nutzer  
 **möchte ich** dass Richtungswechsel in Intensitätskategorien eingeteilt werden  
 **damit** ich zwischen moderaten und starken Richtungswechseln unterscheiden kann.
 
 ### Acceptance Criteria
 
-- [ ] Direction Changes werden anhand der Winkeländerung kategorisiert:
+- [x] Direction Changes werden anhand der Winkeländerung kategorisiert:
       - Moderate COD: 45°–59°
       - High COD: 60°–89°
       - Very High COD: ≥90°
-- [ ] Kategorien sind konfigurierbar.
-- [ ] Jede COD-Kategorie wird separat gezählt.
-- [ ] In der Mechanical Summary werden ausgewiesen:
+- [x] Kategorien sind konfigurierbar.
+- [x] Jede COD-Kategorie wird separat gezählt.
+- [x] In der Mechanical Summary werden ausgewiesen:
       - Anzahl Moderate COD
       - Anzahl High COD
       - Anzahl Very High COD
-- [ ] Unit-Test-Fall: 50° → Moderate COD.
-- [ ] Unit-Test-Fall: 75° → High COD.
-- [ ] Unit-Test-Fall: 120° → Very High COD.
+- [x] Unit-Test-Fall: 50° → Moderate COD.
+- [x] Unit-Test-Fall: 75° → High COD.
+- [x] Unit-Test-Fall: 120° → Very High COD.
 
 
 ## Priorisierung für R1.6

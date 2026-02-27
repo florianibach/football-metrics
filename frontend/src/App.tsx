@@ -36,6 +36,10 @@ type FootballCoreMetrics = {
   moderateDecelerationCount: number | null;
   highDecelerationCount: number | null;
   veryHighDecelerationCount: number | null;
+  directionChanges: number | null;
+  moderateDirectionChangeCount: number | null;
+  highDirectionChangeCount: number | null;
+  veryHighDirectionChangeCount: number | null;
   heartRateZoneLowSeconds: number | null;
   heartRateZoneMediumSeconds: number | null;
   heartRateZoneHighSeconds: number | null;
@@ -728,7 +732,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterDescriptionSavitzkyGolay: 'Savitzky-Golay: Purpose: polynomial smoothing for stable trajectories. Strengths: clean curve shape for trend viewing. Limits: can flatten very abrupt actions. Typical use: tactical pattern review with moderate noise.',
     filterDescriptionButterworth: 'Butterworth: Purpose: low-pass filtering for strong noise suppression. Strengths: robust against high-frequency jitter. Limits: highest risk of smoothing away short explosive actions. Typical use: noisy device traces requiring stronger cleanup.',
     compareDisabledNoGps: 'Comparison is disabled because this session does not contain GPS coordinates.',
-    metricDirectionChanges: 'Direction changes',
+    metricDirectionChanges: 'Direction changes (COD)',
     metricDataChange: 'Data change due to smoothing',
     metricDataChangeHelp: '{correctedShare}% corrected points ({correctedPoints}/{trackpoints}), distance delta {distanceDelta}',
     qualityStatusHigh: 'high',
@@ -1132,7 +1136,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterDescriptionSavitzkyGolay: 'Savitzky-Golay: Zweck: polynomiale Glättung für stabile Trajektorien. Stärken: ruhiger Kurvenverlauf für Trendbetrachtung. Grenzen: sehr abrupte Aktionen können abgeflacht werden. Typische Nutzung: Musteranalyse bei moderatem Rauschen.',
     filterDescriptionButterworth: 'Butterworth: Zweck: Tiefpassfilter für starke Rauschunterdrückung. Stärken: robust bei hochfrequentem GPS-Jitter. Grenzen: größtes Risiko, kurze explosive Aktionen zu glätten. Typische Nutzung: stark verrauschte Aufzeichnungen mit höherem Bereinigungsbedarf.',
     compareDisabledNoGps: 'Der Vergleich ist deaktiviert, weil diese Session keine GPS-Koordinaten enthält.',
-    metricDirectionChanges: 'Richtungswechsel',
+    metricDirectionChanges: 'Richtungswechsel (COD)',
     metricDataChange: 'Datenänderung durch Glättung',
     metricDataChangeHelp: '{correctedShare}% korrigierte Punkte ({correctedPoints}/{trackpoints}), Distanzabweichung {distanceDelta}',
     qualityStatusHigh: 'hoch',
@@ -1509,7 +1513,7 @@ const metricExplanations: Record<Locale, Record<string, string>> = {
     dataChange: 'Purpose: shows smoothing impact. Interpretation: larger deltas indicate stronger correction of raw data. Unit: percent and meters.',
     smoothingStrategy: 'Purpose: makes preprocessing transparent. Interpretation: selected method influences downstream metric values. Unit: strategy name.',
     smoothingOutlier: 'Purpose: documents outlier handling. Interpretation: threshold/mode defines when points are corrected. Unit: mode and m/s threshold.',
-    directionChanges: 'Purpose: captures directional variability. Interpretation: higher value can indicate more stop-and-go movement. Unit: count.',
+    directionChanges: 'Purpose: captures Change of Direction (COD) actions and directional variability. Interpretation: higher values can indicate more stop-and-go movement and cutting actions. Unit: count.',
     sprintDistance: 'Purpose: measures high-intensity running distance above a defined speed threshold. Interpretation: this is a key indicator for intensive load (sprints and fast tempo runs), not just total movement volume. Very low values usually mean little sprint exposure, while high values indicate repeated sprint load and stronger external stress. Unit: km and m. If unavailable, GPS quality was not sufficient.',
     sprintCount: 'Purpose: counts how often the athlete enters the sprint zone above the configured speed threshold. Interpretation: this metric represents high-intensity actions and sprint stress; orientation for typical amateur sessions: 0-2 low, 3-6 moderate, >6 high. Read it together with sprint distance to distinguish many short sprint actions from fewer but longer high-speed phases. Unit: count. If unavailable, GPS quality was not sufficient.',
     maxSpeed: 'Purpose: captures the highest measured speed during the unit and reflects current sprint capability. Interpretation: <6.0 m/s is rather low, 6.0-7.5 m/s typical, and >7.5 m/s very high for many amateur players. Track this over time as a performance marker and combine it with high-speed distance to see whether top speed is reached only briefly or repeatedly. Unit: m/s. If unavailable, GPS quality was not sufficient.',
@@ -1538,7 +1542,7 @@ const metricExplanations: Record<Locale, Record<string, string>> = {
     dataChange: 'Zweck: zeigt den Effekt der Glättung. Interpretation: größere Abweichungen bedeuten stärkere Korrektur der Rohdaten. Einheit: Prozent und Meter.',
     smoothingStrategy: 'Zweck: macht die Vorverarbeitung transparent. Interpretation: die Methode beeinflusst nachgelagerte Metrikwerte. Einheit: Strategiename.',
     smoothingOutlier: 'Zweck: dokumentiert die Ausreißerbehandlung. Interpretation: Modus/Schwelle definieren, wann Punkte korrigiert werden. Einheit: Modus und m/s-Schwelle.',
-    directionChanges: 'Zweck: erfasst Richtungsvariabilität. Interpretation: höhere Werte können mehr Stop-and-Go anzeigen. Einheit: Anzahl.',
+    directionChanges: 'Zweck: erfasst Change of Direction (COD)-Aktionen und Richtungsvariabilität. Interpretation: höhere Werte können mehr Stop-and-Go und Richtungswechsel anzeigen. Einheit: Anzahl.',
     sprintDistance: 'Zweck: misst die hochintensive Laufdistanz oberhalb einer definierten Geschwindigkeitsschwelle. Interpretation: sie ist ein zentraler Indikator für intensive Belastung (Sprints/Tempoläufe) und nicht nur für allgemeines Laufvolumen. Sehr niedrige Werte deuten meist auf wenige Sprintphasen hin, hohe Werte auf ausgeprägte Sprintbelastung und stärkere äußere Last. Einheit: km und m. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
     sprintCount: 'Zweck: zählt, wie oft ein Spieler den Sprintbereich oberhalb der konfigurierten Geschwindigkeitsschwelle erreicht. Interpretation: die Metrik steht für hochintensive Aktionen und Sprintstress; Orientierung für typische Amateur-Sessions: 0-2 niedrig, 3-6 mittel, >6 hoch. Gemeinsam mit der Sprintdistanz lässt sich unterscheiden, ob eher viele kurze oder wenige längere Sprintphasen vorlagen. Einheit: Anzahl. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
     maxSpeed: 'Zweck: erfasst die höchste gemessene Geschwindigkeit der Einheit und damit das aktuelle Sprintvermögen. Interpretation: <6,0 m/s eher niedrig, 6,0-7,5 m/s typisch und >7,5 m/s für viele Amateurspieler sehr hoch. Über die Zeit ist der Wert ein Performance-Marker; in Kombination mit High-Speed-Distanz sieht man, ob Top-Speed nur kurz oder wiederholt erreicht wurde. Einheit: m/s. Falls nicht verfügbar, war die GPS-Qualität zu gering.',
@@ -3236,12 +3240,6 @@ export function App() {
       : selectedSession.summary.smoothing.smoothedDistanceMeters ?? selectedSession.summary.distanceMeters
     : null;
 
-  const activeDirectionChanges = selectedSession
-    ? compareMode === 'raw'
-      ? selectedSession.summary.smoothing.rawDirectionChanges
-      : selectedSession.summary.smoothing.smoothedDirectionChanges
-    : null;
-
   const selectedSegment = selectedSession?.segments.find((segment) => segment.id === selectedSegmentId) ?? selectedSession?.segments[0] ?? null;
   const segmentAssistantPoints = useMemo(() => {
     const allPoints = (selectedSession?.summary.gpsTrackpoints ?? [])
@@ -3639,7 +3637,7 @@ export function App() {
     {
       key: 'directionChanges',
       label: t.sessionCompareMetricDirectionChanges,
-      getter: (session: UploadRecord) => session.summary.directionChangeCount ?? null,
+      getter: (session: UploadRecord) => session.summary.coreMetrics.directionChanges ?? null,
       formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatNumber(value, currentLocale, notAvailable, 1)
     },
     {
@@ -5154,7 +5152,7 @@ export function App() {
                         <>
                           <MetricListItem label={t.metricAccelerationBandsCount} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateAccelerationCount, displayedCoreMetrics.highAccelerationCount, displayedCoreMetrics.veryHighAccelerationCount, t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
                           <MetricListItem label={t.metricDecelerationBandsCount} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDecelerationCount, displayedCoreMetrics.highDecelerationCount, displayedCoreMetrics.veryHighDecelerationCount, t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
-                          <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatNumber(activeDirectionChanges, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
+                          <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDirectionChangeCount, displayedCoreMetrics.highDirectionChangeCount, displayedCoreMetrics.veryHighDirectionChangeCount, t.notAvailable), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
                         </>
                       )}
                     </ul>

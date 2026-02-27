@@ -937,6 +937,71 @@ public class TcxMetricsExtractorTests
         summary.Smoothing.SmoothedDirectionChanges.Should().Be(0);
     }
 
+
+    [Fact]
+    public void R1_6_21_Ac01_Ac03_Extract_ShouldCategorizeDirectionChangesIntoBands()
+    {
+        var moderate = ExtractDirectionChangeBandCounts(50.0);
+        moderate.Total.Should().Be(1);
+        moderate.Moderate.Should().Be(1);
+        moderate.High.Should().Be(0);
+        moderate.VeryHigh.Should().Be(0);
+
+        var high = ExtractDirectionChangeBandCounts(75.0);
+        high.Total.Should().Be(1);
+        high.Moderate.Should().Be(0);
+        high.High.Should().Be(1);
+        high.VeryHigh.Should().Be(0);
+
+        var veryHigh = ExtractDirectionChangeBandCounts(120.0);
+        veryHigh.Total.Should().Be(1);
+        veryHigh.Moderate.Should().Be(0);
+        veryHigh.High.Should().Be(0);
+        veryHigh.VeryHigh.Should().Be(1);
+    }
+
+    [Fact]
+    public void R1_6_21_Ac02_Extract_ShouldUseConfigurableDirectionChangeBandThresholds()
+    {
+        var profile = MetricThresholdProfile.CreateDefault();
+        profile.CodModerateThresholdDegrees = 40;
+        profile.CodHighThresholdDegrees = 50;
+        profile.CodVeryHighThresholdDegrees = 70;
+
+        var angle55 = 55.0 * Math.PI / 180.0;
+        var angle110 = 110.0 * Math.PI / 180.0;
+        var doc = BuildDirectionChangeDocumentFromSegments(new[]
+        {
+            (Math.Cos(0) * 6.0, Math.Sin(0) * 6.0, 3),
+            (Math.Cos(angle55) * 6.0, Math.Sin(angle55) * 6.0, 1),
+            (Math.Cos(angle110) * 6.0, Math.Sin(angle110) * 6.0, 3)
+        });
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, profile);
+
+        summary.CoreMetrics.HighDirectionChangeCount.Should().Be(1);
+        summary.CoreMetrics.VeryHighDirectionChangeCount.Should().Be(0);
+    }
+
+    private static (int Total, int Moderate, int High, int VeryHigh) ExtractDirectionChangeBandCounts(double angleDegrees)
+    {
+        var firstAngle = angleDegrees * Math.PI / 180.0;
+        var secondAngle = angleDegrees * 2 * Math.PI / 180.0;
+        var doc = BuildDirectionChangeDocumentFromSegments(new[]
+        {
+            (Math.Cos(0) * 6.0, Math.Sin(0) * 6.0, 3),
+            (Math.Cos(firstAngle) * 6.0, Math.Sin(firstAngle) * 6.0, 1),
+            (Math.Cos(secondAngle) * 6.0, Math.Sin(secondAngle) * 6.0, 3)
+        });
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+        return (
+            summary.CoreMetrics.DirectionChanges ?? 0,
+            summary.CoreMetrics.ModerateDirectionChangeCount ?? 0,
+            summary.CoreMetrics.HighDirectionChangeCount ?? 0,
+            summary.CoreMetrics.VeryHighDirectionChangeCount ?? 0);
+    }
+
     private static XDocument BuildDirectionChangeDocumentFromSegments(IReadOnlyList<(double DeltaLatitudeMetersPerSecond, double DeltaLongitudeMetersPerSecond, int Seconds)> segments)
     {
         var timestamp = DateTime.Parse("2026-02-16T10:00:00Z", null, DateTimeStyles.AdjustToUniversal);
