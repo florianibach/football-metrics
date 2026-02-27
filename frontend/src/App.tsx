@@ -1604,13 +1604,21 @@ type MetricListItemProps = {
   helpText: string;
 };
 
+type KpiCardDeltaRow = {
+  label: string;
+  value: string;
+  tone: 'positive' | 'negative' | 'neutral';
+};
+
 type KpiCardProps = {
   label: string;
-  primaryValue: string;
+  primaryValue?: string;
+  primaryValues?: string[];
   helpText: string;
   comparisonAverage?: string | null;
   comparisonBest?: string | null;
   secondaryRows?: string[];
+  deltaRows?: KpiCardDeltaRow[];
   actions?: Array<{ label: string; onClick: () => void }>;
 };
 
@@ -1638,7 +1646,7 @@ function MetricListItem({ label, value, helpText }: MetricListItemProps) {
   );
 }
 
-function KpiCard({ label, primaryValue, helpText, comparisonAverage, comparisonBest, secondaryRows = [], actions = [] }: KpiCardProps) {
+function KpiCard({ label, primaryValue, primaryValues = [], helpText, comparisonAverage, comparisonBest, secondaryRows = [], deltaRows = [], actions = [] }: KpiCardProps) {
   return (
     <article className="kpi-card" aria-label={label}>
       <header className="kpi-card__header">
@@ -1654,7 +1662,9 @@ function KpiCard({ label, primaryValue, helpText, comparisonAverage, comparisonB
           ⓘ
         </button>
       </header>
-      <p className="kpi-card__primary">{primaryValue}</p>
+      {(primaryValues.length > 0 ? primaryValues : (primaryValue ? [primaryValue] : [])).map((value) => (
+        <p className="kpi-card__primary" key={value}>{value}</p>
+      ))}
       {secondaryRows.length > 0 && (
         <div className="kpi-card__secondary">
           {secondaryRows.map((row) => <p key={row}>{row}</p>)}
@@ -1664,6 +1674,15 @@ function KpiCard({ label, primaryValue, helpText, comparisonAverage, comparisonB
         <div className="kpi-card__comparison">
           {comparisonAverage ? <p>{comparisonAverage}</p> : null}
           {comparisonBest ? <p>{comparisonBest}</p> : null}
+        </div>
+      )}
+      {deltaRows.length > 0 && (
+        <div className="kpi-card__delta"> 
+          {deltaRows.map((row) => (
+            <p key={`${row.label}:${row.value}`} className={`kpi-card__delta-row kpi-card__delta-row--${row.tone}`}>
+              {row.label}: {row.value}
+            </p>
+          ))}
         </div>
       )}
       {actions.length > 0 && (
@@ -3903,6 +3922,7 @@ export function App() {
   const maxSpeedComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.maxSpeedMetersPerSecond ?? null);
   const highSpeedDistanceComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.highSpeedDistanceMeters ?? null);
   const accelerationComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.accelerationCount ?? null);
+  const decelerationComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.decelerationCount ?? null);
   const heartRateAvgComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.heartRateAverageBpm ?? null);
   const trimpComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.trainingImpulseEdwards ?? null);
   const hrRecoveryComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? null);
@@ -5545,9 +5565,7 @@ export function App() {
                         secondaryRows={[
                           `${t.metricHighIntensityRunCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)}`,
                           `${t.metricHighIntensityTime}: ${withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)}`,
-                          `${t.metricSprintCount}: ${withMetricStatus(String(displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)}`,
-                          `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`,
-                          `${t.metricHighSpeedDistance}: ${withMetricStatus(formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)}`
+                          `${t.metricSprintCount}: ${withMetricStatus(String(displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)}`
                         ]}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
                       />}
@@ -5557,6 +5575,9 @@ export function App() {
                         helpText={metricHelp.highSpeedDistance}
                         comparisonAverage={highSpeedDistanceComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDistance(highSpeedDistanceComparison.averageLastFive, locale, t.notAvailable) }) : null}
                         comparisonBest={highSpeedDistanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistance(highSpeedDistanceComparison.bestSeason, locale, t.notAvailable) }) : null}
+                        secondaryRows={[
+                          `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`
+                        ]}
                         actions={[
                           { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
@@ -5591,13 +5612,34 @@ export function App() {
                     <div className="kpi-card-grid">
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label="Mechanical Load"
-                        primaryValue={`${t.metricAccelerationCount}: ${withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`}
+                        primaryValues={[
+                          `${t.metricAccelerationCount}: ${withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
+                          `${t.metricDecelerationCount}: ${withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`
+                        ]}
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
-                        comparisonAverage={accelerationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(accelerationComparison.averageLastFive, locale, t.notAvailable, 0) }) : null}
                         secondaryRows={[
-                          `${t.metricDecelerationCount}: ${withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
                           `${t.metricDirectionChanges}: ${withMetricStatus(String(displayedCoreMetrics.directionChanges ?? t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`,
-                          `High Intensity Direction Changes: M ${displayedCoreMetrics.moderateDirectionChangeCount ?? t.notAvailable} · H ${displayedCoreMetrics.highDirectionChangeCount ?? t.notAvailable} · VH ${displayedCoreMetrics.veryHighDirectionChangeCount ?? t.notAvailable}`
+                          `High Intensity Direction Changes (M/H/VH): ${withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDirectionChangeCount, displayedCoreMetrics.highDirectionChangeCount, displayedCoreMetrics.veryHighDirectionChangeCount, t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`
+                        ]}
+                        deltaRows={[
+                          {
+                            label: 'Δ Ø Accels',
+                            value: accelerationComparison.averageLastFive !== null && displayedCoreMetrics.accelerationCount !== null
+                              ? formatSignedNumber(displayedCoreMetrics.accelerationCount - accelerationComparison.averageLastFive, locale, 0)
+                              : t.notAvailable,
+                            tone: accelerationComparison.averageLastFive !== null && displayedCoreMetrics.accelerationCount !== null
+                              ? (displayedCoreMetrics.accelerationCount - accelerationComparison.averageLastFive > 0 ? 'positive' : (displayedCoreMetrics.accelerationCount - accelerationComparison.averageLastFive < 0 ? 'negative' : 'neutral'))
+                              : 'neutral'
+                          },
+                          {
+                            label: 'Δ Ø Decels',
+                            value: decelerationComparison.averageLastFive !== null && displayedCoreMetrics.decelerationCount !== null
+                              ? formatSignedNumber(displayedCoreMetrics.decelerationCount - decelerationComparison.averageLastFive, locale, 0)
+                              : t.notAvailable,
+                            tone: decelerationComparison.averageLastFive !== null && displayedCoreMetrics.decelerationCount !== null
+                              ? (displayedCoreMetrics.decelerationCount - decelerationComparison.averageLastFive > 0 ? 'positive' : (displayedCoreMetrics.decelerationCount - decelerationComparison.averageLastFive < 0 ? 'negative' : 'neutral'))
+                              : 'neutral'
+                          }
                         ]}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
                       />}

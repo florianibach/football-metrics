@@ -2142,9 +2142,30 @@ input[type='checkbox']::before {
 }
 
 .kpi-card__secondary p,
-.kpi-card__comparison p {
+.kpi-card__comparison p,
+.kpi-card__delta p {
   margin: 0.15rem 0;
   font-size: 0.86rem;
+}
+
+.kpi-card__primary + .kpi-card__primary {
+  margin-top: -0.2rem;
+}
+
+.kpi-card__delta {
+  margin-top: 0.25rem;
+}
+
+.kpi-card__delta-row--positive {
+  color: #1f9d55;
+}
+
+.kpi-card__delta-row--negative {
+  color: #d64545;
+}
+
+.kpi-card__delta-row--neutral {
+  color: var(--muted);
 }
 
 .kpi-card__actions {
