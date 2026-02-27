@@ -149,8 +149,12 @@ echo "$upload_response" | jq -e '
       and ((.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps | tonumber) == 5.5)
     )
   )
-  and ((.summary.coreMetrics.thresholds.AccelerationThresholdMps2 | tonumber) == 2)
-  and ((.summary.coreMetrics.thresholds.DecelerationThresholdMps2 | tonumber) == -2)
+  and ((.summary.coreMetrics.thresholds.ModerateAccelerationThresholdMps2 | tonumber) > 0)
+  and ((.summary.coreMetrics.thresholds.HighAccelerationThresholdMps2 | tonumber) >= (.summary.coreMetrics.thresholds.ModerateAccelerationThresholdMps2 | tonumber))
+  and ((.summary.coreMetrics.thresholds.VeryHighAccelerationThresholdMps2 | tonumber) >= (.summary.coreMetrics.thresholds.HighAccelerationThresholdMps2 | tonumber))
+  and ((.summary.coreMetrics.thresholds.ModerateDecelerationThresholdMps2 | tonumber) < 0)
+  and ((.summary.coreMetrics.thresholds.HighDecelerationThresholdMps2 | tonumber) <= (.summary.coreMetrics.thresholds.ModerateDecelerationThresholdMps2 | tonumber))
+  and ((.summary.coreMetrics.thresholds.VeryHighDecelerationThresholdMps2 | tonumber) <= (.summary.coreMetrics.thresholds.HighDecelerationThresholdMps2 | tonumber))
 ' >/dev/null
 curl -fsS "$API_URL/api/v1/tcx" | jq 'length >= 1' | grep true
 

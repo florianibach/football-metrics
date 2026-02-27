@@ -760,12 +760,13 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             ["SprintSpeedThresholdMps"] = (thresholdsProfile.EffectiveMaxSpeedMps * (thresholdsProfile.SprintSpeedPercentOfMaxSpeed / 100.0)).ToString("0.0", CultureInfo.InvariantCulture),
             ["HighIntensitySpeedPercentOfMaxSpeed"] = thresholdsProfile.HighIntensitySpeedPercentOfMaxSpeed.ToString("0.0", CultureInfo.InvariantCulture),
             ["HighIntensitySpeedThresholdMps"] = (thresholdsProfile.EffectiveMaxSpeedMps * (thresholdsProfile.HighIntensitySpeedPercentOfMaxSpeed / 100.0)).ToString("0.0", CultureInfo.InvariantCulture),
-            ["AccelerationThresholdMps2"] = thresholdsProfile.AccelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
-            ["AccelerationThresholdMode"] = "Fixed",
-            ["AccelerationThresholdSource"] = "Fixed",
-            ["DecelerationThresholdMps2"] = thresholdsProfile.DecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
-            ["DecelerationThresholdMode"] = "Fixed",
-            ["DecelerationThresholdSource"] = "Fixed",
+            ["ModerateAccelerationThresholdMps2"] = thresholdsProfile.ModerateAccelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["HighAccelerationThresholdMps2"] = thresholdsProfile.HighAccelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["VeryHighAccelerationThresholdMps2"] = thresholdsProfile.VeryHighAccelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["ModerateDecelerationThresholdMps2"] = thresholdsProfile.ModerateDecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["HighDecelerationThresholdMps2"] = thresholdsProfile.HighDecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["VeryHighDecelerationThresholdMps2"] = thresholdsProfile.VeryHighDecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["AccelDecelMinimumSpeedMps"] = thresholdsProfile.AccelDecelMinimumSpeedMps.ToString("0.00", CultureInfo.InvariantCulture),
             ["MaxHeartRateBpm"] = thresholdsProfile.MaxHeartRateBpm.ToString(CultureInfo.InvariantCulture),
             ["MaxHeartRateMode"] = thresholdsProfile.MaxHeartRateMode,
             ["MaxHeartRateEffectiveBpm"] = thresholdsProfile.EffectiveMaxHeartRateBpm.ToString(CultureInfo.InvariantCulture),
@@ -829,6 +830,12 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         double? runningDensityMetersPerMinute = null;
         int? accelerationCount = null;
         int? decelerationCount = null;
+        int? moderateAccelerationCount = null;
+        int? highAccelerationCount = null;
+        int? veryHighAccelerationCount = null;
+        int? moderateDecelerationCount = null;
+        int? highDecelerationCount = null;
+        int? veryHighDecelerationCount = null;
         double? distanceMeters = null;
         var detectedRuns = new List<TcxDetectedRun>();
 
@@ -837,7 +844,8 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
                      })
             {
                 MarkMetric(key, "NotMeasured", "GPS coordinates were not recorded for this session.");
@@ -848,7 +856,8 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
                      })
             {
                 MarkMetric(key, "NotUsable", "GPS measurements are present but do not contain usable time segments.");
@@ -859,7 +868,8 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
                      })
             {
                 MarkMetric(key, "NotUsable", $"GPS-derived metric is unusable because data quality is {qualityStatus}.");
@@ -947,35 +957,35 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 ? (totalDistanceMeters ?? segments.Sum(segment => segment.Distance)) / (totalDurationSeconds / 60.0)
                 : (double?)null;
 
-            var localAccelerationCount = 0;
-            var localDecelerationCount = 0;
-            for (var index = 1; index < segments.Count; index++)
-            {
-                var elapsedSeconds = segments[index].Duration;
-                if (elapsedSeconds <= 0)
-                {
-                    continue;
-                }
+            var accelerationSamples = segments
+                .Select(segment => new SpeedSample(segment.EndElapsedSeconds, segment.Speed, segment.Distance))
+                .ToList();
 
-                var acceleration = (segments[index].Speed - segments[index - 1].Speed) / elapsedSeconds;
-                if (acceleration >= thresholdsProfile.AccelerationThresholdMps2)
-                {
-                    localAccelerationCount++;
-                }
-                else if (acceleration <= thresholdsProfile.DecelerationThresholdMps2)
-                {
-                    localDecelerationCount++;
-                }
-            }
+            var accelerationWindowSamples = BuildAccelerationWindowSamples(accelerationSamples, thresholdsProfile);
 
-            accelerationCount = localAccelerationCount;
-            decelerationCount = localDecelerationCount;
+            var moderateAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.Moderate, sample => sample.AccelerationBand);
+            var highAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.High, sample => sample.AccelerationBand);
+            var veryHighAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.VeryHigh, sample => sample.AccelerationBand);
+            var moderateDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.Moderate, sample => sample.DecelerationBand);
+            var highDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.High, sample => sample.DecelerationBand);
+            var veryHighDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.VeryHigh, sample => sample.DecelerationBand);
+
+            moderateAccelerationCount = moderateAccelerationEvents.EventCount;
+            highAccelerationCount = highAccelerationEvents.EventCount;
+            veryHighAccelerationCount = veryHighAccelerationEvents.EventCount;
+            moderateDecelerationCount = moderateDecelerationEvents.EventCount;
+            highDecelerationCount = highDecelerationEvents.EventCount;
+            veryHighDecelerationCount = veryHighDecelerationEvents.EventCount;
+
+            accelerationCount = moderateAccelerationEvents.EventCount + highAccelerationEvents.EventCount + veryHighAccelerationEvents.EventCount;
+            decelerationCount = moderateDecelerationEvents.EventCount + highDecelerationEvents.EventCount + veryHighDecelerationEvents.EventCount;
             distanceMeters = totalDistanceMeters;
 
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
                      })
             {
                 var metricState = string.Equals(qualityStatus, "Medium", StringComparison.OrdinalIgnoreCase)
@@ -1123,6 +1133,12 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             runningDensityMetersPerMinute,
             accelerationCount,
             decelerationCount,
+            moderateAccelerationCount,
+            highAccelerationCount,
+            veryHighAccelerationCount,
+            moderateDecelerationCount,
+            highDecelerationCount,
+            veryHighDecelerationCount,
             hrZoneLowSeconds,
             hrZoneMediumSeconds,
             hrZoneHighSeconds,
@@ -1225,6 +1241,149 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         }
 
         return runs;
+    }
+
+    private enum AccelDecelBand
+    {
+        None = 0,
+        Moderate = 1,
+        High = 2,
+        VeryHigh = 3
+    }
+
+    private readonly record struct SpeedSample(double ElapsedSeconds, double SpeedMps, double DistanceMeters);
+
+    private readonly record struct AccelWindowSample(
+        double ElapsedSeconds,
+        double NetAccelerationMps2,
+        double DistanceMeters,
+        AccelDecelBand AccelerationBand,
+        AccelDecelBand DecelerationBand);
+
+    private static List<AccelWindowSample> BuildAccelerationWindowSamples(
+        IReadOnlyList<SpeedSample> samples,
+        MetricThresholdProfile thresholdsProfile)
+    {
+        const double expectedWindowSeconds = 2.0;
+        const double windowToleranceSeconds = 0.25;
+
+        var windows = new List<AccelWindowSample>();
+        for (var index = 2; index < samples.Count; index++)
+        {
+            var current = samples[index];
+            var start = samples[index - 2];
+            var elapsedWindowSeconds = current.ElapsedSeconds - start.ElapsedSeconds;
+            if (elapsedWindowSeconds <= 0 || Math.Abs(elapsedWindowSeconds - expectedWindowSeconds) > windowToleranceSeconds)
+            {
+                continue;
+            }
+
+            var netAccelerationMps2 = (current.SpeedMps - start.SpeedMps) / elapsedWindowSeconds;
+            var passesMinSpeed = current.SpeedMps >= thresholdsProfile.AccelDecelMinimumSpeedMps && start.SpeedMps >= thresholdsProfile.AccelDecelMinimumSpeedMps;
+
+            var accelerationBand = passesMinSpeed
+                ? ClassifyAccelerationBand(netAccelerationMps2, thresholdsProfile)
+                : AccelDecelBand.None;
+            var decelerationBand = passesMinSpeed
+                ? ClassifyDecelerationBand(netAccelerationMps2, thresholdsProfile)
+                : AccelDecelBand.None;
+
+            windows.Add(new AccelWindowSample(current.ElapsedSeconds, netAccelerationMps2, current.DistanceMeters, accelerationBand, decelerationBand));
+        }
+
+        return windows;
+    }
+
+    private static AccelDecelBand ClassifyAccelerationBand(double accelerationMps2, MetricThresholdProfile thresholdsProfile)
+    {
+        if (accelerationMps2 >= thresholdsProfile.VeryHighAccelerationThresholdMps2)
+        {
+            return AccelDecelBand.VeryHigh;
+        }
+
+        if (accelerationMps2 >= thresholdsProfile.HighAccelerationThresholdMps2)
+        {
+            return AccelDecelBand.High;
+        }
+
+        if (accelerationMps2 >= thresholdsProfile.ModerateAccelerationThresholdMps2)
+        {
+            return AccelDecelBand.Moderate;
+        }
+
+        return AccelDecelBand.None;
+    }
+
+    private static AccelDecelBand ClassifyDecelerationBand(double accelerationMps2, MetricThresholdProfile thresholdsProfile)
+    {
+        if (accelerationMps2 <= thresholdsProfile.VeryHighDecelerationThresholdMps2)
+        {
+            return AccelDecelBand.VeryHigh;
+        }
+
+        if (accelerationMps2 <= thresholdsProfile.HighDecelerationThresholdMps2)
+        {
+            return AccelDecelBand.High;
+        }
+
+        if (accelerationMps2 <= thresholdsProfile.ModerateDecelerationThresholdMps2)
+        {
+            return AccelDecelBand.Moderate;
+        }
+
+        return AccelDecelBand.None;
+    }
+
+    private static (int EventCount, double DistanceMeters) DetectBandEvents(
+        IReadOnlyList<AccelWindowSample> samples,
+        AccelDecelBand targetBand,
+        Func<AccelWindowSample, AccelDecelBand> bandSelector)
+    {
+        const int consecutiveNonCandidatesForEnd = 2;
+        var eventCount = 0;
+        var eventDistanceMeters = 0d;
+        var inEvent = false;
+        var consecutiveOutsideBand = 0;
+
+        foreach (var sample in samples)
+        {
+            var isCandidate = bandSelector(sample) == targetBand;
+
+            if (!inEvent)
+            {
+                if (!isCandidate)
+                {
+                    continue;
+                }
+
+                inEvent = true;
+                consecutiveOutsideBand = 0;
+                eventDistanceMeters += sample.DistanceMeters;
+                continue;
+            }
+
+            if (isCandidate)
+            {
+                eventDistanceMeters += sample.DistanceMeters;
+                consecutiveOutsideBand = 0;
+                continue;
+            }
+
+            consecutiveOutsideBand++;
+            if (consecutiveOutsideBand >= consecutiveNonCandidatesForEnd)
+            {
+                eventCount++;
+                inEvent = false;
+                consecutiveOutsideBand = 0;
+            }
+        }
+
+        if (inEvent)
+        {
+            eventCount++;
+        }
+
+        return (eventCount, eventDistanceMeters);
     }
 
 

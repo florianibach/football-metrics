@@ -153,8 +153,6 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             MaxHeartRateMode = profile.MetricThresholds.MaxHeartRateMode,
             SprintSpeedPercentOfMaxSpeed = profile.MetricThresholds.SprintSpeedPercentOfMaxSpeed,
             HighIntensitySpeedPercentOfMaxSpeed = profile.MetricThresholds.HighIntensitySpeedPercentOfMaxSpeed,
-            AccelerationThresholdMps2 = profile.MetricThresholds.AccelerationThresholdMps2,
-            DecelerationThresholdMps2 = profile.MetricThresholds.DecelerationThresholdMps2,
             EffectiveMaxSpeedMps = profile.MetricThresholds.EffectiveMaxSpeedMps,
             EffectiveMaxHeartRateBpm = profile.MetricThresholds.EffectiveMaxHeartRateBpm,
             Version = profile.MetricThresholds.Version,
@@ -947,8 +945,6 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         {
             MaxSpeedMps = 8.3,
             MaxHeartRateBpm = 191,
-            AccelerationThresholdMps2 = 2.4,
-            DecelerationThresholdMps2 = -2.6,
             Version = 1,
             UpdatedAtUtc = DateTime.UtcNow
         }, TcxSmoothingFilters.Butterworth, null, null));
@@ -961,7 +957,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         recalculated.Should().NotBeNull();
         recalculated!.Summary.Smoothing.SelectedStrategy.Should().Be(TcxSmoothingFilters.Butterworth);
         recalculated.SelectedSmoothingFilterSource.Should().Be(TcxSmoothingFilterSources.ProfileRecalculation);
-        recalculated.SelectedSpeedUnit.Should().BeOneOf(SpeedUnits.KilometersPerHour, SpeedUnits.MinutesPerKilometer, SpeedUnits.MetersPerSecond);
+        recalculated.SelectedSpeedUnit.Should().BeOneOf(SpeedUnits.KilometersPerHour, SpeedUnits.MilesPerHour, SpeedUnits.MinutesPerKilometer, SpeedUnits.MetersPerSecond);
         recalculated.SelectedSpeedUnitSource.Should().Be(TcxSpeedUnitSources.ProfileRecalculation);
         recalculated.AppliedProfileSnapshot.ThresholdVersion.Should().BeGreaterThanOrEqualTo(2);
         recalculated.RecalculationHistory.Should().NotBeEmpty();

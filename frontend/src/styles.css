@@ -232,6 +232,13 @@ button:disabled {
   color: color-mix(in srgb, var(--bs-secondary-text) 70%, var(--bs-secondary));
 }
 
+
+.profile-thresholds__group-title {
+  margin: 0.6rem 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 .session-details {
   margin-top: 1.5rem;
 }

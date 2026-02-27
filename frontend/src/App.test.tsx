@@ -22,6 +22,12 @@ describe('App', () => {
       runningDensityMetersPerMinute: 170,
       accelerationCount: 14,
       decelerationCount: 13,
+      moderateAccelerationCount: 8,
+      highAccelerationCount: 4,
+      veryHighAccelerationCount: 2,
+      moderateDecelerationCount: 7,
+      highDecelerationCount: 4,
+      veryHighDecelerationCount: 2,
       heartRateZoneLowSeconds: 180,
       heartRateZoneMediumSeconds: 900,
       heartRateZoneHighSeconds: 720,
@@ -38,6 +44,12 @@ describe('App', () => {
         runningDensityMetersPerMinute: { state: 'Available', reason: null },
         accelerationCount: { state: 'Available', reason: null },
         decelerationCount: { state: 'Available', reason: null },
+        moderateAccelerationCount: { state: 'Available', reason: null },
+        highAccelerationCount: { state: 'Available', reason: null },
+        veryHighAccelerationCount: { state: 'Available', reason: null },
+        moderateDecelerationCount: { state: 'Available', reason: null },
+        highDecelerationCount: { state: 'Available', reason: null },
+        veryHighDecelerationCount: { state: 'Available', reason: null },
         heartRateZoneLowSeconds: { state: 'Available', reason: null },
         heartRateZoneMediumSeconds: { state: 'Available', reason: null },
         heartRateZoneHighSeconds: { state: 'Available', reason: null },
@@ -57,10 +69,8 @@ describe('App', () => {
         MaxHeartRateSource: 'Fixed',
         HighIntensitySpeedPercentOfMaxSpeed: '70.0',
         HighIntensitySpeedThresholdMps: '5.6',
-        AccelerationThresholdMps2: '2.0',
         AccelerationThresholdMode: 'Fixed',
         AccelerationThresholdSource: 'Fixed',
-        DecelerationThresholdMps2: '-2.0',
         DecelerationThresholdMode: 'Fixed',
         DecelerationThresholdSource: 'Fixed'
       }
@@ -160,31 +170,43 @@ describe('App', () => {
 
 
   function createProfile(overrides?: Partial<Record<string, unknown>>) {
+    const defaultMetricThresholds = {
+      maxSpeedMps: 8.0,
+      maxSpeedMode: 'Adaptive',
+      maxHeartRateBpm: 190,
+      maxHeartRateMode: 'Adaptive',
+      sprintSpeedPercentOfMaxSpeed: 90,
+      highIntensitySpeedPercentOfMaxSpeed: 70,
+      moderateAccelerationThresholdMps2: 1.0,
+      highAccelerationThresholdMps2: 1.8,
+      veryHighAccelerationThresholdMps2: 2.5,
+      moderateDecelerationThresholdMps2: -1.0,
+      highDecelerationThresholdMps2: -1.8,
+      veryHighDecelerationThresholdMps2: -2.5,
+      accelDecelMinimumSpeedMps: 10 / 3.6,
+      effectiveMaxSpeedMps: 8.0,
+      effectiveMaxHeartRateBpm: 190,
+      version: 1,
+      updatedAtUtc: '2026-02-16T22:00:00.000Z'
+    };
+
+    const overrideThresholds = (overrides?.metricThresholds as Record<string, unknown> | undefined) ?? {};
+    const { metricThresholds: _ignoredThresholds, ...restOverrides } = overrides ?? {};
+
     return {
       primaryPosition: 'CentralMidfielder',
       secondaryPosition: null,
       metricThresholds: {
-        maxSpeedMps: 8.0,
-        maxSpeedMode: 'Adaptive',
-        maxHeartRateBpm: 190,
-        maxHeartRateMode: 'Adaptive',
-        sprintSpeedPercentOfMaxSpeed: 90,
-        highIntensitySpeedPercentOfMaxSpeed: 70,
-        accelerationThresholdMps2: 2.0,
-        effectiveMaxSpeedMps: 8.0,
-        decelerationThresholdMps2: -2.0,
-        effectiveMaxHeartRateBpm: 190,
-        version: 1,
-        updatedAtUtc: '2026-02-16T22:00:00.000Z'
+        ...defaultMetricThresholds,
+        ...overrideThresholds
       },
       defaultSmoothingFilter: 'AdaptiveMedian',
       preferredSpeedUnit: 'km/h',
       preferredAggregationWindowMinutes: 5,
       preferredTheme: 'dark',
-      ...overrides
+      ...restOverrides
     };
   }
-
 
 
   function deferredPromise<T>() {
@@ -665,8 +687,6 @@ describe('App', () => {
         thresholds: {
           MaxSpeedMps: '7.0',
           MaxHeartRateBpm: '5.5',
-          AccelerationThresholdMps2: '2.0',
-          DecelerationThresholdMps2: '-2.0'
         }
       },
       intervalAggregates: [
@@ -781,8 +801,6 @@ describe('App', () => {
         thresholds: {
           MaxSpeedMps: '7.0',
           MaxHeartRateBpm: '5.5',
-          AccelerationThresholdMps2: '2.0',
-          DecelerationThresholdMps2: '-2.0'
         }
       },
       intervalAggregates: [
@@ -890,8 +908,6 @@ describe('App', () => {
         thresholds: {
           MaxSpeedMps: '7.0',
           MaxHeartRateBpm: '5.5',
-          AccelerationThresholdMps2: '2.0',
-          DecelerationThresholdMps2: '-2.0'
         }
       },
       intervalAggregates: [
@@ -998,8 +1014,6 @@ describe('App', () => {
               thresholds: {
                 MaxSpeedMps: '7.0',
                 MaxHeartRateBpm: '5.5',
-                AccelerationThresholdMps2: '2.0',
-                DecelerationThresholdMps2: '-2.0'
               }
             }
           })
@@ -1055,8 +1069,6 @@ describe('App', () => {
               thresholds: {
                 MaxSpeedMps: '7.0',
                 MaxHeartRateBpm: '5.5',
-                AccelerationThresholdMps2: '2.0',
-                DecelerationThresholdMps2: '-2.0'
               }
             }
           })
@@ -1532,7 +1544,7 @@ describe('App', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       const url = String(input);
       if (url.endsWith('/profile')) {
-        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { maxSpeedMps: 7.8, maxSpeedMode: 'Fixed', maxHeartRateBpm: 192, maxHeartRateMode: 'Adaptive', sprintSpeedPercentOfMaxSpeed: 88, highIntensitySpeedPercentOfMaxSpeed: 68, accelerationThresholdMps2: 2.4, effectiveMaxSpeedMps: 7.8, decelerationThresholdMps2: -2.8, effectiveMaxHeartRateBpm: 192, version: 3, updatedAtUtc: '2026-02-16T22:00:00.000Z' } }) } as Response);
+        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { maxSpeedMps: 7.8, maxSpeedMode: 'Fixed', maxHeartRateBpm: 192, maxHeartRateMode: 'Adaptive', sprintSpeedPercentOfMaxSpeed: 88, highIntensitySpeedPercentOfMaxSpeed: 68, effectiveMaxSpeedMps: 7.8, effectiveMaxHeartRateBpm: 192, version: 3, updatedAtUtc: '2026-02-16T22:00:00.000Z' } }) } as Response);
       }
 
       return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
@@ -1754,6 +1766,32 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/profile', expect.objectContaining({ method: 'PUT' }));
     expect((screen.getByLabelText('Preferred speed unit') as HTMLSelectElement).value).toBe('km/h');
+  });
+
+  it('R1_6_22_Ac05_Ac06_profile_min_speed_for_accel_decel_uses_preferred_speed_unit', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredSpeedUnit: 'mph', metricThresholds: { accelDecelMinimumSpeedMps: 10 / 3.6 } }) } as Response);
+      }
+
+      if (url.endsWith('/profile') && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        return Promise.resolve({ ok: true, json: async () => createProfile(body) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText('Minimum speed for accel/decel detection (mph)')).toBeInTheDocument());
+    expect((screen.getByLabelText('Minimum speed for accel/decel detection (mph)') as HTMLInputElement).value).toBe('6.2');
+
+    fireEvent.change(screen.getByLabelText('Minimum speed for accel/decel detection (mph)'), { target: { value: '7.0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
   });
 
   it('R1_5_12_Ac03_Ac04_session_speed_unit_can_be_temporarily_overridden_with_consistent_rounding', async () => {

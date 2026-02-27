@@ -283,23 +283,123 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - [x] Unit-Test-Fall: Einzelnes Sample ≥ Threshold ohne Folge-Sample → Ergebnis: 0 Runs, 0 High-speed distance.
 - [x] Unit-Test-Fall: Zwei consecutive Samples ≥ Threshold → Ergebnis: 1 Run, Distanz > 0.
 
-## Story R1.6-19: Robuste Acceleration- und Deceleration-Detection
+## Story R1.6-19: Robuste Acceleration- und Deceleration-Detection ✅ DONE
 **Als** Nutzer  
 **möchte ich** dass Acceleration- und Deceleration-Events nur bei stabiler Geschwindigkeitsänderung erkannt werden  
 **damit** GPS-Rauschen oder Einzelwerte nicht als echte Belastungsereignisse gezählt werden.
 
 ### Acceptance Criteria
 
-- [ ] Acceleration wird erkannt, wenn die Geschwindigkeitsänderung pro Sekunde ≥ definiertem Acceleration-Threshold ist.
-- [ ] Deceleration wird erkannt, wenn die Geschwindigkeitsänderung pro Sekunde ≤ definiertem Deceleration-Threshold ist.
-- [ ] Ein Accel- oder Decel-Event startet nur, wenn mindestens zwei consecutive Samples die jeweilige Schwelle erfüllen.
-- [ ] Ein Accel- oder Decel-Event endet erst, wenn zwei consecutive Samples die Schwelle nicht mehr erfüllen.
-- [ ] Einzelne Samples mit hoher Geschwindigkeitsänderung dürfen kein Event auslösen.
-- [ ] Accel- und Decel-Distanz wird nur innerhalb gültiger Events berechnet.
-- [ ] Unit-Test-Fall: Ein einzelnes starkes Δv-Sample → 0 Events.
-- [ ] Unit-Test-Fall: Zwei consecutive Δv-Samples ≥ Threshold → 1 Event.
-- [ ] Die Logik basiert auf 1 Hz GPS-Daten.
+- [x] Acceleration wird erkannt, wenn die Geschwindigkeitsänderung pro Sekunde ≥ definiertem Acceleration-Threshold ist.
+- [x] Deceleration wird erkannt, wenn die Geschwindigkeitsänderung pro Sekunde ≤ definiertem Deceleration-Threshold ist.
+- [x] Ein Accel- oder Decel-Event startet nur, wenn mindestens zwei consecutive Samples die jeweilige Schwelle erfüllen.
+- [x] Ein Accel- oder Decel-Event endet erst, wenn zwei consecutive Samples die Schwelle nicht mehr erfüllen.
+- [x] Einzelne Samples mit hoher Geschwindigkeitsänderung dürfen kein Event auslösen.
+- [x] Accel- und Decel-Distanz wird nur innerhalb gültiger Events berechnet.
+- [x] Unit-Test-Fall: Ein einzelnes starkes Δv-Sample → 0 Events.
+- [x] Unit-Test-Fall: Zwei consecutive Δv-Samples ≥ Threshold → 1 Event.
+- [x] Die Logik basiert auf 1 Hz GPS-Daten.
 
+
+
+## Story R1.6-22: Accel/Decel-Bänder im Profil konfigurierbar machen ✅ DONE
+**Als** Nutzer  
+**möchte ich** Beschleunigungs- und Verzögerungs-Schwellen als Bänder im Profil konfigurieren können (inkl. Mindestgeschwindigkeit)  
+**damit** ich Accels/Decels sinnvoll nach Intensität analysieren kann und die Erkennung an Gerät/Sampling anpassbar ist.
+
+### Acceptance Criteria
+- [x] Im Profil können Acceleration-Bänder als Schwellenwerte in m/s² konfiguriert werden:
+  - Moderate Accel Threshold (>=)
+  - High Accel Threshold (>=)
+  - Very High Accel Threshold (>=)
+- [x] Im Profil können Deceleration-Bänder als Schwellenwerte in m/s² konfiguriert werden:
+  - Moderate Decel Threshold (<=, negativer Wert)
+  - High Decel Threshold (<=, negativer Wert)
+  - Very High Decel Threshold (<=, negativer Wert)
+- [x] Validierung: Für Accel gilt Moderate <= High <= Very High (alle positiv).
+- [x] Validierung: Für Decel gilt Moderate >= High >= Very High (alle negativ, d.h. -1.0 ist „moderater“ als -2.5).
+- [x] Im Profil kann eine Mindestgeschwindigkeit für Accel/Decel-Detection konfiguriert werden (z. B. 10 km/h oder 6 mph).
+- [x] Die Mindestgeschwindigkeit wird in der UI immer in der aktuell gewählten Preferred speed unit (km/h oder mph) angezeigt und bearbeitet.
+- [x] Intern wird die Mindestgeschwindigkeit für Berechnungen in m/s konvertiert (einheitliche Rechenbasis).
+- [x] Änderungen an Profilwerten wirken auf alle nachfolgenden Analysen/Re-Analysen einer Session.
+- [x] Es gibt Default-Werte (konfigurierbar durch Produkt/Config), die bei neuen Profilen gesetzt werden (z. B. Moderate 1.0, High 1.8, Very High 2.5; Decel -1.0, -1.8, -2.5; MinSpeed 10 km/h).
+
+## Story R1.6-23: Robuste Accel/Decel-Erkennung mit Fenster-basierter Netto-Beschleunigung (1 Hz) ✅ DONE
+**Als** Nutzer  
+**möchte ich** dass Acceleration- und Deceleration-Events robust aus GPS-Daten erkannt und in Intensitätsbändern gezählt werden  
+**damit** die Ergebnisse trotz 1 Hz Sampling und Glättung realistisch sind und nicht durch GPS-Rauschen verschwinden.
+
+### Definition / Semantik
+- Es wird zwischen **Exposure (Samples/Distanz/Zeit in Band)** und **Events (zusammenhängende Phasen)** nicht unterschieden; gezählt werden **Events** pro Band.
+- Ein Event ist eine zusammenhängende Phase, die das jeweilige Band-Kriterium erfüllt.
+- Die Berechnung verwendet eine **fensterbasierte Netto-Beschleunigung** über 2 Sekunden:
+  - a₂s(t) = (v(t) - v(t-2s)) / 2
+  - v ist Geschwindigkeit in m/s.
+- Sampling ist 1 Hz (1 Sample pro Sekunde). Bei fehlenden Samples wird das Fenster nicht berechnet.
+
+### Acceptance Criteria
+- [x] Geschwindigkeit v(t) wird intern in m/s geführt (Quelle: GPS abgeleitet oder vorhandene Speed-Daten).
+- [x] Für jedes Sample t (ab dem dritten Sample) wird a₂s(t) berechnet: (v(t) - v(t-2)) / 2.
+- [x] Ein Sample t gilt als „Accel-Kandidat“, wenn:
+  - a₂s(t) >= Moderate/High/VeryHigh Accel Threshold (je nach Band) UND
+  - v(t) >= MinSpeed (konvertiert nach m/s) UND
+  - v(t-2) >= MinSpeed (konvertiert nach m/s)  (verhindert Stand/Gehen-Noise)
+- [x] Ein Sample t gilt als „Decel-Kandidat“, wenn:
+  - a₂s(t) <= Moderate/High/VeryHigh Decel Threshold (je nach Band, negativer Wert) UND
+  - v(t) >= MinSpeed UND
+  - v(t-2) >= MinSpeed
+- [x] Event-Startregel: Ein Accel/Decel-Event startet, wenn mindestens **1 Sample** als Kandidat im jeweiligen Band erkannt wird.
+  - Begründung: Durch das 2s-Fenster ist das Sample bereits „bestätigt“ (entspricht Netto-Δv über 2 Sekunden).
+- [x] Event-Endregel: Ein Event endet erst, wenn **2 consecutive Samples** nicht mehr Kandidat im Band sind.
+  - Dadurch wird Flackern reduziert.
+- [x] Band-Zuordnung: Wenn ein Sample mehrere Bänder erfüllt, gilt immer das höchste Band (Very High > High > Moderate).
+- [x] Events werden pro Band gezählt:
+  - Moderate Accels Count
+  - High Accels Count
+  - Very High Accels Count
+  - analog für Decels.
+- [x] Distanz- und Zeitwerte können optional pro Band berechnet werden, müssen aber konsistent sein:
+  - Distanz/Zeit eines Events basiert auf den zugehörigen Samples (t) innerhalb des Events.
+- [x] Es darf nicht passieren, dass durch die neue Logik alle Accels/Decels verschwinden, wenn in den Rohdaten klare Speed-Anstiege vorhanden sind; dazu existieren Tests mit synthetischen Sequenzen.
+
+### Testfälle (synthetisch, 1 Hz, v in m/s)
+- [x] Test A (Moderate Accel Event):
+  - v: 3.0, 3.5, 5.0  (t0,t1,t2)
+  - a₂s(t2) = (5.0 - 3.0)/2 = 1.0 m/s²
+  - Erwartung: 1 Moderate Accel Event (bei Moderate=1.0), 0 High/VeryHigh.
+- [x] Test B (High Accel Event):
+  - v: 3.0, 4.0, 6.6
+  - a₂s(t2) = (6.6 - 3.0)/2 = 1.8 m/s²
+  - Erwartung: 1 High Accel Event (bei High=1.8).
+- [x] Test C (No Event wegen MinSpeed):
+  - MinSpeed = 3.0 m/s
+  - v: 2.0, 2.5, 4.5
+  - a₂s(t2) = (4.5 - 2.0)/2 = 1.25
+  - Erwartung: 0 Events (weil v(t-2) < MinSpeed).
+- [x] Test D (Decel Event):
+  - v: 6.0, 5.0, 3.0
+  - a₂s(t2) = (3.0 - 6.0)/2 = -1.5
+  - Erwartung: 1 Moderate/High Decel je nach Schwellen.
+- [x] Test E (Band Priorität):
+  - v: 3.0, 4.0, 8.0
+  - a₂s(t2) = (8.0 - 3.0)/2 = 2.5
+  - Erwartung: Sample zählt als Very High (nicht zusätzlich als High/Moderate).
+- [x] Test F (Event-Ende mit 2 consecutive non-candidates):
+  - Kandidat bei t2, danach t3 non, t4 non → Event endet nach t2.
+
+## Story R1.6-24: Migration/Defaults für Accel/Decel-Bänder (optional, aber empfohlen)
+**Als** Nutzer  
+**möchte ich** dass bestehende Profile nach Einführung der Bänder sinnvolle Defaultwerte bekommen  
+**damit** ich nach dem Update weiterhin plausible Accel/Decel-Werte sehe, ohne manuell alles konfigurieren zu müssen.
+
+### Acceptance Criteria
+- [ ] Für bestehende Profile mit nur einem Accel/Decel Threshold werden Defaults gesetzt:
+  - Moderate = 1.0 m/s²
+  - High = bisheriger Threshold (z. B. 2.0 m/s²)
+  - Very High = 2.5 m/s²
+  - Decel entsprechend negativ.
+- [ ] MinSpeed Default wird gesetzt (z. B. 10 km/h oder 6 mph je nach Preferred unit).
+- [ ] Migration wird versioniert (Threshold version wird erhöht) und ist idempotent.
 
 ## Story R1.6-20: Direction Change Detection basierend auf Winkeländerung
 **Als** Nutzer  
