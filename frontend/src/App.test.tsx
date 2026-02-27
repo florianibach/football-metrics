@@ -8,6 +8,17 @@ describe('App', () => {
     window.history.pushState({}, '', '/');
   });
 
+
+  function getOverviewToggle(name: string): HTMLButtonElement {
+    const candidates = screen.getAllByRole('button').filter((button) => button.classList.contains('analysis-disclosure__toggle'));
+    const match = candidates.find((button) => button.textContent?.includes(name));
+    if (!match) {
+      throw new Error(`Overview toggle not found for ${name}`);
+    }
+
+    return match as HTMLButtonElement;
+  }
+
   function baseCoreMetrics() {
     return {
       isAvailable: true,
@@ -1255,7 +1266,7 @@ describe('App', () => {
     expect(screen.getByText(/0-2 niedrig, 3-6 mittel, >6 hoch/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Details schließen' }));
-    fireEvent.click(screen.getByRole('button', { name: 'TRIMP (Edwards) explanation' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'TRIMP (Edwards) explanation' })[0]);
     expect(screen.getByText(/40-80 mittel/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Details schließen' }));
@@ -1851,7 +1862,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
+    await waitFor(() => expect(getOverviewToggle('Volume')).toBeInTheDocument());
 
     expect(screen.getByText('Volume')).toBeInTheDocument();
     expect(screen.getByText('Speed')).toBeInTheDocument();
@@ -1872,16 +1883,19 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
+    await waitFor(() => expect(getOverviewToggle('Volume')).toBeInTheDocument());
 
-    const volumeSection = screen.getByRole('button', { name: /Volume/ }).closest('section') as HTMLElement;
+    const volumeSection = getOverviewToggle('Volume').closest('section') as HTMLElement;
     expect(within(volumeSection).getByRole('article', { name: 'Duration' })).toBeInTheDocument();
 
-    const mechanicalSection = screen.getByRole('button', { name: /Mechanical/ }).closest('section') as HTMLElement;
-    expect(within(mechanicalSection).getByRole('article', { name: 'Load Summary' })).toBeInTheDocument();
+    const mechanicalSection = getOverviewToggle('Mechanical').closest('section') as HTMLElement;
+    expect(within(mechanicalSection).getByRole('article', { name: 'Mechanical Load' })).toBeInTheDocument();
 
-    const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
+    const internalSection = getOverviewToggle('Internal').closest('section') as HTMLElement;
     expect(within(internalSection).getByRole('article', { name: 'Heart Rate' })).toBeInTheDocument();
+    expect(within(internalSection).getByRole('article', { name: 'HR Zones' })).toBeInTheDocument();
+    expect(within(internalSection).getByRole('article', { name: 'TRIMP (Edwards)' })).toBeInTheDocument();
+    expect(within(internalSection).getByRole('article', { name: 'HR Recovery (60s)' })).toBeInTheDocument();
 
   });
 
@@ -1894,12 +1908,12 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
+    await waitFor(() => expect(getOverviewToggle('Volume')).toBeInTheDocument());
 
-    expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Speed/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Mechanical/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Internal/ })).toBeInTheDocument();
+    expect(getOverviewToggle('Volume')).toBeInTheDocument();
+    expect(getOverviewToggle('Speed')).toBeInTheDocument();
+    expect(getOverviewToggle('Mechanical')).toBeInTheDocument();
+    expect(getOverviewToggle('Internal')).toBeInTheDocument();
   });
 
 
@@ -1990,15 +2004,15 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
+    await waitFor(() => expect(getOverviewToggle('Volume')).toBeInTheDocument());
 
-    const volumeSection = screen.getByRole('button', { name: /Volume/ }).closest('section') as HTMLElement;
+    const volumeSection = getOverviewToggle('Volume').closest('section') as HTMLElement;
     expect(volumeSection).toHaveTextContent('Duration: 30 min 0 s — Not measured: No moving timestamps available.');
 
-    const mechanicalSection = screen.getByRole('button', { name: /Mechanical/ }).closest('section') as HTMLElement;
+    const mechanicalSection = getOverviewToggle('Mechanical').closest('section') as HTMLElement;
     expect(mechanicalSection).toHaveTextContent('High intensity directory changes (Moderate/High/Very high): 5 / 3 / 1 — Measurement unusable: Insufficient heading stability.');
 
-    const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
+    const internalSection = getOverviewToggle('Internal').closest('section') as HTMLElement;
     expect(internalSection).toHaveTextContent('Heart rate (min/avg/max): Not available — Not measured: No heart-rate stream in file.');
 
   });
@@ -2034,9 +2048,9 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'en' } });
-    await waitFor(() => expect(screen.getByRole('button', { name: /Volume/ })).toBeInTheDocument());
+    await waitFor(() => expect(getOverviewToggle('Volume')).toBeInTheDocument());
 
-    const speedSection = screen.getByRole('button', { name: /Speed/ }).closest('section') as HTMLElement;
+    const speedSection = getOverviewToggle('Speed').closest('section') as HTMLElement;
 
     expect(within(speedSection).getByText('Warning: GPS-based external metrics were calculated with reduced confidence. Please interpret with caution.')).toBeInTheDocument();
     expect(within(speedSection).queryByText(/Available with warning:/i)).not.toBeInTheDocument();
@@ -3463,10 +3477,10 @@ describe('App', () => {
     render(<App />);
     await screen.findByText('Session details');
 
-    const volumeSection = screen.getByRole('button', { name: /Volume/ }).closest('section') as HTMLElement;
+    const volumeSection = getOverviewToggle('Volume').closest('section') as HTMLElement;
     expect(within(volumeSection).queryByText(/Distance:/)).not.toBeInTheDocument();
 
-    const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
+    const internalSection = getOverviewToggle('Internal').closest('section') as HTMLElement;
     expect(within(internalSection).getByText(/Heart rate \(min\/avg\/max\):/)).toBeInTheDocument();
   });
 
@@ -3507,10 +3521,10 @@ describe('App', () => {
     render(<App />);
     await screen.findByText('Session details');
 
-    const volumeSection = screen.getByRole('button', { name: /Volume/ }).closest('section') as HTMLElement;
+    const volumeSection = getOverviewToggle('Volume').closest('section') as HTMLElement;
     expect(within(volumeSection).getByText(/Distance:/)).toBeInTheDocument();
 
-    const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
+    const internalSection = getOverviewToggle('Internal').closest('section') as HTMLElement;
     expect(within(internalSection).queryByText(/Heart rate \(min\/avg\/max\):/)).not.toBeInTheDocument();
   });
 

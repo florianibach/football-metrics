@@ -1614,6 +1614,12 @@ type KpiCardProps = {
   actions?: Array<{ label: string; onClick: () => void }>;
 };
 
+type HrZoneBar = {
+  label: string;
+  value: string;
+  percent: number;
+};
+
 function MetricListItem({ label, value, helpText }: MetricListItemProps) {
   return (
     <li className="list-group-item">
@@ -1667,6 +1673,37 @@ function KpiCard({ label, primaryValue, helpText, comparisonAverage, comparisonB
           ))}
         </div>
       )}
+    </article>
+  );
+}
+
+function HrZonesKpiCard({ label, helpText, zones }: { label: string; helpText: string; zones: HrZoneBar[] }) {
+  return (
+    <article className="kpi-card" aria-label={label}>
+      <header className="kpi-card__header">
+        <h4>{label}</h4>
+        <button
+          type="button"
+          className="metric-help"
+          aria-label={`${label} explanation`}
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('metric-help-open', { detail: { label, helpText } }));
+          }}
+        >
+          ⓘ
+        </button>
+      </header>
+      <div className="kpi-card__zones">
+        {zones.map((zone) => (
+          <div key={zone.label} className="kpi-card__zone-row">
+            <span className="kpi-card__zone-label">{zone.label}</span>
+            <div className="kpi-card__zone-track" aria-hidden="true">
+              <div className="kpi-card__zone-fill" style={{ width: `${zone.percent}%` }} />
+            </div>
+            <span className="kpi-card__zone-value">{zone.value}</span>
+          </div>
+        ))}
+      </div>
     </article>
   );
 }
@@ -1902,6 +1939,22 @@ function formatNumber(value: number | null | undefined, locale: Locale, notAvail
   }
 
   return value.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+function formatBpmDrop(value: number | null | undefined, locale: Locale, notAvailable: string): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return notAvailable;
+  }
+
+  return `${value.toLocaleString(locale, { maximumFractionDigits: 0 })} bpm`;
+}
+
+function calculatePercent(part: number | null | undefined, total: number): number {
+  if (part === null || part === undefined || total <= 0) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, (part / total) * 100));
 }
 
 function formatSignedNumber(value: number, locale: Locale, digits = 1): string {
@@ -3845,11 +3898,14 @@ export function App() {
     : [];
 
   const distanceComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.distanceMeters ?? null);
+  const durationComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.durationSeconds ?? null);
   const runningDensityComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.runningDensityMetersPerMinute ?? null);
   const maxSpeedComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.maxSpeedMetersPerSecond ?? null);
   const highSpeedDistanceComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.highSpeedDistanceMeters ?? null);
   const accelerationComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.accelerationCount ?? null);
   const heartRateAvgComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.heartRateAverageBpm ?? null);
+  const trimpComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.trainingImpulseEdwards ?? null);
+  const hrRecoveryComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? null);
   const compareOpponentSession = compareOpponentSessionId && selectedSession
     ? compareOpponentSessionId === selectedSession.id
       ? selectedSession
@@ -3866,7 +3922,6 @@ export function App() {
   const showCompareQualityWarning = compareSessions.length >= 2
     ? new Set(compareSessions.map((record) => record.summary.qualityStatus)).size > 1
     : false;
-
 
   const compareMetrics = [
     {
@@ -4281,6 +4336,19 @@ export function App() {
   const isQualityDetailsPageVisible = Boolean(selectedSession && activeMainPage === 'session' && activeSessionSubpage === 'analysis' && showUploadQualityStep);
   const shouldShowSessionOverviewHeader = activeSessionSubpage === 'analysis' && !isQualityDetailsPageVisible;
   const activeDataMode = selectedSession ? resolveDataAvailability(selectedSession.summary).mode : null;
+
+  const trimpPerMinuteValue = displayedCoreMetrics?.trainingImpulseEdwards !== null && displayedCoreMetrics?.trainingImpulseEdwards !== undefined && selectedSession
+    ? displayedCoreMetrics.trainingImpulseEdwards / ((isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : Math.max(1, selectedSession.summary.durationSeconds ?? 0)) / 60)
+    : null;
+
+  const hrZoneTotalSeconds = (displayedCoreMetrics?.heartRateZoneLowSeconds ?? 0) + (displayedCoreMetrics?.heartRateZoneMediumSeconds ?? 0) + (displayedCoreMetrics?.heartRateZoneHighSeconds ?? 0);
+  const hrZoneBars: HrZoneBar[] = displayedCoreMetrics
+    ? [
+      { label: '<70%', value: withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t), percent: calculatePercent(displayedCoreMetrics.heartRateZoneLowSeconds, hrZoneTotalSeconds) },
+      { label: '70–85%', value: withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t), percent: calculatePercent(displayedCoreMetrics.heartRateZoneMediumSeconds, hrZoneTotalSeconds) },
+      { label: '>85%', value: withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t), percent: calculatePercent(displayedCoreMetrics.heartRateZoneHighSeconds, hrZoneTotalSeconds) }
+    ]
+    : [];
 
   useEffect(() => {
     if (activeSessionSubpage === 'segments') {
@@ -5440,6 +5508,7 @@ export function App() {
                         label={t.metricDuration}
                         primaryValue={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)}
                         helpText={`${metricHelp.duration} ${t.metricHelpDuration}`}
+                        comparisonAverage={durationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDuration(durationComparison.averageLastFive, locale, t.notAvailable) }) : null}
                       />
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label={t.metricRunningDensity}
@@ -5469,7 +5538,7 @@ export function App() {
                     {!isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, ['maxSpeedMetersPerSecond', 'highIntensityTimeSeconds', 'highIntensityRunCount', 'sprintCount', 'highSpeedDistanceMeters', 'sprintDistanceMeters']) && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
                     <div className="kpi-card-grid">
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
-                        label="Tempo Summary"
+                        label="Speed Summary"
                         primaryValue={`${t.metricMaxSpeed}: ${withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)}`}
                         helpText={`${metricHelp.maxSpeed} ${metricHelp.highIntensityTime}`}
                         comparisonAverage={maxSpeedComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatSpeed(maxSpeedComparison.averageLastFive, selectedSession.selectedSpeedUnit, t.notAvailable) }) : null}
@@ -5477,7 +5546,8 @@ export function App() {
                           `${t.metricHighIntensityRunCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)}`,
                           `${t.metricHighIntensityTime}: ${withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)}`,
                           `${t.metricSprintCount}: ${withMetricStatus(String(displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)}`,
-                          `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`
+                          `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`,
+                          `${t.metricHighSpeedDistance}: ${withMetricStatus(formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)}`
                         ]}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
                       />}
@@ -5520,13 +5590,14 @@ export function App() {
                     {!isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, ['accelerationCount', 'decelerationCount', 'directionChanges']) && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
                     <div className="kpi-card-grid">
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
-                        label="Load Summary"
+                        label="Mechanical Load"
                         primaryValue={`${t.metricAccelerationCount}: ${withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`}
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
+                        comparisonAverage={accelerationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(accelerationComparison.averageLastFive, locale, t.notAvailable, 0) }) : null}
                         secondaryRows={[
                           `${t.metricDecelerationCount}: ${withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
                           `${t.metricDirectionChanges}: ${withMetricStatus(String(displayedCoreMetrics.directionChanges ?? t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`,
-                          `${t.metricAccelerationBandsCount}: ${withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateAccelerationCount, displayedCoreMetrics.highAccelerationCount, displayedCoreMetrics.veryHighAccelerationCount, t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`
+                          `High Intensity Direction Changes: M ${displayedCoreMetrics.moderateDirectionChangeCount ?? t.notAvailable} · H ${displayedCoreMetrics.highDirectionChangeCount ?? t.notAvailable} · VH ${displayedCoreMetrics.veryHighDirectionChangeCount ?? t.notAvailable}`
                         ]}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
                       />}
@@ -5574,6 +5645,29 @@ export function App() {
                           `Max: ${selectedSession.summary.heartRateMaxBpm ?? t.notAvailable} bpm`
                         ]}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
+                      />}
+                      {activeDataMode !== 'GpsOnly' && <HrZonesKpiCard
+                        label="HR Zones"
+                        helpText={`${metricHelp.hrZoneLow} ${metricHelp.hrZoneMedium} ${metricHelp.hrZoneHigh}`}
+                        zones={hrZoneBars}
+                      />}
+                      {activeDataMode !== 'GpsOnly' && <KpiCard
+                        label={t.metricTrimpEdwards}
+                        primaryValue={withMetricStatus(formatNumber(displayedCoreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', displayedCoreMetrics, t)}
+                        helpText={metricHelp.trimpEdwards}
+                        secondaryRows={[`TRIMP/min: ${formatNumber(trimpPerMinuteValue, locale, t.notAvailable, 2)}`]}
+                        comparisonAverage={trimpComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(trimpComparison.averageLastFive, locale, t.notAvailable, 1) }) : null}
+                        comparisonBest={trimpComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(trimpComparison.bestSeason, locale, t.notAvailable, 1) }) : null}
+                        actions={[
+                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
+                        ]}
+                      />}
+                      {activeDataMode !== 'GpsOnly' && <KpiCard
+                        label="HR Recovery (60s)"
+                        primaryValue={withMetricStatus(formatBpmDrop(displayedCoreMetrics.heartRateRecoveryAfter60Seconds, locale, t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)}
+                        helpText={metricHelp.hrRecovery60}
+                        comparisonAverage={hrRecoveryComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatBpmDrop(hrRecoveryComparison.averageLastFive, locale, t.notAvailable) }) : null}
                       />}
                     </div>
                     <ul className="metrics-list list-group overview-legacy-list">
