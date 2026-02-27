@@ -557,6 +557,10 @@ type TranslationKey =
   | 'overviewDimensionMechanicalHelp'
   | 'overviewDimensionInternalTitle'
   | 'overviewDimensionInternalHelp'
+  | 'kpiComparisonLastFive'
+  | 'kpiComparisonBestSeason'
+  | 'kpiActionTimeline'
+  | 'kpiActionPeakAnalysis'
   | 'segmentsTitle'
   | 'segmentsEmpty'
   | 'segmentCategory'
@@ -997,6 +1001,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     overviewDimensionMechanicalHelp: 'Mechanical load captures repeated force-intensive actions such as accelerations, decelerations, and direction changes.',
     overviewDimensionInternalTitle: 'Internal',
     overviewDimensionInternalHelp: 'Internal load reflects physiological strain and recovery response, derived from heart-rate-based metrics.',
+    kpiComparisonLastFive: 'Avg last 5: {value}',
+    kpiComparisonBestSeason: 'Season best: {value}',
+    kpiActionTimeline: 'Go to timeline',
+    kpiActionPeakAnalysis: 'Show peak analysis',
     segmentsTitle: 'Session segments',
     segmentsEmpty: 'No segments yet. Add your first phase to structure this session.',
     segmentCategory: 'Category',
@@ -1405,6 +1413,10 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     overviewDimensionMechanicalHelp: 'Mechanical Load erfasst wiederholte kraftintensive Aktionen wie Beschleunigungen, Abbremsen und Richtungswechsel.',
     overviewDimensionInternalTitle: 'Internal',
     overviewDimensionInternalHelp: 'Internal Load beschreibt die physiologische Beanspruchung und Erholungsreaktion auf Basis herzfrequenzbasierter Metriken.',
+    kpiComparisonLastFive: 'Ø letzte 5: {value}',
+    kpiComparisonBestSeason: 'Best Saison: {value}',
+    kpiActionTimeline: 'Zur Timeline',
+    kpiActionPeakAnalysis: 'Peak Analyse anzeigen',
     segmentsTitle: 'Session-Segmente',
     segmentsEmpty: 'Noch keine Segmente vorhanden. Füge die erste Phase hinzu, um die Session zu strukturieren.',
     segmentCategory: 'Kategorie',
@@ -1592,6 +1604,16 @@ type MetricListItemProps = {
   helpText: string;
 };
 
+type KpiCardProps = {
+  label: string;
+  primaryValue: string;
+  helpText: string;
+  comparisonAverage?: string | null;
+  comparisonBest?: string | null;
+  secondaryRows?: string[];
+  actions?: Array<{ label: string; onClick: () => void }>;
+};
+
 function MetricListItem({ label, value, helpText }: MetricListItemProps) {
   return (
     <li className="list-group-item">
@@ -1610,6 +1632,75 @@ function MetricListItem({ label, value, helpText }: MetricListItemProps) {
   );
 }
 
+function KpiCard({ label, primaryValue, helpText, comparisonAverage, comparisonBest, secondaryRows = [], actions = [] }: KpiCardProps) {
+  return (
+    <article className="kpi-card" aria-label={label}>
+      <header className="kpi-card__header">
+        <h4>{label}</h4>
+        <button
+          type="button"
+          className="metric-help"
+          aria-label={`${label} explanation`}
+          onClick={() => {
+            window.dispatchEvent(new CustomEvent('metric-help-open', { detail: { label, helpText } }));
+          }}
+        >
+          ⓘ
+        </button>
+      </header>
+      <p className="kpi-card__primary">{primaryValue}</p>
+      {secondaryRows.length > 0 && (
+        <div className="kpi-card__secondary">
+          {secondaryRows.map((row) => <p key={row}>{row}</p>)}
+        </div>
+      )}
+      {(comparisonAverage || comparisonBest) && (
+        <div className="kpi-card__comparison">
+          {comparisonAverage ? <p>{comparisonAverage}</p> : null}
+          {comparisonBest ? <p>{comparisonBest}</p> : null}
+        </div>
+      )}
+      {actions.length > 0 && (
+        <div className="kpi-card__actions">
+          {actions.map((action) => (
+            <button key={action.label} type="button" className="secondary-button" onClick={action.onClick}>{action.label}</button>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+
+
+
+type NumericMetricGetter = (record: UploadRecord) => number | null;
+
+function calculateKpiComparison(
+  selected: UploadRecord | null,
+  history: UploadRecord[],
+  metricGetter: NumericMetricGetter
+): { averageLastFive: number | null; bestSeason: number | null } {
+  if (!selected) {
+    return { averageLastFive: null, bestSeason: null };
+  }
+
+  const comparableValues = history
+    .filter((record) => record.id !== selected.id && record.sessionContext.sessionType === selected.sessionContext.sessionType)
+    .map(metricGetter)
+    .filter((value): value is number => value !== null);
+
+  const lastFive = comparableValues.slice(0, 5);
+  const averageLastFive = lastFive.length > 0
+    ? lastFive.reduce((sum, value) => sum + value, 0) / lastFive.length
+    : null;
+
+  const bestSeason = comparableValues.length > 0
+    ? Math.max(...comparableValues)
+    : null;
+
+  return { averageLastFive, bestSeason };
+}
 
 type CachedAppearancePreferences = {
   preferredTheme: 'light' | 'dark';
@@ -3753,6 +3844,9 @@ export function App() {
     ? sortedHistory.filter((record) => record.sessionContext.sessionType === activeSessionType && record.id !== selectedSession.id)
     : [];
 
+  const distanceComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.distanceMeters ?? null);
+  const highSpeedDistanceComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.highSpeedDistanceMeters ?? null);
+  const accelerationComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.accelerationCount ?? null);
   const compareOpponentSession = compareOpponentSessionId && selectedSession
     ? compareOpponentSessionId === selectedSession.id
       ? selectedSession
@@ -5327,6 +5421,30 @@ export function App() {
                 {analysisAccordionState.overviewVolume && (
                   <div className="analysis-disclosure__content">
                     <p>{t.overviewDimensionVolumeHelp}</p>
+                    <div className="kpi-card-grid">
+                      {activeDataMode !== 'HeartRateOnly' && <KpiCard
+                        label={t.metricDistance}
+                        primaryValue={formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable)}
+                        helpText={metricHelp.distance}
+                        comparisonAverage={distanceComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDistance(distanceComparison.averageLastFive, locale, t.notAvailable) }) : null}
+                        comparisonBest={distanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistance(distanceComparison.bestSeason, locale, t.notAvailable) }) : null}
+                        actions={[
+                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
+                        ]}
+                      />}
+                      <KpiCard
+                        label={t.metricDuration}
+                        primaryValue={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)}
+                        helpText={`${metricHelp.duration} ${t.metricHelpDuration}`}
+                      />
+                      {activeDataMode !== 'HeartRateOnly' && <KpiCard
+                        label={t.metricRunningDensity}
+                        primaryValue={formatNumber(displayedCoreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}
+                        helpText={metricHelp.runningDensity}
+                        actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
+                      />}
+                    </div>
                     <ul className="metrics-list list-group">
                       {activeDataMode !== 'HeartRateOnly' && <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />}
                       <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
@@ -5345,6 +5463,23 @@ export function App() {
                   <div className="analysis-disclosure__content">
                     <p>{t.overviewDimensionSpeedHelp}</p>
                     {!isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, ['maxSpeedMetersPerSecond', 'highIntensityTimeSeconds', 'highIntensityRunCount', 'sprintCount', 'highSpeedDistanceMeters', 'sprintDistanceMeters']) && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
+                    <div className="kpi-card-grid">
+                      {activeDataMode !== 'HeartRateOnly' && <KpiCard
+                        label={t.metricHighSpeedDistance}
+                        primaryValue={formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}
+                        helpText={metricHelp.highSpeedDistance}
+                        comparisonAverage={highSpeedDistanceComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDistance(highSpeedDistanceComparison.averageLastFive, locale, t.notAvailable) }) : null}
+                        comparisonBest={highSpeedDistanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistance(highSpeedDistanceComparison.bestSeason, locale, t.notAvailable) }) : null}
+                        secondaryRows={[
+                          `${t.metricMaxSpeed}: ${withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)}`,
+                          `${t.metricHighIntensityRunCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)}`
+                        ]}
+                        actions={[
+                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
+                        ]}
+                      />}
+                    </div>
                     <ul className="metrics-list list-group">
                       {activeDataMode !== 'HeartRateOnly' && (
                         <>
@@ -5370,6 +5505,23 @@ export function App() {
                   <div className="analysis-disclosure__content">
                     <p>{t.overviewDimensionMechanicalHelp}</p>
                     {!isSegmentScopeActive && hasAvailableWithWarning(displayedCoreMetrics, ['accelerationCount', 'decelerationCount', 'directionChanges']) && <p className="quality-warning">{t.externalMetricsWarningBanner}</p>}
+                    <div className="kpi-card-grid">
+                      {activeDataMode !== 'HeartRateOnly' && <KpiCard
+                        label={t.metricAccelerationCount}
+                        primaryValue={String(displayedCoreMetrics.accelerationCount ?? t.notAvailable)}
+                        helpText={metricHelp.accelerationCount}
+                        comparisonAverage={accelerationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(accelerationComparison.averageLastFive, locale, t.notAvailable, 0) }) : null}
+                        comparisonBest={accelerationComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(accelerationComparison.bestSeason, locale, t.notAvailable, 0) }) : null}
+                        secondaryRows={[
+                          `Deceleration summary: ${withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDecelerationCount, displayedCoreMetrics.highDecelerationCount, displayedCoreMetrics.veryHighDecelerationCount, t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
+                          `Direction change summary: ${withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDirectionChangeCount, displayedCoreMetrics.highDirectionChangeCount, displayedCoreMetrics.veryHighDirectionChangeCount, t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`
+                        ]}
+                        actions={[
+                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
+                        ]}
+                      />}
+                    </div>
                     <ul className="metrics-list list-group">
                       {activeDataMode !== 'HeartRateOnly' && (
                         <>

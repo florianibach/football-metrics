@@ -1902,6 +1902,61 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: /Internal/ })).toBeInTheDocument();
   });
 
+
+  it('R1_7_03_Ac01_renders_kpi_cards_with_label_primary_value_and_info_icon', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [createUploadRecord()]
+    } as Response);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByRole('article', { name: 'Distance' })).toBeInTheDocument());
+    const distanceCard = screen.getByRole('article', { name: 'Distance' });
+    expect(within(distanceCard).getByText(/km/)).toBeInTheDocument();
+    expect(within(distanceCard).getByRole('button', { name: /Distance explanation/ })).toBeInTheDocument();
+  });
+
+  it('R1_7_03_Ac02_shows_last_five_and_best_season_comparison_values_when_available', async () => {
+    const baseline = createUploadRecord({ id: 'upload-1', uploadedAtUtc: '2026-02-16T22:00:00.000Z' });
+    const session2 = createUploadRecord({ id: 'upload-2', uploadedAtUtc: '2026-02-15T22:00:00.000Z', summary: createSummary({ coreMetrics: { ...baseCoreMetrics(), distanceMeters: 4000, highSpeedDistanceMeters: 1000, accelerationCount: 10 } }) });
+    const session3 = createUploadRecord({ id: 'upload-3', uploadedAtUtc: '2026-02-14T22:00:00.000Z', summary: createSummary({ coreMetrics: { ...baseCoreMetrics(), distanceMeters: 6000, highSpeedDistanceMeters: 1900, accelerationCount: 20 } }) });
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => [baseline, session2, session3] } as Response);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getAllByText(/Avg last 5:/).length).toBeGreaterThan(0));
+    expect(screen.getAllByText(/Season best:/).length).toBeGreaterThan(0);
+  });
+
+  it('R1_7_03_Ac03_kpi_actions_navigate_to_timeline_and_peak_demand', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => [createUploadRecord()] } as Response);
+
+    render(<App />);
+
+    const distanceCard = await screen.findByRole('article', { name: 'Distance' });
+    fireEvent.click(within(distanceCard).getByRole('button', { name: 'Show peak analysis' }));
+    expect(await screen.findByRole('button', { name: 'Peak Demand' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
+    const distanceCardAgain = await screen.findByRole('article', { name: 'Distance' });
+    fireEvent.click(within(distanceCardAgain).getByRole('button', { name: 'Go to timeline' }));
+    expect(await screen.findByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+  });
+
+  it('R1_7_03_Ac04_metric_help_sidebar_opens_from_kpi_card_info_icon', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({ ok: true, json: async () => [createUploadRecord()] } as Response);
+
+    render(<App />);
+
+    const distanceCard = await screen.findByRole('article', { name: 'Distance' });
+    fireEvent.click(within(distanceCard).getByRole('button', { name: /Distance explanation/ }));
+
+    const sidebar = await screen.findByLabelText('Metric details');
+    expect(within(sidebar).getByText(/Purpose: quantifies covered ground/)).toBeInTheDocument();
+  });
+
   it('R1_7_02_Ac02_shows_missing_data_transparently_in_dimensions', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       const url = String(input);
