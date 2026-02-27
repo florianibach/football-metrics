@@ -2641,6 +2641,73 @@ describe('App', () => {
     expect(within(segmentRunsRegion).getAllByRole('button', { name: /Sprint count/ })).toHaveLength(1);
   });
 
+
+
+  it('segment scope excludes runs that only bleed in from following segment boundaries', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 3.0, 6.0, 6.2, 3.0, 6.1, 6.3, 3.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: trackpoints,
+                detectedRuns: [
+                  {
+                    runId: 'hsr-pause',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 2,
+                    durationSeconds: 2,
+                    distanceMeters: 12,
+                    topSpeedMetersPerSecond: 6.2,
+                    pointIndices: [2, 3],
+                    parentRunId: null,
+                    sprintPhases: []
+                  },
+                  {
+                    runId: 'hsr-next-block',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 5,
+                    durationSeconds: 2,
+                    distanceMeters: 13,
+                    topSpeedMetersPerSecond: 6.3,
+                    pointIndices: [4, 5, 6],
+                    parentRunId: null,
+                    sprintPhases: []
+                  }
+                ],
+                coreMetrics: {
+                  ...baseCoreMetrics(),
+                  highIntensityRunCount: 2
+                }
+              }),
+              segments: [{ id: 'seg-pause', label: 'Pause', startSecond: 0, endSecond: 5, category: 'Recovery', notes: null }]
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Analyze segment' }));
+
+    const segmentRunsRegion = await screen.findByRole('region', { name: 'Detected runs' });
+    expect(within(segmentRunsRegion).getAllByRole('button', { name: /High-intensity runs #/ })).toHaveLength(1);
+    expect(within(segmentRunsRegion).queryByRole('button', { name: /highIntensity-2|hsr-next-block/i })).not.toBeInTheDocument();
+  });
   it('R1_6_16_Ac05_shows_hsr_and_sprint_phase_breakdown_in_overview_and_core_metrics', async () => {
     const trackpoints = gpsTrackpointsFromOneHertzSpeeds([6.0, 6.1, 7.5, 7.6, 6.2, 6.1, 3.0, 3.0]);
 
@@ -3110,6 +3177,67 @@ describe('App', () => {
     expect(detailSection).toHaveTextContent(/maximum speed:\s*not available\s*—\s*not measured/i);
   });
 
+
+  it('R1_6_05_segment_internal_load_uses_only_overlapping_interval_share', async () => {
+    const sourceMetrics = baseCoreMetrics();
+    const record = createUploadRecord({
+      summary: createSummary({
+        intervalAggregates: [
+          {
+            windowMinutes: 1,
+            windowIndex: 0,
+            windowStartUtc: '2026-02-16T21:00:00.000Z',
+            windowDurationSeconds: 60,
+            coreMetrics: {
+              ...sourceMetrics,
+              heartRateZoneLowSeconds: 60,
+              heartRateZoneMediumSeconds: 0,
+              heartRateZoneHighSeconds: 0,
+              trainingImpulseEdwards: 6
+            }
+          },
+          {
+            windowMinutes: 1,
+            windowIndex: 1,
+            windowStartUtc: '2026-02-16T21:01:00.000Z',
+            windowDurationSeconds: 60,
+            coreMetrics: {
+              ...sourceMetrics,
+              heartRateZoneLowSeconds: 0,
+              heartRateZoneMediumSeconds: 60,
+              heartRateZoneHighSeconds: 0,
+              trainingImpulseEdwards: 8
+            }
+          }
+        ]
+      }),
+      segments: [{ id: 'seg-overlap', label: 'Mid block', startSecond: 30, endSecond: 90, category: 'Other', notes: null }]
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [record] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredAggregationWindowMinutes: 1 }) } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    window.history.pushState({}, '', '/sessions/upload-1/segments/seg-overlap');
+    render(<App />);
+
+    await screen.findByText('Segment Overview');
+
+    const detailSection = screen.getByRole('heading', { name: 'Session details' }).closest('section');
+    expect(detailSection).toHaveTextContent(/HR zone <70%:\s*0 min 30 s/i);
+    expect(detailSection).toHaveTextContent(/HR zone 70-85%:\s*0 min 30 s/i);
+    expect(detailSection).toHaveTextContent(/HR zone >85%:\s*0 min 0 s/i);
+  });
+
   it('R1_6_05_Ac03_segment_overview_uses_segment_detected_runs_for_hsr_counts', async () => {
     const sourceMetrics = baseCoreMetrics();
     const record = createUploadRecord({
@@ -3187,7 +3315,7 @@ describe('App', () => {
 
     const detailSection = screen.getByRole('heading', { name: 'Session details' }).closest('section');
     expect(detailSection).toHaveTextContent(/high-intensity runs:\s*1/i);
-    expect(detailSection).toHaveTextContent(/of which sprint phases:\s*1/i);
+    expect(detailSection).toHaveTextContent(/of which sprint phases:\s*0/i);
   });
 
 
