@@ -3311,6 +3311,15 @@ export function App() {
       .map((index) => analysisTrackpointSelection.pointIndexToAnalysisIndex.get(index))
       .filter((index): index is number => index !== undefined);
 
+    const isRunOwnedByActiveSegment = (run: DetectedRun) => {
+      if (!isSegmentScopeActive || !selectedSegment) {
+        return true;
+      }
+
+      return run.startElapsedSeconds >= selectedSegment.startSecond
+        && run.startElapsedSeconds < selectedSegment.endSecond;
+    };
+
     return detectedRuns
       .map((run) => {
         const remappedPointIndices = remapPointIndices(run.pointIndices);
@@ -3323,6 +3332,14 @@ export function App() {
             const remappedPhaseIndices = remapPointIndices(phase.pointIndices);
             if (remappedPhaseIndices.length === 0) {
               return null;
+            }
+
+            if (isSegmentScopeActive && selectedSegment) {
+              const isPhaseOwnedBySegment = phase.startElapsedSeconds >= selectedSegment.startSecond
+                && phase.startElapsedSeconds < selectedSegment.endSecond;
+              if (!isPhaseOwnedBySegment) {
+                return null;
+              }
             }
 
             return {
@@ -3338,8 +3355,9 @@ export function App() {
           sprintPhases: remappedSprintPhases
         } satisfies DetectedRun;
       })
-      .filter((run): run is DetectedRun => run !== null);
-  }, [selectedSession, analysisTrackpointSelection]);
+      .filter((run): run is DetectedRun => run !== null)
+      .filter((run) => isRunOwnedByActiveSegment(run));
+  }, [selectedSession, analysisTrackpointSelection, isSegmentScopeActive, selectedSegment]);
 
   const dataChangeMetric = selectedSession
     ? (() => {
