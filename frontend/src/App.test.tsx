@@ -775,7 +775,7 @@ describe('App', () => {
 
     expect(screen.getByText(/Data change due to smoothing:/)).toBeInTheDocument();
     expect(screen.getByText(/4.0% corrected points \(1\/25\), distance delta 100(\.000)? m/)).toBeInTheDocument();
-    expect(screen.getByText(/Direction changes \(COD\):/)).toBeInTheDocument();
+    expect(screen.getByText(/Moderate COD count:/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Display mode'), { target: { value: 'raw' } });
 
     expect(screen.getByText(/5.200 km \(5,200(\.0)? m\)/)).toBeInTheDocument();
@@ -1878,7 +1878,7 @@ describe('App', () => {
     expect(within(volumeSection).getByText('Duration:')).toBeInTheDocument();
 
     const mechanicalSection = screen.getByRole('button', { name: /Mechanical/ }).closest('section') as HTMLElement;
-    expect(within(mechanicalSection).getByText('Direction changes (COD):')).toBeInTheDocument();
+    expect(within(mechanicalSection).getByText('Moderate COD count:')).toBeInTheDocument();
 
     const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
     expect(within(internalSection).getByText('Heart rate (min/avg/max):')).toBeInTheDocument();
@@ -1941,7 +1941,9 @@ describe('App', () => {
     expect(volumeSection).toHaveTextContent('Duration: 30 min 0 s — Not measured: No moving timestamps available.');
 
     const mechanicalSection = screen.getByRole('button', { name: /Mechanical/ }).closest('section') as HTMLElement;
-    expect(mechanicalSection).toHaveTextContent('Direction changes (COD): 5 / 3 / 1 — Measurement unusable: Insufficient heading stability.');
+    expect(mechanicalSection).toHaveTextContent('Moderate COD count: 5 — Measurement unusable: Insufficient heading stability.');
+    expect(mechanicalSection).toHaveTextContent('High COD count: 3 — Measurement unusable: Insufficient heading stability.');
+    expect(mechanicalSection).toHaveTextContent('Very high COD count: 1 — Measurement unusable: Insufficient heading stability.');
 
     const internalSection = screen.getByRole('button', { name: /Internal/ }).closest('section') as HTMLElement;
     expect(internalSection).toHaveTextContent('Heart rate (min/avg/max): Not available — Not measured: No heart-rate stream in file.');

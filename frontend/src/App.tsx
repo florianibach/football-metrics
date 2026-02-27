@@ -323,6 +323,9 @@ type TranslationKey =
   | 'filterDescriptionButterworth'
   | 'compareDisabledNoGps'
   | 'metricDirectionChanges'
+  | 'metricModerateCodCount'
+  | 'metricHighCodCount'
+  | 'metricVeryHighCodCount'
   | 'metricDataChange'
   | 'metricDataChangeHelp'
   | 'qualityStatusHigh'
@@ -744,6 +747,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterDescriptionButterworth: 'Butterworth: Purpose: low-pass filtering for strong noise suppression. Strengths: robust against high-frequency jitter. Limits: highest risk of smoothing away short explosive actions. Typical use: noisy device traces requiring stronger cleanup.',
     compareDisabledNoGps: 'Comparison is disabled because this session does not contain GPS coordinates.',
     metricDirectionChanges: 'Direction changes (COD)',
+    metricModerateCodCount: 'Moderate COD count',
+    metricHighCodCount: 'High COD count',
+    metricVeryHighCodCount: 'Very high COD count',
     metricDataChange: 'Data change due to smoothing',
     metricDataChangeHelp: '{correctedShare}% corrected points ({correctedPoints}/{trackpoints}), distance delta {distanceDelta}',
     qualityStatusHigh: 'high',
@@ -1154,6 +1160,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     filterDescriptionButterworth: 'Butterworth: Zweck: Tiefpassfilter für starke Rauschunterdrückung. Stärken: robust bei hochfrequentem GPS-Jitter. Grenzen: größtes Risiko, kurze explosive Aktionen zu glätten. Typische Nutzung: stark verrauschte Aufzeichnungen mit höherem Bereinigungsbedarf.',
     compareDisabledNoGps: 'Der Vergleich ist deaktiviert, weil diese Session keine GPS-Koordinaten enthält.',
     metricDirectionChanges: 'Richtungswechsel (COD)',
+    metricModerateCodCount: 'Moderate COD Anzahl',
+    metricHighCodCount: 'Hohe COD Anzahl',
+    metricVeryHighCodCount: 'Sehr hohe COD Anzahl',
     metricDataChange: 'Datenänderung durch Glättung',
     metricDataChangeHelp: '{correctedShare}% korrigierte Punkte ({correctedPoints}/{trackpoints}), Distanzabweichung {distanceDelta}',
     qualityStatusHigh: 'hoch',
@@ -1805,8 +1814,8 @@ function formatSpeed(valueMetersPerSecond: number | null, unit: SpeedUnit, notAv
 }
 
 
-function formatNumber(value: number | null, locale: Locale, notAvailable: string, digits = 1): string {
-  if (value === null) {
+function formatNumber(value: number | null | undefined, locale: Locale, notAvailable: string, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
     return notAvailable;
   }
 
@@ -1826,6 +1835,139 @@ function formatBandTriplet(moderate: number | null | undefined, high: number | n
   return `${moderate} / ${high} / ${veryHigh}`;
 }
 
+
+
+type CodDetectionInput = {
+  moderateThresholdDegrees: number;
+  highThresholdDegrees: number;
+  veryHighThresholdDegrees: number;
+  minSpeedMps: number;
+  consecutiveSamplesRequired: number;
+  minStepDistanceMeters?: number;
+};
+
+type CodBandCounts = {
+  moderate: number;
+  high: number;
+  veryHigh: number;
+  total: number;
+};
+
+function computeCodBandCounts(
+  points: Array<GpsTrackpoint & { elapsedSeconds: number }>,
+  config: CodDetectionInput
+): CodBandCounts {
+  if (points.length < 3) {
+    return { moderate: 0, high: 0, veryHigh: 0, total: 0 };
+  }
+
+  const ordered = [...points].sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+  let consecutive = 0;
+  let inEvent = false;
+  let eventDirection: number | null = null;
+  let highestBand: 'moderate' | 'high' | 'veryHigh' | null = null;
+
+  const counts: CodBandCounts = { moderate: 0, high: 0, veryHigh: 0, total: 0 };
+
+  const classifyBand = (delta: number): 'moderate' | 'high' | 'veryHigh' | null => {
+    if (delta >= config.veryHighThresholdDegrees) return 'veryHigh';
+    if (delta >= config.highThresholdDegrees) return 'high';
+    if (delta >= config.moderateThresholdDegrees) return 'moderate';
+    return null;
+  };
+
+  const bandPriority = (band: 'moderate' | 'high' | 'veryHigh') => (band === 'veryHigh' ? 3 : band === 'high' ? 2 : 1);
+
+  for (let index = 1; index < ordered.length - 1; index += 1) {
+    const previous = ordered[index - 1];
+    const current = ordered[index];
+    const next = ordered[index + 1];
+
+    const incoming = calculateBearingDegrees(previous, current);
+    const outgoing = calculateBearingDegrees(current, next);
+    if (incoming === null || outgoing === null) {
+      consecutive = 0; inEvent = false; eventDirection = null; highestBand = null;
+      continue;
+    }
+
+    const signedTurn = calculateSignedDeltaDegrees(incoming, outgoing);
+    const deltaAngle = Math.abs(signedTurn);
+
+    const incomingStepDistance = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude);
+    const outgoingStepDistance = haversineMeters(current.latitude, current.longitude, next.latitude, next.longitude);
+
+    const incomingDeltaSeconds = current.elapsedSeconds - previous.elapsedSeconds;
+    const outgoingDeltaSeconds = next.elapsedSeconds - current.elapsedSeconds;
+    if (incomingDeltaSeconds <= 0 || outgoingDeltaSeconds <= 0) {
+      consecutive = 0; inEvent = false; eventDirection = null; highestBand = null;
+      continue;
+    }
+
+    const incomingSpeed = incomingStepDistance / incomingDeltaSeconds;
+    const outgoingSpeed = outgoingStepDistance / outgoingDeltaSeconds;
+
+    const minStepDistance = config.minStepDistanceMeters ?? 0;
+    const isSpeedValid = incomingSpeed >= config.minSpeedMps && outgoingSpeed >= config.minSpeedMps;
+    const isStepDistanceValid = incomingStepDistance >= minStepDistance && outgoingStepDistance >= minStepDistance;
+    const band = classifyBand(deltaAngle);
+
+    if (!isSpeedValid || !isStepDistanceValid || !band) {
+      consecutive = 0; inEvent = false; eventDirection = null; highestBand = null;
+      continue;
+    }
+
+    const direction = Math.sign(signedTurn) || 1;
+    if (consecutive === 0 || eventDirection === direction) {
+      eventDirection = direction;
+      highestBand = !highestBand || bandPriority(band) > bandPriority(highestBand) ? band : highestBand;
+      consecutive += 1;
+    } else {
+      eventDirection = direction;
+      highestBand = band;
+      consecutive = 1;
+      inEvent = false;
+    }
+
+    if (!inEvent && consecutive >= Math.max(1, config.consecutiveSamplesRequired)) {
+      const classified = highestBand ?? band;
+      counts[classified] += 1;
+      counts.total += 1;
+      inEvent = true;
+    }
+  }
+
+  return counts;
+}
+
+function calculateBearingDegrees(from: GpsTrackpoint, to: GpsTrackpoint): number | null {
+  if (!Number.isFinite(from.latitude) || !Number.isFinite(from.longitude) || !Number.isFinite(to.latitude) || !Number.isFinite(to.longitude)) {
+    return null;
+  }
+
+  const lat1 = (from.latitude * Math.PI) / 180;
+  const lat2 = (to.latitude * Math.PI) / 180;
+  const deltaLon = ((to.longitude - from.longitude) * Math.PI) / 180;
+
+  const y = Math.sin(deltaLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
+  const bearing = (Math.atan2(y, x) * 180) / Math.PI;
+  return (bearing + 360) % 360;
+}
+
+function calculateSignedDeltaDegrees(firstBearing: number, secondBearing: number): number {
+  return (secondBearing - firstBearing + 540) % 360 - 180;
+}
+
+function haversineMeters(lat1Deg: number, lon1Deg: number, lat2Deg: number, lon2Deg: number): number {
+  const earthRadius = 6_371_000;
+  const lat1 = (lat1Deg * Math.PI) / 180;
+  const lat2 = (lat2Deg * Math.PI) / 180;
+  const deltaLat = ((lat2Deg - lat1Deg) * Math.PI) / 180;
+  const deltaLon = ((lon2Deg - lon1Deg) * Math.PI) / 180;
+  const a = Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadius * c;
+}
 function formatThresholds(thresholds: Record<string, string>): string {
   return Object.entries(thresholds)
     .map(([key, value]) => `${key}=${value}`)
@@ -3839,6 +3981,32 @@ export function App() {
 
   const selectedAnalysisAggregates = useMemo(() => selectedAnalysisAggregateSlices.map((slice) => slice.aggregate), [selectedAnalysisAggregateSlices]);
 
+  const codBandCountsByScope = useMemo(() => {
+    if (!selectedSession) {
+      return { moderate: 0, high: 0, veryHigh: 0, total: 0 };
+    }
+
+    const thresholds = selectedSession.summary.coreMetrics.thresholds ?? {};
+    const moderateThreshold = Number(thresholds.CodModerateThresholdDegrees ?? 45);
+    const highThreshold = Number(thresholds.CodHighThresholdDegrees ?? 60);
+    const veryHighThreshold = Number(thresholds.CodVeryHighThresholdDegrees ?? 90);
+    const minSpeed = Number(thresholds.CodMinimumSpeedMps ?? (10 / 3.6));
+    const consecutiveSamples = Number(thresholds.CodConsecutiveSamplesRequired ?? 2);
+
+    const points = (selectedSession.summary.gpsTrackpoints ?? [])
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+      .filter((point) => !isSegmentScopeActive || !selectedSegment || (point.elapsedSeconds >= selectedSegment.startSecond && point.elapsedSeconds <= selectedSegment.endSecond));
+
+    return computeCodBandCounts(points, {
+      moderateThresholdDegrees: Number.isFinite(moderateThreshold) ? moderateThreshold : 45,
+      highThresholdDegrees: Number.isFinite(highThreshold) ? highThreshold : 60,
+      veryHighThresholdDegrees: Number.isFinite(veryHighThreshold) ? veryHighThreshold : 90,
+      minSpeedMps: Number.isFinite(minSpeed) ? minSpeed : (10 / 3.6),
+      consecutiveSamplesRequired: Number.isFinite(consecutiveSamples) ? Math.max(1, Math.round(consecutiveSamples)) : 2,
+      minStepDistanceMeters: 2
+    });
+  }, [selectedSession, isSegmentScopeActive, selectedSegment]);
+
   const displayedCoreMetrics = useMemo(() => {
     // Backend delivers a single session summary + interval aggregates.
     // Segment analysis is currently created by slicing these intervals in the UI by time range,
@@ -3880,6 +4048,10 @@ export function App() {
         moderateDecelerationCount: null,
         highDecelerationCount: null,
         veryHighDecelerationCount: null,
+        directionChanges: 0,
+        moderateDirectionChangeCount: 0,
+        highDirectionChangeCount: 0,
+        veryHighDirectionChangeCount: 0,
         heartRateZoneLowSeconds: null,
         heartRateZoneMediumSeconds: null,
         heartRateZoneHighSeconds: null,
@@ -3974,6 +4146,10 @@ export function App() {
       moderateDecelerationCount: sumMetric('moderateDecelerationCount', (metrics) => metrics.moderateDecelerationCount, { round: true }),
       highDecelerationCount: sumMetric('highDecelerationCount', (metrics) => metrics.highDecelerationCount, { round: true }),
       veryHighDecelerationCount: sumMetric('veryHighDecelerationCount', (metrics) => metrics.veryHighDecelerationCount, { round: true }),
+      directionChanges: codBandCountsByScope.total,
+      moderateDirectionChangeCount: codBandCountsByScope.moderate,
+      highDirectionChangeCount: codBandCountsByScope.high,
+      veryHighDirectionChangeCount: codBandCountsByScope.veryHigh,
       heartRateZoneLowSeconds: sumMetric('heartRateZoneLowSeconds', (metrics) => metrics.heartRateZoneLowSeconds),
       heartRateZoneMediumSeconds: sumMetric('heartRateZoneMediumSeconds', (metrics) => metrics.heartRateZoneMediumSeconds),
       heartRateZoneHighSeconds: sumMetric('heartRateZoneHighSeconds', (metrics) => metrics.heartRateZoneHighSeconds),
@@ -3991,7 +4167,7 @@ export function App() {
             return null;
           })()
     } satisfies FootballCoreMetrics;
-  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics, segmentSpeedDerivedMetrics, t.segmentScopeNoTimelineDataHint]);
+  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics, segmentSpeedDerivedMetrics, codBandCountsByScope, t.segmentScopeNoTimelineDataHint]);
 
   const detectedRunHierarchySummary = useMemo(() => {
     if (!selectedSession) {
@@ -5208,7 +5384,9 @@ export function App() {
                         <>
                           <MetricListItem label={t.metricAccelerationBandsCount} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateAccelerationCount, displayedCoreMetrics.highAccelerationCount, displayedCoreMetrics.veryHighAccelerationCount, t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.accelerationCount} />
                           <MetricListItem label={t.metricDecelerationBandsCount} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDecelerationCount, displayedCoreMetrics.highDecelerationCount, displayedCoreMetrics.veryHighDecelerationCount, t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)} helpText={metricHelp.decelerationCount} />
-                          <MetricListItem label={t.metricDirectionChanges} value={withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDirectionChangeCount, displayedCoreMetrics.highDirectionChangeCount, displayedCoreMetrics.veryHighDirectionChangeCount, t.notAvailable), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
+                          <MetricListItem label={t.metricModerateCodCount} value={withMetricStatus(formatNumber(displayedCoreMetrics.moderateDirectionChangeCount, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
+                          <MetricListItem label={t.metricHighCodCount} value={withMetricStatus(formatNumber(displayedCoreMetrics.highDirectionChangeCount, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
+                          <MetricListItem label={t.metricVeryHighCodCount} value={withMetricStatus(formatNumber(displayedCoreMetrics.veryHighDirectionChangeCount, locale, t.notAvailable, 0), 'directionChanges', displayedCoreMetrics, t)} helpText={metricHelp.directionChanges} />
                         </>
                       )}
                     </ul>
