@@ -58,7 +58,14 @@ public class ProfileUseCase : IProfileUseCase
             existingProfile.MetricThresholds.SprintSpeedPercentOfMaxSpeed != submittedThresholds.SprintSpeedPercentOfMaxSpeed ||
             existingProfile.MetricThresholds.HighIntensitySpeedPercentOfMaxSpeed != submittedThresholds.HighIntensitySpeedPercentOfMaxSpeed ||
             existingProfile.MetricThresholds.AccelerationThresholdMps2 != submittedThresholds.AccelerationThresholdMps2 ||
-            existingProfile.MetricThresholds.DecelerationThresholdMps2 != submittedThresholds.DecelerationThresholdMps2;
+            existingProfile.MetricThresholds.DecelerationThresholdMps2 != submittedThresholds.DecelerationThresholdMps2 ||
+            existingProfile.MetricThresholds.ModerateAccelerationThresholdMps2 != submittedThresholds.ModerateAccelerationThresholdMps2 ||
+            existingProfile.MetricThresholds.HighAccelerationThresholdMps2 != submittedThresholds.HighAccelerationThresholdMps2 ||
+            existingProfile.MetricThresholds.VeryHighAccelerationThresholdMps2 != submittedThresholds.VeryHighAccelerationThresholdMps2 ||
+            existingProfile.MetricThresholds.ModerateDecelerationThresholdMps2 != submittedThresholds.ModerateDecelerationThresholdMps2 ||
+            existingProfile.MetricThresholds.HighDecelerationThresholdMps2 != submittedThresholds.HighDecelerationThresholdMps2 ||
+            existingProfile.MetricThresholds.VeryHighDecelerationThresholdMps2 != submittedThresholds.VeryHighDecelerationThresholdMps2 ||
+            existingProfile.MetricThresholds.AccelDecelMinimumSpeedMps != submittedThresholds.AccelDecelMinimumSpeedMps;
 
         var normalizedThresholds = new MetricThresholdProfile
         {
@@ -70,6 +77,13 @@ public class ProfileUseCase : IProfileUseCase
             HighIntensitySpeedPercentOfMaxSpeed = submittedThresholds.HighIntensitySpeedPercentOfMaxSpeed,
             AccelerationThresholdMps2 = submittedThresholds.AccelerationThresholdMps2,
             DecelerationThresholdMps2 = submittedThresholds.DecelerationThresholdMps2,
+            ModerateAccelerationThresholdMps2 = submittedThresholds.ModerateAccelerationThresholdMps2,
+            HighAccelerationThresholdMps2 = submittedThresholds.HighAccelerationThresholdMps2,
+            VeryHighAccelerationThresholdMps2 = submittedThresholds.VeryHighAccelerationThresholdMps2,
+            ModerateDecelerationThresholdMps2 = submittedThresholds.ModerateDecelerationThresholdMps2,
+            HighDecelerationThresholdMps2 = submittedThresholds.HighDecelerationThresholdMps2,
+            VeryHighDecelerationThresholdMps2 = submittedThresholds.VeryHighDecelerationThresholdMps2,
+            AccelDecelMinimumSpeedMps = submittedThresholds.AccelDecelMinimumSpeedMps,
             EffectiveMaxSpeedMps = submittedThresholds.EffectiveMaxSpeedMps,
             EffectiveMaxHeartRateBpm = submittedThresholds.EffectiveMaxHeartRateBpm,
             Version = thresholdsChanged ? existingProfile.MetricThresholds.Version + 1 : existingProfile.MetricThresholds.Version,

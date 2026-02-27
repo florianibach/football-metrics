@@ -160,31 +160,45 @@ describe('App', () => {
 
 
   function createProfile(overrides?: Partial<Record<string, unknown>>) {
+    const defaultMetricThresholds = {
+      maxSpeedMps: 8.0,
+      maxSpeedMode: 'Adaptive',
+      maxHeartRateBpm: 190,
+      maxHeartRateMode: 'Adaptive',
+      sprintSpeedPercentOfMaxSpeed: 90,
+      highIntensitySpeedPercentOfMaxSpeed: 70,
+      accelerationThresholdMps2: 2.0,
+      decelerationThresholdMps2: -2.0,
+      moderateAccelerationThresholdMps2: 1.0,
+      highAccelerationThresholdMps2: 1.8,
+      veryHighAccelerationThresholdMps2: 2.5,
+      moderateDecelerationThresholdMps2: -1.0,
+      highDecelerationThresholdMps2: -1.8,
+      veryHighDecelerationThresholdMps2: -2.5,
+      accelDecelMinimumSpeedMps: 10 / 3.6,
+      effectiveMaxSpeedMps: 8.0,
+      effectiveMaxHeartRateBpm: 190,
+      version: 1,
+      updatedAtUtc: '2026-02-16T22:00:00.000Z'
+    };
+
+    const overrideThresholds = (overrides?.metricThresholds as Record<string, unknown> | undefined) ?? {};
+    const { metricThresholds: _ignoredThresholds, ...restOverrides } = overrides ?? {};
+
     return {
       primaryPosition: 'CentralMidfielder',
       secondaryPosition: null,
       metricThresholds: {
-        maxSpeedMps: 8.0,
-        maxSpeedMode: 'Adaptive',
-        maxHeartRateBpm: 190,
-        maxHeartRateMode: 'Adaptive',
-        sprintSpeedPercentOfMaxSpeed: 90,
-        highIntensitySpeedPercentOfMaxSpeed: 70,
-        accelerationThresholdMps2: 2.0,
-        effectiveMaxSpeedMps: 8.0,
-        decelerationThresholdMps2: -2.0,
-        effectiveMaxHeartRateBpm: 190,
-        version: 1,
-        updatedAtUtc: '2026-02-16T22:00:00.000Z'
+        ...defaultMetricThresholds,
+        ...overrideThresholds
       },
       defaultSmoothingFilter: 'AdaptiveMedian',
       preferredSpeedUnit: 'km/h',
       preferredAggregationWindowMinutes: 5,
       preferredTheme: 'dark',
-      ...overrides
+      ...restOverrides
     };
   }
-
 
 
   function deferredPromise<T>() {
@@ -1754,6 +1768,32 @@ describe('App', () => {
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/profile', expect.objectContaining({ method: 'PUT' }));
     expect((screen.getByLabelText('Preferred speed unit') as HTMLSelectElement).value).toBe('km/h');
+  });
+
+  it('R1_6_22_Ac05_Ac06_profile_min_speed_for_accel_decel_uses_preferred_speed_unit', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredSpeedUnit: 'mph', metricThresholds: { accelDecelMinimumSpeedMps: 10 / 3.6 } }) } as Response);
+      }
+
+      if (url.endsWith('/profile') && init?.method === 'PUT') {
+        const body = JSON.parse(String(init.body));
+        return Promise.resolve({ ok: true, json: async () => createProfile(body) } as Response);
+      }
+
+      return Promise.resolve({ ok: true, json: async () => [] } as Response);
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText('Minimum speed for accel/decel detection (mph)')).toBeInTheDocument());
+    expect((screen.getByLabelText('Minimum speed for accel/decel detection (mph)') as HTMLInputElement).value).toBe('6.2');
+
+    fireEvent.change(screen.getByLabelText('Minimum speed for accel/decel detection (mph)'), { target: { value: '7.0' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }));
+
+    await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
   });
 
   it('R1_5_12_Ac03_Ac04_session_speed_unit_can_be_temporarily_overridden_with_consistent_rounding', async () => {

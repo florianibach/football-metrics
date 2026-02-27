@@ -148,7 +148,7 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var response = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, "mph", null));
+        var response = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, "foo", null));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -316,6 +316,56 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
 
         var invalidResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, null, null, null, "fr"));
         invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+
+    [Fact]
+    public async Task R1_6_22_Ac03_Ac04_UpdateProfile_ShouldValidateAccelDecelBandOrdering()
+    {
+        var client = _factory.CreateClient();
+
+        var invalidBands = new MetricThresholdProfile
+        {
+            MaxSpeedMps = 8.0,
+            MaxHeartRateBpm = 190,
+            SprintSpeedPercentOfMaxSpeed = 90,
+            HighIntensitySpeedPercentOfMaxSpeed = 70,
+            ModerateAccelerationThresholdMps2 = 2.0,
+            HighAccelerationThresholdMps2 = 1.8,
+            VeryHighAccelerationThresholdMps2 = 2.5,
+            ModerateDecelerationThresholdMps2 = -2.0,
+            HighDecelerationThresholdMps2 = -1.8,
+            VeryHighDecelerationThresholdMps2 = -2.5,
+            AccelDecelMinimumSpeedMps = 10 / 3.6
+        };
+
+        var invalidResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, invalidBands, null, null, null));
+        invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        invalidBands.ModerateAccelerationThresholdMps2 = 1.0;
+        invalidBands.HighAccelerationThresholdMps2 = 1.8;
+        invalidBands.ModerateDecelerationThresholdMps2 = -1.0;
+        invalidBands.HighDecelerationThresholdMps2 = -1.8;
+
+        var validResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, invalidBands, null, null, null));
+        validResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task R1_6_22_Ac05_Ac06_Ac07_UpdateProfile_ShouldPersistMinSpeedAndSupportMphPreferredUnit()
+    {
+        var client = _factory.CreateClient();
+
+        var thresholds = MetricThresholdProfile.CreateDefault();
+        thresholds.AccelDecelMinimumSpeedMps = 6 / 2.2369362921;
+
+        var response = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, thresholds, null, SpeedUnits.MilesPerHour, null));
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var payload = await response.Content.ReadFromJsonAsync<UserProfileResponse>();
+        payload.Should().NotBeNull();
+        payload!.PreferredSpeedUnit.Should().Be(SpeedUnits.MilesPerHour);
+        payload.MetricThresholds.AccelDecelMinimumSpeedMps.Should().BeApproximately(6 / 2.2369362921, 0.01);
     }
 
     private sealed record ProfileResponseWithRecalculation(ProfileRecalculationJobResponse? LatestRecalculationJob);

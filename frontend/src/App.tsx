@@ -138,13 +138,20 @@ type MetricThresholdProfile = {
   highIntensitySpeedPercentOfMaxSpeed: number;
   accelerationThresholdMps2: number;
   decelerationThresholdMps2: number;
+  moderateAccelerationThresholdMps2: number;
+  highAccelerationThresholdMps2: number;
+  veryHighAccelerationThresholdMps2: number;
+  moderateDecelerationThresholdMps2: number;
+  highDecelerationThresholdMps2: number;
+  veryHighDecelerationThresholdMps2: number;
+  accelDecelMinimumSpeedMps: number;
   effectiveMaxSpeedMps: number;
   effectiveMaxHeartRateBpm: number;
   version: number;
   updatedAtUtc: string;
 };
 
-type SpeedUnit = 'km/h' | 'm/s' | 'min/km';
+type SpeedUnit = 'km/h' | 'mph' | 'm/s' | 'min/km';
 type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
 type SessionSubpage = 'analysis' | 'segments' | 'segmentEdit' | 'compare' | 'sessionSettings' | 'technicalInfo';
 type SessionAnalysisTab = 'overview' | 'timeline' | 'peakDemand' | 'segments' | 'heatmap';
@@ -496,6 +503,15 @@ type TranslationKey =
   | 'profileThresholdAccelerationMode'
   | 'profileThresholdDeceleration'
   | 'profileThresholdDecelerationMode'
+  | 'profileAccelBandsTitle'
+  | 'profileDecelBandsTitle'
+  | 'profileThresholdModerateAccel'
+  | 'profileThresholdHighAccel'
+  | 'profileThresholdVeryHighAccel'
+  | 'profileThresholdModerateDecel'
+  | 'profileThresholdHighDecel'
+  | 'profileThresholdVeryHighDecel'
+  | 'profileThresholdAccelDecelMinSpeed'
   | 'profileThresholdModeLabel'
   | 'profileThresholdModeFixed'
   | 'profileThresholdModeAdaptive'
@@ -901,6 +917,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdAccelerationMode: 'Effective max speed (read-only in adaptive mode)',
     profileThresholdDeceleration: 'Deceleration threshold (m/s²)',
     profileThresholdDecelerationMode: 'Effective max heartrate (read-only in adaptive mode)',
+    profileAccelBandsTitle: 'Acceleration bands (m/s²)',
+    profileDecelBandsTitle: 'Deceleration bands (m/s²)',
+    profileThresholdModerateAccel: 'Moderate acceleration threshold (>=)',
+    profileThresholdHighAccel: 'High acceleration threshold (>=)',
+    profileThresholdVeryHighAccel: 'Very high acceleration threshold (>=)',
+    profileThresholdModerateDecel: 'Moderate deceleration threshold (<=)',
+    profileThresholdHighDecel: 'High deceleration threshold (<=)',
+    profileThresholdVeryHighDecel: 'Very high deceleration threshold (<=)',
+    profileThresholdAccelDecelMinSpeed: 'Minimum speed for accel/decel detection',
     profileEffectiveMaxSpeed: 'Effective max speed',
     profileEffectiveMaxHeartRate: 'Effective max heartrate',
     profileDerivedSprintThreshold: 'Derived sprint threshold',
@@ -1298,6 +1323,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     profileThresholdAccelerationMode: 'Effektive Max Speed (read-only bei adaptiv)',
     profileThresholdDeceleration: 'Verzögerungs-Schwelle (m/s²)',
     profileThresholdDecelerationMode: 'Effektive Max Heartrate (read-only bei adaptiv)',
+    profileAccelBandsTitle: 'Beschleunigungsbänder (m/s²)',
+    profileDecelBandsTitle: 'Verzögerungsbänder (m/s²)',
+    profileThresholdModerateAccel: 'Moderate Beschleunigungs-Schwelle (>=)',
+    profileThresholdHighAccel: 'Hohe Beschleunigungs-Schwelle (>=)',
+    profileThresholdVeryHighAccel: 'Sehr hohe Beschleunigungs-Schwelle (>=)',
+    profileThresholdModerateDecel: 'Moderate Verzögerungs-Schwelle (<=)',
+    profileThresholdHighDecel: 'Hohe Verzögerungs-Schwelle (<=)',
+    profileThresholdVeryHighDecel: 'Sehr hohe Verzögerungs-Schwelle (<=)',
+    profileThresholdAccelDecelMinSpeed: 'Mindestgeschwindigkeit für Accel/Decel-Erkennung',
     profileEffectiveMaxSpeed: 'Effektive Max Speed',
     profileEffectiveMaxHeartRate: 'Effektive Max Heartrate',
     profileDerivedSprintThreshold: 'Abgeleitete Sprint-Schwelle',
@@ -1687,6 +1721,10 @@ function convertSpeedFromMetersPerSecond(valueMetersPerSecond: number, unit: Spe
     return valueMetersPerSecond * 3.6;
   }
 
+  if (unit === 'mph') {
+    return valueMetersPerSecond * 2.2369362921;
+  }
+
   if (unit === 'min/km') {
     if (valueMetersPerSecond <= 0) {
       return 0;
@@ -1701,6 +1739,10 @@ function convertSpeedFromMetersPerSecond(valueMetersPerSecond: number, unit: Spe
 function convertSpeedToMetersPerSecond(value: number, unit: SpeedUnit): number {
   if (unit === 'km/h') {
     return value / 3.6;
+  }
+
+  if (unit === 'mph') {
+    return value / 2.2369362921;
   }
 
   if (unit === 'min/km') {
@@ -1721,6 +1763,10 @@ function formatSpeed(valueMetersPerSecond: number | null, unit: SpeedUnit, notAv
 
   if (unit === 'km/h') {
     return `${(valueMetersPerSecond * 3.6).toFixed(1)} km/h`;
+  }
+
+  if (unit === 'mph') {
+    return `${(valueMetersPerSecond * 2.2369362921).toFixed(1)} mph`;
   }
 
   if (unit === 'min/km') {
@@ -2138,6 +2184,13 @@ export function App() {
       highIntensitySpeedPercentOfMaxSpeed: 70,
       accelerationThresholdMps2: 2.0,
       decelerationThresholdMps2: -2.0,
+      moderateAccelerationThresholdMps2: 1.0,
+      highAccelerationThresholdMps2: 1.8,
+      veryHighAccelerationThresholdMps2: 2.5,
+      moderateDecelerationThresholdMps2: -1.0,
+      highDecelerationThresholdMps2: -1.8,
+      veryHighDecelerationThresholdMps2: -2.5,
+      accelDecelMinimumSpeedMps: 10 / 3.6,
       effectiveMaxSpeedMps: 8.0,
       effectiveMaxHeartRateBpm: 190,
       version: 1,
@@ -3537,6 +3590,7 @@ export function App() {
   const sprintThresholdMpsPreview = displayedMaxSpeedMps * (profileForm.metricThresholds.sprintSpeedPercentOfMaxSpeed / 100);
   const highIntensityThresholdMpsPreview = displayedMaxSpeedMps * (profileForm.metricThresholds.highIntensitySpeedPercentOfMaxSpeed / 100);
   const displayedMaxSpeedByPreferredUnit = convertSpeedFromMetersPerSecond(displayedMaxSpeedMps, profileForm.preferredSpeedUnit);
+  const displayedAccelDecelMinSpeedByPreferredUnit = convertSpeedFromMetersPerSecond(profileForm.metricThresholds.accelDecelMinimumSpeedMps, profileForm.preferredSpeedUnit);
 
   const activeSessionType = selectedSession?.sessionContext.sessionType ?? null;
   const compareSelectableSessions = activeSessionType && selectedSession
@@ -4217,6 +4271,7 @@ export function App() {
             onChange={(event) => setProfileForm((current) => ({ ...current, preferredSpeedUnit: event.target.value as SpeedUnit }))}
           >
             <option value="km/h">km/h</option>
+            <option value="mph">mph</option>
             <option value="m/s">m/s</option>
             <option value="min/km">min/km</option>
           </select>
@@ -4331,6 +4386,50 @@ export function App() {
               metricThresholds: { ...current.metricThresholds, decelerationThresholdMps2: Number(event.target.value) }
             }))}
           />
+
+          <h3>{t.profileAccelBandsTitle}</h3>
+          <label className="form-label" htmlFor="profile-threshold-accel-moderate">{t.profileThresholdModerateAccel}</label>
+          <input className="form-control" id="profile-threshold-accel-moderate" type="number" step="0.1" value={profileForm.metricThresholds.moderateAccelerationThresholdMps2}
+            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, moderateAccelerationThresholdMps2: Number(event.target.value) } }))}
+          />
+          <label className="form-label" htmlFor="profile-threshold-accel-high">{t.profileThresholdHighAccel}</label>
+          <input className="form-control" id="profile-threshold-accel-high" type="number" step="0.1" value={profileForm.metricThresholds.highAccelerationThresholdMps2}
+            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, highAccelerationThresholdMps2: Number(event.target.value) } }))}
+          />
+          <label className="form-label" htmlFor="profile-threshold-accel-veryhigh">{t.profileThresholdVeryHighAccel}</label>
+          <input className="form-control" id="profile-threshold-accel-veryhigh" type="number" step="0.1" value={profileForm.metricThresholds.veryHighAccelerationThresholdMps2}
+            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, veryHighAccelerationThresholdMps2: Number(event.target.value) } }))}
+          />
+
+          <h3>{t.profileDecelBandsTitle}</h3>
+          <label className="form-label" htmlFor="profile-threshold-decel-moderate">{t.profileThresholdModerateDecel}</label>
+          <input className="form-control" id="profile-threshold-decel-moderate" type="number" step="0.1" value={profileForm.metricThresholds.moderateDecelerationThresholdMps2}
+            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, moderateDecelerationThresholdMps2: Number(event.target.value) } }))}
+          />
+          <label className="form-label" htmlFor="profile-threshold-decel-high">{t.profileThresholdHighDecel}</label>
+          <input className="form-control" id="profile-threshold-decel-high" type="number" step="0.1" value={profileForm.metricThresholds.highDecelerationThresholdMps2}
+            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, highDecelerationThresholdMps2: Number(event.target.value) } }))}
+          />
+          <label className="form-label" htmlFor="profile-threshold-decel-veryhigh">{t.profileThresholdVeryHighDecel}</label>
+          <input className="form-control" id="profile-threshold-decel-veryhigh" type="number" step="0.1" value={profileForm.metricThresholds.veryHighDecelerationThresholdMps2}
+            onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, veryHighDecelerationThresholdMps2: Number(event.target.value) } }))}
+          />
+
+          <label className="form-label" htmlFor="profile-threshold-accel-decel-min-speed">{t.profileThresholdAccelDecelMinSpeed} ({profileForm.preferredSpeedUnit})</label>
+          <input className="form-control"
+            id="profile-threshold-accel-decel-min-speed"
+            type="number"
+            step={profileForm.preferredSpeedUnit === "min/km" ? "0.01" : "0.1"}
+            value={displayedAccelDecelMinSpeedByPreferredUnit.toFixed(profileForm.preferredSpeedUnit === "min/km" ? 2 : 1)}
+            onChange={(event) => setProfileForm((current) => ({
+              ...current,
+              metricThresholds: {
+                ...current.metricThresholds,
+                accelDecelMinimumSpeedMps: convertSpeedToMetersPerSecond(Number(event.target.value), current.preferredSpeedUnit)
+              }
+            }))}
+          />
+
           <p>{t.profileEffectiveMaxSpeed}: {formatSpeed(profileForm.metricThresholds.effectiveMaxSpeedMps, profileForm.preferredSpeedUnit, t.notAvailable)} ({profileForm.metricThresholds.maxSpeedMode})</p>
           <p>{t.profileEffectiveMaxHeartRate}: {profileForm.metricThresholds.effectiveMaxHeartRateBpm} bpm ({profileForm.metricThresholds.maxHeartRateMode})</p>
           <p>{t.profileAdaptiveDataBasisHint}</p>
@@ -4915,6 +5014,7 @@ export function App() {
             <label className="form-label" htmlFor="session-speed-unit">{t.sessionSpeedUnitLabel}</label>
             <select className="form-select" id="session-speed-unit" value={selectedSession.selectedSpeedUnit} onChange={onSpeedUnitChange}>
               <option value="km/h">km/h</option>
+              <option value="mph">mph</option>
               <option value="m/s">m/s</option>
               <option value="min/km">min/km</option>
             </select>

@@ -766,6 +766,13 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             ["DecelerationThresholdMps2"] = thresholdsProfile.DecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
             ["DecelerationThresholdMode"] = "Fixed",
             ["DecelerationThresholdSource"] = "Fixed",
+            ["ModerateAccelerationThresholdMps2"] = thresholdsProfile.ModerateAccelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["HighAccelerationThresholdMps2"] = thresholdsProfile.HighAccelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["VeryHighAccelerationThresholdMps2"] = thresholdsProfile.VeryHighAccelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["ModerateDecelerationThresholdMps2"] = thresholdsProfile.ModerateDecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["HighDecelerationThresholdMps2"] = thresholdsProfile.HighDecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["VeryHighDecelerationThresholdMps2"] = thresholdsProfile.VeryHighDecelerationThresholdMps2.ToString("0.0", CultureInfo.InvariantCulture),
+            ["AccelDecelMinimumSpeedMps"] = thresholdsProfile.AccelDecelMinimumSpeedMps.ToString("0.00", CultureInfo.InvariantCulture),
             ["MaxHeartRateBpm"] = thresholdsProfile.MaxHeartRateBpm.ToString(CultureInfo.InvariantCulture),
             ["MaxHeartRateMode"] = thresholdsProfile.MaxHeartRateMode,
             ["MaxHeartRateEffectiveBpm"] = thresholdsProfile.EffectiveMaxHeartRateBpm.ToString(CultureInfo.InvariantCulture),
@@ -829,6 +836,12 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         double? runningDensityMetersPerMinute = null;
         int? accelerationCount = null;
         int? decelerationCount = null;
+        int? moderateAccelerationCount = null;
+        int? highAccelerationCount = null;
+        int? veryHighAccelerationCount = null;
+        int? moderateDecelerationCount = null;
+        int? highDecelerationCount = null;
+        int? veryHighDecelerationCount = null;
         double? distanceMeters = null;
         var detectedRuns = new List<TcxDetectedRun>();
 
@@ -837,7 +850,8 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
                      })
             {
                 MarkMetric(key, "NotMeasured", "GPS coordinates were not recorded for this session.");
@@ -848,7 +862,8 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
                      })
             {
                 MarkMetric(key, "NotUsable", "GPS measurements are present but do not contain usable time segments.");
@@ -859,7 +874,8 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
                      })
             {
                 MarkMetric(key, "NotUsable", $"GPS-derived metric is unusable because data quality is {qualityStatus}.");
@@ -947,33 +963,35 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 ? (totalDistanceMeters ?? segments.Sum(segment => segment.Distance)) / (totalDurationSeconds / 60.0)
                 : (double?)null;
 
-            var accelerationSamples = new List<(double AccelerationMps2, double DistanceMeters)>();
-            for (var index = 1; index < segments.Count; index++)
-            {
-                var elapsedSeconds = segments[index].Duration;
-                if (elapsedSeconds <= 0)
-                {
-                    continue;
-                }
+            var accelerationSamples = segments
+                .Select(segment => new SpeedSample(segment.EndElapsedSeconds, segment.Speed, segment.Distance))
+                .ToList();
 
-                accelerationSamples.Add(((segments[index].Speed - segments[index - 1].Speed) / elapsedSeconds, segments[index].Distance));
-            }
+            var accelerationWindowSamples = BuildAccelerationWindowSamples(accelerationSamples, thresholdsProfile);
 
-            var accelerationEvents = DetectAccelerationLikeEvents(
-                accelerationSamples,
-                acceleration => acceleration >= thresholdsProfile.AccelerationThresholdMps2);
-            var decelerationEvents = DetectAccelerationLikeEvents(
-                accelerationSamples,
-                acceleration => acceleration <= thresholdsProfile.DecelerationThresholdMps2);
+            var moderateAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.Moderate, sample => sample.AccelerationBand);
+            var highAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.High, sample => sample.AccelerationBand);
+            var veryHighAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.VeryHigh, sample => sample.AccelerationBand);
+            var moderateDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.Moderate, sample => sample.DecelerationBand);
+            var highDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.High, sample => sample.DecelerationBand);
+            var veryHighDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.VeryHigh, sample => sample.DecelerationBand);
 
-            accelerationCount = accelerationEvents.EventCount;
-            decelerationCount = decelerationEvents.EventCount;
+            moderateAccelerationCount = moderateAccelerationEvents.EventCount;
+            highAccelerationCount = highAccelerationEvents.EventCount;
+            veryHighAccelerationCount = veryHighAccelerationEvents.EventCount;
+            moderateDecelerationCount = moderateDecelerationEvents.EventCount;
+            highDecelerationCount = highDecelerationEvents.EventCount;
+            veryHighDecelerationCount = veryHighDecelerationEvents.EventCount;
+
+            accelerationCount = moderateAccelerationEvents.EventCount + highAccelerationEvents.EventCount + veryHighAccelerationEvents.EventCount;
+            decelerationCount = moderateDecelerationEvents.EventCount + highDecelerationEvents.EventCount + veryHighDecelerationEvents.EventCount;
             distanceMeters = totalDistanceMeters;
 
             foreach (var key in new[]
                      {
                          "distanceMeters", "sprintDistanceMeters", "sprintCount", "maxSpeedMetersPerSecond", "highIntensityTimeSeconds", "highIntensityRunCount",
-                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount"
+                         "highSpeedDistanceMeters", "runningDensityMetersPerMinute", "accelerationCount", "decelerationCount",
+                         "moderateAccelerationCount", "highAccelerationCount", "veryHighAccelerationCount", "moderateDecelerationCount", "highDecelerationCount", "veryHighDecelerationCount"
                      })
             {
                 var metricState = string.Equals(qualityStatus, "Medium", StringComparison.OrdinalIgnoreCase)
@@ -1121,6 +1139,12 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             runningDensityMetersPerMinute,
             accelerationCount,
             decelerationCount,
+            moderateAccelerationCount,
+            highAccelerationCount,
+            veryHighAccelerationCount,
+            moderateDecelerationCount,
+            highDecelerationCount,
+            veryHighDecelerationCount,
             hrZoneLowSeconds,
             hrZoneMediumSeconds,
             hrZoneHighSeconds,
@@ -1225,75 +1249,144 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         return runs;
     }
 
-    private static (int EventCount, double DistanceMeters) DetectAccelerationLikeEvents(
-        IReadOnlyList<(double AccelerationMps2, double DistanceMeters)> samples,
-        Func<double, bool> qualifiesAsEventSample)
+    private enum AccelDecelBand
     {
-        const int consecutiveSamplesRequired = 2;
-        var eventCount = 0;
-        var eventDistanceMeters = 0d;
-        var pendingEventSampleIndices = new List<int>();
-        var currentEventSampleIndices = new List<int>();
-        var inEvent = false;
-        var consecutiveOutsideThreshold = 0;
+        None = 0,
+        Moderate = 1,
+        High = 2,
+        VeryHigh = 3
+    }
 
-        void FinalizeEvent()
+    private readonly record struct SpeedSample(double ElapsedSeconds, double SpeedMps, double DistanceMeters);
+
+    private readonly record struct AccelWindowSample(
+        double ElapsedSeconds,
+        double NetAccelerationMps2,
+        double DistanceMeters,
+        AccelDecelBand AccelerationBand,
+        AccelDecelBand DecelerationBand);
+
+    private static List<AccelWindowSample> BuildAccelerationWindowSamples(
+        IReadOnlyList<SpeedSample> samples,
+        MetricThresholdProfile thresholdsProfile)
+    {
+        const double expectedWindowSeconds = 2.0;
+        const double windowToleranceSeconds = 0.25;
+
+        var windows = new List<AccelWindowSample>();
+        for (var index = 2; index < samples.Count; index++)
         {
-            if (currentEventSampleIndices.Count == 0)
+            var current = samples[index];
+            var start = samples[index - 2];
+            var elapsedWindowSeconds = current.ElapsedSeconds - start.ElapsedSeconds;
+            if (elapsedWindowSeconds <= 0 || Math.Abs(elapsedWindowSeconds - expectedWindowSeconds) > windowToleranceSeconds)
             {
-                return;
+                continue;
             }
 
-            eventCount++;
-            eventDistanceMeters += currentEventSampleIndices.Sum(sampleIndex => samples[sampleIndex].DistanceMeters);
+            var netAccelerationMps2 = (current.SpeedMps - start.SpeedMps) / elapsedWindowSeconds;
+            var passesMinSpeed = current.SpeedMps >= thresholdsProfile.AccelDecelMinimumSpeedMps && start.SpeedMps >= thresholdsProfile.AccelDecelMinimumSpeedMps;
+
+            var accelerationBand = passesMinSpeed
+                ? ClassifyAccelerationBand(netAccelerationMps2, thresholdsProfile)
+                : AccelDecelBand.None;
+            var decelerationBand = passesMinSpeed
+                ? ClassifyDecelerationBand(netAccelerationMps2, thresholdsProfile)
+                : AccelDecelBand.None;
+
+            windows.Add(new AccelWindowSample(current.ElapsedSeconds, netAccelerationMps2, current.DistanceMeters, accelerationBand, decelerationBand));
         }
 
-        for (var sampleIndex = 0; sampleIndex < samples.Count; sampleIndex++)
+        return windows;
+    }
+
+    private static AccelDecelBand ClassifyAccelerationBand(double accelerationMps2, MetricThresholdProfile thresholdsProfile)
+    {
+        if (accelerationMps2 >= thresholdsProfile.VeryHighAccelerationThresholdMps2)
         {
-            var qualifies = qualifiesAsEventSample(samples[sampleIndex].AccelerationMps2);
+            return AccelDecelBand.VeryHigh;
+        }
+
+        if (accelerationMps2 >= thresholdsProfile.HighAccelerationThresholdMps2)
+        {
+            return AccelDecelBand.High;
+        }
+
+        if (accelerationMps2 >= thresholdsProfile.ModerateAccelerationThresholdMps2)
+        {
+            return AccelDecelBand.Moderate;
+        }
+
+        return AccelDecelBand.None;
+    }
+
+    private static AccelDecelBand ClassifyDecelerationBand(double accelerationMps2, MetricThresholdProfile thresholdsProfile)
+    {
+        if (accelerationMps2 <= thresholdsProfile.VeryHighDecelerationThresholdMps2)
+        {
+            return AccelDecelBand.VeryHigh;
+        }
+
+        if (accelerationMps2 <= thresholdsProfile.HighDecelerationThresholdMps2)
+        {
+            return AccelDecelBand.High;
+        }
+
+        if (accelerationMps2 <= thresholdsProfile.ModerateDecelerationThresholdMps2)
+        {
+            return AccelDecelBand.Moderate;
+        }
+
+        return AccelDecelBand.None;
+    }
+
+    private static (int EventCount, double DistanceMeters) DetectBandEvents(
+        IReadOnlyList<AccelWindowSample> samples,
+        AccelDecelBand targetBand,
+        Func<AccelWindowSample, AccelDecelBand> bandSelector)
+    {
+        const int consecutiveNonCandidatesForEnd = 2;
+        var eventCount = 0;
+        var eventDistanceMeters = 0d;
+        var inEvent = false;
+        var consecutiveOutsideBand = 0;
+
+        foreach (var sample in samples)
+        {
+            var isCandidate = bandSelector(sample) == targetBand;
 
             if (!inEvent)
             {
-                if (qualifies)
+                if (!isCandidate)
                 {
-                    pendingEventSampleIndices.Add(sampleIndex);
-                    if (pendingEventSampleIndices.Count >= consecutiveSamplesRequired)
-                    {
-                        inEvent = true;
-                        currentEventSampleIndices = new List<int>(pendingEventSampleIndices);
-                        pendingEventSampleIndices.Clear();
-                        consecutiveOutsideThreshold = 0;
-                    }
-                }
-                else
-                {
-                    pendingEventSampleIndices.Clear();
+                    continue;
                 }
 
+                inEvent = true;
+                consecutiveOutsideBand = 0;
+                eventDistanceMeters += sample.DistanceMeters;
                 continue;
             }
 
-            if (qualifies)
+            if (isCandidate)
             {
-                currentEventSampleIndices.Add(sampleIndex);
-                consecutiveOutsideThreshold = 0;
+                eventDistanceMeters += sample.DistanceMeters;
+                consecutiveOutsideBand = 0;
                 continue;
             }
 
-            consecutiveOutsideThreshold++;
-            if (consecutiveOutsideThreshold >= consecutiveSamplesRequired)
+            consecutiveOutsideBand++;
+            if (consecutiveOutsideBand >= consecutiveNonCandidatesForEnd)
             {
-                FinalizeEvent();
+                eventCount++;
                 inEvent = false;
-                pendingEventSampleIndices.Clear();
-                currentEventSampleIndices.Clear();
-                consecutiveOutsideThreshold = 0;
+                consecutiveOutsideBand = 0;
             }
         }
 
         if (inEvent)
         {
-            FinalizeEvent();
+            eventCount++;
         }
 
         return (eventCount, eventDistanceMeters);

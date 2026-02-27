@@ -53,12 +53,14 @@ public static class AggregationWindows
 public static class SpeedUnits
 {
     public const string KilometersPerHour = "km/h";
+    public const string MilesPerHour = "mph";
     public const string MetersPerSecond = "m/s";
     public const string MinutesPerKilometer = "min/km";
 
     public static readonly IReadOnlyList<string> Supported =
     [
         KilometersPerHour,
+        MilesPerHour,
         MetersPerSecond,
         MinutesPerKilometer
     ];
@@ -100,9 +102,18 @@ public class MetricThresholdProfile
     public double SprintSpeedPercentOfMaxSpeed { get; set; } = 90;
     public double HighIntensitySpeedPercentOfMaxSpeed { get; set; } = 70;
 
-    // Fixed-only thresholds
+    // Legacy single thresholds (kept for compatibility)
     public double AccelerationThresholdMps2 { get; set; } = 2.0;
     public double DecelerationThresholdMps2 { get; set; } = -2.0;
+
+    // Band-based thresholds
+    public double ModerateAccelerationThresholdMps2 { get; set; } = 1.0;
+    public double HighAccelerationThresholdMps2 { get; set; } = 1.8;
+    public double VeryHighAccelerationThresholdMps2 { get; set; } = 2.5;
+    public double ModerateDecelerationThresholdMps2 { get; set; } = -1.0;
+    public double HighDecelerationThresholdMps2 { get; set; } = -1.8;
+    public double VeryHighDecelerationThresholdMps2 { get; set; } = -2.5;
+    public double AccelDecelMinimumSpeedMps { get; set; } = 10.0 / 3.6;
 
     // Effective readonly values for UI transparency in adaptive mode
     public double EffectiveMaxSpeedMps { get; set; } = 8.0;
@@ -159,6 +170,33 @@ public class MetricThresholdProfile
         if (profile.DecelerationThresholdMps2 > -0.5 || profile.DecelerationThresholdMps2 < -6)
         {
             return "DecelerationThresholdMps2 must be between -6.0 and -0.5.";
+        }
+
+        if (profile.ModerateAccelerationThresholdMps2 <= 0 || profile.HighAccelerationThresholdMps2 <= 0 || profile.VeryHighAccelerationThresholdMps2 <= 0)
+        {
+            return "Acceleration band thresholds must be positive values.";
+        }
+
+        if (!(profile.ModerateAccelerationThresholdMps2 <= profile.HighAccelerationThresholdMps2 &&
+              profile.HighAccelerationThresholdMps2 <= profile.VeryHighAccelerationThresholdMps2))
+        {
+            return "Acceleration bands must satisfy Moderate <= High <= Very High.";
+        }
+
+        if (profile.ModerateDecelerationThresholdMps2 >= 0 || profile.HighDecelerationThresholdMps2 >= 0 || profile.VeryHighDecelerationThresholdMps2 >= 0)
+        {
+            return "Deceleration band thresholds must be negative values.";
+        }
+
+        if (!(profile.ModerateDecelerationThresholdMps2 >= profile.HighDecelerationThresholdMps2 &&
+              profile.HighDecelerationThresholdMps2 >= profile.VeryHighDecelerationThresholdMps2))
+        {
+            return "Deceleration bands must satisfy Moderate >= High >= Very High.";
+        }
+
+        if (profile.AccelDecelMinimumSpeedMps < 0.5 || profile.AccelDecelMinimumSpeedMps > 12.0)
+        {
+            return "AccelDecelMinimumSpeedMps must be between 0.5 and 12.0.";
         }
 
         return null;

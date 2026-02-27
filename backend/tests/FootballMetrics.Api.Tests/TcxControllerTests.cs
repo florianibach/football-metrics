@@ -961,7 +961,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         recalculated.Should().NotBeNull();
         recalculated!.Summary.Smoothing.SelectedStrategy.Should().Be(TcxSmoothingFilters.Butterworth);
         recalculated.SelectedSmoothingFilterSource.Should().Be(TcxSmoothingFilterSources.ProfileRecalculation);
-        recalculated.SelectedSpeedUnit.Should().BeOneOf(SpeedUnits.KilometersPerHour, SpeedUnits.MinutesPerKilometer, SpeedUnits.MetersPerSecond);
+        recalculated.SelectedSpeedUnit.Should().BeOneOf(SpeedUnits.KilometersPerHour, SpeedUnits.MilesPerHour, SpeedUnits.MinutesPerKilometer, SpeedUnits.MetersPerSecond);
         recalculated.SelectedSpeedUnitSource.Should().Be(TcxSpeedUnitSources.ProfileRecalculation);
         recalculated.AppliedProfileSnapshot.ThresholdVersion.Should().BeGreaterThanOrEqualTo(2);
         recalculated.RecalculationHistory.Should().NotBeEmpty();

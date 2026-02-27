@@ -620,58 +620,103 @@ public class TcxMetricsExtractorTests
     }
 
     [Fact]
-    public void R1_6_19_Ac01_Ac02_Ac03_Ac04_Ac05_Ac06_Ac07_Extract_WithSingleAccelerationSpike_ShouldNotStartAccelerationEvent()
+    public void R1_6_23_TestA_ModerateAccelEvent_ShouldCountOnlyModerateBand()
     {
-        var speedsMps = new[] { 1.0, 4.0, 1.0, 1.0, 1.0 };
+        var profile = MetricThresholdProfile.CreateDefault();
+        profile.AccelDecelMinimumSpeedMps = 2.0;
+        profile.ModerateAccelerationThresholdMps2 = 0.9;
+
+        var speedsMps = new[] { 3.0, 3.5, 5.0 };
         var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
 
-        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
-
-        summary.CoreMetrics.AccelerationCount.Should().Be(0);
-        summary.CoreMetrics.DecelerationCount.Should().Be(0);
-    }
-
-    [Fact]
-    public void R1_6_19_Ac01_Ac02_Ac03_Ac04_Ac06_Ac08_Ac09_Extract_WithTwoConsecutiveAccelerationSamples_ShouldCreateOneAccelerationEvent()
-    {
-        var speedsMps = new[] { 1.0, 3.2, 5.4, 5.4, 5.4 };
-        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
-
-        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, profile);
 
         summary.CoreMetrics.AccelerationCount.Should().Be(1);
+        summary.CoreMetrics.ModerateAccelerationCount.Should().Be(1);
+        summary.CoreMetrics.HighAccelerationCount.Should().Be(0);
+        summary.CoreMetrics.VeryHighAccelerationCount.Should().Be(0);
     }
 
     [Fact]
-    public void R1_6_19_Ac01_Ac02_Ac03_Ac04_Ac05_Ac06_Extract_WithSingleDecelerationSpike_ShouldNotStartDecelerationEvent()
+    public void R1_6_23_TestB_HighAccelEvent_ShouldCountOnlyHighBand()
     {
-        var speedsMps = new[] { 6.0, 3.5, 6.0, 6.0, 6.0 };
+        var profile = MetricThresholdProfile.CreateDefault();
+        profile.AccelDecelMinimumSpeedMps = 2.0;
+        profile.ModerateAccelerationThresholdMps2 = 1.0;
+        profile.HighAccelerationThresholdMps2 = 1.7;
+
+        var speedsMps = new[] { 3.0, 4.0, 6.6 };
         var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
 
-        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, profile);
+
+        summary.CoreMetrics.AccelerationCount.Should().Be(1);
+        summary.CoreMetrics.ModerateAccelerationCount.Should().Be(0);
+        summary.CoreMetrics.HighAccelerationCount.Should().Be(1);
+        summary.CoreMetrics.VeryHighAccelerationCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void R1_6_23_TestC_MinSpeedGate_ShouldSuppressEventsBelowMinimumSpeed()
+    {
+        var profile = MetricThresholdProfile.CreateDefault();
+        profile.AccelDecelMinimumSpeedMps = 3.0;
+
+        var speedsMps = new[] { 2.0, 2.5, 4.5, 4.5, 4.5 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, profile);
 
         summary.CoreMetrics.AccelerationCount.Should().Be(0);
         summary.CoreMetrics.DecelerationCount.Should().Be(0);
     }
 
     [Fact]
-    public void R1_6_19_Ac01_Ac02_Ac03_Ac04_Ac06_Ac08_Ac09_Extract_WithTwoConsecutiveDecelerationSamples_ShouldCreateOneDecelerationEvent()
+    public void R1_6_23_TestD_DecelEvent_ShouldBeCountedInConfiguredBand()
     {
-        var speedsMps = new[] { 6.0, 3.7, 1.2, 1.2, 1.2 };
+        var profile = MetricThresholdProfile.CreateDefault();
+        profile.AccelDecelMinimumSpeedMps = 2.0;
+
+        var speedsMps = new[] { 6.0, 5.0, 3.0 };
         var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
 
-        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, profile);
 
         summary.CoreMetrics.DecelerationCount.Should().Be(1);
+        summary.CoreMetrics.ModerateDecelerationCount.Should().Be(1);
+        summary.CoreMetrics.HighDecelerationCount.Should().Be(0);
+        summary.CoreMetrics.VeryHighDecelerationCount.Should().Be(0);
     }
 
     [Fact]
-    public void R1_6_19_Ac04_Extract_WithSingleBelowThresholdSampleInsideEvent_ShouldKeepEventOpen()
+    public void R1_6_23_TestE_BandPriority_ShouldAssignToVeryHighOnly()
     {
-        var speedsMps = new[] { 1.0, 3.2, 5.4, 6.0, 8.2, 8.2 };
+        var profile = MetricThresholdProfile.CreateDefault();
+        profile.AccelDecelMinimumSpeedMps = 2.0;
+        profile.VeryHighAccelerationThresholdMps2 = 2.0;
+
+        var speedsMps = new[] { 3.0, 4.0, 8.0 };
         var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
 
-        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, profile);
+
+        summary.CoreMetrics.AccelerationCount.Should().Be(1);
+        summary.CoreMetrics.ModerateAccelerationCount.Should().Be(0);
+        summary.CoreMetrics.HighAccelerationCount.Should().Be(0);
+        summary.CoreMetrics.VeryHighAccelerationCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void R1_6_23_TestF_EventEnd_ShouldRequireTwoConsecutiveNonCandidates()
+    {
+        var profile = MetricThresholdProfile.CreateDefault();
+        profile.AccelDecelMinimumSpeedMps = 2.0;
+        profile.ModerateAccelerationThresholdMps2 = 0.9;
+
+        var speedsMps = new[] { 3.0, 3.5, 5.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, profile);
 
         summary.CoreMetrics.AccelerationCount.Should().Be(1);
     }
