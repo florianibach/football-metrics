@@ -265,6 +265,87 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - [x] Die Logik funktioniert identisch für HSR- und Sprint-Phasen.
 - [x] Falls nicht genügend vorherige Punkte existieren (z. B. Run zu Beginn der Session), werden so viele Punkte wie verfügbar ergänzt.
 
+## Story R1.6-18: Konsistente High-Speed-Exposure-Logik
+**Als** Nutzer  
+**möchte ich** dass High-speed distance und High-intensity time ausschließlich innerhalb gültiger HSR-Runs berechnet werden  
+**damit** keine Situation entsteht, in der Distanz oder Zeit > 0 ist, aber 0 Runs angezeigt werden.
+
+### Acceptance Criteria
+
+- [ ] High-speed distance (HSR-Distanz) wird ausschließlich innerhalb gültiger HSR-Runs summiert.
+- [ ] High-intensity time wird ausschließlich innerhalb gültiger HSR-Runs summiert.
+- [ ] Ein HSR-Run gilt als gültig, wenn die 2-consecutive-samples-Regel erfüllt ist (≥ Threshold für Start, < Threshold für Ende).
+- [ ] Einzelne Samples ≥ Threshold, die keinen gültigen Run bilden, dürfen nicht zur High-speed distance oder High-intensity time beitragen.
+- [ ] Es darf kein Zustand auftreten, bei dem:
+  - High-speed distance > 0 UND
+  - High-intensity runs = 0
+- [ ] Bestehende valide Runs behalten ihre Distanz- und Zeitwerte unverändert.
+- [ ] Unit-Test-Fall: Einzelnes Sample ≥ Threshold ohne Folge-Sample → Ergebnis: 0 Runs, 0 High-speed distance.
+- [ ] Unit-Test-Fall: Zwei consecutive Samples ≥ Threshold → Ergebnis: 1 Run, Distanz > 0.
+
+## Story R1.6-19: Robuste Acceleration- und Deceleration-Detection
+**Als** Nutzer  
+**möchte ich** dass Acceleration- und Deceleration-Events nur bei stabiler Geschwindigkeitsänderung erkannt werden  
+**damit** GPS-Rauschen oder Einzelwerte nicht als echte Belastungsereignisse gezählt werden.
+
+### Acceptance Criteria
+
+- [ ] Acceleration wird erkannt, wenn die Geschwindigkeitsänderung pro Sekunde ≥ definiertem Acceleration-Threshold ist.
+- [ ] Deceleration wird erkannt, wenn die Geschwindigkeitsänderung pro Sekunde ≤ definiertem Deceleration-Threshold ist.
+- [ ] Ein Accel- oder Decel-Event startet nur, wenn mindestens zwei consecutive Samples die jeweilige Schwelle erfüllen.
+- [ ] Ein Accel- oder Decel-Event endet erst, wenn zwei consecutive Samples die Schwelle nicht mehr erfüllen.
+- [ ] Einzelne Samples mit hoher Geschwindigkeitsänderung dürfen kein Event auslösen.
+- [ ] Accel- und Decel-Distanz wird nur innerhalb gültiger Events berechnet.
+- [ ] Unit-Test-Fall: Ein einzelnes starkes Δv-Sample → 0 Events.
+- [ ] Unit-Test-Fall: Zwei consecutive Δv-Samples ≥ Threshold → 1 Event.
+- [ ] Die Logik basiert auf 1 Hz GPS-Daten.
+
+
+## Story R1.6-20: Direction Change Detection basierend auf Winkeländerung
+**Als** Nutzer  
+**möchte ich** dass Richtungswechsel (Change of Direction, COD) nur ab einer definierten Winkeländerung erkannt werden  
+**damit** kleine Kurven oder GPS-Abweichungen nicht als Richtungswechsel gezählt werden.
+
+### Acceptance Criteria
+
+- [ ] Für jedes Sample wird die Bewegungsrichtung (Heading) aus den Positionsdaten berechnet.
+- [ ] Die Winkeländerung wird aus drei aufeinanderfolgenden Punkten berechnet:
+      - Richtung A: Punkt1 → Punkt2
+      - Richtung B: Punkt2 → Punkt3
+      - DeltaAngle = absolute Differenz (normalisiert auf 0–180°).
+- [ ] Ein Direction Change Event wird erkannt, wenn:
+      - DeltaAngle ≥ 45° (konfigurierbar) UND
+      - Geschwindigkeit ≥ 10 km/h (Mindestgeschwindigkeit zur Rauschreduktion).
+- [ ] Direction Changes werden nicht erkannt, wenn die Mindestgeschwindigkeit unterschritten ist.
+- [ ] Einzelne Winkelspitzen durch GPS-Rauschen dürfen nicht als Event zählen.
+- [ ] Optional: Zwei consecutive Samples mit DeltaAngle ≥ Threshold erforderlich.
+- [ ] Unit-Test-Fall: DeltaAngle 20° → kein Event.
+- [ ] Unit-Test-Fall: DeltaAngle 50° bei ≥10 km/h → Event.
+- [ ] Unit-Test-Fall: DeltaAngle 60° bei 5 km/h → kein Event.
+
+
+## Story R1.6-21: Kategorisierung von Direction Changes nach Intensität
+**Als** Nutzer  
+**möchte ich** dass Richtungswechsel in Intensitätskategorien eingeteilt werden  
+**damit** ich zwischen moderaten und starken Richtungswechseln unterscheiden kann.
+
+### Acceptance Criteria
+
+- [ ] Direction Changes werden anhand der Winkeländerung kategorisiert:
+      - Moderate COD: 45°–59°
+      - High COD: 60°–89°
+      - Very High COD: ≥90°
+- [ ] Kategorien sind konfigurierbar.
+- [ ] Jede COD-Kategorie wird separat gezählt.
+- [ ] In der Mechanical Summary werden ausgewiesen:
+      - Anzahl Moderate COD
+      - Anzahl High COD
+      - Anzahl Very High COD
+- [ ] Unit-Test-Fall: 50° → Moderate COD.
+- [ ] Unit-Test-Fall: 75° → High COD.
+- [ ] Unit-Test-Fall: 120° → Very High COD.
+
+
 ## Priorisierung für R1.6
 
 ### Must-have
