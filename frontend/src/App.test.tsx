@@ -2773,6 +2773,73 @@ describe('App', () => {
 
 
 
+
+  it('segment max speed derives from segment points and not overlapping interval windows', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([1.0, 1.1, 1.0, 1.1, 8.0, 8.2, 8.1, 8.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                intervalAggregates: [
+                  {
+                    windowMinutes: 1,
+                    windowIndex: 0,
+                    windowStartUtc: '2026-02-16T21:00:00.000Z',
+                    windowDurationSeconds: 60,
+                    coreMetrics: {
+                      ...baseCoreMetrics(),
+                      maxSpeedMetersPerSecond: 8.2,
+                      highIntensityTimeSeconds: 12,
+                      highIntensityRunCount: 2,
+                      highSpeedDistanceMeters: 90
+                    }
+                  }
+                ],
+                gpsTrackpoints: trackpoints,
+                detectedRuns: [
+                  {
+                    runId: 'late-run',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 5,
+                    durationSeconds: 2,
+                    distanceMeters: 16,
+                    topSpeedMetersPerSecond: 8.2,
+                    pointIndices: [5, 6],
+                    parentRunId: null,
+                    sprintPhases: []
+                  }
+                ]
+              }),
+              segments: [{ id: 'seg-low', label: 'Low pace', startSecond: 0, endSecond: 4, category: 'Recovery', notes: null }]
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredAggregationWindowMinutes: 1 }) } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[0]);
+
+    const detailSection = await screen.findByRole('heading', { name: 'Session details' });
+    const section = detailSection.closest('section');
+    expect(section).toHaveTextContent(/maximum speed:\s*4\.0 km\/h/i);
+    expect(section).toHaveTextContent(/high-intensity runs:\s*0/i);
+  });
+
   it('segment speed metrics derive from owned runs and ignore overlapping interval run counts', async () => {
     const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 3.0, 3.0, 3.0, 6.1, 6.2, 3.0, 3.0]);
 

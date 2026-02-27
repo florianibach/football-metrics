@@ -3420,6 +3420,70 @@ export function App() {
     };
   }, [isSegmentScopeActive, selectedDetectedRuns]);
 
+
+  const segmentSpeedDerivedMetrics = useMemo(() => {
+    if (!isSegmentScopeActive || !selectedSession) {
+      return null;
+    }
+
+    const orderedPoints = selectedGpsTrackpoints
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+
+    if (orderedPoints.length < 2) {
+      return {
+        maxSpeedMetersPerSecond: null,
+        highIntensityTimeSeconds: segmentRunDerivedMetrics?.highIntensityTimeSeconds ?? null,
+        highSpeedDistanceMeters: segmentRunDerivedMetrics?.highSpeedDistanceMeters ?? null
+      };
+    }
+
+    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+    const distanceMetersBetween = (first: GpsTrackpoint, second: GpsTrackpoint) => {
+      const dLat = toRadians(second.latitude - first.latitude);
+      const dLon = toRadians(second.longitude - first.longitude);
+      const lat1 = toRadians(first.latitude);
+      const lat2 = toRadians(second.latitude);
+      const a = (Math.sin(dLat / 2) ** 2)
+        + (Math.cos(lat1) * Math.cos(lat2) * (Math.sin(dLon / 2) ** 2));
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return 6371000 * c;
+    };
+
+    let maxSpeedMetersPerSecond = 0;
+    let highIntensityTimeSeconds = 0;
+    let highSpeedDistanceMeters = 0;
+    const highIntensityThresholdRaw = selectedSession.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps;
+    const parsedHighIntensityThreshold = highIntensityThresholdRaw ? Number(highIntensityThresholdRaw) : Number.NaN;
+    const highIntensityThresholdMps = Number.isFinite(parsedHighIntensityThreshold) ? parsedHighIntensityThreshold : null;
+
+    for (let index = 1; index < orderedPoints.length; index += 1) {
+      const previous = orderedPoints[index - 1];
+      const current = orderedPoints[index];
+      const elapsed = current.elapsedSeconds - previous.elapsedSeconds;
+      if (elapsed <= 0) {
+        continue;
+      }
+
+      const distanceMeters = distanceMetersBetween(previous, current);
+      const speedMetersPerSecond = distanceMeters / elapsed;
+      if (speedMetersPerSecond > maxSpeedMetersPerSecond) {
+        maxSpeedMetersPerSecond = speedMetersPerSecond;
+      }
+
+      if (highIntensityThresholdMps !== null && speedMetersPerSecond >= highIntensityThresholdMps) {
+        highIntensityTimeSeconds += elapsed;
+        highSpeedDistanceMeters += distanceMeters;
+      }
+    }
+
+    return {
+      maxSpeedMetersPerSecond: maxSpeedMetersPerSecond > 0 ? maxSpeedMetersPerSecond : null,
+      highIntensityTimeSeconds,
+      highSpeedDistanceMeters
+    };
+  }, [isSegmentScopeActive, selectedSession, selectedGpsTrackpoints, segmentRunDerivedMetrics]);
+
   const dataChangeMetric = selectedSession
     ? (() => {
       const correctedShare = selectedSession.summary.trackpointCount > 0
@@ -3763,10 +3827,18 @@ export function App() {
       distanceMeters,
       sprintDistanceMeters: segmentRunDerivedMetrics?.sprintDistanceMeters ?? sumMetric('sprintDistanceMeters', (metrics) => metrics.sprintDistanceMeters),
       sprintCount: segmentRunDerivedMetrics?.sprintCount ?? sumMetric('sprintCount', (metrics) => metrics.sprintCount, { round: true }),
-      maxSpeedMetersPerSecond: maxMetric('maxSpeedMetersPerSecond', (metrics) => metrics.maxSpeedMetersPerSecond),
-      highIntensityTimeSeconds: segmentRunDerivedMetrics?.highIntensityTimeSeconds ?? sumMetric('highIntensityTimeSeconds', (metrics) => metrics.highIntensityTimeSeconds),
-      highIntensityRunCount: segmentRunDerivedMetrics?.highIntensityRunCount ?? sumMetric('highIntensityRunCount', (metrics) => metrics.highIntensityRunCount, { round: true }),
-      highSpeedDistanceMeters: segmentRunDerivedMetrics?.highSpeedDistanceMeters ?? sumMetric('highSpeedDistanceMeters', (metrics) => metrics.highSpeedDistanceMeters),
+      maxSpeedMetersPerSecond: !isMetricAvailableForAggregation(combinedMetricAvailability, 'maxSpeedMetersPerSecond')
+        ? null
+        : (segmentSpeedDerivedMetrics?.maxSpeedMetersPerSecond ?? maxMetric('maxSpeedMetersPerSecond', (metrics) => metrics.maxSpeedMetersPerSecond)),
+      highIntensityTimeSeconds: !isMetricAvailableForAggregation(combinedMetricAvailability, 'highIntensityTimeSeconds')
+        ? null
+        : (segmentSpeedDerivedMetrics?.highIntensityTimeSeconds ?? segmentRunDerivedMetrics?.highIntensityTimeSeconds ?? sumMetric('highIntensityTimeSeconds', (metrics) => metrics.highIntensityTimeSeconds)),
+      highIntensityRunCount: !isMetricAvailableForAggregation(combinedMetricAvailability, 'highIntensityRunCount')
+        ? null
+        : (segmentRunDerivedMetrics?.highIntensityRunCount ?? sumMetric('highIntensityRunCount', (metrics) => metrics.highIntensityRunCount, { round: true })),
+      highSpeedDistanceMeters: !isMetricAvailableForAggregation(combinedMetricAvailability, 'highSpeedDistanceMeters')
+        ? null
+        : (segmentSpeedDerivedMetrics?.highSpeedDistanceMeters ?? segmentRunDerivedMetrics?.highSpeedDistanceMeters ?? sumMetric('highSpeedDistanceMeters', (metrics) => metrics.highSpeedDistanceMeters)),
       runningDensityMetersPerMinute: distanceMeters === null || !isMetricAvailableForAggregation(combinedMetricAvailability, 'runningDensityMetersPerMinute')
         ? null
         : (distanceMeters / durationSeconds) * 60,
@@ -3789,7 +3861,7 @@ export function App() {
             return null;
           })()
     } satisfies FootballCoreMetrics;
-  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics]);
+  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics, segmentSpeedDerivedMetrics]);
 
   const detectedRunHierarchySummary = useMemo(() => {
     if (!selectedSession) {
