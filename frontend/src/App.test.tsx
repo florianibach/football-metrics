@@ -2772,6 +2772,89 @@ describe('App', () => {
 
 
 
+
+  it('segment speed metrics derive from owned runs and ignore overlapping interval run counts', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 3.0, 3.0, 3.0, 6.1, 6.2, 3.0, 3.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                intervalAggregates: [
+                  {
+                    windowMinutes: 1,
+                    windowIndex: 0,
+                    windowStartUtc: '2026-02-16T21:00:00.000Z',
+                    windowDurationSeconds: 60,
+                    coreMetrics: {
+                      ...baseCoreMetrics(),
+                      highIntensityRunCount: 2,
+                      highIntensityTimeSeconds: 13,
+                      highSpeedDistanceMeters: 83.5,
+                      sprintCount: 1,
+                      sprintDistanceMeters: 34.3
+                    }
+                  }
+                ],
+                gpsTrackpoints: trackpoints,
+                detectedRuns: [
+                  {
+                    runId: 'hsr-next',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 5,
+                    durationSeconds: 2,
+                    distanceMeters: 12,
+                    topSpeedMetersPerSecond: 6.2,
+                    pointIndices: [5, 6],
+                    parentRunId: null,
+                    sprintPhases: [
+                      {
+                        runId: 'sprint-next',
+                        startElapsedSeconds: 5,
+                        durationSeconds: 1,
+                        distanceMeters: 6,
+                        topSpeedMetersPerSecond: 7.5,
+                        pointIndices: [5],
+                        parentRunId: 'hsr-next'
+                      }
+                    ]
+                  }
+                ],
+                coreMetrics: {
+                  ...baseCoreMetrics(),
+                  highIntensityRunCount: 2,
+                  highIntensityTimeSeconds: 13
+                }
+              }),
+              segments: [{ id: 'seg-before', label: 'Before', startSecond: 0, endSecond: 5, category: 'Recovery', notes: null }]
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredAggregationWindowMinutes: 1 }) } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+    await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[0]);
+
+    const detailSection = await screen.findByRole('heading', { name: 'Session details' });
+    const section = detailSection.closest('section');
+    expect(section).toHaveTextContent(/high-intensity runs:\s*0/i);
+    expect(section).toHaveTextContent(/high-intensity time:\s*0 min 0 s/i);
+  });
+
   it('segment scope excludes runs that only bleed in from following segment boundaries', async () => {
     const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 3.0, 6.0, 6.2, 3.0, 6.1, 6.3, 3.0]);
 

@@ -3402,6 +3402,24 @@ export function App() {
       .filter((run): run is DetectedRun => run !== null);
   }, [selectedSession, analysisTrackpointSelection, isSegmentScopeActive, selectedSegment, normalizedGpsTrackpoints]);
 
+
+  const segmentRunDerivedMetrics = useMemo(() => {
+    if (!isSegmentScopeActive) {
+      return null;
+    }
+
+    const highIntensityRuns = selectedDetectedRuns.filter((run) => run.runType === 'highIntensity');
+    const sprintPhases = highIntensityRuns.flatMap((run) => run.sprintPhases ?? []);
+
+    return {
+      highIntensityRunCount: highIntensityRuns.length,
+      highIntensityTimeSeconds: highIntensityRuns.reduce((sum, run) => sum + Math.max(0, run.durationSeconds), 0),
+      highSpeedDistanceMeters: highIntensityRuns.reduce((sum, run) => sum + run.distanceMeters, 0),
+      sprintCount: sprintPhases.length,
+      sprintDistanceMeters: sprintPhases.reduce((sum, phase) => sum + phase.distanceMeters, 0)
+    };
+  }, [isSegmentScopeActive, selectedDetectedRuns]);
+
   const dataChangeMetric = selectedSession
     ? (() => {
       const correctedShare = selectedSession.summary.trackpointCount > 0
@@ -3743,12 +3761,12 @@ export function App() {
       ...selectedSession.summary.coreMetrics,
       metricAvailability: combinedMetricAvailability,
       distanceMeters,
-      sprintDistanceMeters: sumMetric('sprintDistanceMeters', (metrics) => metrics.sprintDistanceMeters),
-      sprintCount: sumMetric('sprintCount', (metrics) => metrics.sprintCount, { round: true }),
+      sprintDistanceMeters: segmentRunDerivedMetrics?.sprintDistanceMeters ?? sumMetric('sprintDistanceMeters', (metrics) => metrics.sprintDistanceMeters),
+      sprintCount: segmentRunDerivedMetrics?.sprintCount ?? sumMetric('sprintCount', (metrics) => metrics.sprintCount, { round: true }),
       maxSpeedMetersPerSecond: maxMetric('maxSpeedMetersPerSecond', (metrics) => metrics.maxSpeedMetersPerSecond),
-      highIntensityTimeSeconds: sumMetric('highIntensityTimeSeconds', (metrics) => metrics.highIntensityTimeSeconds),
-      highIntensityRunCount: sumMetric('highIntensityRunCount', (metrics) => metrics.highIntensityRunCount, { round: true }),
-      highSpeedDistanceMeters: sumMetric('highSpeedDistanceMeters', (metrics) => metrics.highSpeedDistanceMeters),
+      highIntensityTimeSeconds: segmentRunDerivedMetrics?.highIntensityTimeSeconds ?? sumMetric('highIntensityTimeSeconds', (metrics) => metrics.highIntensityTimeSeconds),
+      highIntensityRunCount: segmentRunDerivedMetrics?.highIntensityRunCount ?? sumMetric('highIntensityRunCount', (metrics) => metrics.highIntensityRunCount, { round: true }),
+      highSpeedDistanceMeters: segmentRunDerivedMetrics?.highSpeedDistanceMeters ?? sumMetric('highSpeedDistanceMeters', (metrics) => metrics.highSpeedDistanceMeters),
       runningDensityMetersPerMinute: distanceMeters === null || !isMetricAvailableForAggregation(combinedMetricAvailability, 'runningDensityMetersPerMinute')
         ? null
         : (distanceMeters / durationSeconds) * 60,
@@ -3771,7 +3789,7 @@ export function App() {
             return null;
           })()
     } satisfies FootballCoreMetrics;
-  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment]);
+  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics]);
 
   const detectedRunHierarchySummary = useMemo(() => {
     if (!selectedSession) {
