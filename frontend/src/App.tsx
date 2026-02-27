@@ -3273,15 +3273,14 @@ export function App() {
       };
     }
 
-    const allPoints = selectedSession.summary.gpsTrackpoints ?? [];
+    const allPoints = (selectedSession.summary.gpsTrackpoints ?? [])
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+
     const pointIndexToAnalysisIndex = new Map<number, number>();
     const points: GpsTrackpoint[] = [];
 
     allPoints.forEach((point, pointIndex) => {
-      if (point.elapsedSeconds === null) {
-        return;
-      }
-
       const isBeforeRange = point.elapsedSeconds < analysisTimeRange.startSecond;
       const isAfterOrAtEnd = isSegmentScopeActive
         ? point.elapsedSeconds >= analysisTimeRange.endSecond
