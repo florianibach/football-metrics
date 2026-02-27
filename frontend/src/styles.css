@@ -2152,6 +2152,26 @@ input[type='checkbox']::before {
   margin-top: -0.2rem;
 }
 
+.kpi-card__comparison {
+  margin-top: 0.45rem;
+}
+
+.kpi-card__comparison p + p {
+  margin-top: 0.35rem;
+}
+
+.kpi-card__inline-delta--positive {
+  color: #1f9d55;
+}
+
+.kpi-card__inline-delta--negative {
+  color: #d64545;
+}
+
+.kpi-card__inline-delta--neutral {
+  color: var(--muted);
+}
+
 .kpi-card__delta {
   margin-top: 0.25rem;
 }

@@ -1940,8 +1940,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getAllByText(/Avg last 5:/).length).toBeGreaterThan(0));
-    expect(screen.getAllByText(/Season best:/).length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getAllByText(/◴/).length).toBeGreaterThan(0));
+    expect(screen.getAllByText(/★/).length).toBeGreaterThan(0);
   });
 
   it('R1_7_03_Ac03_kpi_actions_navigate_to_timeline_and_peak_demand', async () => {
