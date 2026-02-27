@@ -69,10 +69,8 @@ describe('App', () => {
         MaxHeartRateSource: 'Fixed',
         HighIntensitySpeedPercentOfMaxSpeed: '70.0',
         HighIntensitySpeedThresholdMps: '5.6',
-        AccelerationThresholdMps2: '2.0',
         AccelerationThresholdMode: 'Fixed',
         AccelerationThresholdSource: 'Fixed',
-        DecelerationThresholdMps2: '-2.0',
         DecelerationThresholdMode: 'Fixed',
         DecelerationThresholdSource: 'Fixed'
       }
@@ -179,8 +177,6 @@ describe('App', () => {
       maxHeartRateMode: 'Adaptive',
       sprintSpeedPercentOfMaxSpeed: 90,
       highIntensitySpeedPercentOfMaxSpeed: 70,
-      accelerationThresholdMps2: 2.0,
-      decelerationThresholdMps2: -2.0,
       moderateAccelerationThresholdMps2: 1.0,
       highAccelerationThresholdMps2: 1.8,
       veryHighAccelerationThresholdMps2: 2.5,
@@ -691,8 +687,6 @@ describe('App', () => {
         thresholds: {
           MaxSpeedMps: '7.0',
           MaxHeartRateBpm: '5.5',
-          AccelerationThresholdMps2: '2.0',
-          DecelerationThresholdMps2: '-2.0'
         }
       },
       intervalAggregates: [
@@ -807,8 +801,6 @@ describe('App', () => {
         thresholds: {
           MaxSpeedMps: '7.0',
           MaxHeartRateBpm: '5.5',
-          AccelerationThresholdMps2: '2.0',
-          DecelerationThresholdMps2: '-2.0'
         }
       },
       intervalAggregates: [
@@ -916,8 +908,6 @@ describe('App', () => {
         thresholds: {
           MaxSpeedMps: '7.0',
           MaxHeartRateBpm: '5.5',
-          AccelerationThresholdMps2: '2.0',
-          DecelerationThresholdMps2: '-2.0'
         }
       },
       intervalAggregates: [
@@ -1024,8 +1014,6 @@ describe('App', () => {
               thresholds: {
                 MaxSpeedMps: '7.0',
                 MaxHeartRateBpm: '5.5',
-                AccelerationThresholdMps2: '2.0',
-                DecelerationThresholdMps2: '-2.0'
               }
             }
           })
@@ -1081,8 +1069,6 @@ describe('App', () => {
               thresholds: {
                 MaxSpeedMps: '7.0',
                 MaxHeartRateBpm: '5.5',
-                AccelerationThresholdMps2: '2.0',
-                DecelerationThresholdMps2: '-2.0'
               }
             }
           })
@@ -1558,7 +1544,7 @@ describe('App', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       const url = String(input);
       if (url.endsWith('/profile')) {
-        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { maxSpeedMps: 7.8, maxSpeedMode: 'Fixed', maxHeartRateBpm: 192, maxHeartRateMode: 'Adaptive', sprintSpeedPercentOfMaxSpeed: 88, highIntensitySpeedPercentOfMaxSpeed: 68, accelerationThresholdMps2: 2.4, effectiveMaxSpeedMps: 7.8, decelerationThresholdMps2: -2.8, effectiveMaxHeartRateBpm: 192, version: 3, updatedAtUtc: '2026-02-16T22:00:00.000Z' } }) } as Response);
+        return Promise.resolve({ ok: true, json: async () => createProfile({ metricThresholds: { maxSpeedMps: 7.8, maxSpeedMode: 'Fixed', maxHeartRateBpm: 192, maxHeartRateMode: 'Adaptive', sprintSpeedPercentOfMaxSpeed: 88, highIntensitySpeedPercentOfMaxSpeed: 68, effectiveMaxSpeedMps: 7.8, effectiveMaxHeartRateBpm: 192, version: 3, updatedAtUtc: '2026-02-16T22:00:00.000Z' } }) } as Response);
       }
 
       return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);

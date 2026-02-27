@@ -142,8 +142,6 @@ type MetricThresholdProfile = {
   maxHeartRateMode: 'Fixed' | 'Adaptive';
   sprintSpeedPercentOfMaxSpeed: number;
   highIntensitySpeedPercentOfMaxSpeed: number;
-  accelerationThresholdMps2: number;
-  decelerationThresholdMps2: number;
   moderateAccelerationThresholdMps2: number;
   highAccelerationThresholdMps2: number;
   veryHighAccelerationThresholdMps2: number;
@@ -2188,8 +2186,6 @@ export function App() {
       maxHeartRateMode: 'Adaptive',
       sprintSpeedPercentOfMaxSpeed: 90,
       highIntensitySpeedPercentOfMaxSpeed: 70,
-      accelerationThresholdMps2: 2.0,
-      decelerationThresholdMps2: -2.0,
       moderateAccelerationThresholdMps2: 1.0,
       highAccelerationThresholdMps2: 1.8,
       veryHighAccelerationThresholdMps2: 2.5,
@@ -4307,7 +4303,7 @@ export function App() {
           </select>
           <p>{t.profilePreferredAggregationWindowHelp}</p>
 
-          <details className="analysis-disclosure" open>
+          <details className="analysis-disclosure">
             <summary className="analysis-disclosure__toggle"><span>{t.profileThresholdsTitle}</span></summary>
             <div className="analysis-disclosure__content">
               <label className="form-label" htmlFor="profile-threshold-max-speed">Max speed ({profileForm.preferredSpeedUnit})</label>
@@ -4384,12 +4380,8 @@ export function App() {
                 }))}
               />
               <p>{t.profileDerivedHighIntensityThreshold}: {formatSpeed(highIntensityThresholdMpsPreview, profileForm.preferredSpeedUnit, t.notAvailable)}</p>
-            </div>
-          </details>
 
-          <details className="analysis-disclosure" open>
-            <summary className="analysis-disclosure__toggle"><span>{t.profileAccelBandsTitle}</span></summary>
-            <div className="analysis-disclosure__content">
+              <p className="profile-thresholds__group-title">{t.profileAccelBandsTitle}</p>
               <label className="form-label" htmlFor="profile-threshold-accel-moderate">{t.profileThresholdModerateAccel}</label>
               <input className="form-control" id="profile-threshold-accel-moderate" type="number" step="0.1" value={profileForm.metricThresholds.moderateAccelerationThresholdMps2}
                 onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, moderateAccelerationThresholdMps2: Number(event.target.value) } }))}
@@ -4403,7 +4395,7 @@ export function App() {
                 onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, veryHighAccelerationThresholdMps2: Number(event.target.value) } }))}
               />
 
-              <h3>{t.profileDecelBandsTitle}</h3>
+              <p className="profile-thresholds__group-title">{t.profileDecelBandsTitle}</p>
               <label className="form-label" htmlFor="profile-threshold-decel-moderate">{t.profileThresholdModerateDecel}</label>
               <input className="form-control" id="profile-threshold-decel-moderate" type="number" step="0.1" value={profileForm.metricThresholds.moderateDecelerationThresholdMps2}
                 onChange={(event) => setProfileForm((current) => ({ ...current, metricThresholds: { ...current.metricThresholds, moderateDecelerationThresholdMps2: Number(event.target.value) } }))}

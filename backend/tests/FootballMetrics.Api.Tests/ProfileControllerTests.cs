@@ -74,8 +74,6 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
         {
             MaxSpeedMps = 3.0,
             MaxHeartRateBpm = 100,
-            AccelerationThresholdMps2 = 2.0,
-            DecelerationThresholdMps2 = -2.0
         }, null, null, null);
 
         var invalidResponse = await client.PutAsJsonAsync("/api/v1/profile", invalidRequest);
@@ -87,8 +85,6 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             MaxHeartRateBpm = 192,
             SprintSpeedPercentOfMaxSpeed = 90,
             HighIntensitySpeedPercentOfMaxSpeed = 70,
-            AccelerationThresholdMps2 = 2.5,
-            DecelerationThresholdMps2 = -2.5
         }, null, null, null);
 
         var updateResponse = await client.PutAsJsonAsync("/api/v1/profile", validRequest);
@@ -166,8 +162,6 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             MaxHeartRateMode = MetricThresholdModes.Fixed,
             SprintSpeedPercentOfMaxSpeed = 90,
             HighIntensitySpeedPercentOfMaxSpeed = 70,
-            AccelerationThresholdMps2 = 2.5,
-            DecelerationThresholdMps2 = -2.5,
             EffectiveMaxSpeedMps = 8.0,
             EffectiveMaxHeartRateBpm = 196
         }, null, null, null);
@@ -187,8 +181,6 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             MaxHeartRateMode = MetricThresholdModes.Fixed,
             SprintSpeedPercentOfMaxSpeed = 90,
             HighIntensitySpeedPercentOfMaxSpeed = 70,
-            AccelerationThresholdMps2 = 2.5,
-            DecelerationThresholdMps2 = -2.5,
             EffectiveMaxSpeedMps = 8.0,
             EffectiveMaxHeartRateBpm = 196
         }, null, null, null);
@@ -213,8 +205,6 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
             MaxHeartRateMode = MetricThresholdModes.Fixed,
             SprintSpeedPercentOfMaxSpeed = 80,
             HighIntensitySpeedPercentOfMaxSpeed = 80,
-            AccelerationThresholdMps2 = 2.5,
-            DecelerationThresholdMps2 = -2.5,
             EffectiveMaxSpeedMps = 8.0,
             EffectiveMaxHeartRateBpm = 196
         }, null, null, null);

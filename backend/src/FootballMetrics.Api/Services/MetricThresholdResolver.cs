@@ -52,8 +52,6 @@ public class MetricThresholdResolver : IMetricThresholdResolver
             MaxHeartRateMode = NormalizeMode(baseProfile.MaxHeartRateMode),
             SprintSpeedPercentOfMaxSpeed = Math.Clamp(Math.Round(baseProfile.SprintSpeedPercentOfMaxSpeed, 1), 70, 100),
             HighIntensitySpeedPercentOfMaxSpeed = Math.Clamp(Math.Round(baseProfile.HighIntensitySpeedPercentOfMaxSpeed, 1), 40, 95),
-            AccelerationThresholdMps2 = Math.Clamp(Math.Round(baseProfile.AccelerationThresholdMps2, 2), 0.5, 6.0),
-            DecelerationThresholdMps2 = Math.Clamp(Math.Round(baseProfile.DecelerationThresholdMps2, 2), -6.0, -0.5),
             ModerateAccelerationThresholdMps2 = Math.Clamp(Math.Round(baseProfile.ModerateAccelerationThresholdMps2, 2), 0.5, 6.0),
             HighAccelerationThresholdMps2 = Math.Clamp(Math.Round(baseProfile.HighAccelerationThresholdMps2, 2), 0.5, 6.0),
             VeryHighAccelerationThresholdMps2 = Math.Clamp(Math.Round(baseProfile.VeryHighAccelerationThresholdMps2, 2), 0.5, 6.0),

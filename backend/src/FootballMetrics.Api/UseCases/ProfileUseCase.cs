@@ -57,8 +57,6 @@ public class ProfileUseCase : IProfileUseCase
             !string.Equals(existingProfile.MetricThresholds.MaxHeartRateMode, submittedThresholds.MaxHeartRateMode, StringComparison.OrdinalIgnoreCase) ||
             existingProfile.MetricThresholds.SprintSpeedPercentOfMaxSpeed != submittedThresholds.SprintSpeedPercentOfMaxSpeed ||
             existingProfile.MetricThresholds.HighIntensitySpeedPercentOfMaxSpeed != submittedThresholds.HighIntensitySpeedPercentOfMaxSpeed ||
-            existingProfile.MetricThresholds.AccelerationThresholdMps2 != submittedThresholds.AccelerationThresholdMps2 ||
-            existingProfile.MetricThresholds.DecelerationThresholdMps2 != submittedThresholds.DecelerationThresholdMps2 ||
             existingProfile.MetricThresholds.ModerateAccelerationThresholdMps2 != submittedThresholds.ModerateAccelerationThresholdMps2 ||
             existingProfile.MetricThresholds.HighAccelerationThresholdMps2 != submittedThresholds.HighAccelerationThresholdMps2 ||
             existingProfile.MetricThresholds.VeryHighAccelerationThresholdMps2 != submittedThresholds.VeryHighAccelerationThresholdMps2 ||
@@ -75,8 +73,6 @@ public class ProfileUseCase : IProfileUseCase
             MaxHeartRateMode = submittedThresholds.MaxHeartRateMode,
             SprintSpeedPercentOfMaxSpeed = submittedThresholds.SprintSpeedPercentOfMaxSpeed,
             HighIntensitySpeedPercentOfMaxSpeed = submittedThresholds.HighIntensitySpeedPercentOfMaxSpeed,
-            AccelerationThresholdMps2 = submittedThresholds.AccelerationThresholdMps2,
-            DecelerationThresholdMps2 = submittedThresholds.DecelerationThresholdMps2,
             ModerateAccelerationThresholdMps2 = submittedThresholds.ModerateAccelerationThresholdMps2,
             HighAccelerationThresholdMps2 = submittedThresholds.HighAccelerationThresholdMps2,
             VeryHighAccelerationThresholdMps2 = submittedThresholds.VeryHighAccelerationThresholdMps2,

@@ -102,10 +102,6 @@ public class MetricThresholdProfile
     public double SprintSpeedPercentOfMaxSpeed { get; set; } = 90;
     public double HighIntensitySpeedPercentOfMaxSpeed { get; set; } = 70;
 
-    // Legacy single thresholds (kept for compatibility)
-    public double AccelerationThresholdMps2 { get; set; } = 2.0;
-    public double DecelerationThresholdMps2 { get; set; } = -2.0;
-
     // Band-based thresholds
     public double ModerateAccelerationThresholdMps2 { get; set; } = 1.0;
     public double HighAccelerationThresholdMps2 { get; set; } = 1.8;
@@ -160,16 +156,6 @@ public class MetricThresholdProfile
         if (profile.HighIntensitySpeedPercentOfMaxSpeed >= profile.SprintSpeedPercentOfMaxSpeed)
         {
             return "HighIntensitySpeedPercentOfMaxSpeed must be lower than SprintSpeedPercentOfMaxSpeed.";
-        }
-
-        if (profile.AccelerationThresholdMps2 < 0.5 || profile.AccelerationThresholdMps2 > 6)
-        {
-            return "AccelerationThresholdMps2 must be between 0.5 and 6.0.";
-        }
-
-        if (profile.DecelerationThresholdMps2 > -0.5 || profile.DecelerationThresholdMps2 < -6)
-        {
-            return "DecelerationThresholdMps2 must be between -6.0 and -0.5.";
         }
 
         if (profile.ModerateAccelerationThresholdMps2 <= 0 || profile.HighAccelerationThresholdMps2 <= 0 || profile.VeryHighAccelerationThresholdMps2 <= 0)
