@@ -2559,6 +2559,73 @@ describe('App', () => {
   });
 
 
+
+  it('R1_6_16_session_scope_uses_max_of_duration_and_elapsed_for_detected_runs', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 3.0, 6.1, 6.2, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 6.3, 6.4, 3.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                durationSeconds: 8,
+                gpsTrackpoints: trackpoints,
+                detectedRuns: [
+                  {
+                    runId: 'hsr-early',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 2,
+                    durationSeconds: 2,
+                    distanceMeters: 12,
+                    topSpeedMetersPerSecond: 6.2,
+                    pointIndices: [2, 3],
+                    parentRunId: null,
+                    sprintPhases: []
+                  },
+                  {
+                    runId: 'hsr-late',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 10,
+                    durationSeconds: 2,
+                    distanceMeters: 13,
+                    topSpeedMetersPerSecond: 6.4,
+                    pointIndices: [10, 11],
+                    parentRunId: null,
+                    sprintPhases: []
+                  }
+                ],
+                coreMetrics: {
+                  ...baseCoreMetrics(),
+                  highIntensityRunCount: 2
+                }
+              }),
+              segments: [
+                { id: 'seg-1', label: 'A', startSecond: 0, endSecond: 6, category: 'Other', notes: null },
+                { id: 'seg-2', label: 'B', startSecond: 6, endSecond: 13, category: 'Other', notes: null }
+              ]
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+
+    const fullSessionRunsRegion = screen.getByRole('region', { name: 'Detected runs' });
+    expect(within(fullSessionRunsRegion).getAllByRole('button', { name: /High-intensity runs #/ })).toHaveLength(2);
+  });
+
   it('R1_6_16_segment_scope_remaps_detected_run_indices_for_consistent_hsr_and_sprint_lists', async () => {
     const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 6.1, 6.2, 3.0, 3.0, 3.0, 6.0, 7.5, 7.6, 6.1, 3.0, 3.0]);
 

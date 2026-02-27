@@ -3258,8 +3258,9 @@ export function App() {
       .map((point) => point.elapsedSeconds)
       .filter((value): value is number => value !== null);
 
-    const fallbackEndSecond = selectedSession.summary.durationSeconds
-      ?? (elapsedSeconds.length > 0 ? Math.max(...elapsedSeconds) : 0);
+    const durationEndSecond = selectedSession.summary.durationSeconds ?? 0;
+    const maxElapsedSecond = elapsedSeconds.length > 0 ? Math.max(...elapsedSeconds) : 0;
+    const fallbackEndSecond = Math.max(durationEndSecond, maxElapsedSecond);
 
     return { startSecond: 0, endSecond: Math.max(0, fallbackEndSecond) };
   }, [selectedSession, isSegmentScopeActive, selectedSegment]);
