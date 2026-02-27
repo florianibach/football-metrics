@@ -265,23 +265,23 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - [x] Die Logik funktioniert identisch für HSR- und Sprint-Phasen.
 - [x] Falls nicht genügend vorherige Punkte existieren (z. B. Run zu Beginn der Session), werden so viele Punkte wie verfügbar ergänzt.
 
-## Story R1.6-18: Konsistente High-Speed-Exposure-Logik
+## Story R1.6-18: Konsistente High-Speed-Exposure-Logik ✅ DONE
 **Als** Nutzer  
 **möchte ich** dass High-speed distance und High-intensity time ausschließlich innerhalb gültiger HSR-Runs berechnet werden  
 **damit** keine Situation entsteht, in der Distanz oder Zeit > 0 ist, aber 0 Runs angezeigt werden.
 
 ### Acceptance Criteria
 
-- [ ] High-speed distance (HSR-Distanz) wird ausschließlich innerhalb gültiger HSR-Runs summiert.
-- [ ] High-intensity time wird ausschließlich innerhalb gültiger HSR-Runs summiert.
-- [ ] Ein HSR-Run gilt als gültig, wenn die 2-consecutive-samples-Regel erfüllt ist (≥ Threshold für Start, < Threshold für Ende).
-- [ ] Einzelne Samples ≥ Threshold, die keinen gültigen Run bilden, dürfen nicht zur High-speed distance oder High-intensity time beitragen.
-- [ ] Es darf kein Zustand auftreten, bei dem:
+- [x] High-speed distance (HSR-Distanz) wird ausschließlich innerhalb gültiger HSR-Runs summiert.
+- [x] High-intensity time wird ausschließlich innerhalb gültiger HSR-Runs summiert.
+- [x] Ein HSR-Run gilt als gültig, wenn die 2-consecutive-samples-Regel erfüllt ist (≥ Threshold für Start, < Threshold für Ende).
+- [x] Einzelne Samples ≥ Threshold, die keinen gültigen Run bilden, dürfen nicht zur High-speed distance oder High-intensity time beitragen.
+- [x] Es darf kein Zustand auftreten, bei dem:
   - High-speed distance > 0 UND
   - High-intensity runs = 0
-- [ ] Bestehende valide Runs behalten ihre Distanz- und Zeitwerte unverändert.
-- [ ] Unit-Test-Fall: Einzelnes Sample ≥ Threshold ohne Folge-Sample → Ergebnis: 0 Runs, 0 High-speed distance.
-- [ ] Unit-Test-Fall: Zwei consecutive Samples ≥ Threshold → Ergebnis: 1 Run, Distanz > 0.
+- [x] Bestehende valide Runs behalten ihre Distanz- und Zeitwerte unverändert.
+- [x] Unit-Test-Fall: Einzelnes Sample ≥ Threshold ohne Folge-Sample → Ergebnis: 0 Runs, 0 High-speed distance.
+- [x] Unit-Test-Fall: Zwei consecutive Samples ≥ Threshold → Ergebnis: 1 Run, Distanz > 0.
 
 ## Story R1.6-19: Robuste Acceleration- und Deceleration-Detection
 **Als** Nutzer  
