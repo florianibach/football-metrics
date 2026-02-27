@@ -421,7 +421,6 @@ public class TcxMetricsExtractorTests
         var summary = TcxMetricsExtractor.Extract(doc);
 
         summary.Smoothing.SelectedParameters.Should().ContainKey("AdaptiveTurnThresholdDegrees");
-        summary.Smoothing.SmoothedDirectionChanges.Should().BeGreaterThan(0);
         summary.Smoothing.SmoothedDirectionChanges.Should().BeGreaterOrEqualTo(summary.Smoothing.BaselineDirectionChanges);
         summary.Smoothing.SelectedParameters.Should().ContainKey("OutlierDetectionMode");
         summary.Smoothing.SelectedParameters["OutlierDetectionMode"].Should().Be("AdaptiveMadWithAbsoluteCap");
@@ -869,6 +868,100 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
         summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeInRange(3.8d, 4.5d);
         summary.CoreMetrics.SprintCount.Should().Be(0);
+    }
+
+
+    [Fact]
+    public void R1_6_20_Ac07_Extract_ShouldNotDetectDirectionChangeForTwentyDegreeTurn()
+    {
+        var angle20 = 20.0 * Math.PI / 180.0;
+        var angle40 = 40.0 * Math.PI / 180.0;
+        var doc = BuildDirectionChangeDocumentFromSegments(new[]
+        {
+            (Math.Cos(0) * 6.0, Math.Sin(0) * 6.0, 3),
+            (Math.Cos(angle20) * 6.0, Math.Sin(angle20) * 6.0, 3),
+            (Math.Cos(angle40) * 6.0, Math.Sin(angle40) * 6.0, 3)
+        });
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.Smoothing.SmoothedDirectionChanges.Should().Be(0);
+    }
+
+    [Fact]
+    public void R1_6_20_Ac08_Extract_ShouldDetectDirectionChangeForFiftyDegreeTurnAtSufficientSpeed()
+    {
+        var angle50 = 50.0 * Math.PI / 180.0;
+        var angle100 = 100.0 * Math.PI / 180.0;
+        var doc = BuildDirectionChangeDocumentFromSegments(new[]
+        {
+            (Math.Cos(0) * 6.0, Math.Sin(0) * 6.0, 3),
+            (Math.Cos(angle50) * 6.0, Math.Sin(angle50) * 6.0, 1),
+            (Math.Cos(angle100) * 6.0, Math.Sin(angle100) * 6.0, 3)
+        });
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.Smoothing.SmoothedDirectionChanges.Should().Be(1);
+    }
+
+    [Fact]
+    public void R1_6_20_Ac09_Extract_ShouldNotDetectDirectionChangeForSixtyDegreeTurnBelowMinimumSpeed()
+    {
+        var angle60 = 60.0 * Math.PI / 180.0;
+        var angle120 = 120.0 * Math.PI / 180.0;
+        var doc = BuildDirectionChangeDocumentFromSegments(new[]
+        {
+            (Math.Cos(0) * 2.0, Math.Sin(0) * 2.0, 3),
+            (Math.Cos(angle60) * 2.0, Math.Sin(angle60) * 2.0, 3),
+            (Math.Cos(angle120) * 2.0, Math.Sin(angle120) * 2.0, 3)
+        });
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.Smoothing.SmoothedDirectionChanges.Should().Be(0);
+    }
+
+    [Fact]
+    public void R1_6_20_Ac05_Ac06_Extract_ShouldIgnoreSingleAngleSpikeFromGpsNoise()
+    {
+        var doc = BuildDirectionChangeDocumentFromSegments(new[]
+        {
+            (6.0, 0.0, 4),
+            (0.0, 6.0, 1),
+            (6.0, 0.0, 4)
+        });
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.Smoothing.SmoothedDirectionChanges.Should().Be(0);
+    }
+
+    private static XDocument BuildDirectionChangeDocumentFromSegments(IReadOnlyList<(double DeltaLatitudeMetersPerSecond, double DeltaLongitudeMetersPerSecond, int Seconds)> segments)
+    {
+        var timestamp = DateTime.Parse("2026-02-16T10:00:00Z", null, DateTimeStyles.AdjustToUniversal);
+        var latitude = 50.0d;
+        var longitude = 7.0d;
+        var metersPerDegreeLatitude = 111_320d;
+
+        var xml = "<TrainingCenterDatabase><Activities><Activity><Lap><Track>";
+        xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>{longitude.ToString(CultureInfo.InvariantCulture)}</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+
+        foreach (var segment in segments)
+        {
+            for (var second = 0; second < segment.Seconds; second++)
+            {
+                timestamp = timestamp.AddSeconds(1);
+                latitude += segment.DeltaLatitudeMetersPerSecond / metersPerDegreeLatitude;
+                var metersPerDegreeLongitude = 111_320d * Math.Cos(latitude * Math.PI / 180.0);
+                longitude += segment.DeltaLongitudeMetersPerSecond / metersPerDegreeLongitude;
+
+                xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>{longitude.ToString(CultureInfo.InvariantCulture)}</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+            }
+        }
+
+        xml += "</Track></Lap></Activity></Activities></TrainingCenterDatabase>";
+        return XDocument.Parse(xml);
     }
 
     private static XDocument BuildGpsDocumentFromSegmentSpeedsAndDurations(IReadOnlyList<double> segmentSpeedsMetersPerSecond, IReadOnlyList<double> segmentDurationsSeconds)

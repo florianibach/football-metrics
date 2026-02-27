@@ -8,6 +8,10 @@ public static partial class TcxMetricsExtractor
 {
     private const double EarthRadiusMeters = 6_371_000;
     private const double MaxPlausibleSpeedMetersPerSecond = 12.5;
+    private const double DirectionChangeThresholdDegrees = 45.0;
+    private const double BaselineDirectionChangeThresholdDegrees = 65.0;
+    private const double DirectionChangeMinimumSpeedMetersPerSecond = 10.0 / 3.6;
+    private const int DirectionChangeConsecutiveSamplesRequired = 2;
     private const double SprintSpeedThresholdMetersPerSecond = 7.0;
     private const double HighIntensitySpeedThresholdMetersPerSecond = 5.5;
     private const double AccelerationThresholdMetersPerSecondSquared = 2.0;
@@ -203,9 +207,9 @@ public static partial class TcxMetricsExtractor
         int correctedOutlierCount,
         double outlierSpeedThresholdMps)
     {
-        var rawDirectionChanges = CountDirectionChanges(rawTrackpoints, 25);
-        var baselineDirectionChanges = CountDirectionChanges(rawTrackpoints, 65);
-        var smoothedDirectionChanges = CountDirectionChanges(smoothedTrackpoints, 25);
+        var rawDirectionChanges = CountDirectionChanges(rawTrackpoints, DirectionChangeThresholdDegrees, DirectionChangeMinimumSpeedMetersPerSecond, DirectionChangeConsecutiveSamplesRequired);
+        var baselineDirectionChanges = CountDirectionChanges(rawTrackpoints, BaselineDirectionChangeThresholdDegrees, DirectionChangeMinimumSpeedMetersPerSecond, DirectionChangeConsecutiveSamplesRequired);
+        var smoothedDirectionChanges = CountDirectionChanges(smoothedTrackpoints, DirectionChangeThresholdDegrees, DirectionChangeMinimumSpeedMetersPerSecond, DirectionChangeConsecutiveSamplesRequired);
 
         var parameters = selectedStrategy switch
         {
@@ -226,6 +230,9 @@ public static partial class TcxMetricsExtractor
             _ => new Dictionary<string, string>
             {
                 ["AdaptiveTurnThresholdDegrees"] = "25",
+                ["DirectionChangeThresholdDegrees"] = DirectionChangeThresholdDegrees.ToString("0", CultureInfo.InvariantCulture),
+                ["DirectionChangeMinSpeedMps"] = DirectionChangeMinimumSpeedMetersPerSecond.ToString("0.###", CultureInfo.InvariantCulture),
+                ["DirectionChangeConsecutiveSamplesRequired"] = DirectionChangeConsecutiveSamplesRequired.ToString(CultureInfo.InvariantCulture),
                 ["BaseWindowSize"] = "5",
                 ["SharpTurnWindowSize"] = "3",
                 ["OutlierDetectionMode"] = "AdaptiveMadWithAbsoluteCap",
@@ -429,10 +436,15 @@ public static partial class TcxMetricsExtractor
         return ordered[middle];
     }
 
-    private static int CountDirectionChanges(IReadOnlyList<TrackpointSnapshot> points, double thresholdDegrees)
+    private static int CountDirectionChanges(
+        IReadOnlyList<TrackpointSnapshot> points,
+        double thresholdDegrees,
+        double minimumSpeedMetersPerSecond,
+        int consecutiveSamplesRequired)
     {
         var pointsWithGps = points
-            .Where(point => HasGps(point))
+            .Where(point => HasGps(point) && HasTimestamp(point))
+            .OrderBy(point => point.TimeUtc)
             .ToList();
 
         if (pointsWithGps.Count < 3)
@@ -440,21 +452,76 @@ public static partial class TcxMetricsExtractor
             return 0;
         }
 
-        var changes = 0;
+        var events = 0;
+        var consecutiveCandidates = 0;
+        var inEvent = false;
+        int? candidateTurnDirection = null;
 
         for (var index = 1; index < pointsWithGps.Count - 1; index++)
         {
-            var incoming = CalculateBearingDegrees(pointsWithGps[index - 1], pointsWithGps[index]);
-            var outgoing = CalculateBearingDegrees(pointsWithGps[index], pointsWithGps[index + 1]);
-            var turn = CalculateTurnDeltaDegrees(incoming, outgoing);
+            var previous = pointsWithGps[index - 1];
+            var current = pointsWithGps[index];
+            var next = pointsWithGps[index + 1];
+            var incoming = CalculateBearingDegrees(previous, current);
+            var outgoing = CalculateBearingDegrees(current, next);
+            var signedTurn = CalculateSignedTurnDeltaDegrees(incoming, outgoing);
+            var turn = Math.Abs(signedTurn);
+            var incomingSpeed = CalculateSegmentSpeedMetersPerSecond(previous, current);
+            var outgoingSpeed = CalculateSegmentSpeedMetersPerSecond(current, next);
 
-            if (turn >= thresholdDegrees)
+            var isCandidate = turn >= thresholdDegrees
+                              && incomingSpeed.HasValue
+                              && outgoingSpeed.HasValue
+                              && incomingSpeed.Value >= minimumSpeedMetersPerSecond
+                              && outgoingSpeed.Value >= minimumSpeedMetersPerSecond;
+
+            if (isCandidate)
             {
-                changes++;
+                var turnDirection = Math.Sign(signedTurn);
+                if (consecutiveCandidates == 0 || candidateTurnDirection == turnDirection)
+                {
+                    candidateTurnDirection = turnDirection;
+                    consecutiveCandidates++;
+                }
+                else
+                {
+                    candidateTurnDirection = turnDirection;
+                    consecutiveCandidates = 1;
+                    inEvent = false;
+                }
+
+                if (!inEvent && consecutiveCandidates >= consecutiveSamplesRequired)
+                {
+                    events++;
+                    inEvent = true;
+                }
+            }
+            else
+            {
+                consecutiveCandidates = 0;
+                candidateTurnDirection = null;
+                inEvent = false;
             }
         }
 
-        return changes;
+        return events;
+    }
+
+    private static double? CalculateSegmentSpeedMetersPerSecond(TrackpointSnapshot from, TrackpointSnapshot to)
+    {
+        if (!from.TimeUtc.HasValue || !to.TimeUtc.HasValue || !HasGps(from) || !HasGps(to))
+        {
+            return null;
+        }
+
+        var elapsedSeconds = (to.TimeUtc.Value - from.TimeUtc.Value).TotalSeconds;
+        if (elapsedSeconds <= 0)
+        {
+            return null;
+        }
+
+        var distanceMeters = HaversineMeters((from.Latitude!.Value, from.Longitude!.Value), (to.Latitude!.Value, to.Longitude!.Value));
+        return distanceMeters / elapsedSeconds;
     }
 
     private static double CalculateBearingDegrees(TrackpointSnapshot from, TrackpointSnapshot to)
@@ -470,12 +537,17 @@ public static partial class TcxMetricsExtractor
         return (bearing + 360) % 360;
     }
 
+    private static double CalculateSignedTurnDeltaDegrees(double firstBearing, double secondBearing)
+    {
+        var delta = (secondBearing - firstBearing + 540) % 360 - 180;
+        return delta;
+    }
+
     private static double CalculateTurnDeltaDegrees(double firstBearing, double secondBearing)
     {
         var diff = Math.Abs(secondBearing - firstBearing) % 360;
         return diff > 180 ? 360 - diff : diff;
     }
-
 
     private static double ResolveOutlierSpeedThresholdMetersPerSecond(IReadOnlyList<TrackpointSnapshot> trackpoints)
     {
