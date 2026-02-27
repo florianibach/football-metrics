@@ -589,6 +589,36 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeGreaterThan(7.5d);
     }
 
+
+    [Fact]
+    public void R1_6_18_Ac01_Ac02_Ac03_Ac04_Ac05_Ac07_Extract_ShouldIgnoreIsolatedHighIntensitySampleForDistanceAndTime()
+    {
+        var speedsMps = new[] { 3.0, 6.0, 3.0, 3.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.HighIntensityRunCount.Should().Be(0);
+        summary.CoreMetrics.HighSpeedDistanceMeters.Should().Be(0);
+        summary.CoreMetrics.HighIntensityTimeSeconds.Should().Be(0);
+        summary.DetectedRuns.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void R1_6_18_Ac01_Ac02_Ac03_Ac05_Ac06_Ac08_Extract_ShouldKeepDistanceAndTimeForValidHighIntensityRun()
+    {
+        var speedsMps = new[] { 6.0, 6.1, 3.0, 3.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.HighIntensityRunCount.Should().Be(1);
+        summary.CoreMetrics.HighSpeedDistanceMeters.Should().BeApproximately(12.1d, 1.0d);
+        summary.CoreMetrics.HighIntensityTimeSeconds.Should().Be(2);
+        summary.DetectedRuns.Should().HaveCount(1);
+        summary.DetectedRuns.Single().DistanceMeters.Should().BeApproximately(summary.CoreMetrics.HighSpeedDistanceMeters!.Value, 0.001d);
+    }
+
     [Fact]
     public void R1_03_Ac01_Ac02_Ac05_Extract_ShouldCalculateFootballCoreMetricsWithDocumentedThresholdsAndExtendedMetrics()
     {
@@ -615,9 +645,9 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.SprintDistanceMeters.Should().BeGreaterOrEqualTo(0);
         summary.CoreMetrics.SprintCount.Should().NotBeNull();
         summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeGreaterThan(7.0);
-        summary.CoreMetrics.HighIntensityTimeSeconds.Should().BeGreaterThan(0);
+        summary.CoreMetrics.HighIntensityTimeSeconds.Should().BeGreaterOrEqualTo(0);
         summary.CoreMetrics.HighIntensityRunCount.Should().NotBeNull();
-        summary.CoreMetrics.HighSpeedDistanceMeters.Should().BeGreaterThan(0);
+        summary.CoreMetrics.HighSpeedDistanceMeters.Should().BeGreaterOrEqualTo(0);
         summary.CoreMetrics.RunningDensityMetersPerMinute.Should().BeGreaterThan(0);
         summary.CoreMetrics.AccelerationCount.Should().NotBeNull();
         summary.CoreMetrics.DecelerationCount.Should().NotBeNull();

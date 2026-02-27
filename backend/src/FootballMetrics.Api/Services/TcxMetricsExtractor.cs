@@ -870,8 +870,6 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             var sprintThresholdMps = thresholdsProfile.EffectiveMaxSpeedMps * (thresholdsProfile.SprintSpeedPercentOfMaxSpeed / 100.0);
             var highIntensityThresholdMps = thresholdsProfile.EffectiveMaxSpeedMps * (thresholdsProfile.HighIntensitySpeedPercentOfMaxSpeed / 100.0);
 
-            highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= highIntensityThresholdMps).Sum(segment => segment.Distance);
-
             var segmentsForDetection = segments
                 .Select(segment => (segment.PointIndex, segment.StartElapsedSeconds, segment.EndElapsedSeconds, segment.Distance, segment.Speed, segment.Duration))
                 .ToList();
@@ -940,7 +938,8 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
 
             sprintCount = sprintRuns.Count;
             maxSpeed = segments.Max(segment => segment.Speed);
-            highIntensityTimeSeconds = segments.Where(segment => segment.Speed >= highIntensityThresholdMps).Sum(segment => segment.Duration);
+            highSpeedDistanceMeters = highIntensityRuns.Sum(run => run.DistanceMeters);
+            highIntensityTimeSeconds = highIntensityRuns.Sum(run => run.DurationSeconds);
             highIntensityRunCount = highIntensityRuns.Count;
 
             var totalDurationSeconds = segments.Sum(segment => segment.Duration);
