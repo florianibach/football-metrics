@@ -947,8 +947,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 ? (totalDistanceMeters ?? segments.Sum(segment => segment.Distance)) / (totalDurationSeconds / 60.0)
                 : (double?)null;
 
-            var localAccelerationCount = 0;
-            var localDecelerationCount = 0;
+            var accelerationSamples = new List<(double AccelerationMps2, double DistanceMeters)>();
             for (var index = 1; index < segments.Count; index++)
             {
                 var elapsedSeconds = segments[index].Duration;
@@ -957,19 +956,18 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                     continue;
                 }
 
-                var acceleration = (segments[index].Speed - segments[index - 1].Speed) / elapsedSeconds;
-                if (acceleration >= thresholdsProfile.AccelerationThresholdMps2)
-                {
-                    localAccelerationCount++;
-                }
-                else if (acceleration <= thresholdsProfile.DecelerationThresholdMps2)
-                {
-                    localDecelerationCount++;
-                }
+                accelerationSamples.Add(((segments[index].Speed - segments[index - 1].Speed) / elapsedSeconds, segments[index].Distance));
             }
 
-            accelerationCount = localAccelerationCount;
-            decelerationCount = localDecelerationCount;
+            var accelerationEvents = DetectAccelerationLikeEvents(
+                accelerationSamples,
+                acceleration => acceleration >= thresholdsProfile.AccelerationThresholdMps2);
+            var decelerationEvents = DetectAccelerationLikeEvents(
+                accelerationSamples,
+                acceleration => acceleration <= thresholdsProfile.DecelerationThresholdMps2);
+
+            accelerationCount = accelerationEvents.EventCount;
+            decelerationCount = decelerationEvents.EventCount;
             distanceMeters = totalDistanceMeters;
 
             foreach (var key in new[]
@@ -1225,6 +1223,80 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         }
 
         return runs;
+    }
+
+    private static (int EventCount, double DistanceMeters) DetectAccelerationLikeEvents(
+        IReadOnlyList<(double AccelerationMps2, double DistanceMeters)> samples,
+        Func<double, bool> qualifiesAsEventSample)
+    {
+        const int consecutiveSamplesRequired = 2;
+        var eventCount = 0;
+        var eventDistanceMeters = 0d;
+        var pendingEventSampleIndices = new List<int>();
+        var currentEventSampleIndices = new List<int>();
+        var inEvent = false;
+        var consecutiveOutsideThreshold = 0;
+
+        void FinalizeEvent()
+        {
+            if (currentEventSampleIndices.Count == 0)
+            {
+                return;
+            }
+
+            eventCount++;
+            eventDistanceMeters += currentEventSampleIndices.Sum(sampleIndex => samples[sampleIndex].DistanceMeters);
+        }
+
+        for (var sampleIndex = 0; sampleIndex < samples.Count; sampleIndex++)
+        {
+            var qualifies = qualifiesAsEventSample(samples[sampleIndex].AccelerationMps2);
+
+            if (!inEvent)
+            {
+                if (qualifies)
+                {
+                    pendingEventSampleIndices.Add(sampleIndex);
+                    if (pendingEventSampleIndices.Count >= consecutiveSamplesRequired)
+                    {
+                        inEvent = true;
+                        currentEventSampleIndices = new List<int>(pendingEventSampleIndices);
+                        pendingEventSampleIndices.Clear();
+                        consecutiveOutsideThreshold = 0;
+                    }
+                }
+                else
+                {
+                    pendingEventSampleIndices.Clear();
+                }
+
+                continue;
+            }
+
+            if (qualifies)
+            {
+                currentEventSampleIndices.Add(sampleIndex);
+                consecutiveOutsideThreshold = 0;
+                continue;
+            }
+
+            consecutiveOutsideThreshold++;
+            if (consecutiveOutsideThreshold >= consecutiveSamplesRequired)
+            {
+                FinalizeEvent();
+                inEvent = false;
+                pendingEventSampleIndices.Clear();
+                currentEventSampleIndices.Clear();
+                consecutiveOutsideThreshold = 0;
+            }
+        }
+
+        if (inEvent)
+        {
+            FinalizeEvent();
+        }
+
+        return (eventCount, eventDistanceMeters);
     }
 
 

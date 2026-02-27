@@ -283,22 +283,22 @@ R1.6 hebt die Analyse von Einzelwerten auf kontextbezogene Tiefenanalyse: robust
 - [x] Unit-Test-Fall: Einzelnes Sample ≥ Threshold ohne Folge-Sample → Ergebnis: 0 Runs, 0 High-speed distance.
 - [x] Unit-Test-Fall: Zwei consecutive Samples ≥ Threshold → Ergebnis: 1 Run, Distanz > 0.
 
-## Story R1.6-19: Robuste Acceleration- und Deceleration-Detection
+## Story R1.6-19: Robuste Acceleration- und Deceleration-Detection ✅ DONE
 **Als** Nutzer  
 **möchte ich** dass Acceleration- und Deceleration-Events nur bei stabiler Geschwindigkeitsänderung erkannt werden  
 **damit** GPS-Rauschen oder Einzelwerte nicht als echte Belastungsereignisse gezählt werden.
 
 ### Acceptance Criteria
 
-- [ ] Acceleration wird erkannt, wenn die Geschwindigkeitsänderung pro Sekunde ≥ definiertem Acceleration-Threshold ist.
-- [ ] Deceleration wird erkannt, wenn die Geschwindigkeitsänderung pro Sekunde ≤ definiertem Deceleration-Threshold ist.
-- [ ] Ein Accel- oder Decel-Event startet nur, wenn mindestens zwei consecutive Samples die jeweilige Schwelle erfüllen.
-- [ ] Ein Accel- oder Decel-Event endet erst, wenn zwei consecutive Samples die Schwelle nicht mehr erfüllen.
-- [ ] Einzelne Samples mit hoher Geschwindigkeitsänderung dürfen kein Event auslösen.
-- [ ] Accel- und Decel-Distanz wird nur innerhalb gültiger Events berechnet.
-- [ ] Unit-Test-Fall: Ein einzelnes starkes Δv-Sample → 0 Events.
-- [ ] Unit-Test-Fall: Zwei consecutive Δv-Samples ≥ Threshold → 1 Event.
-- [ ] Die Logik basiert auf 1 Hz GPS-Daten.
+- [x] Acceleration wird erkannt, wenn die Geschwindigkeitsänderung pro Sekunde ≥ definiertem Acceleration-Threshold ist.
+- [x] Deceleration wird erkannt, wenn die Geschwindigkeitsänderung pro Sekunde ≤ definiertem Deceleration-Threshold ist.
+- [x] Ein Accel- oder Decel-Event startet nur, wenn mindestens zwei consecutive Samples die jeweilige Schwelle erfüllen.
+- [x] Ein Accel- oder Decel-Event endet erst, wenn zwei consecutive Samples die Schwelle nicht mehr erfüllen.
+- [x] Einzelne Samples mit hoher Geschwindigkeitsänderung dürfen kein Event auslösen.
+- [x] Accel- und Decel-Distanz wird nur innerhalb gültiger Events berechnet.
+- [x] Unit-Test-Fall: Ein einzelnes starkes Δv-Sample → 0 Events.
+- [x] Unit-Test-Fall: Zwei consecutive Δv-Samples ≥ Threshold → 1 Event.
+- [x] Die Logik basiert auf 1 Hz GPS-Daten.
 
 
 ## Story R1.6-20: Direction Change Detection basierend auf Winkeländerung

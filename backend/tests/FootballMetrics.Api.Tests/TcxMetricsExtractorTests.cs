@@ -620,6 +620,63 @@ public class TcxMetricsExtractorTests
     }
 
     [Fact]
+    public void R1_6_19_Ac01_Ac02_Ac03_Ac04_Ac05_Ac06_Ac07_Extract_WithSingleAccelerationSpike_ShouldNotStartAccelerationEvent()
+    {
+        var speedsMps = new[] { 1.0, 4.0, 1.0, 1.0, 1.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.AccelerationCount.Should().Be(0);
+        summary.CoreMetrics.DecelerationCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void R1_6_19_Ac01_Ac02_Ac03_Ac04_Ac06_Ac08_Ac09_Extract_WithTwoConsecutiveAccelerationSamples_ShouldCreateOneAccelerationEvent()
+    {
+        var speedsMps = new[] { 1.0, 3.2, 5.4, 5.4, 5.4 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.AccelerationCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void R1_6_19_Ac01_Ac02_Ac03_Ac04_Ac05_Ac06_Extract_WithSingleDecelerationSpike_ShouldNotStartDecelerationEvent()
+    {
+        var speedsMps = new[] { 6.0, 3.5, 6.0, 6.0, 6.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.AccelerationCount.Should().Be(0);
+        summary.CoreMetrics.DecelerationCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void R1_6_19_Ac01_Ac02_Ac03_Ac04_Ac06_Ac08_Ac09_Extract_WithTwoConsecutiveDecelerationSamples_ShouldCreateOneDecelerationEvent()
+    {
+        var speedsMps = new[] { 6.0, 3.7, 1.2, 1.2, 1.2 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.DecelerationCount.Should().Be(1);
+    }
+
+    [Fact]
+    public void R1_6_19_Ac04_Extract_WithSingleBelowThresholdSampleInsideEvent_ShouldKeepEventOpen()
+    {
+        var speedsMps = new[] { 1.0, 3.2, 5.4, 6.0, 8.2, 8.2 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.AccelerationCount.Should().Be(1);
+    }
+
+    [Fact]
     public void R1_03_Ac01_Ac02_Ac05_Extract_ShouldCalculateFootballCoreMetricsWithDocumentedThresholdsAndExtendedMetrics()
     {
         var doc = XDocument.Parse(@"<TrainingCenterDatabase>
