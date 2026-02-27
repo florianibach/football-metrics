@@ -100,17 +100,17 @@ Peak Definition:
 
 ---
 
-## Story R1.7-06a: Segment-Fokus wirkt tab-übergreifend auf alle Session-Detail-Views (Must-have)
+## Story R1.7-06a: Segment-Fokus wirkt tab-übergreifend auf alle Session-Detail-Views (Must-have) ✅ done
 **Als** Nutzer
 **möchte ich** dass ein aktivierter Segment-Fokus (`Segment-focused analysis is active`) in allen Tabs konsistent gilt
 **damit** ich keine Full-Session-Werte mehr sehe, wenn ich explizit auf ein Segment eingegrenzt habe.
 
 ### Acceptance Criteria
-- [ ] Wenn `Segment-focused analysis is active`, beziehen sich `Overview`, `Timeline`, `Peak Demand` und `Heatmap` ausschließlich auf das gewählte Segment.
-- [ ] Tab-Wechsel verändert den aktiven Segment-Fokus nicht; Scope und Segmentauswahl bleiben erhalten, bis ich sie aktiv ändere.
-- [ ] Alle Aggregationen/Peaks/Visualisierungen werden segmentbasiert berechnet bzw. gefiltert (kein stilles Zurückfallen auf Entire Session).
-- [ ] Der aktive Scope (`Entire Session` vs. konkretes Segment) ist in jedem betroffenen Tab sichtbar gekennzeichnet.
-- [ ] Falls ein Tab für das gewählte Segment keine darstellbaren Daten hat, wird ein segmentbezogener Availability-Hinweis gezeigt.
+- [x] Wenn `Segment-focused analysis is active`, beziehen sich `Overview`, `Timeline`, `Peak Demand` und `Heatmap` ausschließlich auf das gewählte Segment.
+- [x] Tab-Wechsel verändert den aktiven Segment-Fokus nicht; Scope und Segmentauswahl bleiben erhalten, bis ich sie aktiv ändere.
+- [x] Alle Aggregationen/Peaks/Visualisierungen werden segmentbasiert berechnet bzw. gefiltert (kein stilles Zurückfallen auf Entire Session).
+- [x] Der aktive Scope (`Entire Session` vs. konkretes Segment) ist in jedem betroffenen Tab sichtbar gekennzeichnet.
+- [x] Falls ein Tab für das gewählte Segment keine darstellbaren Daten hat, wird ein segmentbezogener Availability-Hinweis gezeigt.
 
 Abgrenzung/Impact auf bestehende Stories:
 - Diese Story erweitert R1.7-04 (Timeline), R1.7-05 (Peak Demand) und R1.7-07 (Heatmap) um verpflichtendes Segment-Scoping-Verhalten.
