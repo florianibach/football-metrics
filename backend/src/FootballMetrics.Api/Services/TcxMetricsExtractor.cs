@@ -787,14 +787,16 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             .OrderBy(tp => tp.TimeUtc)
             .ToList();
 
+        var gpsStartTime = gpsPoints.FirstOrDefault()?.TimeUtc;
+
         var segments = gpsPoints
             .Zip(gpsPoints.Skip(1), (previous, current) => new { previous, current })
             .Select((pair, index) =>
             {
                 var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
-                if (elapsedSeconds <= 0)
+                if (elapsedSeconds <= 0 || !gpsStartTime.HasValue)
                 {
-                    return (IsValid: false, PointIndex: index + 1, Distance: 0.0, Speed: 0.0, Duration: 0.0);
+                    return (IsValid: false, PointIndex: index + 1, StartElapsedSeconds: 0.0, EndElapsedSeconds: 0.0, Distance: 0.0, Speed: 0.0, Duration: 0.0);
                 }
 
                 var distanceMeters = HaversineMeters(
@@ -802,7 +804,14 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                     (pair.current.Latitude!.Value, pair.current.Longitude!.Value));
                 var speedMps = distanceMeters / elapsedSeconds;
 
-                return (IsValid: true, PointIndex: index + 1, Distance: distanceMeters, Speed: speedMps, Duration: elapsedSeconds);
+                return (
+                    IsValid: true,
+                    PointIndex: index + 1,
+                    StartElapsedSeconds: Math.Max(0, (pair.previous.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
+                    EndElapsedSeconds: Math.Max(0, (pair.current.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
+                    Distance: distanceMeters,
+                    Speed: speedMps,
+                    Duration: elapsedSeconds);
             })
             .Where(x => x.IsValid)
             .ToList();
@@ -864,7 +873,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             highSpeedDistanceMeters = segments.Where(segment => segment.Speed >= highIntensityThresholdMps).Sum(segment => segment.Distance);
 
             var segmentsForDetection = segments
-                .Select(segment => (segment.PointIndex, segment.Distance, segment.Speed, segment.Duration))
+                .Select(segment => (segment.PointIndex, segment.StartElapsedSeconds, segment.EndElapsedSeconds, segment.Distance, segment.Speed, segment.Duration))
                 .ToList();
 
             var sprintRuns = DetectRunsWithConsecutiveSamples(segmentsForDetection, sprintThresholdMps, "sprint");
@@ -1126,7 +1135,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
     }
 
     private static List<TcxDetectedRun> DetectRunsWithConsecutiveSamples(
-        IReadOnlyList<(int PointIndex, double Distance, double Speed, double Duration)> segments,
+        IReadOnlyList<(int PointIndex, double StartElapsedSeconds, double EndElapsedSeconds, double Distance, double Speed, double Duration)> segments,
         double thresholdMps,
         string runType)
     {
@@ -1153,11 +1162,14 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 .Distinct()
                 .ToList();
 
+            var startElapsedSeconds = Math.Max(0, first.StartElapsedSeconds);
+            var durationSeconds = Math.Max(0, last.EndElapsedSeconds - startElapsedSeconds);
+
             runs.Add(new TcxDetectedRun(
                 $"{runType}-{runs.Count + 1}",
                 runType,
-                Math.Max(0, first.PointIndex - 1),
-                Math.Max(0, last.PointIndex - first.PointIndex + 1),
+                startElapsedSeconds,
+                durationSeconds,
                 distanceMeters,
                 topSpeedMetersPerSecond,
                 pointIndices,

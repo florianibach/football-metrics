@@ -480,6 +480,24 @@ public class TcxMetricsExtractorTests
 
 
     [Fact]
+    public void R1_6_16_Qa_Extract_ShouldUseTimestampBasedRunTimingNotPointIndex()
+    {
+        var speedsMps = new[] { 0.8, 0.9, 6.2, 6.3, 0.7, 0.6 };
+        var durationsSeconds = new[] { 10.0, 10.0, 10.0, 10.0, 10.0, 10.0 };
+        var doc = BuildGpsDocumentFromSegmentSpeedsAndDurations(speedsMps, durationsSeconds);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+
+        var highIntensityRuns = summary.DetectedRuns.Where(run => run.RunType == "highIntensity").ToList();
+        highIntensityRuns.Should().HaveCount(1);
+
+        var run = highIntensityRuns.Single();
+        run.StartElapsedSeconds.Should().Be(20);
+        run.DurationSeconds.Should().Be(20);
+    }
+
+
+    [Fact]
     public void R1_6_16_Ac01_Ac03_Ac04_Extract_ShouldKeepOneHsrRunAcrossSingleBelowThresholdGapWithSevenSamples()
     {
         var speedsMps = new[] { 6.0, 6.1, 6.2, 3.0, 7.5, 6.0, 7.4, 3.0, 3.0 };
@@ -722,6 +740,31 @@ public class TcxMetricsExtractorTests
         summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeInRange(3.8d, 4.5d);
         summary.CoreMetrics.SprintCount.Should().Be(0);
     }
+
+    private static XDocument BuildGpsDocumentFromSegmentSpeedsAndDurations(IReadOnlyList<double> segmentSpeedsMetersPerSecond, IReadOnlyList<double> segmentDurationsSeconds)
+    {
+        segmentSpeedsMetersPerSecond.Count.Should().Be(segmentDurationsSeconds.Count);
+
+        const double metersPerDegreeLatitude = 111_320d;
+        var timestamp = DateTime.Parse("2026-02-16T10:00:00Z", null, DateTimeStyles.AdjustToUniversal);
+        var latitude = 50.0d;
+
+        var xml = "<TrainingCenterDatabase><Activities><Activity><Lap><Track>";
+        xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+
+        for (var index = 0; index < segmentSpeedsMetersPerSecond.Count; index++)
+        {
+            var speed = segmentSpeedsMetersPerSecond[index];
+            var duration = segmentDurationsSeconds[index];
+            timestamp = timestamp.AddSeconds(duration);
+            latitude += (speed * duration) / metersPerDegreeLatitude;
+            xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+        }
+
+        xml += "</Track></Lap></Activity></Activities></TrainingCenterDatabase>";
+        return XDocument.Parse(xml);
+    }
+
 
     private static XDocument BuildOneHertzGpsDocumentFromSegmentSpeeds(IReadOnlyList<double> segmentSpeedsMetersPerSecond)
     {
