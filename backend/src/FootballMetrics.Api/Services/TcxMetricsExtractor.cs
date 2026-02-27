@@ -796,7 +796,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
                 if (elapsedSeconds <= 0 || !gpsStartTime.HasValue)
                 {
-                    return (IsValid: false, PointIndex: index + 1, StartElapsedSeconds: 0.0, EndElapsedSeconds: 0.0, Distance: 0.0, Speed: 0.0, Duration: 0.0);
+                    return (IsValid: false, PointIndex: index, StartElapsedSeconds: 0.0, EndElapsedSeconds: 0.0, Distance: 0.0, Speed: 0.0, Duration: 0.0);
                 }
 
                 var distanceMeters = HaversineMeters(
@@ -806,7 +806,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
 
                 return (
                     IsValid: true,
-                    PointIndex: index + 1,
+                    PointIndex: index,
                     StartElapsedSeconds: Math.Max(0, (pair.previous.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
                     EndElapsedSeconds: Math.Max(0, (pair.current.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
                     Distance: distanceMeters,

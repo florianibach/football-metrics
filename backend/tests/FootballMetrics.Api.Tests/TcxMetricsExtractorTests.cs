@@ -552,7 +552,7 @@ public class TcxMetricsExtractorTests
         var run = highIntensityRuns.Single();
         run.StartElapsedSeconds.Should().Be(0);
         run.DurationSeconds.Should().Be(2);
-        run.PointIndices.Should().Equal(new[] { 1, 2 });
+        run.PointIndices.Should().Equal(new[] { 0, 1 });
         run.SprintPhases.Should().BeEmpty();
     }
 
