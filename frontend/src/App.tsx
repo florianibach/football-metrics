@@ -3265,6 +3265,10 @@ export function App() {
     return { startSecond: 0, endSecond: Math.max(0, fallbackEndSecond) };
   }, [selectedSession, isSegmentScopeActive, selectedSegment]);
 
+  const normalizedGpsTrackpoints = useMemo(() => (selectedSession?.summary.gpsTrackpoints ?? [])
+    .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+    .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds), [selectedSession]);
+
   const analysisTrackpointSelection = useMemo(() => {
     if (!selectedSession) {
       return {
@@ -3273,14 +3277,10 @@ export function App() {
       };
     }
 
-    const allPoints = (selectedSession.summary.gpsTrackpoints ?? [])
-      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
-      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
-
     const pointIndexToAnalysisIndex = new Map<number, number>();
     const points: GpsTrackpoint[] = [];
 
-    allPoints.forEach((point, pointIndex) => {
+    normalizedGpsTrackpoints.forEach((point, pointIndex) => {
       const isBeforeRange = point.elapsedSeconds < analysisTimeRange.startSecond;
       const isAfterOrAtEnd = isSegmentScopeActive
         ? point.elapsedSeconds >= analysisTimeRange.endSecond
@@ -3297,7 +3297,7 @@ export function App() {
       points,
       pointIndexToAnalysisIndex
     };
-  }, [selectedSession, analysisTimeRange]);
+  }, [selectedSession, analysisTimeRange, normalizedGpsTrackpoints]);
 
   const selectedGpsTrackpoints = analysisTrackpointSelection.points;
 
@@ -3312,10 +3312,21 @@ export function App() {
     }
 
     const isPointInActiveAnalysisRange = (pointIndex: number) => analysisTrackpointSelection.pointIndexToAnalysisIndex.has(pointIndex);
+    const pointElapsedByIndex = (pointIndex: number) => normalizedGpsTrackpoints[pointIndex]?.elapsedSeconds;
 
     const isRunOwnedByActiveSegment = (run: DetectedRun) => {
       if (!isSegmentScopeActive || !selectedSegment) {
         return true;
+      }
+
+      const earliestPointElapsed = run.pointIndices
+        .map((pointIndex) => pointElapsedByIndex(pointIndex))
+        .filter((elapsed): elapsed is number => Number.isFinite(elapsed))
+        .sort((a, b) => a - b)[0];
+
+      if (Number.isFinite(earliestPointElapsed)) {
+        return earliestPointElapsed >= selectedSegment.startSecond
+          && earliestPointElapsed < selectedSegment.endSecond;
       }
 
       if (Number.isFinite(run.startElapsedSeconds)) {
@@ -3323,12 +3334,7 @@ export function App() {
           && run.startElapsedSeconds < selectedSegment.endSecond;
       }
 
-      if (run.pointIndices.length === 0) {
-        return false;
-      }
-
-      const earliestPointIndex = Math.min(...run.pointIndices);
-      return isPointInActiveAnalysisRange(earliestPointIndex);
+      return false;
     };
 
     const remapPointIndices = (indices: number[]) => indices
@@ -3346,7 +3352,18 @@ export function App() {
         const remappedSprintPhases = (run.sprintPhases ?? [])
           .map((phase) => {
             if (isSegmentScopeActive && selectedSegment) {
-              if (Number.isFinite(phase.startElapsedSeconds)) {
+              const earliestPhasePointElapsed = phase.pointIndices
+                .map((pointIndex) => pointElapsedByIndex(pointIndex))
+                .filter((elapsed): elapsed is number => Number.isFinite(elapsed))
+                .sort((a, b) => a - b)[0];
+
+              if (Number.isFinite(earliestPhasePointElapsed)) {
+                const isPhaseOwnedBySegment = earliestPhasePointElapsed >= selectedSegment.startSecond
+                  && earliestPhasePointElapsed < selectedSegment.endSecond;
+                if (!isPhaseOwnedBySegment) {
+                  return null;
+                }
+              } else if (Number.isFinite(phase.startElapsedSeconds)) {
                 const isPhaseOwnedBySegment = phase.startElapsedSeconds >= selectedSegment.startSecond
                   && phase.startElapsedSeconds < selectedSegment.endSecond;
                 if (!isPhaseOwnedBySegment) {
@@ -3383,7 +3400,7 @@ export function App() {
         } satisfies DetectedRun;
       })
       .filter((run): run is DetectedRun => run !== null);
-  }, [selectedSession, analysisTrackpointSelection, isSegmentScopeActive, selectedSegment]);
+  }, [selectedSession, analysisTrackpointSelection, isSegmentScopeActive, selectedSegment, normalizedGpsTrackpoints]);
 
   const dataChangeMetric = selectedSession
     ? (() => {

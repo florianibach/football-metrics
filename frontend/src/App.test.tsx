@@ -2577,7 +2577,7 @@ describe('App', () => {
                   {
                     runId: 'boundary-run',
                     runType: 'highIntensity',
-                    startElapsedSeconds: 5,
+                    startElapsedSeconds: 4.2,
                     durationSeconds: 2,
                     distanceMeters: 12,
                     topSpeedMetersPerSecond: 6.2,
@@ -2803,7 +2803,7 @@ describe('App', () => {
                     durationSeconds: 2,
                     distanceMeters: 13,
                     topSpeedMetersPerSecond: 6.3,
-                    pointIndices: [4, 5, 6],
+                    pointIndices: [5, 6],
                     parentRunId: null,
                     sprintPhases: []
                   }
@@ -3444,7 +3444,7 @@ describe('App', () => {
 
     const detailSection = screen.getByRole('heading', { name: 'Session details' }).closest('section');
     expect(detailSection).toHaveTextContent(/high-intensity runs:\s*1/i);
-    expect(detailSection).toHaveTextContent(/of which sprint phases:\s*0/i);
+    expect(detailSection).toHaveTextContent(/of which sprint phases:\s*1/i);
   });
 
 
