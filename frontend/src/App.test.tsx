@@ -1604,6 +1604,10 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('Profile updated successfully.')).toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/api/v1/profile', expect.objectContaining({ method: 'PUT' }));
+    const putCall = fetchMock.mock.calls.find(([url, init]) => String(url).endsWith('/profile') && init?.method === 'PUT');
+    const putBody = JSON.parse(String(putCall?.[1]?.body));
+    expect(putBody.metricThresholds.codConsecutiveSamplesRequired).toBeDefined();
+    expect(putBody.metricThresholds.codModerateThresholdDegrees).toBeDefined();
     expect(screen.getByText('Threshold version: 2')).toBeInTheDocument();
   });
   it('R1_5_08_Ac01_shows_profile_default_filter_setting_and_saves_it', async () => {

@@ -982,6 +982,28 @@ public class TcxMetricsExtractorTests
     }
 
     [Fact]
+    public void R1_6_21_Qa_Extract_ShouldRespectConfiguredConsecutiveSamplesRequirement()
+    {
+        var profile = MetricThresholdProfile.CreateDefault();
+        profile.CodConsecutiveSamplesRequired = 1;
+
+        var angle50 = 50.0 * Math.PI / 180.0;
+        var angle120 = 120.0 * Math.PI / 180.0;
+        var doc = BuildDirectionChangeDocumentFromSegments(new[]
+        {
+            (Math.Cos(0) * 6.0, Math.Sin(0) * 6.0, 1),
+            (Math.Cos(angle50) * 6.0, Math.Sin(angle50) * 6.0, 1),
+            (Math.Cos(0) * 6.0, Math.Sin(0) * 6.0, 1),
+            (Math.Cos(angle120) * 6.0, Math.Sin(angle120) * 6.0, 1),
+            (Math.Cos(0) * 6.0, Math.Sin(0) * 6.0, 1)
+        });
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, profile);
+
+        summary.CoreMetrics.DirectionChanges.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
     public void R1_6_21_Ac02_Extract_ShouldUseConfigurableDirectionChangeBandThresholds()
     {
         var profile = MetricThresholdProfile.CreateDefault();
