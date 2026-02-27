@@ -2560,6 +2560,68 @@ describe('App', () => {
 
 
 
+
+  it('R1_6_16_segment_scope_uses_trackpoint_ownership_for_boundary_runs', async () => {
+    const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 3.0, 3.0, 3.0, 6.1, 6.2, 3.0, 3.0]);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            createUploadRecord({
+              summary: createSummary({
+                gpsTrackpoints: trackpoints,
+                detectedRuns: [
+                  {
+                    runId: 'boundary-run',
+                    runType: 'highIntensity',
+                    startElapsedSeconds: 5,
+                    durationSeconds: 2,
+                    distanceMeters: 12,
+                    topSpeedMetersPerSecond: 6.2,
+                    pointIndices: [5, 6],
+                    parentRunId: null,
+                    sprintPhases: []
+                  }
+                ],
+                coreMetrics: {
+                  ...baseCoreMetrics(),
+                  highIntensityRunCount: 1
+                }
+              }),
+              segments: [
+                { id: 'seg-first', label: 'First', startSecond: 0, endSecond: 5, category: 'Other', notes: null },
+                { id: 'seg-second', label: 'Second', startSecond: 5, endSecond: 9, category: 'Other', notes: null }
+              ]
+            })
+          ]
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' });
+
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[0]);
+
+    const firstSegmentRuns = await screen.findByRole('region', { name: 'Detected runs' });
+    expect(within(firstSegmentRuns).queryByRole('button', { name: /High-intensity runs #/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[1]);
+    const secondSegmentRuns = await screen.findByRole('region', { name: 'Detected runs' });
+    expect(within(secondSegmentRuns).getAllByRole('button', { name: /High-intensity runs #/ })).toHaveLength(1);
+  });
+
   it('R1_6_16_session_scope_uses_max_of_duration_and_elapsed_for_detected_runs', async () => {
     const trackpoints = gpsTrackpointsFromOneHertzSpeeds([3.0, 3.0, 6.1, 6.2, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 6.3, 6.4, 3.0]);
 
@@ -2699,7 +2761,7 @@ describe('App', () => {
     expect(within(fullSessionRunsRegion).getAllByRole('button', { name: /High-intensity runs #/ })).toHaveLength(2);
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze segment' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[0]);
 
     const segmentRunsRegion = await screen.findByRole('region', { name: 'Detected runs' });
     expect(within(segmentRunsRegion).getAllByRole('button', { name: /High-intensity runs #/ })).toHaveLength(1);
@@ -2769,7 +2831,7 @@ describe('App', () => {
     await screen.findByRole('img', { name: 'GPS sprint and high-intensity runs map' });
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze segment' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[0]);
 
     const segmentRunsRegion = await screen.findByRole('region', { name: 'Detected runs' });
     expect(within(segmentRunsRegion).getAllByRole('button', { name: /High-intensity runs #/ })).toHaveLength(1);
@@ -3422,7 +3484,7 @@ describe('App', () => {
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Analyze segment' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[0]);
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/segments/seg-1'));
     expect(screen.getByText('Segment Overview')).toBeInTheDocument();
 

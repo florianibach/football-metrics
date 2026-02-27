@@ -3282,7 +3282,11 @@ export function App() {
         return;
       }
 
-      if (point.elapsedSeconds < analysisTimeRange.startSecond || point.elapsedSeconds > analysisTimeRange.endSecond) {
+      const isBeforeRange = point.elapsedSeconds < analysisTimeRange.startSecond;
+      const isAfterOrAtEnd = isSegmentScopeActive
+        ? point.elapsedSeconds >= analysisTimeRange.endSecond
+        : point.elapsedSeconds > analysisTimeRange.endSecond;
+      if (isBeforeRange || isAfterOrAtEnd) {
         return;
       }
 
@@ -3308,20 +3312,32 @@ export function App() {
       return [] as DetectedRun[];
     }
 
-    const remapPointIndices = (indices: number[]) => indices
-      .map((index) => analysisTrackpointSelection.pointIndexToAnalysisIndex.get(index))
-      .filter((index): index is number => index !== undefined);
+    const isPointInActiveAnalysisRange = (pointIndex: number) => analysisTrackpointSelection.pointIndexToAnalysisIndex.has(pointIndex);
 
     const isRunOwnedByActiveSegment = (run: DetectedRun) => {
       if (!isSegmentScopeActive || !selectedSegment) {
         return true;
       }
 
-      return run.startElapsedSeconds >= selectedSegment.startSecond
-        && run.startElapsedSeconds < selectedSegment.endSecond;
+      if (Number.isFinite(run.startElapsedSeconds)) {
+        return run.startElapsedSeconds >= selectedSegment.startSecond
+          && run.startElapsedSeconds < selectedSegment.endSecond;
+      }
+
+      if (run.pointIndices.length === 0) {
+        return false;
+      }
+
+      const earliestPointIndex = Math.min(...run.pointIndices);
+      return isPointInActiveAnalysisRange(earliestPointIndex);
     };
 
+    const remapPointIndices = (indices: number[]) => indices
+      .map((index) => analysisTrackpointSelection.pointIndexToAnalysisIndex.get(index))
+      .filter((index): index is number => index !== undefined);
+
     return detectedRuns
+      .filter((run) => isRunOwnedByActiveSegment(run))
       .map((run) => {
         const remappedPointIndices = remapPointIndices(run.pointIndices);
         if (remappedPointIndices.length === 0) {
@@ -3330,17 +3346,28 @@ export function App() {
 
         const remappedSprintPhases = (run.sprintPhases ?? [])
           .map((phase) => {
+            if (isSegmentScopeActive && selectedSegment) {
+              if (Number.isFinite(phase.startElapsedSeconds)) {
+                const isPhaseOwnedBySegment = phase.startElapsedSeconds >= selectedSegment.startSecond
+                  && phase.startElapsedSeconds < selectedSegment.endSecond;
+                if (!isPhaseOwnedBySegment) {
+                  return null;
+                }
+              } else {
+                if (phase.pointIndices.length === 0) {
+                  return null;
+                }
+
+                const earliestPhasePointIndex = Math.min(...phase.pointIndices);
+                if (!isPointInActiveAnalysisRange(earliestPhasePointIndex)) {
+                  return null;
+                }
+              }
+            }
+
             const remappedPhaseIndices = remapPointIndices(phase.pointIndices);
             if (remappedPhaseIndices.length === 0) {
               return null;
-            }
-
-            if (isSegmentScopeActive && selectedSegment) {
-              const isPhaseOwnedBySegment = phase.startElapsedSeconds >= selectedSegment.startSecond
-                && phase.startElapsedSeconds < selectedSegment.endSecond;
-              if (!isPhaseOwnedBySegment) {
-                return null;
-              }
             }
 
             return {
@@ -3356,8 +3383,7 @@ export function App() {
           sprintPhases: remappedSprintPhases
         } satisfies DetectedRun;
       })
-      .filter((run): run is DetectedRun => run !== null)
-      .filter((run) => isRunOwnedByActiveSegment(run));
+      .filter((run): run is DetectedRun => run !== null);
   }, [selectedSession, analysisTrackpointSelection, isSegmentScopeActive, selectedSegment]);
 
   const dataChangeMetric = selectedSession
