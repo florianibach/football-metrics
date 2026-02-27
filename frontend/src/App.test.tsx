@@ -3728,6 +3728,102 @@ describe('App', () => {
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/technical-info'));
   });
 
+  it('R1_7_06a_Ac02_preserves_segment_scope_while_switching_tabs_and_mobile_views', async () => {
+    const withSegment = createUploadRecord({
+      segments: [{ id: 'seg-1', label: 'Segment A', startSecond: 0, endSecond: 300, category: 'Other', notes: null }]
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [withSegment] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[0]);
+
+    await screen.findByText('Segment-focused analysis is active.');
+
+    fireEvent.click(screen.getByRole('button', { name: /Timeline/ }));
+    expect(screen.getByText('Segment-focused analysis is active.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+    expect(screen.getByText('Segment-focused analysis is active.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Heatmap' })[0]);
+    expect(screen.getByText('Segment-focused analysis is active.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Session navigation'), { target: { value: 'timeline' } });
+    expect(screen.getByText('Segment-focused analysis is active.')).toBeInTheDocument();
+  });
+
+  it('R1_7_06a_Ac05_shows_segment_specific_availability_hints_for_empty_scope', async () => {
+    const withLateDataOutsideSegment = createUploadRecord({
+      summary: createSummary({
+        durationSeconds: 120,
+        gpsTrackpoints: [
+          { latitude: 50.9366, longitude: 6.9603, elapsedSeconds: 80 },
+          { latitude: 50.9367, longitude: 6.9604, elapsedSeconds: 85 },
+          { latitude: 50.9368, longitude: 6.9605, elapsedSeconds: 90 }
+        ],
+        intervalAggregates: [
+          {
+            windowMinutes: 1,
+            windowIndex: 0,
+            windowStartUtc: '2026-02-16T21:01:20.000Z',
+            windowDurationSeconds: 40,
+            coreMetrics: {
+              ...baseCoreMetrics(),
+              distanceMeters: 120
+            }
+          }
+        ]
+      }),
+      segments: [{ id: 'seg-empty', label: 'Early block', startSecond: 0, endSecond: 30, category: 'Other', notes: null }]
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [withLateDataOutsideSegment] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredAggregationWindowMinutes: 1 }) } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[0]);
+
+    const details = screen.getByRole('heading', { name: 'Session details' }).closest('section');
+    expect(details).toHaveTextContent(/distance:\s*not available/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /Timeline/ }));
+    expect(await screen.findByText('No timeline windows are available for the selected segment.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+    expect(await screen.findByText('No peak-demand windows are available for the selected segment.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Heatmap' })[0]);
+    expect(await screen.findByText('No GPS points are available for the selected segment heatmap.')).toBeInTheDocument();
+  });
+
 
 
   it('R1_6_UXIA_Increment2_Story2_1_shows_quality_check_step_after_upload_and_allows_continue_to_analysis', async () => {

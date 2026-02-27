@@ -602,6 +602,9 @@ type TranslationKey =
   | 'segmentCategoryAthletics'
   | 'segmentCategoryCooldown'
   | 'segmentScopeHint'
+  | 'segmentScopeNoTimelineDataHint'
+  | 'segmentScopeNoPeakDataHint'
+  | 'segmentScopeNoHeatmapDataHint'
   | 'segmentDerivedMetricsTitle'
   | 'analysisOverviewTitle'
   | 'sessionTabOverview'
@@ -1026,6 +1029,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentCategoryAthletics: 'Athletics',
     segmentCategoryCooldown: 'Cooldown',
     segmentScopeHint: 'Segment-focused analysis is active.',
+    segmentScopeNoTimelineDataHint: 'No timeline windows are available for the selected segment.',
+    segmentScopeNoPeakDataHint: 'No peak-demand windows are available for the selected segment.',
+    segmentScopeNoHeatmapDataHint: 'No GPS points are available for the selected segment heatmap.',
     segmentDerivedMetricsTitle: 'Segment Overview',
     analysisOverviewTitle: 'Overview',
     sessionTabOverview: 'Overview',
@@ -1420,6 +1426,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     segmentCategoryAthletics: 'Athletik',
     segmentCategoryCooldown: 'Cooldown',
     segmentScopeHint: 'Segment-fokussierte Analyse ist aktiv.',
+    segmentScopeNoTimelineDataHint: 'Für das gewählte Segment sind keine Timeline-Fenster verfügbar.',
+    segmentScopeNoPeakDataHint: 'Für das gewählte Segment sind keine Peak-Demand-Fenster verfügbar.',
+    segmentScopeNoHeatmapDataHint: 'Für das gewählte Segment sind keine GPS-Punkte für die Heatmap verfügbar.',
     segmentDerivedMetricsTitle: 'Segment-Übersicht',
     analysisOverviewTitle: 'Übersicht',
     sessionTabOverview: 'Übersicht',
@@ -3761,8 +3770,40 @@ export function App() {
       return null;
     }
 
-    if (!isSegmentScopeActive || selectedAnalysisAggregates.length === 0) {
+    if (!isSegmentScopeActive) {
       return selectedSession.summary.coreMetrics;
+    }
+
+    if (selectedAnalysisAggregates.length === 0) {
+      const baseCoreMetrics = selectedSession.summary.coreMetrics;
+      const baseMetricAvailability = baseCoreMetrics.metricAvailability ?? {};
+      const metricAvailability = Object.keys(baseMetricAvailability).reduce<Record<string, MetricAvailability>>((accumulator, metricKey) => {
+        accumulator[metricKey] = {
+          state: 'NotAvailable',
+          reason: t.segmentScopeNoTimelineDataHint
+        };
+        return accumulator;
+      }, {});
+
+      return {
+        ...baseCoreMetrics,
+        distanceMeters: null,
+        sprintDistanceMeters: null,
+        sprintCount: null,
+        maxSpeedMetersPerSecond: null,
+        highIntensityTimeSeconds: null,
+        highIntensityRunCount: null,
+        highSpeedDistanceMeters: null,
+        runningDensityMetersPerMinute: null,
+        accelerationCount: null,
+        decelerationCount: null,
+        heartRateZoneLowSeconds: null,
+        heartRateZoneMediumSeconds: null,
+        heartRateZoneHighSeconds: null,
+        trainingImpulseEdwards: null,
+        heartRateRecoveryAfter60Seconds: null,
+        metricAvailability
+      };
     }
 
     const sourceSlices = selectedAnalysisAggregateSlices;
@@ -3861,7 +3902,7 @@ export function App() {
             return null;
           })()
     } satisfies FootballCoreMetrics;
-  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics, segmentSpeedDerivedMetrics]);
+  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics, segmentSpeedDerivedMetrics, t.segmentScopeNoTimelineDataHint]);
 
   const detectedRunHierarchySummary = useMemo(() => {
     if (!selectedSession) {
@@ -3992,7 +4033,6 @@ export function App() {
 
   const navigateSessionMobile = useCallback((target: string) => {
     if (target === 'overview' || target === 'timeline' || target === 'peakDemand' || target === 'heatmap') {
-      setAnalysisScope('session');
       setActiveAnalysisTab(target as SessionAnalysisTab);
       jumpToSection('session-analysis', 'analysis');
       return;
@@ -4057,11 +4097,11 @@ export function App() {
         {selectedSession && activeMainPage === "session" && isSessionMenuVisible && (
           <div className="side-nav__session-subpages">
             <p>Session</p>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'overview' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); setActiveAnalysisTab('overview'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageOverview}</button>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'timeline' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageTimeline}</button>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'peakDemand' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpagePeakDemand}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'overview' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveAnalysisTab('overview'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageOverview}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'timeline' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageTimeline}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'peakDemand' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpagePeakDemand}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segments' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveAnalysisTab('segments'); jumpToSection('session-segments', 'segments'); }}>{t.sessionSubpageSegments}</button>
-            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'heatmap' ? 'side-nav__item--active' : ''}`} onClick={() => { setAnalysisScope('session'); setActiveAnalysisTab('heatmap'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageHeatmap}</button>
+            <button type="button" className={`side-nav__item ${activeSessionSubpage === 'analysis' && activeAnalysisTab === 'heatmap' ? 'side-nav__item--active' : ''}`} onClick={() => { setActiveAnalysisTab('heatmap'); jumpToSection('session-analysis', 'analysis'); }}>{t.sessionSubpageHeatmap}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'sessionSettings' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-settings', 'sessionSettings')}>{t.sessionSubpageSessionSettings}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'technicalInfo' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-technical-info', 'technicalInfo')}>{t.sessionSubpageTechnicalInfo}</button>
             <button type="button" className={`side-nav__item ${activeSessionSubpage === 'segmentEdit' ? 'side-nav__item--active' : ''}`} onClick={() => jumpToSection('session-segment-edit', 'segmentEdit')}>{t.sessionSubpageSegmentEdit}</button>
@@ -5053,7 +5093,7 @@ export function App() {
             </>
           )}
 
-          <section className={`analysis-disclosure analysis-block--peak-demand ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'peakDemand' ? "" : "is-hidden"}`}><div className="analysis-disclosure__content"><h3>{t.sessionTabPeakDemand}</h3><p>{t.intervalAggregationNoData}</p></div></section>
+          <section className={`analysis-disclosure analysis-block--peak-demand ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'peakDemand' ? "" : "is-hidden"}`}><div className="analysis-disclosure__content"><h3>{t.sessionTabPeakDemand}</h3><p>{isSegmentScopeActive ? t.segmentScopeNoPeakDataHint : t.intervalAggregationNoData}</p></div></section>
           <section className={`interval-aggregation analysis-disclosure analysis-block--interval ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'timeline' ? "" : "is-hidden"}`}>
             <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('intervalAggregation')} aria-expanded={analysisAccordionState.intervalAggregation}>
               <span>{t.intervalAggregationTitle}</span>
@@ -5074,7 +5114,7 @@ export function App() {
             </select>
             <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedAnalysisAggregates.length.toString() })}</p>
             {selectedAnalysisAggregates.length === 0 ? (
-              <p>{t.intervalAggregationNoData}</p>
+              <p>{isSegmentScopeActive ? t.segmentScopeNoTimelineDataHint : t.intervalAggregationNoData}</p>
             ) : (
               <table className="history-table table table-sm interval-table">
                 <thead>
@@ -5141,7 +5181,7 @@ export function App() {
                   sessionId={selectedSession.id}
                 />
               ) : (
-                <p>{t.gpsHeatmapNoDataHint}</p>
+                <p>{isSegmentScopeActive ? t.segmentScopeNoHeatmapDataHint : t.gpsHeatmapNoDataHint}</p>
               )}
               </div>
               )}
