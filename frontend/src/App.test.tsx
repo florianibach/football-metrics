@@ -786,7 +786,7 @@ describe('App', () => {
 
     expect(screen.getByText(/Data change due to smoothing:/)).toBeInTheDocument();
     expect(screen.getByText(/4.0% corrected points \(1\/25\), distance delta 100(\.000)? m/)).toBeInTheDocument();
-    expect(screen.getAllByText(/High intensity directory changes \(Moderate\/High\/Very high\):/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/High-intensity direction changes/).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Display mode'), { target: { value: 'raw' } });
 
     expect(screen.getByText(/5.200 km \(5,200(\.0)? m\)/)).toBeInTheDocument();
@@ -1889,7 +1889,7 @@ describe('App', () => {
     expect(within(volumeSection).getByRole('article', { name: 'Duration' })).toBeInTheDocument();
 
     const mechanicalSection = getOverviewToggle('Mechanical').closest('section') as HTMLElement;
-    expect(within(mechanicalSection).getByRole('article', { name: 'Mechanical Load' })).toBeInTheDocument();
+    expect(within(mechanicalSection).getByRole('article', { name: 'Mechanical Load — Summary' })).toBeInTheDocument();
 
     const internalSection = getOverviewToggle('Internal').closest('section') as HTMLElement;
     expect(within(internalSection).getByRole('article', { name: 'Heart Rate' })).toBeInTheDocument();
@@ -1940,8 +1940,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getAllByText(/∅/).length).toBeGreaterThan(0));
-    expect(screen.getAllByText(/★/).length).toBeGreaterThan(0);
+    await waitFor(() => expect(document.querySelectorAll('.kpi-card__comparison .bi-slash-circle').length).toBeGreaterThan(0));
+    expect(document.querySelectorAll('.kpi-card__comparison .bi-star-fill').length).toBeGreaterThan(0);
   });
 
   it('R1_7_03_Ac03_kpi_actions_navigate_to_timeline_and_peak_demand', async () => {
@@ -1950,7 +1950,7 @@ describe('App', () => {
     render(<App />);
 
     const distanceCard = await screen.findByRole('article', { name: 'Distance' });
-    fireEvent.click(within(distanceCard).getByRole('button', { name: 'Show peak analysis' }));
+    fireEvent.click(within(distanceCard).getByRole('button', { name: 'Peak Analyse' }));
     expect(await screen.findByRole('button', { name: 'Peak Demand' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
@@ -2010,7 +2010,7 @@ describe('App', () => {
     expect(volumeSection).toHaveTextContent('Duration: 30 min 0 s — Not measured: No moving timestamps available.');
 
     const mechanicalSection = getOverviewToggle('Mechanical').closest('section') as HTMLElement;
-    expect(mechanicalSection).toHaveTextContent('High intensity directory changes (Moderate/High/Very high): 5 / 3 / 1 — Measurement unusable: Insufficient heading stability.');
+    expect(mechanicalSection).toHaveTextContent('High-intensity direction changes (Moderate): 5 — Measurement unusable: Insufficient heading stability.');
 
     const internalSection = getOverviewToggle('Internal').closest('section') as HTMLElement;
     expect(internalSection).toHaveTextContent('Heart rate (min/avg/max): Not available — Not measured: No heart-rate stream in file.');
