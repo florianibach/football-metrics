@@ -2160,6 +2160,11 @@ input[type='checkbox']::before {
   margin-top: 0.35rem;
 }
 
+.kpi-card__comparison p::first-letter {
+  font-size: 1.05em;
+  font-weight: 700;
+}
+
 .kpi-card__inline-delta--positive {
   color: var(--accent);
 }

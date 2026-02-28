@@ -559,6 +559,9 @@ type TranslationKey =
   | 'overviewDimensionInternalHelp'
   | 'kpiComparisonLastFive'
   | 'kpiComparisonBestSeason'
+  | 'kpiTrendHigherIsBetter'
+  | 'kpiTrendLowerIsBetter'
+  | 'kpiTrendContextDepends'
   | 'kpiActionTimeline'
   | 'kpiActionPeakAnalysis'
   | 'segmentsTitle'
@@ -1003,6 +1006,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     overviewDimensionInternalHelp: 'Internal load reflects physiological strain and recovery response, derived from heart-rate-based metrics.',
     kpiComparisonLastFive: '∅ {value}',
     kpiComparisonBestSeason: '★ {value}',
+    kpiTrendHigherIsBetter: 'Trend hint: in this KPI card, a higher value is treated as positive.',
+    kpiTrendLowerIsBetter: 'Trend hint: in this KPI card, a lower value is treated as positive.',
+    kpiTrendContextDepends: 'Trend hint: interpretation depends on session objective and load context.',
     kpiActionTimeline: 'Go to timeline',
     kpiActionPeakAnalysis: 'Show peak analysis',
     segmentsTitle: 'Session segments',
@@ -1415,6 +1421,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     overviewDimensionInternalHelp: 'Internal Load beschreibt die physiologische Beanspruchung und Erholungsreaktion auf Basis herzfrequenzbasierter Metriken.',
     kpiComparisonLastFive: '∅ {value}',
     kpiComparisonBestSeason: '★ {value}',
+    kpiTrendHigherIsBetter: 'Trend-Hinweis: In dieser KPI-Card wird ein höherer Wert als positiv interpretiert.',
+    kpiTrendLowerIsBetter: 'Trend-Hinweis: In dieser KPI-Card wird ein niedrigerer Wert als positiv interpretiert.',
+    kpiTrendContextDepends: 'Trend-Hinweis: Die Bewertung hängt vom Session-Ziel und Lastkontext ab.',
     kpiActionTimeline: 'Zur Timeline',
     kpiActionPeakAnalysis: 'Peak Analyse anzeigen',
     segmentsTitle: 'Session-Segmente',
@@ -1625,6 +1634,7 @@ type KpiCardProps = {
   comparisonDelta?: KpiCardComparisonDelta | null;
   secondaryRows?: string[];
   deltaRows?: KpiCardDeltaRow[];
+  trendHint?: string;
   actions?: Array<{ label: string; onClick: () => void }>;
 };
 
@@ -1652,7 +1662,7 @@ function MetricListItem({ label, value, helpText }: MetricListItemProps) {
   );
 }
 
-function KpiCard({ label, primaryValue, primaryValues = [], helpText, comparisonAverage, comparisonBest, comparisonDelta, secondaryRows = [], deltaRows = [], actions = [] }: KpiCardProps) {
+function KpiCard({ label, primaryValue, primaryValues = [], helpText, comparisonAverage, comparisonBest, comparisonDelta, secondaryRows = [], deltaRows = [], trendHint, actions = [] }: KpiCardProps) {
   return (
     <article className="kpi-card" aria-label={label}>
       <header className="kpi-card__header">
@@ -1662,7 +1672,7 @@ function KpiCard({ label, primaryValue, primaryValues = [], helpText, comparison
           className="metric-help"
           aria-label={`${label} explanation`}
           onClick={() => {
-            window.dispatchEvent(new CustomEvent('metric-help-open', { detail: { label, helpText } }));
+            window.dispatchEvent(new CustomEvent('metric-help-open', { detail: { label, helpText: trendHint ? `${helpText} ${trendHint}` : helpText } }));
           }}
         >
           ⓘ
@@ -1712,7 +1722,7 @@ function HrZonesKpiCard({ label, helpText, zones }: { label: string; helpText: s
           className="metric-help"
           aria-label={`${label} explanation`}
           onClick={() => {
-            window.dispatchEvent(new CustomEvent('metric-help-open', { detail: { label, helpText } }));
+            window.dispatchEvent(new CustomEvent('metric-help-open', { detail: { label, helpText: trendHint ? `${helpText} ${trendHint}` : helpText } }));
           }}
         >
           ⓘ
@@ -2024,8 +2034,12 @@ function formatComparisonDelta(
       ? (diff > 0 ? 'positive' : 'negative')
       : (diff < 0 ? 'positive' : 'negative');
 
+  const formatted = diff === 0
+    ? `±${(0).toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits })}${suffix}`
+    : `${formatSignedNumber(diff, locale, digits)}${suffix}`;
+
   return {
-    value: `${formatSignedNumber(diff, locale, digits)}${suffix}`,
+    value: formatted,
     tone
   };
 }
@@ -5585,8 +5599,9 @@ export function App() {
                         primaryValue={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)}
                         helpText={metricHelp.distance}
                         comparisonAverage={distanceComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDistance(distanceComparison.averageLastFive, locale, t.notAvailable) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.distanceMeters, distanceComparison.averageLastFive, locale, 1, ' m', 'lower')}
+                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.distanceMeters, distanceComparison.averageLastFive, locale, 1, ' m', 'higher')}
                         comparisonBest={distanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistance(distanceComparison.bestSeason, locale, t.notAvailable) }) : null}
+                        trendHint={t.kpiTrendHigherIsBetter}
                         actions={[
                           { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
@@ -5598,13 +5613,15 @@ export function App() {
                         helpText={`${metricHelp.duration} ${t.metricHelpDuration}`}
                         comparisonAverage={durationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDuration(durationComparison.averageLastFive, locale, t.notAvailable) }) : null}
                         comparisonDelta={formatDurationDelta(selectedSession.summary.durationSeconds ?? null, durationComparison.averageLastFive, 'lower')}
+                        trendHint={t.kpiTrendLowerIsBetter}
                       />
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label={t.metricRunningDensity}
                         primaryValue={withMetricStatus(formatNumber(displayedCoreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', displayedCoreMetrics, t)}
                         helpText={metricHelp.runningDensity}
                         comparisonAverage={runningDensityComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(runningDensityComparison.averageLastFive, locale, t.notAvailable, 2) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.runningDensityMetersPerMinute, runningDensityComparison.averageLastFive, locale, 2, ' m/min', 'lower')}
+                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.runningDensityMetersPerMinute, runningDensityComparison.averageLastFive, locale, 2, ' m/min', 'higher')}
+                        trendHint={t.kpiTrendHigherIsBetter}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
                       />}
                     </div>
@@ -5633,6 +5650,7 @@ export function App() {
                         helpText={`${metricHelp.maxSpeed} ${metricHelp.highIntensityTime}`}
                         comparisonAverage={maxSpeedComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatSpeed(maxSpeedComparison.averageLastFive, selectedSession.selectedSpeedUnit, t.notAvailable) }) : null}
                         comparisonDelta={formatComparisonDelta(displayedCoreMetrics.maxSpeedMetersPerSecond, maxSpeedComparison.averageLastFive, locale, 2, ' m/s')}
+                        trendHint={t.kpiTrendHigherIsBetter}
                         secondaryRows={[
                           `${t.metricHighIntensityRunCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)}`,
                           `${t.metricOfWhichSprintPhasesCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)}`,
@@ -5645,8 +5663,9 @@ export function App() {
                         primaryValue={withMetricStatus(formatDistanceMetersOnly(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)}
                         helpText={metricHelp.highSpeedDistance}
                         comparisonAverage={highSpeedDistanceComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDistanceMetersOnly(highSpeedDistanceComparison.averageLastFive, locale, t.notAvailable) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.highSpeedDistanceMeters, highSpeedDistanceComparison.averageLastFive, locale, 1, ' m', 'lower')}
+                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.highSpeedDistanceMeters, highSpeedDistanceComparison.averageLastFive, locale, 1, ' m', 'higher')}
                         comparisonBest={highSpeedDistanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistanceMetersOnly(highSpeedDistanceComparison.bestSeason, locale, t.notAvailable) }) : null}
+                        trendHint={t.kpiTrendHigherIsBetter}
                         secondaryRows={[
                           `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceMetersOnly(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`
                         ]}
@@ -5691,10 +5710,8 @@ export function App() {
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
                         secondaryRows={[
                           `High Intensity Direction Changes (M/H/VH): ${withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDirectionChangeCount, displayedCoreMetrics.highDirectionChangeCount, displayedCoreMetrics.veryHighDirectionChangeCount, t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`,
-                          `∅ Accels: ${accelerationComparison.averageLastFive !== null ? formatNumber(accelerationComparison.averageLastFive, locale, t.notAvailable, 0) : t.notAvailable}`,
-                          `★ Accels: ${accelerationComparison.bestSeason !== null ? formatNumber(accelerationComparison.bestSeason, locale, t.notAvailable, 0) : t.notAvailable}`,
-                          `∅ Decels: ${decelerationComparison.averageLastFive !== null ? formatNumber(decelerationComparison.averageLastFive, locale, t.notAvailable, 0) : t.notAvailable}`,
-                          `★ Decels: ${decelerationComparison.bestSeason !== null ? formatNumber(decelerationComparison.bestSeason, locale, t.notAvailable, 0) : t.notAvailable}`
+                          `∅/★ Accels: ${(accelerationComparison.averageLastFive !== null ? formatNumber(accelerationComparison.averageLastFive, locale, t.notAvailable, 0) : t.notAvailable)} / ${(accelerationComparison.bestSeason !== null ? formatNumber(accelerationComparison.bestSeason, locale, t.notAvailable, 0) : t.notAvailable)}`,
+                          `∅/★ Decels: ${(decelerationComparison.averageLastFive !== null ? formatNumber(decelerationComparison.averageLastFive, locale, t.notAvailable, 0) : t.notAvailable)} / ${(decelerationComparison.bestSeason !== null ? formatNumber(decelerationComparison.bestSeason, locale, t.notAvailable, 0) : t.notAvailable)}`
                         ]}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
                       />}
@@ -5704,7 +5721,8 @@ export function App() {
                         helpText={metricHelp.accelerationCount}
                         comparisonAverage={accelerationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(accelerationComparison.averageLastFive, locale, t.notAvailable, 0) }) : null}
                         comparisonBest={accelerationComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(accelerationComparison.bestSeason, locale, t.notAvailable, 0) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.accelerationCount, accelerationComparison.averageLastFive, locale, 0, '', 'lower')}
+                        trendHint={t.kpiTrendHigherIsBetter}
+                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.accelerationCount, accelerationComparison.averageLastFive, locale, 0, '', 'higher')}
                         actions={[
                           { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
@@ -5738,7 +5756,8 @@ export function App() {
                         primaryValue={`${selectedSession.summary.heartRateAverageBpm ?? t.notAvailable} bpm (avg)`}
                         helpText={metricHelp.heartRate}
                         comparisonAverage={heartRateAvgComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatHeartRateAverage(heartRateAvgComparison.averageLastFive, locale, t.notAvailable) }) : null}
-                        comparisonDelta={formatComparisonDelta(selectedSession.summary.heartRateAverageBpm, heartRateAvgComparison.averageLastFive, locale, 0, ' bpm')}
+                        comparisonDelta={formatComparisonDelta(selectedSession.summary.heartRateAverageBpm, heartRateAvgComparison.averageLastFive, locale, 0, ' bpm', 'lower')}
+                        trendHint={t.kpiTrendLowerIsBetter}
                         secondaryRows={[
                           `Min: ${selectedSession.summary.heartRateMinBpm ?? t.notAvailable} bpm`,
                           `Max: ${selectedSession.summary.heartRateMaxBpm ?? t.notAvailable} bpm`
@@ -5757,6 +5776,7 @@ export function App() {
                         secondaryRows={[`TRIMP/min: ${formatNumber(trimpPerMinuteValue, locale, t.notAvailable, 2)}`]}
                         comparisonAverage={trimpComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(trimpComparison.averageLastFive, locale, t.notAvailable, 1) }) : null}
                         comparisonDelta={formatComparisonDelta(displayedCoreMetrics.trainingImpulseEdwards, trimpComparison.averageLastFive, locale, 1, '', 'lower')}
+                        trendHint={t.kpiTrendLowerIsBetter}
                         comparisonBest={trimpComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(trimpComparison.bestSeason, locale, t.notAvailable, 1) }) : null}
                         actions={[
                           { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
@@ -5768,7 +5788,8 @@ export function App() {
                         primaryValue={withMetricStatus(formatBpmDrop(displayedCoreMetrics.heartRateRecoveryAfter60Seconds, locale, t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)}
                         helpText={metricHelp.hrRecovery60}
                         comparisonAverage={hrRecoveryComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatBpmDrop(hrRecoveryComparison.averageLastFive, locale, t.notAvailable) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.heartRateRecoveryAfter60Seconds, hrRecoveryComparison.averageLastFive, locale, 0, ' bpm')}
+                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.heartRateRecoveryAfter60Seconds, hrRecoveryComparison.averageLastFive, locale, 0, ' bpm', 'higher')}
+                        trendHint={t.kpiTrendHigherIsBetter}
                       />}
                     </div>
                     <ul className="metrics-list list-group overview-legacy-list">
