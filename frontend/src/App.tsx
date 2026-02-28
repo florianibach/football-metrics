@@ -1001,7 +1001,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     overviewDimensionMechanicalHelp: 'Mechanical load captures repeated force-intensive actions such as accelerations, decelerations, and direction changes.',
     overviewDimensionInternalTitle: 'Internal',
     overviewDimensionInternalHelp: 'Internal load reflects physiological strain and recovery response, derived from heart-rate-based metrics.',
-    kpiComparisonLastFive: '◴ {value}',
+    kpiComparisonLastFive: '∅ {value}',
     kpiComparisonBestSeason: '★ {value}',
     kpiActionTimeline: 'Go to timeline',
     kpiActionPeakAnalysis: 'Show peak analysis',
@@ -1413,7 +1413,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     overviewDimensionMechanicalHelp: 'Mechanical Load erfasst wiederholte kraftintensive Aktionen wie Beschleunigungen, Abbremsen und Richtungswechsel.',
     overviewDimensionInternalTitle: 'Internal',
     overviewDimensionInternalHelp: 'Internal Load beschreibt die physiologische Beanspruchung und Erholungsreaktion auf Basis herzfrequenzbasierter Metriken.',
-    kpiComparisonLastFive: '◴ {value}',
+    kpiComparisonLastFive: '∅ {value}',
     kpiComparisonBestSeason: '★ {value}',
     kpiActionTimeline: 'Zur Timeline',
     kpiActionPeakAnalysis: 'Peak Analyse anzeigen',
@@ -1995,15 +1995,65 @@ function formatBandTriplet(moderate: number | null | undefined, high: number | n
   return `${moderate} / ${high} / ${veryHigh}`;
 }
 
-function formatComparisonDelta(value: number | null | undefined, average: number | null | undefined, locale: Locale, digits = 1, suffix = ''): KpiCardComparisonDelta | null {
+function formatDistanceMetersOnly(distanceMeters: number | null, locale: Locale, notAvailable: string): string {
+  if (distanceMeters === null) {
+    return notAvailable;
+  }
+
+  return `${distanceMeters.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m`;
+}
+
+function formatComparisonDelta(
+  value: number | null | undefined,
+  average: number | null | undefined,
+  locale: Locale,
+  digits = 1,
+  suffix = '',
+  direction: 'higher' | 'lower' = 'higher'
+): KpiCardComparisonDelta | null {
   if (value === null || value === undefined || average === null || average === undefined) {
     return null;
   }
 
-  const diff = value - average;
+  const precisionThreshold = 1 / Math.pow(10, digits);
+  const rawDiff = value - average;
+  const diff = Math.abs(rawDiff) < precisionThreshold ? 0 : rawDiff;
+  const tone = diff === 0
+    ? 'neutral'
+    : direction === 'higher'
+      ? (diff > 0 ? 'positive' : 'negative')
+      : (diff < 0 ? 'positive' : 'negative');
+
   return {
     value: `${formatSignedNumber(diff, locale, digits)}${suffix}`,
-    tone: diff > 0 ? 'positive' : (diff < 0 ? 'negative' : 'neutral')
+    tone
+  };
+}
+
+function formatDurationDelta(
+  durationSeconds: number | null | undefined,
+  averageSeconds: number | null | undefined,
+  direction: 'higher' | 'lower' = 'lower'
+): KpiCardComparisonDelta | null {
+  if (durationSeconds === null || durationSeconds === undefined || averageSeconds === null || averageSeconds === undefined) {
+    return null;
+  }
+
+  const rawDiff = Math.round(durationSeconds - averageSeconds);
+  const diff = Math.abs(rawDiff) < 1 ? 0 : rawDiff;
+  const absDiff = Math.abs(diff);
+  const minutes = Math.floor(absDiff / 60).toString().padStart(2, '0');
+  const seconds = Math.floor(absDiff % 60).toString().padStart(2, '0');
+  const prefix = diff > 0 ? '+' : diff < 0 ? '-' : '±';
+  const tone = diff === 0
+    ? 'neutral'
+    : direction === 'higher'
+      ? (diff > 0 ? 'positive' : 'negative')
+      : (diff < 0 ? 'positive' : 'negative');
+
+  return {
+    value: `${prefix}${minutes}:${seconds}`,
+    tone
   };
 }
 
@@ -5535,7 +5585,7 @@ export function App() {
                         primaryValue={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)}
                         helpText={metricHelp.distance}
                         comparisonAverage={distanceComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDistance(distanceComparison.averageLastFive, locale, t.notAvailable) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.distanceMeters, distanceComparison.averageLastFive, locale, 1, ' m')}
+                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.distanceMeters, distanceComparison.averageLastFive, locale, 1, ' m', 'lower')}
                         comparisonBest={distanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistance(distanceComparison.bestSeason, locale, t.notAvailable) }) : null}
                         actions={[
                           { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
@@ -5547,14 +5597,14 @@ export function App() {
                         primaryValue={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)}
                         helpText={`${metricHelp.duration} ${t.metricHelpDuration}`}
                         comparisonAverage={durationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDuration(durationComparison.averageLastFive, locale, t.notAvailable) }) : null}
-                        comparisonDelta={formatComparisonDelta(selectedSession.summary.durationSeconds ?? null, durationComparison.averageLastFive, locale, 0, ' s')}
+                        comparisonDelta={formatDurationDelta(selectedSession.summary.durationSeconds ?? null, durationComparison.averageLastFive, 'lower')}
                       />
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label={t.metricRunningDensity}
                         primaryValue={withMetricStatus(formatNumber(displayedCoreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', displayedCoreMetrics, t)}
                         helpText={metricHelp.runningDensity}
                         comparisonAverage={runningDensityComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(runningDensityComparison.averageLastFive, locale, t.notAvailable, 2) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.runningDensityMetersPerMinute, runningDensityComparison.averageLastFive, locale, 2, ' m/min')}
+                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.runningDensityMetersPerMinute, runningDensityComparison.averageLastFive, locale, 2, ' m/min', 'lower')}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
                       />}
                     </div>
@@ -5592,13 +5642,13 @@ export function App() {
                       />}
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label={t.metricHighSpeedDistance}
-                        primaryValue={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)}
+                        primaryValue={withMetricStatus(formatDistanceMetersOnly(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)}
                         helpText={metricHelp.highSpeedDistance}
-                        comparisonAverage={highSpeedDistanceComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDistance(highSpeedDistanceComparison.averageLastFive, locale, t.notAvailable) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.highSpeedDistanceMeters, highSpeedDistanceComparison.averageLastFive, locale, 1, ' m')}
-                        comparisonBest={highSpeedDistanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistance(highSpeedDistanceComparison.bestSeason, locale, t.notAvailable) }) : null}
+                        comparisonAverage={highSpeedDistanceComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDistanceMetersOnly(highSpeedDistanceComparison.averageLastFive, locale, t.notAvailable) }) : null}
+                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.highSpeedDistanceMeters, highSpeedDistanceComparison.averageLastFive, locale, 1, ' m', 'lower')}
+                        comparisonBest={highSpeedDistanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistanceMetersOnly(highSpeedDistanceComparison.bestSeason, locale, t.notAvailable) }) : null}
                         secondaryRows={[
-                          `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceComparison(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`
+                          `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceMetersOnly(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`
                         ]}
                         actions={[
                           { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
@@ -5640,31 +5690,11 @@ export function App() {
                         ]}
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
                         secondaryRows={[
-                          `${t.metricDirectionChanges} (M/H/VH): ${withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDirectionChangeCount, displayedCoreMetrics.highDirectionChangeCount, displayedCoreMetrics.veryHighDirectionChangeCount, t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`,
-                          `◴ Accels: ${accelerationComparison.averageLastFive !== null ? formatNumber(accelerationComparison.averageLastFive, locale, t.notAvailable, 0) : t.notAvailable}`,
+                          `High Intensity Direction Changes (M/H/VH): ${withMetricStatus(formatBandTriplet(displayedCoreMetrics.moderateDirectionChangeCount, displayedCoreMetrics.highDirectionChangeCount, displayedCoreMetrics.veryHighDirectionChangeCount, t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`,
+                          `∅ Accels: ${accelerationComparison.averageLastFive !== null ? formatNumber(accelerationComparison.averageLastFive, locale, t.notAvailable, 0) : t.notAvailable}`,
                           `★ Accels: ${accelerationComparison.bestSeason !== null ? formatNumber(accelerationComparison.bestSeason, locale, t.notAvailable, 0) : t.notAvailable}`,
-                          `◴ Decels: ${decelerationComparison.averageLastFive !== null ? formatNumber(decelerationComparison.averageLastFive, locale, t.notAvailable, 0) : t.notAvailable}`,
+                          `∅ Decels: ${decelerationComparison.averageLastFive !== null ? formatNumber(decelerationComparison.averageLastFive, locale, t.notAvailable, 0) : t.notAvailable}`,
                           `★ Decels: ${decelerationComparison.bestSeason !== null ? formatNumber(decelerationComparison.bestSeason, locale, t.notAvailable, 0) : t.notAvailable}`
-                        ]}
-                        deltaRows={[
-                          {
-                            label: 'Δ Ø Accels',
-                            value: accelerationComparison.averageLastFive !== null && displayedCoreMetrics.accelerationCount !== null
-                              ? formatSignedNumber(displayedCoreMetrics.accelerationCount - accelerationComparison.averageLastFive, locale, 0)
-                              : t.notAvailable,
-                            tone: accelerationComparison.averageLastFive !== null && displayedCoreMetrics.accelerationCount !== null
-                              ? (displayedCoreMetrics.accelerationCount - accelerationComparison.averageLastFive > 0 ? 'positive' : (displayedCoreMetrics.accelerationCount - accelerationComparison.averageLastFive < 0 ? 'negative' : 'neutral'))
-                              : 'neutral'
-                          },
-                          {
-                            label: 'Δ Ø Decels',
-                            value: decelerationComparison.averageLastFive !== null && displayedCoreMetrics.decelerationCount !== null
-                              ? formatSignedNumber(displayedCoreMetrics.decelerationCount - decelerationComparison.averageLastFive, locale, 0)
-                              : t.notAvailable,
-                            tone: decelerationComparison.averageLastFive !== null && displayedCoreMetrics.decelerationCount !== null
-                              ? (displayedCoreMetrics.decelerationCount - decelerationComparison.averageLastFive > 0 ? 'positive' : (displayedCoreMetrics.decelerationCount - decelerationComparison.averageLastFive < 0 ? 'negative' : 'neutral'))
-                              : 'neutral'
-                          }
                         ]}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
                       />}
@@ -5674,7 +5704,7 @@ export function App() {
                         helpText={metricHelp.accelerationCount}
                         comparisonAverage={accelerationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(accelerationComparison.averageLastFive, locale, t.notAvailable, 0) }) : null}
                         comparisonBest={accelerationComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(accelerationComparison.bestSeason, locale, t.notAvailable, 0) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.accelerationCount, accelerationComparison.averageLastFive, locale, 0)}
+                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.accelerationCount, accelerationComparison.averageLastFive, locale, 0, '', 'lower')}
                         actions={[
                           { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
@@ -5726,7 +5756,7 @@ export function App() {
                         helpText={metricHelp.trimpEdwards}
                         secondaryRows={[`TRIMP/min: ${formatNumber(trimpPerMinuteValue, locale, t.notAvailable, 2)}`]}
                         comparisonAverage={trimpComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(trimpComparison.averageLastFive, locale, t.notAvailable, 1) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.trainingImpulseEdwards, trimpComparison.averageLastFive, locale, 1)}
+                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.trainingImpulseEdwards, trimpComparison.averageLastFive, locale, 1, '', 'lower')}
                         comparisonBest={trimpComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(trimpComparison.bestSeason, locale, t.notAvailable, 1) }) : null}
                         actions={[
                           { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },

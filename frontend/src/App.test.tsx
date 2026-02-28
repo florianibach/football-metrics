@@ -1940,7 +1940,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getAllByText(/◴/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/∅/).length).toBeGreaterThan(0));
     expect(screen.getAllByText(/★/).length).toBeGreaterThan(0);
   });
 
