@@ -5706,8 +5706,8 @@ export function App() {
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label="Mechanical Load — Summary"
                         primaryValues={[
-                          `Accels total: ${withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
-                          `Decels total: ${withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
+                          `Accelerations total: ${withMetricStatus(String(displayedCoreMetrics.accelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
+                          `Decelerations total: ${withMetricStatus(String(displayedCoreMetrics.decelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
                           `High-intensity direction changes total: ${withMetricStatus(String(displayedCoreMetrics.directionChanges ?? t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`
                         ]}
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
@@ -5720,8 +5720,8 @@ export function App() {
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label="Mechanical Load — Moderate"
                         primaryValues={[
-                          `Accels (Moderate): ${withMetricStatus(String(displayedCoreMetrics.moderateAccelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
-                          `Decels (Moderate): ${withMetricStatus(String(displayedCoreMetrics.moderateDecelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
+                          `Accelerations (Moderate): ${withMetricStatus(String(displayedCoreMetrics.moderateAccelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
+                          `Decelerations (Moderate): ${withMetricStatus(String(displayedCoreMetrics.moderateDecelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
                           `High-intensity direction changes (Moderate): ${withMetricStatus(String(displayedCoreMetrics.moderateDirectionChangeCount ?? t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`
                         ]}
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
@@ -5729,8 +5729,8 @@ export function App() {
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label="Mechanical Load — High"
                         primaryValues={[
-                          `Accels (High): ${withMetricStatus(String(displayedCoreMetrics.highAccelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
-                          `Decels (High): ${withMetricStatus(String(displayedCoreMetrics.highDecelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
+                          `Accelerations (High): ${withMetricStatus(String(displayedCoreMetrics.highAccelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
+                          `Decelerations (High): ${withMetricStatus(String(displayedCoreMetrics.highDecelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
                           `High-intensity direction changes (High): ${withMetricStatus(String(displayedCoreMetrics.highDirectionChangeCount ?? t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`
                         ]}
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
@@ -5738,8 +5738,8 @@ export function App() {
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label="Mechanical Load — Very High"
                         primaryValues={[
-                          `Accels (Very High): ${withMetricStatus(String(displayedCoreMetrics.veryHighAccelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
-                          `Decels (Very High): ${withMetricStatus(String(displayedCoreMetrics.veryHighDecelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
+                          `Accelerations (Very High): ${withMetricStatus(String(displayedCoreMetrics.veryHighAccelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
+                          `Decelerations (Very High): ${withMetricStatus(String(displayedCoreMetrics.veryHighDecelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
                           `High-intensity direction changes (Very High): ${withMetricStatus(String(displayedCoreMetrics.veryHighDirectionChangeCount ?? t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`
                         ]}
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
