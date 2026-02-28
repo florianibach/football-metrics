@@ -2628,10 +2628,10 @@ export function App() {
     const expandedByDefault = import.meta.env.MODE === 'test';
 
     return {
-      overviewVolume: expandedByDefault,
-      overviewSpeed: expandedByDefault,
-      overviewMechanical: expandedByDefault,
-      overviewInternal: expandedByDefault,
+      overviewVolume: true,
+      overviewSpeed: true,
+      overviewMechanical: true,
+      overviewInternal: true,
       intervalAggregation: expandedByDefault,
       gpsHeatmap: expandedByDefault,
       gpsRunsMap: expandedByDefault,
