@@ -2013,6 +2013,66 @@ function formatDistanceMetersOnly(distanceMeters: number | null, locale: Locale,
   return `${distanceMeters.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m`;
 }
 
+function convertSpeedToUnitValue(valueMetersPerSecond: number, unit: SpeedUnit): number | null {
+  if (!Number.isFinite(valueMetersPerSecond)) {
+    return null;
+  }
+
+  if (unit === 'km/h') {
+    return valueMetersPerSecond * 3.6;
+  }
+
+  if (unit === 'mph') {
+    return valueMetersPerSecond * 2.2369362921;
+  }
+
+  if (unit === 'min/km') {
+    if (valueMetersPerSecond <= 0) {
+      return null;
+    }
+
+    return 1000 / (valueMetersPerSecond * 60);
+  }
+
+  return valueMetersPerSecond;
+}
+
+function speedUnitSuffix(unit: SpeedUnit): string {
+  if (unit === 'km/h') return ' km/h';
+  if (unit === 'mph') return ' mph';
+  if (unit === 'min/km') return ' min/km';
+  return ' m/s';
+}
+
+function formatSpeedComparisonDelta(
+  valueMetersPerSecond: number | null | undefined,
+  averageMetersPerSecond: number | null | undefined,
+  locale: Locale,
+  unit: SpeedUnit
+): KpiCardComparisonDelta | null {
+  if (valueMetersPerSecond === null || valueMetersPerSecond === undefined || averageMetersPerSecond === null || averageMetersPerSecond === undefined) {
+    return null;
+  }
+
+  const convertedValue = convertSpeedToUnitValue(valueMetersPerSecond, unit);
+  const convertedAverage = convertSpeedToUnitValue(averageMetersPerSecond, unit);
+  if (convertedValue === null || convertedAverage === null) {
+    return null;
+  }
+
+  const digits = unit === 'm/s' ? 2 : (unit === 'min/km' ? 2 : 1);
+  const rawDiff = convertedValue - convertedAverage;
+  const precisionThreshold = 1 / Math.pow(10, digits);
+  const diff = Math.abs(rawDiff) < precisionThreshold ? 0 : rawDiff;
+
+  return {
+    value: diff === 0
+      ? `±${(0).toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits })}${speedUnitSuffix(unit)}`
+      : `${formatSignedNumber(diff, locale, digits)}${speedUnitSuffix(unit)}`,
+    tone: diff === 0 ? 'neutral' : (diff > 0 ? 'positive' : 'negative')
+  };
+}
+
 function formatComparisonDelta(
   value: number | null | undefined,
   average: number | null | undefined,
@@ -5653,7 +5713,7 @@ export function App() {
                         primaryValue={`${t.metricMaxSpeed}: ${withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)}`}
                         helpText={`${metricHelp.maxSpeed} ${metricHelp.highIntensityTime}`}
                         comparisonAverage={maxSpeedComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatSpeed(maxSpeedComparison.averageLastFive, selectedSession.selectedSpeedUnit, t.notAvailable) }) : null}
-                        comparisonDelta={formatComparisonDelta(displayedCoreMetrics.maxSpeedMetersPerSecond, maxSpeedComparison.averageLastFive, locale, 2, ' m/s')}
+                        comparisonDelta={formatSpeedComparisonDelta(displayedCoreMetrics.maxSpeedMetersPerSecond, maxSpeedComparison.averageLastFive, locale, selectedSession.selectedSpeedUnit)}
                         trendHint={t.kpiTrendHigherIsBetter}
                         secondaryRows={[
                           `${t.metricHighIntensityRunCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)}`,
