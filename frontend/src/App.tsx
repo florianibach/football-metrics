@@ -5615,6 +5615,7 @@ export function App() {
                         helpText={`${metricHelp.duration} ${t.metricHelpDuration}`}
                         comparisonAverage={durationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDuration(durationComparison.averageLastFive, locale, t.notAvailable) }) : null}
                         comparisonDelta={formatDurationDelta(selectedSession.summary.durationSeconds ?? null, durationComparison.averageLastFive, 'neutral')}
+                        comparisonBest={durationComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDuration(durationComparison.bestSeason, locale, t.notAvailable) }) : null}
                         trendHint={t.kpiTrendContextDepends}
                       />
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
@@ -5623,6 +5624,7 @@ export function App() {
                         helpText={metricHelp.runningDensity}
                         comparisonAverage={runningDensityComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatNumber(runningDensityComparison.averageLastFive, locale, t.notAvailable, 2) }) : null}
                         comparisonDelta={formatComparisonDelta(displayedCoreMetrics.runningDensityMetersPerMinute, runningDensityComparison.averageLastFive, locale, 2, ' m/min', 'higher')}
+                        comparisonBest={runningDensityComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(runningDensityComparison.bestSeason, locale, t.notAvailable, 2) }) : null}
                         trendHint={t.kpiTrendHigherIsBetter}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
                       />}
@@ -5711,7 +5713,6 @@ export function App() {
                           `High-intensity direction changes total: ${withMetricStatus(String(displayedCoreMetrics.directionChanges ?? t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`
                         ]}
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
-                        secondaryRows={['Bands are shown in the detail cards below.']}
                         actions={[
                           { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
@@ -5719,7 +5720,7 @@ export function App() {
                       />}
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label="Mechanical Load — Moderate"
-                        primaryValues={[
+                        secondaryRows={[
                           `Accelerations (Moderate): ${withMetricStatus(String(displayedCoreMetrics.moderateAccelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
                           `Decelerations (Moderate): ${withMetricStatus(String(displayedCoreMetrics.moderateDecelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
                           `High-intensity direction changes (Moderate): ${withMetricStatus(String(displayedCoreMetrics.moderateDirectionChangeCount ?? t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`
@@ -5728,7 +5729,7 @@ export function App() {
                       />}
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label="Mechanical Load — High"
-                        primaryValues={[
+                        secondaryRows={[
                           `Accelerations (High): ${withMetricStatus(String(displayedCoreMetrics.highAccelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
                           `Decelerations (High): ${withMetricStatus(String(displayedCoreMetrics.highDecelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
                           `High-intensity direction changes (High): ${withMetricStatus(String(displayedCoreMetrics.highDirectionChangeCount ?? t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`
@@ -5737,7 +5738,7 @@ export function App() {
                       />}
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label="Mechanical Load — Very High"
-                        primaryValues={[
+                        secondaryRows={[
                           `Accelerations (Very High): ${withMetricStatus(String(displayedCoreMetrics.veryHighAccelerationCount ?? t.notAvailable), 'accelerationCount', displayedCoreMetrics, t)}`,
                           `Decelerations (Very High): ${withMetricStatus(String(displayedCoreMetrics.veryHighDecelerationCount ?? t.notAvailable), 'decelerationCount', displayedCoreMetrics, t)}`,
                           `High-intensity direction changes (Very High): ${withMetricStatus(String(displayedCoreMetrics.veryHighDirectionChangeCount ?? t.notAvailable), 'directionChanges', displayedCoreMetrics, t)}`
@@ -5761,7 +5762,7 @@ export function App() {
                       {activeDataMode !== 'GpsOnly' && <KpiCard
                         label="Heart Rate"
                         primaryValue={`${selectedSession.summary.heartRateAverageBpm ?? t.notAvailable} bpm (avg)`}
-                        helpText={metricHelp.heartRate}
+                        helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`}
                         comparisonAverage={heartRateAvgComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatHeartRateAverage(heartRateAvgComparison.averageLastFive, locale, t.notAvailable) }) : null}
                         comparisonDelta={formatComparisonDelta(selectedSession.summary.heartRateAverageBpm, heartRateAvgComparison.averageLastFive, locale, 0, ' bpm', 'neutral')}
                         trendHint={t.kpiTrendContextDepends}
