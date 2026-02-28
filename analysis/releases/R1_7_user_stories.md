@@ -35,16 +35,16 @@ R1.7 fokussiert auf ein **UI-Rework der Session-Detailseite**: bestehende Metrik
 
 ---
 
-## Story R1.7-03: KPI-Card-Design vereinheitlichen (inkl. Vergleichskontext)
+## Story R1.7-03: KPI-Card-Design vereinheitlichen (inkl. Vergleichskontext) ✅ done
 **Als** Nutzer
 **möchte ich** jede Metrik in einer konsistenten KPI-Card sehen
 **damit** ich Werte, Kontext und Aktionen ohne Umlernen erfasse.
 
 ### Acceptance Criteria
-- [ ] Jede KPI-Card enthält mindestens: Primary Value, Einheit, Label, Info-Icon.
-- [ ] Optional verfügbare Vergleichswerte werden einheitlich angezeigt: `Ø letzte Sessions` und `Bestwert Saison`.
-- [ ] KPI-Cards bieten kontextsensitive Aktionen (`Zur Timeline`, `Peak Analyse anzeigen`), sofern die Zielansicht verfügbar ist.
-- [ ] Bereits vorhandene Erklärtexte/Definitionen werden übernommen und auf das neue Card-Layout gemappt.
+- [x] Jede KPI-Card enthält mindestens: Primary Value, Einheit, Label, Info-Icon.
+- [x] Optional verfügbare Vergleichswerte werden einheitlich angezeigt: `Ø letzte Sessions` und `Bestwert Saison`.
+- [x] KPI-Cards bieten kontextsensitive Aktionen (`Zur Timeline`, `Peak Analyse anzeigen`), sofern die Zielansicht verfügbar ist.
+- [x] Bereits vorhandene Erklärtexte/Definitionen werden übernommen und auf das neue Card-Layout gemappt.
 
 ---
 

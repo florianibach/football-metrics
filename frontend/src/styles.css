@@ -2110,3 +2110,137 @@ input[type='checkbox']::before {
 .gps-heatmap__run-line.gps-heatmap__run--high-intensity {
   fill: none;
 }
+
+.kpi-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.kpi-card {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--surface) 92%, white);
+}
+
+.kpi-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kpi-card__header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.kpi-card__primary {
+  margin: 0.45rem 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.kpi-card__secondary p,
+.kpi-card__comparison p,
+.kpi-card__delta p {
+  margin: 0.15rem 0;
+  font-size: 0.86rem;
+}
+
+.kpi-card__primary + .kpi-card__primary {
+  margin-top: -0.2rem;
+}
+
+.kpi-card__comparison {
+  margin-top: 0.45rem;
+}
+
+.kpi-card__comparison p + p {
+  margin-top: 0.35rem;
+}
+
+.kpi-card__comparison p::first-letter {
+  font-size: 1.05em;
+  font-weight: 700;
+}
+
+.kpi-card__inline-delta--positive {
+  color: var(--accent);
+}
+
+.kpi-card__inline-delta--negative {
+  color: #d64545;
+}
+
+.kpi-card__inline-delta--neutral {
+  color: var(--muted);
+}
+
+.kpi-card__delta {
+  margin-top: 0.25rem;
+}
+
+.kpi-card__delta-row--positive {
+  color: var(--accent);
+}
+
+.kpi-card__delta-row--negative {
+  color: #d64545;
+}
+
+.kpi-card__delta-row--neutral {
+  color: var(--muted);
+}
+
+.kpi-card__actions {
+  margin-top: 0.55rem;
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.kpi-card__zones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.3rem;
+}
+
+.kpi-card__zone-row {
+  display: grid;
+  grid-template-columns: 3.3rem 1fr auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.kpi-card__zone-label,
+.kpi-card__zone-value {
+  font-size: 0.8rem;
+}
+
+.kpi-card__zone-track {
+  width: 100%;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 70%, var(--border));
+  overflow: hidden;
+}
+
+.kpi-card__zone-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 78%, white), var(--accent));
+}
+
+.overview-legacy-list {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
