@@ -1124,7 +1124,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
 
                     if (containingParent is not null)
                     {
-                        return new { SprintRun = sprintRun, ParentRunId = containingParent.RunId };
+                        return new { SprintRun = sprintRun, ParentRunId = (string?)containingParent.RunId };
                     }
 
                     var overlappingParent = highIntensityRuns
