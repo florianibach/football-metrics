@@ -168,6 +168,7 @@ type SpeedUnit = 'km/h' | 'mph' | 'm/s' | 'min/km';
 type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
 type SessionSubpage = 'analysis' | 'segments' | 'segmentEdit' | 'compare' | 'sessionSettings' | 'technicalInfo';
 type SessionAnalysisTab = 'overview' | 'timeline' | 'peakDemand' | 'segments' | 'heatmap';
+type TimelineMode = 'instant' | 'rolling';
 type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null; segmentId: string | null };
 
 
@@ -493,6 +494,14 @@ type TranslationKey =
   | 'intervalAggregationCoreMetrics'
   | 'intervalAggregationWindowCount'
   | 'intervalAggregationExplanation'
+  | 'timelineModeLabel'
+  | 'timelineModeInstant'
+  | 'timelineModeRolling'
+  | 'timelineSharedAxisLabel'
+  | 'timelineTrackRunningDensity'
+  | 'timelineTrackSpeedHsr'
+  | 'timelineTrackAccelDecel'
+  | 'timelineTrackHeartRate'
   | 'profileSettingsTitle'
   | 'profilePrimaryPosition'
   | 'profileSecondaryPosition'
@@ -923,6 +932,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationCoreMetrics: 'Core metrics',
     intervalAggregationWindowCount: 'Windows: {count}',
     intervalAggregationExplanation: 'Interval views help you understand how effort changes during a session instead of only seeing one total value. 1-minute windows highlight short, intense phases such as pressing, repeated sprints, or quick transitions. 2-minute windows smooth out noise a bit and make it easier to compare short game phases. 5-minute windows show the broader load trend, for example whether intensity drops after a high-pressure period or rises again near the end. Together, these views help coaches and players identify pacing, fatigue patterns, and where targeted training can improve match performance.',
+    timelineModeLabel: 'Timeline mode',
+    timelineModeInstant: 'Instant',
+    timelineModeRolling: 'Rolling',
+    timelineSharedAxisLabel: 'Shared time axis',
+    timelineTrackRunningDensity: 'm/min',
+    timelineTrackSpeedHsr: 'Speed + HSR events',
+    timelineTrackAccelDecel: 'Accel/Decel events',
+    timelineTrackHeartRate: 'Heart Rate',
     profileSettingsTitle: 'Profile settings',
     profilePrimaryPosition: 'Primary position',
     profileSecondaryPosition: 'Secondary position',
@@ -1338,6 +1355,14 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationCoreMetrics: 'Kernmetriken',
     intervalAggregationWindowCount: 'Fenster: {count}',
     intervalAggregationExplanation: 'Die Intervallansicht hilft dir zu erkennen, wie sich die Belastung innerhalb einer Einheit verändert – statt nur einen Gesamtwert zu sehen. 1-Minuten-Fenster machen kurze, sehr intensive Phasen sichtbar, zum Beispiel Pressing, wiederholte Sprints oder schnelle Umschaltmomente. 2-Minuten-Fenster glätten das Bild etwas und eignen sich gut, um kurze Spielphasen miteinander zu vergleichen. 5-Minuten-Fenster zeigen den größeren Belastungstrend, etwa ob die Intensität nach einer Druckphase abfällt oder zum Ende wieder ansteigt. Zusammen helfen diese Sichten dabei, Tempoverteilung, Ermüdungsmuster und konkrete Trainingsansätze besser zu verstehen.',
+    timelineModeLabel: 'Timeline-Modus',
+    timelineModeInstant: 'Instant',
+    timelineModeRolling: 'Rolling',
+    timelineSharedAxisLabel: 'Gemeinsame Zeitachse',
+    timelineTrackRunningDensity: 'm/min',
+    timelineTrackSpeedHsr: 'Tempo + HSR-Events',
+    timelineTrackAccelDecel: 'Accel/Decel-Events',
+    timelineTrackHeartRate: 'Herzfrequenz',
     profileSettingsTitle: 'Profileinstellungen',
     profilePrimaryPosition: 'Primärposition',
     profileSecondaryPosition: 'Sekundärposition',
@@ -2628,6 +2653,7 @@ export function App() {
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
+  const [timelineMode, setTimelineMode] = useState<TimelineMode>('rolling');
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
     matchResult: null,
@@ -4287,6 +4313,129 @@ export function App() {
 
   const selectedAnalysisAggregates = useMemo(() => selectedAnalysisAggregateSlices.map((slice) => slice.aggregate), [selectedAnalysisAggregateSlices]);
 
+  const timelineRollingTracks = useMemo(() => {
+    const activityStartMs = selectedSession?.summary.activityStartTimeUtc ? new Date(selectedSession.summary.activityStartTimeUtc).getTime() : Number.NaN;
+
+    const runningDensity = selectedAnalysisAggregates
+      .map((aggregate) => {
+        const startMs = new Date(aggregate.windowStartUtc).getTime();
+        const offsetSeconds = Number.isFinite(startMs) && Number.isFinite(activityStartMs)
+          ? (startMs - activityStartMs) / 1000
+          : aggregate.windowIndex * aggregate.windowDurationSeconds;
+        return {
+          x: Math.max(0, offsetSeconds + (aggregate.windowDurationSeconds / 2)),
+          y: aggregate.coreMetrics.runningDensityMetersPerMinute
+        };
+      });
+
+    const speed = selectedAnalysisAggregates
+      .map((aggregate) => {
+        const startMs = new Date(aggregate.windowStartUtc).getTime();
+        const offsetSeconds = Number.isFinite(startMs) && Number.isFinite(activityStartMs)
+          ? (startMs - activityStartMs) / 1000
+          : aggregate.windowIndex * aggregate.windowDurationSeconds;
+        return {
+          x: Math.max(0, offsetSeconds + (aggregate.windowDurationSeconds / 2)),
+          y: aggregate.coreMetrics.maxSpeedMetersPerSecond
+        };
+      });
+
+    const accelDecel = selectedAnalysisAggregates
+      .map((aggregate) => {
+        const startMs = new Date(aggregate.windowStartUtc).getTime();
+        const offsetSeconds = Number.isFinite(startMs) && Number.isFinite(activityStartMs)
+          ? (startMs - activityStartMs) / 1000
+          : aggregate.windowIndex * aggregate.windowDurationSeconds;
+        const accel = aggregate.coreMetrics.accelerationCount ?? 0;
+        const decel = aggregate.coreMetrics.decelerationCount ?? 0;
+        return {
+          x: Math.max(0, offsetSeconds + (aggregate.windowDurationSeconds / 2)),
+          y: accel + decel
+        };
+      });
+
+    const heartRate = selectedAnalysisAggregates
+      .map((aggregate) => {
+        const startMs = new Date(aggregate.windowStartUtc).getTime();
+        const offsetSeconds = Number.isFinite(startMs) && Number.isFinite(activityStartMs)
+          ? (startMs - activityStartMs) / 1000
+          : aggregate.windowIndex * aggregate.windowDurationSeconds;
+        const hrSeconds = (aggregate.coreMetrics.heartRateZoneLowSeconds ?? 0)
+          + (aggregate.coreMetrics.heartRateZoneMediumSeconds ?? 0)
+          + (aggregate.coreMetrics.heartRateZoneHighSeconds ?? 0);
+        const weightedHr = hrSeconds > 0
+          ? (((aggregate.coreMetrics.heartRateZoneLowSeconds ?? 0) * 130)
+            + ((aggregate.coreMetrics.heartRateZoneMediumSeconds ?? 0) * 155)
+            + ((aggregate.coreMetrics.heartRateZoneHighSeconds ?? 0) * 178)) / hrSeconds
+          : null;
+
+        return {
+          x: Math.max(0, offsetSeconds + (aggregate.windowDurationSeconds / 2)),
+          y: weightedHr
+        };
+      });
+
+    return { runningDensity, speed, accelDecel, heartRate };
+  }, [selectedAnalysisAggregates, selectedSession?.summary.activityStartTimeUtc]);
+
+  const timelineInstantTracks = useMemo(() => {
+    if (!selectedSession) {
+      return { runningDensity: [], speed: [], accelDecel: [], heartRate: [] };
+    }
+
+    const sortedPoints = selectedGpsTrackpoints
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+
+    const speedSamples: Array<{ x: number; speedMps: number; accelMps2: number | null }> = [];
+    for (let index = 1; index < sortedPoints.length; index += 1) {
+      const previous = sortedPoints[index - 1];
+      const current = sortedPoints[index];
+      const deltaSeconds = current.elapsedSeconds - previous.elapsedSeconds;
+      if (deltaSeconds <= 0) {
+        continue;
+      }
+
+      const speedMps = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude) / deltaSeconds;
+      const previousSpeed = speedSamples.at(-1)?.speedMps ?? null;
+      const accelMps2 = previousSpeed === null ? null : (speedMps - previousSpeed) / deltaSeconds;
+      speedSamples.push({ x: current.elapsedSeconds, speedMps, accelMps2 });
+    }
+
+    const runningDensity = speedSamples.map((sample) => ({ x: sample.x, y: sample.speedMps * 60 }));
+    const speed = speedSamples.map((sample) => ({ x: sample.x, y: sample.speedMps }));
+    const accelDecel = speedSamples.map((sample) => ({ x: sample.x, y: sample.accelMps2 === null ? null : Math.abs(sample.accelMps2) }));
+    const heartRate = (selectedSession.summary.heartRateSamples ?? [])
+      .filter((sample) => !isSegmentScopeActive || !selectedSegment || (sample.elapsedSeconds >= selectedSegment.startSecond && sample.elapsedSeconds <= selectedSegment.endSecond))
+      .map((sample) => ({ x: sample.elapsedSeconds, y: sample.heartRateBpm }));
+
+    return { runningDensity, speed, accelDecel, heartRate };
+  }, [selectedSession, selectedGpsTrackpoints, isSegmentScopeActive, selectedSegment]);
+
+  const activeTimelineTracks = timelineMode === 'rolling' ? timelineRollingTracks : timelineInstantTracks;
+  const timelineAxisMaxSecond = useMemo(() => {
+    const all = [
+      ...activeTimelineTracks.runningDensity,
+      ...activeTimelineTracks.speed,
+      ...activeTimelineTracks.accelDecel,
+      ...activeTimelineTracks.heartRate
+    ];
+
+    const maxTrackSecond = all.length > 0 ? Math.max(...all.map((point) => point.x)) : 0;
+    const durationSecond = selectedSession?.summary.durationSeconds ?? 0;
+    return Math.max(1, Math.ceil(Math.max(maxTrackSecond, durationSecond)));
+  }, [activeTimelineTracks, selectedSession?.summary.durationSeconds]);
+
+  const rollingHsrEventTotal = useMemo(() => selectedAnalysisAggregates.reduce((sum, aggregate) => sum + (aggregate.coreMetrics.highIntensityRunCount ?? 0), 0), [selectedAnalysisAggregates]);
+  const instantHsrEventTotal = useMemo(() => {
+    const threshold = Number(selectedSession?.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? Number.NaN);
+    if (!Number.isFinite(threshold)) {
+      return null;
+    }
+
+    return timelineInstantTracks.speed.reduce((sum, point) => sum + ((point.y ?? 0) >= threshold ? 1 : 0), 0);
+  }, [selectedSession?.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps, timelineInstantTracks.speed]);
+
   const codBandCountsByScope = useMemo(() => {
     if (!selectedSession) {
       return { moderate: 0, high: 0, veryHigh: 0, total: 0 };
@@ -5888,6 +6037,11 @@ export function App() {
             {analysisAccordionState.intervalAggregation && (
             <div className="analysis-disclosure__content">
             <p>{t.intervalAggregationExplanation}</p>
+            <div className="timeline-mode-switch" role="group" aria-label={t.timelineModeLabel}>
+              <span>{t.timelineModeLabel}</span>
+              <button type="button" className={timelineMode === 'instant' ? 'is-active' : ''} onClick={() => setTimelineMode('instant')}>{t.timelineModeInstant}</button>
+              <button type="button" className={timelineMode === 'rolling' ? 'is-active' : ''} onClick={() => setTimelineMode('rolling')}>{t.timelineModeRolling}</button>
+            </div>
             <label className="form-label" htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
             <select className="form-select"
               id="interval-window-selector"
@@ -5899,6 +6053,18 @@ export function App() {
               <option value={5}>{t.intervalAggregationWindow5}</option>
             </select>
             <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedAnalysisAggregates.length.toString() })}</p>
+            <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: 0:00 – {formatSecondsMmSs(timelineAxisMaxSecond)}</p>
+            <div className="timeline-tracks">
+              <TimelineTrackChart label={t.timelineTrackRunningDensity} points={activeTimelineTracks.runningDensity} axisMaxSecond={timelineAxisMaxSecond} valueSuffix=" m/min" />
+              <TimelineTrackChart
+                label={`${t.timelineTrackSpeedHsr} (${(timelineMode === 'rolling' ? rollingHsrEventTotal : instantHsrEventTotal) ?? 0})`}
+                points={activeTimelineTracks.speed}
+                axisMaxSecond={timelineAxisMaxSecond}
+                valueSuffix=" m/s"
+              />
+              <TimelineTrackChart label={t.timelineTrackAccelDecel} points={activeTimelineTracks.accelDecel} axisMaxSecond={timelineAxisMaxSecond} valueSuffix=" /s²" />
+              <TimelineTrackChart label={t.timelineTrackHeartRate} points={activeTimelineTracks.heartRate} axisMaxSecond={timelineAxisMaxSecond} valueSuffix=" bpm" />
+            </div>
             {selectedAnalysisAggregates.length === 0 ? (
               <p>{isSegmentScopeActive ? t.segmentScopeNoTimelineDataHint : t.intervalAggregationNoData}</p>
             ) : (
@@ -6195,6 +6361,50 @@ type MapSurfaceProps = {
   satelliteImageUrl: string;
   children: ReactNode;
 };
+
+type TimelinePoint = { x: number; y: number | null };
+
+type TimelineTrackChartProps = {
+  label: string;
+  points: TimelinePoint[];
+  axisMaxSecond: number;
+  valueSuffix?: string;
+};
+
+function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix }: TimelineTrackChartProps) {
+  const width = 560;
+  const height = 120;
+  const topPadding = 8;
+  const bottomPadding = 16;
+  const chartHeight = height - topPadding - bottomPadding;
+  const numericValues = points.flatMap((point) => point.y === null ? [] : [point.y]);
+  const yMin = numericValues.length > 0 ? Math.min(...numericValues) : 0;
+  const yMax = numericValues.length > 0 ? Math.max(...numericValues) : 1;
+  const yRange = Math.max(1, yMax - yMin);
+
+  const polylinePoints = points
+    .filter((point) => point.y !== null)
+    .map((point) => {
+      const x = Math.max(0, Math.min(width, (point.x / axisMaxSecond) * width));
+      const y = topPadding + ((yMax - (point.y ?? yMin)) / yRange) * chartHeight;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  return (
+    <article className="timeline-track" aria-label={label}>
+      <div className="timeline-track__header">
+        <h4>{label}</h4>
+        <span>{numericValues.length > 0 ? `${numericValues[numericValues.length - 1].toFixed(1)}${valueSuffix ?? ''}` : 'n/a'}</span>
+      </div>
+      <svg className="timeline-track__svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
+        <line x1="0" y1={height - bottomPadding} x2={width} y2={height - bottomPadding} className="timeline-track__axis" />
+        <line x1="0" y1={topPadding} x2={0} y2={height - bottomPadding} className="timeline-track__axis" />
+        {polylinePoints.length > 0 && <polyline points={polylinePoints} className="timeline-track__line" />}
+      </svg>
+    </article>
+  );
+}
 
 type InteractiveMapProps = {
   zoomInLabel: string;

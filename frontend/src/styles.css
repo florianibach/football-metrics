@@ -2244,3 +2244,72 @@ input[type='checkbox']::before {
   white-space: nowrap !important;
   border: 0 !important;
 }
+
+.timeline-mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.timeline-mode-switch button {
+  width: auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+}
+
+.timeline-mode-switch button.is-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.timeline-shared-axis {
+  margin: 0.2rem 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.timeline-tracks {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.timeline-track {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+  background: var(--surface);
+}
+
+.timeline-track__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.timeline-track__header h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.timeline-track__svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.timeline-track__axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.timeline-track__line {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
