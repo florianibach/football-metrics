@@ -1495,6 +1495,8 @@ describe('App', () => {
     });
 
     expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
+    expect(screen.getByText(/Shared time axis: 0\.0 – .* min · Cursor: .* min/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Timeline navigation slider')).toHaveAttribute('step', '0.5');
     expect(screen.getByText('Windows: 1')).toBeInTheDocument();
     expect(screen.getByRole('article', { name: 'm/min' })).toBeInTheDocument();
 
@@ -3897,6 +3899,7 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Timeline/ }));
     expect(screen.getByText('Segment-focused analysis is active.')).toBeInTheDocument();
+    expect(screen.getByText(/Shared time axis: 0\.0 – .* min · Cursor: .* min/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
     expect(screen.getByText('Segment-focused analysis is active.')).toBeInTheDocument();

@@ -505,6 +505,8 @@ type TranslationKey =
   | 'timelineCursorLabel'
   | 'timelineHsrEventLabel'
   | 'timelineXAxisLabel'
+  | 'timelineSharedAxisUnitMinutes'
+  | 'timelineMobileSliderLabel'
   | 'profileSettingsTitle'
   | 'profilePrimaryPosition'
   | 'profileSecondaryPosition'
@@ -946,6 +948,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineCursorLabel: 'Cursor',
     timelineHsrEventLabel: 'HSR events',
     timelineXAxisLabel: 'Time axis',
+    timelineSharedAxisUnitMinutes: 'min',
+    timelineMobileSliderLabel: 'Timeline navigation slider',
     profileSettingsTitle: 'Profile settings',
     profilePrimaryPosition: 'Primary position',
     profileSecondaryPosition: 'Secondary position',
@@ -1372,6 +1376,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineCursorLabel: 'Cursor',
     timelineHsrEventLabel: 'HSR-Events',
     timelineXAxisLabel: 'Zeitachse',
+    timelineSharedAxisUnitMinutes: 'min',
+    timelineMobileSliderLabel: 'Timeline-Navigationsslider',
     profileSettingsTitle: 'Profileinstellungen',
     profilePrimaryPosition: 'Primärposition',
     profileSecondaryPosition: 'Sekundärposition',
@@ -4338,70 +4344,51 @@ export function App() {
   const timelineOffsetSecond = isSegmentScopeActive && selectedSegment ? selectedSegment.startSecond : 0;
   const timelineRangeSecond = isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : null;
 
+  const resolveAggregateOffsetSeconds = useCallback((aggregate: IntervalAggregate, activityStartMs: number): number => {
+    const startMs = new Date(aggregate.windowStartUtc).getTime();
+    if (Number.isFinite(startMs) && Number.isFinite(activityStartMs)) {
+      return (startMs - activityStartMs) / 1000;
+    }
+
+    return aggregate.windowIndex;
+  }, []);
+
   const timelineRollingTracks = useMemo(() => {
     const activityStartMs = selectedSession?.summary.activityStartTimeUtc ? new Date(selectedSession.summary.activityStartTimeUtc).getTime() : Number.NaN;
 
-    const runningDensity = selectedAnalysisAggregates
-      .map((aggregate) => {
-        const startMs = new Date(aggregate.windowStartUtc).getTime();
-        const offsetSeconds = Number.isFinite(startMs) && Number.isFinite(activityStartMs)
-          ? (startMs - activityStartMs) / 1000
-          : aggregate.windowIndex * aggregate.windowDurationSeconds;
-        return {
-          x: Math.max(0, (offsetSeconds + aggregate.windowDurationSeconds) - timelineOffsetSecond),
-          y: aggregate.coreMetrics.runningDensityMetersPerMinute
-        };
-      });
+    const mapAggregateToPoint = (aggregate: IntervalAggregate, y: number | null) => {
+      const offsetSeconds = resolveAggregateOffsetSeconds(aggregate, activityStartMs);
+      return {
+        x: Math.max(0, offsetSeconds - timelineOffsetSecond),
+        y
+      };
+    };
 
-    const speed = selectedAnalysisAggregates
-      .map((aggregate) => {
-        const startMs = new Date(aggregate.windowStartUtc).getTime();
-        const offsetSeconds = Number.isFinite(startMs) && Number.isFinite(activityStartMs)
-          ? (startMs - activityStartMs) / 1000
-          : aggregate.windowIndex * aggregate.windowDurationSeconds;
-        return {
-          x: Math.max(0, (offsetSeconds + aggregate.windowDurationSeconds) - timelineOffsetSecond),
-          y: aggregate.coreMetrics.maxSpeedMetersPerSecond
-        };
-      });
+    const runningDensity = selectedAnalysisAggregates.map((aggregate) => mapAggregateToPoint(aggregate, aggregate.coreMetrics.runningDensityMetersPerMinute));
 
-    const accelDecel = selectedAnalysisAggregates
-      .map((aggregate) => {
-        const startMs = new Date(aggregate.windowStartUtc).getTime();
-        const offsetSeconds = Number.isFinite(startMs) && Number.isFinite(activityStartMs)
-          ? (startMs - activityStartMs) / 1000
-          : aggregate.windowIndex * aggregate.windowDurationSeconds;
-        const accel = aggregate.coreMetrics.accelerationCount ?? 0;
-        const decel = aggregate.coreMetrics.decelerationCount ?? 0;
-        return {
-          x: Math.max(0, (offsetSeconds + aggregate.windowDurationSeconds) - timelineOffsetSecond),
-          y: accel + decel
-        };
-      });
+    const speed = selectedAnalysisAggregates.map((aggregate) => mapAggregateToPoint(aggregate, aggregate.coreMetrics.maxSpeedMetersPerSecond));
 
-    const heartRate = selectedAnalysisAggregates
-      .map((aggregate) => {
-        const startMs = new Date(aggregate.windowStartUtc).getTime();
-        const offsetSeconds = Number.isFinite(startMs) && Number.isFinite(activityStartMs)
-          ? (startMs - activityStartMs) / 1000
-          : aggregate.windowIndex * aggregate.windowDurationSeconds;
-        const hrSeconds = (aggregate.coreMetrics.heartRateZoneLowSeconds ?? 0)
-          + (aggregate.coreMetrics.heartRateZoneMediumSeconds ?? 0)
-          + (aggregate.coreMetrics.heartRateZoneHighSeconds ?? 0);
-        const weightedHr = hrSeconds > 0
-          ? (((aggregate.coreMetrics.heartRateZoneLowSeconds ?? 0) * 130)
-            + ((aggregate.coreMetrics.heartRateZoneMediumSeconds ?? 0) * 155)
-            + ((aggregate.coreMetrics.heartRateZoneHighSeconds ?? 0) * 178)) / hrSeconds
-          : null;
+    const accelDecel = selectedAnalysisAggregates.map((aggregate) => {
+      const accel = aggregate.coreMetrics.accelerationCount ?? 0;
+      const decel = aggregate.coreMetrics.decelerationCount ?? 0;
+      return mapAggregateToPoint(aggregate, accel + decel);
+    });
 
-        return {
-          x: Math.max(0, (offsetSeconds + aggregate.windowDurationSeconds) - timelineOffsetSecond),
-          y: weightedHr
-        };
-      });
+    const heartRate = selectedAnalysisAggregates.map((aggregate) => {
+      const hrSeconds = (aggregate.coreMetrics.heartRateZoneLowSeconds ?? 0)
+        + (aggregate.coreMetrics.heartRateZoneMediumSeconds ?? 0)
+        + (aggregate.coreMetrics.heartRateZoneHighSeconds ?? 0);
+      const weightedHr = hrSeconds > 0
+        ? (((aggregate.coreMetrics.heartRateZoneLowSeconds ?? 0) * 130)
+          + ((aggregate.coreMetrics.heartRateZoneMediumSeconds ?? 0) * 155)
+          + ((aggregate.coreMetrics.heartRateZoneHighSeconds ?? 0) * 178)) / hrSeconds
+        : null;
+
+      return mapAggregateToPoint(aggregate, weightedHr);
+    });
 
     return { runningDensity, speed, accelDecel, heartRate };
-  }, [selectedAnalysisAggregates, selectedSession?.summary.activityStartTimeUtc, timelineOffsetSecond]);
+  }, [resolveAggregateOffsetSeconds, selectedAnalysisAggregates, selectedSession?.summary.activityStartTimeUtc, timelineOffsetSecond]);
 
   const timelineInstantTracks = useMemo(() => {
     if (!selectedSession) {
@@ -6099,7 +6086,7 @@ export function App() {
                 <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedAnalysisAggregates.length.toString() })}</p>
               </>
             )}
-            <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: 0:00 – {formatSecondsMmSs(timelineAxisMaxSecond)} · {t.timelineCursorLabel}: {formatSecondsMmSs(Math.round(timelineCursorSecond))}</p>
+            <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: 0.0 – {(timelineAxisMaxSecond / 60).toFixed(1)} {t.timelineSharedAxisUnitMinutes} · {t.timelineCursorLabel}: {(timelineCursorSecond / 60).toFixed(1)} {t.timelineSharedAxisUnitMinutes}</p>
             <p className="timeline-shared-axis">{t.timelineXAxisLabel}</p>
             <div className="timeline-cursor-readout">
               {timelineCursorValues.map((entry) => <span key={entry.key}>{entry.text}</span>)}
@@ -6128,6 +6115,19 @@ export function App() {
             {timelineMode === 'rolling' && selectedAnalysisAggregates.length === 0 && (
               <p>{isSegmentScopeActive ? t.segmentScopeNoTimelineDataHint : t.intervalAggregationNoData}</p>
             )}
+            <div className="timeline-mobile-slider">
+              <label className="form-label" htmlFor="timeline-mobile-cursor">{t.timelineMobileSliderLabel}</label>
+              <input
+                id="timeline-mobile-cursor"
+                type="range"
+                className="form-range"
+                min={0}
+                max={timelineAxisMaxSecond}
+                step={0.5}
+                value={timelineCursorSecond}
+                onChange={(event) => setTimelineCursorSecond(Number(event.target.value))}
+              />
+            </div>
             </div>
           </section>
 

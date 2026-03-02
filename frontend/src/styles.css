@@ -2375,6 +2375,18 @@ input[type='checkbox']::before {
   padding-top: 0.6rem;
 }
 
+
+.timeline-mobile-slider {
+  margin-top: 0.65rem;
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .timeline-mobile-slider {
+    display: block;
+  }
+}
+
 .timeline-cursor-readout {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
