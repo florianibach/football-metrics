@@ -48,16 +48,16 @@ R1.7 fokussiert auf ein **UI-Rework der Session-Detailseite**: bestehende Metrik
 
 ---
 
-## Story R1.7-04: Timeline als synchronisierte Mehrspur-Analyse ausbauen
+## Story R1.7-04: Timeline als synchronisierte Mehrspur-Analyse ausbauen ✅ done
 **Als** Nutzer
 **möchte ich** alle relevanten Belastungsverläufe auf gemeinsamer Zeitachse sehen
 **damit** ich Zusammenhänge zwischen externen und internen Signalen erkenne.
 
 ### Acceptance Criteria
-- [ ] Timeline-Charts sind zeitlich synchronisiert und teilen sich eine gemeinsame X-Achse.
-- [ ] Mindestens folgende Spuren sind darstellbar (datenmodusabhängig): `m/min`, `Speed + HSR Events`, `Accel/Decel Events`, `Heart Rate`.
-- [ ] Zwischen `Instant` und `Rolling` kann umgeschaltet werden.
-- [ ] Rolling unterstützt 1-, 2- und 5-Minuten-Fenster.
+- [x] Timeline-Charts sind zeitlich synchronisiert und teilen sich eine gemeinsame X-Achse.
+- [x] Mindestens folgende Spuren sind darstellbar (datenmodusabhängig): `m/min`, `Speed + HSR Events`, `Accel/Decel Events`, `Heart Rate`.
+- [x] Zwischen `Instant` und `Rolling` kann umgeschaltet werden.
+- [x] Rolling unterstützt 1-, 2- und 5-Minuten-Fenster.
 
 Rolling Window Definition:
 Rolling Fenster werden gleitend über die Session-Zeit berechnet (nicht blockbasiert).

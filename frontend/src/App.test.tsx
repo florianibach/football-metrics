@@ -1493,14 +1493,17 @@ describe('App', () => {
 
     expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
     expect(screen.getByText('Windows: 1')).toBeInTheDocument();
-    expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('article', { name: 'm/min' })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
 
     await waitFor(() => {
       expect(screen.getByText('Windows: 1')).toBeInTheDocument();
-      expect(screen.getByText(/1 min 0 s/)).toBeInTheDocument();
+      expect(screen.getByRole('article', { name: /Speed \+ HSR events/i })).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Instant' }));
+    expect(screen.queryByLabelText('Aggregation window')).not.toBeInTheDocument();
   });
 
 
