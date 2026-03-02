@@ -498,10 +498,17 @@ type TranslationKey =
   | 'timelineModeInstant'
   | 'timelineModeRolling'
   | 'timelineSharedAxisLabel'
+  | 'timelineTrackDistance'
   | 'timelineTrackRunningDensity'
   | 'timelineTrackSpeedHsr'
+  | 'timelineTrackHighSpeedDistance'
   | 'timelineTrackAccelDecel'
   | 'timelineTrackHeartRate'
+  | 'timelineTrackTrimp'
+  | 'timelineMechanicalAccel'
+  | 'timelineMechanicalDecel'
+  | 'timelineMechanicalCod'
+  | 'timelineRollingSamplesLabel'
   | 'timelineCursorLabel'
   | 'timelineHsrEventLabel'
   | 'timelineXAxisLabel'
@@ -941,10 +948,17 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineModeInstant: 'Instant',
     timelineModeRolling: 'Rolling',
     timelineSharedAxisLabel: 'Shared time axis',
-    timelineTrackRunningDensity: 'm/min',
-    timelineTrackSpeedHsr: 'Speed + HSR events',
-    timelineTrackAccelDecel: 'Accel/Decel events',
-    timelineTrackHeartRate: 'Heart Rate',
+    timelineTrackDistance: 'Distance',
+    timelineTrackRunningDensity: 'Running density',
+    timelineTrackSpeedHsr: 'Speed',
+    timelineTrackHighSpeedDistance: 'High-speed distance',
+    timelineTrackAccelDecel: 'Mechanical load',
+    timelineTrackHeartRate: 'Heart Rate (avg)',
+    timelineTrackTrimp: 'TRIMP (Edwards)',
+    timelineMechanicalAccel: 'Accelerations',
+    timelineMechanicalDecel: 'Decelerations',
+    timelineMechanicalCod: 'Direction changes',
+    timelineRollingSamplesLabel: 'Rolling samples: {count}',
     timelineCursorLabel: 'Cursor',
     timelineHsrEventLabel: 'HSR events',
     timelineXAxisLabel: 'Time axis',
@@ -1369,10 +1383,17 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineModeInstant: 'Instant',
     timelineModeRolling: 'Rolling',
     timelineSharedAxisLabel: 'Gemeinsame Zeitachse',
-    timelineTrackRunningDensity: 'm/min',
-    timelineTrackSpeedHsr: 'Tempo + HSR-Events',
-    timelineTrackAccelDecel: 'Accel/Decel-Events',
-    timelineTrackHeartRate: 'Herzfrequenz',
+    timelineTrackDistance: 'Distanz',
+    timelineTrackRunningDensity: 'Laufdichte',
+    timelineTrackSpeedHsr: 'Tempo',
+    timelineTrackHighSpeedDistance: 'High-Speed-Distanz',
+    timelineTrackAccelDecel: 'Mechanische Last',
+    timelineTrackHeartRate: 'Herzfrequenz (Ø)',
+    timelineTrackTrimp: 'TRIMP (Edwards)',
+    timelineMechanicalAccel: 'Beschleunigungen',
+    timelineMechanicalDecel: 'Abbremsungen',
+    timelineMechanicalCod: 'Richtungswechsel',
+    timelineRollingSamplesLabel: 'Rolling-Samples: {count}',
     timelineCursorLabel: 'Cursor',
     timelineHsrEventLabel: 'HSR-Events',
     timelineXAxisLabel: 'Zeitachse',
@@ -4344,93 +4365,245 @@ export function App() {
   const timelineOffsetSecond = isSegmentScopeActive && selectedSegment ? selectedSegment.startSecond : 0;
   const timelineRangeSecond = isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : null;
 
-  const resolveAggregateOffsetSeconds = useCallback((aggregate: IntervalAggregate, activityStartMs: number): number => {
-    const startMs = new Date(aggregate.windowStartUtc).getTime();
-    if (Number.isFinite(startMs) && Number.isFinite(activityStartMs)) {
-      return (startMs - activityStartMs) / 1000;
+  const timelineSecondSeries = useMemo(() => {
+    if (!selectedSession) {
+      return {
+        rolling: { distance: [], runningDensity: [], speed: [], highSpeedDistance: [], mechanicalLoad: [], heartRateAvg: [], trimp: [] },
+        instant: { distance: [], runningDensity: [], speed: [], highSpeedDistance: [], mechanicalLoad: [], heartRateAvg: [], trimp: [] },
+        mechanicalBreakdownBySecond: new Map<number, { accel: number; decel: number; cod: number }>(),
+        rollingSampleCount: 0
+      };
     }
 
-    return aggregate.windowIndex;
-  }, []);
+    const scopeStart = timelineOffsetSecond;
+    const scopeEnd = isSegmentScopeActive && selectedSegment
+      ? selectedSegment.endSecond
+      : Math.max(scopeStart, Math.floor(selectedSession.summary.durationSeconds ?? 0));
 
-  const timelineRollingTracks = useMemo(() => {
-    const activityStartMs = selectedSession?.summary.activityStartTimeUtc ? new Date(selectedSession.summary.activityStartTimeUtc).getTime() : Number.NaN;
+    const gpsPoints = selectedGpsTrackpoints
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds)
+      .filter((point) => point.elapsedSeconds >= scopeStart && point.elapsedSeconds <= scopeEnd);
 
-    const mapAggregateToPoint = (aggregate: IntervalAggregate, y: number | null) => {
-      const offsetSeconds = resolveAggregateOffsetSeconds(aggregate, activityStartMs);
-      return {
-        x: Math.max(0, offsetSeconds - timelineOffsetSecond),
-        y
-      };
+    const durationSeconds = Math.max(1, Math.ceil(scopeEnd - scopeStart));
+    const secondCount = durationSeconds + 1;
+    const distanceDelta = new Array<number>(secondCount).fill(0);
+    const speedBySecond = new Array<number>(secondCount).fill(0);
+    const highSpeedDistanceDelta = new Array<number>(secondCount).fill(0);
+    const accelCountBySecond = new Array<number>(secondCount).fill(0);
+    const decelCountBySecond = new Array<number>(secondCount).fill(0);
+    const codCountBySecond = new Array<number>(secondCount).fill(0);
+    const hrSumBySecond = new Array<number>(secondCount).fill(0);
+    const hrCountBySecond = new Array<number>(secondCount).fill(0);
+    const trimpDeltaBySecond = new Array<number>(secondCount).fill(0);
+
+    const thresholds = selectedSession.summary.coreMetrics.thresholds ?? {};
+    const highSpeedThreshold = Number(thresholds.HighIntensitySpeedThresholdMps ?? (19.8 / 3.6));
+    const accelThreshold = Number(thresholds.ModerateAccelerationThresholdMps2 ?? 2.5);
+    const decelThreshold = Math.abs(Number(thresholds.ModerateDecelerationThresholdMps2 ?? 2.5));
+    const codThreshold = Number(thresholds.CodModerateThresholdDegrees ?? 45);
+    const codMinSpeed = Number(thresholds.CodMinimumSpeedMps ?? (10 / 3.6));
+
+    const toLocalSecond = (absoluteSecond: number) => {
+      const local = Math.round(absoluteSecond - scopeStart);
+      return Math.max(0, Math.min(durationSeconds, local));
     };
 
-    const runningDensity = selectedAnalysisAggregates.map((aggregate) => mapAggregateToPoint(aggregate, aggregate.coreMetrics.runningDensityMetersPerMinute));
-
-    const speed = selectedAnalysisAggregates.map((aggregate) => mapAggregateToPoint(aggregate, aggregate.coreMetrics.maxSpeedMetersPerSecond));
-
-    const accelDecel = selectedAnalysisAggregates.map((aggregate) => {
-      const accel = aggregate.coreMetrics.accelerationCount ?? 0;
-      const decel = aggregate.coreMetrics.decelerationCount ?? 0;
-      return mapAggregateToPoint(aggregate, accel + decel);
-    });
-
-    const heartRate = selectedAnalysisAggregates.map((aggregate) => {
-      const hrSeconds = (aggregate.coreMetrics.heartRateZoneLowSeconds ?? 0)
-        + (aggregate.coreMetrics.heartRateZoneMediumSeconds ?? 0)
-        + (aggregate.coreMetrics.heartRateZoneHighSeconds ?? 0);
-      const weightedHr = hrSeconds > 0
-        ? (((aggregate.coreMetrics.heartRateZoneLowSeconds ?? 0) * 130)
-          + ((aggregate.coreMetrics.heartRateZoneMediumSeconds ?? 0) * 155)
-          + ((aggregate.coreMetrics.heartRateZoneHighSeconds ?? 0) * 178)) / hrSeconds
-        : null;
-
-      return mapAggregateToPoint(aggregate, weightedHr);
-    });
-
-    return { runningDensity, speed, accelDecel, heartRate };
-  }, [resolveAggregateOffsetSeconds, selectedAnalysisAggregates, selectedSession?.summary.activityStartTimeUtc, timelineOffsetSecond]);
-
-  const timelineInstantTracks = useMemo(() => {
-    if (!selectedSession) {
-      return { runningDensity: [], speed: [], accelDecel: [], heartRate: [] };
-    }
-
-    const sortedPoints = selectedGpsTrackpoints
-      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
-      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
-
-    const speedSamples: Array<{ x: number; speedMps: number; accelMps2: number | null }> = [];
-    for (let index = 1; index < sortedPoints.length; index += 1) {
-      const previous = sortedPoints[index - 1];
-      const current = sortedPoints[index];
+    let previousSpeedMps: number | null = null;
+    for (let index = 1; index < gpsPoints.length; index += 1) {
+      const previous = gpsPoints[index - 1];
+      const current = gpsPoints[index];
       const deltaSeconds = current.elapsedSeconds - previous.elapsedSeconds;
       if (deltaSeconds <= 0) {
         continue;
       }
 
-      const speedMps = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude) / deltaSeconds;
-      const previousSpeed = speedSamples.at(-1)?.speedMps ?? null;
-      const accelMps2 = previousSpeed === null ? null : (speedMps - previousSpeed) / deltaSeconds;
-      speedSamples.push({ x: current.elapsedSeconds, speedMps, accelMps2 });
+      const distanceMeters = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude);
+      const speedMps = distanceMeters / deltaSeconds;
+      const currentSecond = toLocalSecond(current.elapsedSeconds);
+      distanceDelta[currentSecond] += distanceMeters;
+      speedBySecond[currentSecond] = speedMps;
+      if (speedMps >= highSpeedThreshold) {
+        highSpeedDistanceDelta[currentSecond] += distanceMeters;
+      }
+
+      if (previousSpeedMps !== null) {
+        const accelMps2 = (speedMps - previousSpeedMps) / deltaSeconds;
+        if (accelMps2 >= accelThreshold) {
+          accelCountBySecond[currentSecond] += 1;
+        }
+        if (accelMps2 <= -decelThreshold) {
+          decelCountBySecond[currentSecond] += 1;
+        }
+      }
+
+      previousSpeedMps = speedMps;
     }
 
-    const runningDensity = speedSamples.map((sample) => ({ x: Math.max(0, sample.x - timelineOffsetSecond), y: sample.speedMps * 60 }));
-    const speed = speedSamples.map((sample) => ({ x: Math.max(0, sample.x - timelineOffsetSecond), y: sample.speedMps }));
-    const accelDecel = speedSamples.map((sample) => ({ x: Math.max(0, sample.x - timelineOffsetSecond), y: sample.accelMps2 === null ? null : Math.abs(sample.accelMps2) }));
-    const heartRate = (selectedSession.summary.heartRateSamples ?? [])
-      .filter((sample) => !isSegmentScopeActive || !selectedSegment || (sample.elapsedSeconds >= selectedSegment.startSecond && sample.elapsedSeconds <= selectedSegment.endSecond))
-      .map((sample) => ({ x: Math.max(0, sample.elapsedSeconds - timelineOffsetSecond), y: sample.heartRateBpm }));
+    for (let index = 1; index < gpsPoints.length - 1; index += 1) {
+      const previous = gpsPoints[index - 1];
+      const current = gpsPoints[index];
+      const next = gpsPoints[index + 1];
 
-    return { runningDensity, speed, accelDecel, heartRate };
-  }, [selectedSession, selectedGpsTrackpoints, isSegmentScopeActive, selectedSegment, timelineOffsetSecond]);
+      const inDistance = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude);
+      const outDistance = haversineMeters(current.latitude, current.longitude, next.latitude, next.longitude);
+      const inDelta = current.elapsedSeconds - previous.elapsedSeconds;
+      const outDelta = next.elapsedSeconds - current.elapsedSeconds;
+      if (inDelta <= 0 || outDelta <= 0) {
+        continue;
+      }
 
-  const activeTimelineTracks = timelineMode === 'rolling' ? timelineRollingTracks : timelineInstantTracks;
+      const inSpeed = inDistance / inDelta;
+      const outSpeed = outDistance / outDelta;
+      if (Math.min(inSpeed, outSpeed) < codMinSpeed) {
+        continue;
+      }
+
+      const incomingBearing = Math.atan2(current.latitude - previous.latitude, current.longitude - previous.longitude);
+      const outgoingBearing = Math.atan2(next.latitude - current.latitude, next.longitude - current.longitude);
+      const diff = Math.abs(outgoingBearing - incomingBearing);
+      const diffDeg = Math.min(diff, (Math.PI * 2) - diff) * (180 / Math.PI);
+      if (diffDeg >= codThreshold) {
+        const currentSecond = toLocalSecond(current.elapsedSeconds);
+        codCountBySecond[currentSecond] += 1;
+      }
+    }
+
+    const hrSamples = (selectedSession.summary.heartRateSamples ?? [])
+      .filter((sample) => sample.elapsedSeconds >= scopeStart && sample.elapsedSeconds <= scopeEnd)
+      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+
+    for (let index = 0; index < hrSamples.length; index += 1) {
+      const sample = hrSamples[index];
+      const localSecond = toLocalSecond(sample.elapsedSeconds);
+      hrSumBySecond[localSecond] += sample.heartRateBpm;
+      hrCountBySecond[localSecond] += 1;
+    }
+
+    for (let second = 0; second <= durationSeconds; second += 1) {
+      if (hrCountBySecond[second] === 0 && second > 0 && hrCountBySecond[second - 1] > 0) {
+        hrSumBySecond[second] = hrSumBySecond[second - 1] / hrCountBySecond[second - 1];
+        hrCountBySecond[second] = 1;
+      }
+      if (hrCountBySecond[second] > 0) {
+        const avgHr = hrSumBySecond[second] / hrCountBySecond[second];
+        const zoneWeight = avgHr < 140 ? 1 : avgHr < 160 ? 2 : 3;
+        trimpDeltaBySecond[second] = zoneWeight / 60;
+      }
+    }
+
+    const prefix = (arr: number[]) => {
+      const output = new Array<number>(arr.length + 1).fill(0);
+      for (let idx = 0; idx < arr.length; idx += 1) {
+        output[idx + 1] = output[idx] + arr[idx];
+      }
+      return output;
+    };
+
+    const distancePrefix = prefix(distanceDelta);
+    const highSpeedDistancePrefix = prefix(highSpeedDistanceDelta);
+    const accelPrefix = prefix(accelCountBySecond);
+    const decelPrefix = prefix(decelCountBySecond);
+    const codPrefix = prefix(codCountBySecond);
+    const hrSumPrefix = prefix(hrSumBySecond);
+    const hrCountPrefix = prefix(hrCountBySecond);
+    const trimpPrefix = prefix(trimpDeltaBySecond);
+
+    const rollingWindowSeconds = aggregationWindowMinutes * 60;
+    const rollingDistance: TimelinePoint[] = [];
+    const rollingRunningDensity: TimelinePoint[] = [];
+    const rollingSpeed: TimelinePoint[] = [];
+    const rollingHighSpeedDistance: TimelinePoint[] = [];
+    const rollingMechanicalLoad: TimelinePoint[] = [];
+    const rollingHeartRateAvg: TimelinePoint[] = [];
+    const rollingTrimp: TimelinePoint[] = [];
+
+    const instantDistance: TimelinePoint[] = [];
+    const instantRunningDensity: TimelinePoint[] = [];
+    const instantSpeed: TimelinePoint[] = [];
+    const instantHighSpeedDistance: TimelinePoint[] = [];
+    const instantMechanicalLoad: TimelinePoint[] = [];
+    const instantHeartRateAvg: TimelinePoint[] = [];
+    const instantTrimp: TimelinePoint[] = [];
+
+    const mechanicalBreakdownBySecond = new Map<number, { accel: number; decel: number; cod: number }>();
+
+    for (let second = 0; second <= durationSeconds; second += 1) {
+      const rangeStart = Math.max(0, second - rollingWindowSeconds + 1);
+      const sumOverRange = (pref: number[]) => pref[second + 1] - pref[rangeStart];
+      const distanceRollingSum = sumOverRange(distancePrefix);
+      const highSpeedRollingSum = sumOverRange(highSpeedDistancePrefix);
+      const accelRolling = sumOverRange(accelPrefix);
+      const decelRolling = sumOverRange(decelPrefix);
+      const codRolling = sumOverRange(codPrefix);
+      const hrRollingSum = sumOverRange(hrSumPrefix);
+      const hrRollingCount = sumOverRange(hrCountPrefix);
+      const trimpRolling = sumOverRange(trimpPrefix);
+      const windowLengthSeconds = second - rangeStart + 1;
+
+      const x = second;
+      rollingDistance.push({ x, y: distanceRollingSum });
+      rollingRunningDensity.push({ x, y: windowLengthSeconds > 0 ? (distanceRollingSum / windowLengthSeconds) * 60 : null });
+      rollingSpeed.push({ x, y: windowLengthSeconds > 0 ? distanceRollingSum / windowLengthSeconds : null });
+      rollingHighSpeedDistance.push({ x, y: highSpeedRollingSum });
+      rollingMechanicalLoad.push({ x, y: accelRolling + decelRolling + codRolling });
+      rollingHeartRateAvg.push({ x, y: hrRollingCount > 0 ? hrRollingSum / hrRollingCount : null });
+      rollingTrimp.push({ x, y: trimpRolling });
+
+      const cumulativeDistance = distancePrefix[second + 1];
+      const cumulativeHighSpeedDistance = highSpeedDistancePrefix[second + 1];
+      const mechanicalInstant = accelCountBySecond[second] + decelCountBySecond[second] + codCountBySecond[second];
+      const hrInstant = hrCountBySecond[second] > 0 ? (hrSumBySecond[second] / hrCountBySecond[second]) : null;
+
+      instantDistance.push({ x, y: cumulativeDistance });
+      instantRunningDensity.push({ x, y: speedBySecond[second] * 60 });
+      instantSpeed.push({ x, y: speedBySecond[second] });
+      instantHighSpeedDistance.push({ x, y: cumulativeHighSpeedDistance });
+      instantMechanicalLoad.push({ x, y: mechanicalInstant });
+      instantHeartRateAvg.push({ x, y: hrInstant });
+      instantTrimp.push({ x, y: trimpDeltaBySecond[second] });
+
+      mechanicalBreakdownBySecond.set(x, {
+        accel: timelineMode === 'rolling' ? accelRolling : accelCountBySecond[second],
+        decel: timelineMode === 'rolling' ? decelRolling : decelCountBySecond[second],
+        cod: timelineMode === 'rolling' ? codRolling : codCountBySecond[second]
+      });
+    }
+
+    return {
+      rolling: {
+        distance: rollingDistance,
+        runningDensity: rollingRunningDensity,
+        speed: rollingSpeed,
+        highSpeedDistance: rollingHighSpeedDistance,
+        mechanicalLoad: rollingMechanicalLoad,
+        heartRateAvg: rollingHeartRateAvg,
+        trimp: rollingTrimp
+      },
+      instant: {
+        distance: instantDistance,
+        runningDensity: instantRunningDensity,
+        speed: instantSpeed,
+        highSpeedDistance: instantHighSpeedDistance,
+        mechanicalLoad: instantMechanicalLoad,
+        heartRateAvg: instantHeartRateAvg,
+        trimp: instantTrimp
+      },
+      mechanicalBreakdownBySecond,
+      rollingSampleCount: rollingDistance.length
+    };
+  }, [aggregationWindowMinutes, isSegmentScopeActive, selectedGpsTrackpoints, selectedSegment, selectedSession, timelineMode, timelineOffsetSecond]);
+
+  const activeTimelineTracks = timelineMode === 'rolling' ? timelineSecondSeries.rolling : timelineSecondSeries.instant;
   const timelineAxisMaxSecond = useMemo(() => {
     const all = [
+      ...activeTimelineTracks.distance,
       ...activeTimelineTracks.runningDensity,
       ...activeTimelineTracks.speed,
-      ...activeTimelineTracks.accelDecel,
-      ...activeTimelineTracks.heartRate
+      ...activeTimelineTracks.highSpeedDistance,
+      ...activeTimelineTracks.mechanicalLoad,
+      ...activeTimelineTracks.heartRateAvg,
+      ...activeTimelineTracks.trimp
     ];
 
     const maxTrackSecond = all.length > 0 ? Math.max(...all.map((point) => point.x)) : 0;
@@ -4438,21 +4611,21 @@ export function App() {
     return Math.max(1, Math.ceil(Math.max(maxTrackSecond, durationSecond)));
   }, [activeTimelineTracks, selectedSession?.summary.durationSeconds, timelineRangeSecond]);
 
-  const hsrEventTotal = useMemo(() => selectedDetectedRuns.filter((run) => run.runType === 'highIntensity').length, [selectedDetectedRuns]);
-
   const timelineSpeedUnit = selectedSession?.selectedSpeedUnit ?? 'km/h';
   const timelineSeries = useMemo<TimelineSeries[]>(() => [
+    { key: 'distance', label: t.timelineTrackDistance, valueSuffix: ' m', points: activeTimelineTracks.distance },
     { key: 'runningDensity', label: t.timelineTrackRunningDensity, valueSuffix: ' m/min', points: activeTimelineTracks.runningDensity },
     {
       key: 'speed',
-      label: `${t.timelineTrackSpeedHsr} (${hsrEventTotal} ${t.timelineHsrEventLabel})`,
+      label: t.timelineTrackSpeedHsr,
       valueFormatter: (valueMps) => formatSpeed(valueMps, timelineSpeedUnit, t.notAvailable),
       points: activeTimelineTracks.speed
     },
-    { key: 'accelDecel', label: t.timelineTrackAccelDecel, valueSuffix: ' /s²', points: activeTimelineTracks.accelDecel },
-    { key: 'heartRate', label: t.timelineTrackHeartRate, valueSuffix: ' bpm', points: activeTimelineTracks.heartRate }
-  ], [activeTimelineTracks, hsrEventTotal, t, timelineSpeedUnit]);
-
+    { key: 'highSpeedDistance', label: t.timelineTrackHighSpeedDistance, valueSuffix: ' m', points: activeTimelineTracks.highSpeedDistance },
+    { key: 'mechanicalLoad', label: t.timelineTrackAccelDecel, valueSuffix: '', points: activeTimelineTracks.mechanicalLoad },
+    { key: 'heartRateAvg', label: t.timelineTrackHeartRate, valueSuffix: ' bpm', points: activeTimelineTracks.heartRateAvg },
+    { key: 'trimp', label: t.timelineTrackTrimp, valueSuffix: '', points: activeTimelineTracks.trimp }
+  ], [activeTimelineTracks, t, timelineSpeedUnit]);
   useEffect(() => {
     setTimelineCursorSecond((current) => Math.max(0, Math.min(timelineAxisMaxSecond, current)));
   }, [timelineAxisMaxSecond]);
@@ -4463,12 +4636,22 @@ export function App() {
       return { key: series.key, text: t.notAvailable };
     }
 
-    const text = series.valueFormatter
+    if (series.key === 'mechanicalLoad') {
+      const second = Math.round(nearest.x);
+      const breakdown = timelineSecondSeries.mechanicalBreakdownBySecond.get(second) ?? { accel: 0, decel: 0, cod: 0 };
+      const total = breakdown.accel + breakdown.decel + breakdown.cod;
+      return {
+        key: series.key,
+        text: `${total.toFixed(0)} (${t.timelineMechanicalAccel}: ${breakdown.accel.toFixed(0)} · ${t.timelineMechanicalDecel}: ${breakdown.decel.toFixed(0)} · ${t.timelineMechanicalCod}: ${breakdown.cod.toFixed(0)})`
+      };
+    }
+
+    const textValue = series.valueFormatter
       ? series.valueFormatter(nearest.y)
       : `${nearest.y.toFixed(1)}${series.valueSuffix ?? ''}`;
 
-    return { key: series.key, text };
-  }), [timelineCursorSecond, timelineSeries, t.notAvailable]);
+    return { key: series.key, text: textValue };
+  }), [timelineCursorSecond, timelineSecondSeries.mechanicalBreakdownBySecond, timelineSeries, t.notAvailable, t.timelineMechanicalAccel, t.timelineMechanicalCod, t.timelineMechanicalDecel]);
 
   const codBandCountsByScope = useMemo(() => {
     if (!selectedSession) {
@@ -6083,7 +6266,7 @@ export function App() {
                   <option value={2}>{t.intervalAggregationWindow2}</option>
                   <option value={5}>{t.intervalAggregationWindow5}</option>
                 </select>
-                <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedAnalysisAggregates.length.toString() })}</p>
+                <p>{interpolate(t.timelineRollingSamplesLabel, { count: timelineSecondSeries.rollingSampleCount.toString() })}</p>
               </>
             )}
             <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: 0.0 – {(timelineAxisMaxSecond / 60).toFixed(1)} {t.timelineSharedAxisUnitMinutes} · {t.timelineCursorLabel}: {(timelineCursorSecond / 60).toFixed(1)} {t.timelineSharedAxisUnitMinutes}</p>
@@ -6387,7 +6570,7 @@ type MapSurfaceProps = {
 type TimelinePoint = { x: number; y: number | null };
 
 type TimelineSeries = {
-  key: 'runningDensity' | 'speed' | 'accelDecel' | 'heartRate';
+  key: 'distance' | 'runningDensity' | 'speed' | 'highSpeedDistance' | 'mechanicalLoad' | 'heartRateAvg' | 'trimp';
   label: string;
   valueSuffix?: string;
   valueFormatter?: (value: number) => string;
@@ -6454,9 +6637,11 @@ function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineCol
   const cursorGuideY = nearestCursorPoint?.y === null || nearestCursorPoint?.y === undefined
     ? null
     : (topPadding + ((yMax - nearestCursorPoint.y) / yRange) * chartHeight);
+  const cursorLabelWidth = 180;
+  const cursorLabelX = Math.max(2, Math.min(width - cursorLabelWidth - 2, cursorX + 4));
 
   return (
-    <article className="timeline-track" aria-label={label}>
+    <div className="timeline-track" aria-label={label}>
       <div className="timeline-track__header">
         <h4>{label}</h4>
         <span>{currentValueLabel || (numericValues.length > 0 ? `${numericValues[numericValues.length - 1].toFixed(1)}${valueSuffix ?? ''}` : 'n/a')}</span>
@@ -6483,8 +6668,8 @@ function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineCol
         {cursorGuideY !== null && <line x1="0" y1={cursorGuideY} x2={width} y2={cursorGuideY} className="timeline-track__cursor-y" />}
         <line x1={cursorX} y1={topPadding} x2={cursorX} y2={height - bottomPadding} className="timeline-track__cursor" />
         {cursorGuideY !== null && (
-          <g transform={`translate(${Math.min(width - 2, cursorX + 4)},${Math.max(topPadding + 10, cursorGuideY - 6)})`}>
-            <rect className="timeline-track__cursor-label-bg" x="0" y="-11" width="86" height="16" rx="3" />
+          <g transform={`translate(${cursorLabelX},${Math.max(topPadding + 10, cursorGuideY - 6)})`}>
+            <rect className="timeline-track__cursor-label-bg" x="0" y="-11" width={cursorLabelWidth} height="16" rx="3" />
             <text className="timeline-track__cursor-label-text" x="4" y="0">{yGuideValueLabel}</text>
           </g>
         )}
@@ -6494,7 +6679,7 @@ function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineCol
           <span key={`${label}-${tick}`}>{xAxisTickFormatter(tick)}</span>
         ))}
       </div>
-    </article>
+    </div>
   );
 }
 

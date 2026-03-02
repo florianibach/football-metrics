@@ -1497,14 +1497,14 @@ describe('App', () => {
     expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
     expect(screen.getByText(/Shared time axis: 0\.0 – .* min · Cursor: .* min/)).toBeInTheDocument();
     expect(screen.getByLabelText('Timeline navigation slider')).toHaveAttribute('step', '0.5');
-    expect(screen.getByText('Windows: 1')).toBeInTheDocument();
-    expect(screen.getByRole('article', { name: 'm/min' })).toBeInTheDocument();
+    expect(screen.getByText(/Rolling samples:/)).toBeInTheDocument();
+    expect(screen.getByText('Running density')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
 
     await waitFor(() => {
-      expect(screen.getByText('Windows: 1')).toBeInTheDocument();
-      expect(screen.getByRole('article', { name: /Speed \+ HSR events/i })).toBeInTheDocument();
+      expect(screen.getByText(/Rolling samples:/)).toBeInTheDocument();
+      expect(screen.getAllByText('Speed').length).toBeGreaterThan(0);
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Instant' }));
@@ -1873,7 +1873,7 @@ describe('App', () => {
     await waitFor(() => expect(getOverviewToggle('Volume')).toBeInTheDocument());
 
     expect(screen.getByText('Volume')).toBeInTheDocument();
-    expect(screen.getByText('Speed')).toBeInTheDocument();
+    expect(screen.getAllByText('Speed').length).toBeGreaterThan(0);
     expect(screen.getByText('Mechanical')).toBeInTheDocument();
     expect(screen.getByText('Internal')).toBeInTheDocument();
   });

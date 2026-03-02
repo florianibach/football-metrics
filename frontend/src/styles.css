@@ -2317,20 +2317,32 @@ input[type='checkbox']::before {
   stroke-linejoin: round;
 }
 
+.timeline-track__line--distance {
+  stroke: color-mix(in srgb, var(--accent) 78%, #00d2a6);
+}
+
 .timeline-track__line--runningDensity {
-  stroke: color-mix(in srgb, var(--accent) 82%, #00d2a6);
+  stroke: color-mix(in srgb, var(--accent) 72%, #30ff88);
 }
 
 .timeline-track__line--speed {
   stroke: color-mix(in srgb, var(--accent) 30%, #42d4ff);
 }
 
-.timeline-track__line--accelDecel {
-  stroke: color-mix(in srgb, var(--accent) 34%, #ffa33c);
+.timeline-track__line--highSpeedDistance {
+  stroke: color-mix(in srgb, var(--accent) 16%, #44a4ff);
 }
 
-.timeline-track__line--heartRate {
-  stroke: color-mix(in srgb, var(--accent) 22%, #ff4d67);
+.timeline-track__line--mechanicalLoad {
+  stroke: color-mix(in srgb, var(--accent) 30%, #ffc65f);
+}
+
+.timeline-track__line--heartRateAvg {
+  stroke: color-mix(in srgb, #ff4d67 84%, #ff7f96);
+}
+
+.timeline-track__line--trimp {
+  stroke: color-mix(in srgb, #e4314b 92%, #fff 8%);
 }
 
 .timeline-track__cursor {
@@ -2353,7 +2365,7 @@ input[type='checkbox']::before {
 
 .timeline-track__cursor-label-text {
   fill: #fff;
-  font-size: 9px;
+  font-size: 8px;
   dominant-baseline: middle;
 }
 
