@@ -637,7 +637,7 @@ describe('App', () => {
       expect(screen.getByText('Session details')).toBeInTheDocument();
     });
 
-    expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Synchronized timeline tracks')).toBeInTheDocument();
     expect(screen.getAllByText(/61 min 1 s/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/110\/142\/178 bpm/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Technical info' }));
@@ -1493,13 +1493,12 @@ describe('App', () => {
 
     expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
     expect(screen.getByText('Windows: 1')).toBeInTheDocument();
-    expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Synchronized timeline tracks')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
 
     await waitFor(() => {
       expect(screen.getByText('Windows: 1')).toBeInTheDocument();
-      expect(screen.getByText(/1 min 0 s/)).toBeInTheDocument();
     });
   });
 
@@ -3853,6 +3852,52 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Technical info' }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/technical-info'));
   });
+
+  it('R1_7_04_Ac01_to_Ac04_renders_synchronized_timeline_tracks_and_supports_instant_vs_rolling', async () => {
+    const timelineSession = createUploadRecord({
+      summary: createSummary({
+        heartRateSamples: [
+          { elapsedSeconds: 0, heartRateBpm: 132 },
+          { elapsedSeconds: 20, heartRateBpm: 140 },
+          { elapsedSeconds: 40, heartRateBpm: 146 },
+          { elapsedSeconds: 70, heartRateBpm: 150 }
+        ]
+      })
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [timelineSession] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredAggregationWindowMinutes: 1 }) } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: /Timeline/ }));
+
+    expect(await screen.findByText('Synchronized timeline tracks')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Volume: m/min' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Speed + high-speed events' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Accel/Decel events' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Heart rate' })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Timeline mode'), { target: { value: 'instant' } });
+    expect(screen.getByText('Instant')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Timeline mode'), { target: { value: 'rolling' } });
+    expect(screen.getByLabelText('Timeline mode')).toHaveValue('rolling');
+    expect(screen.getByLabelText('Aggregation window')).toHaveValue('2');
+  });
+
 
   it('R1_7_06a_Ac02_preserves_segment_scope_while_switching_tabs_and_mobile_views', async () => {
     const withSegment = createUploadRecord({
