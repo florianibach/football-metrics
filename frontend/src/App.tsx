@@ -4392,7 +4392,9 @@ export function App() {
       ? selectedSegment.endSecond
       : Math.max(scopeStart, Math.floor(selectedSession.summary.durationSeconds ?? 0));
 
-    const gpsPoints = selectedGpsTrackpoints
+    // `summary.gpsTrackpoints` are already smoothed by backend filter selection.
+    // We still add a plausibility guard for residual teleport jumps to avoid raw-like spikes in timeline distance.
+    const smoothedGpsPoints = selectedGpsTrackpoints
       .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
       .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds)
       .filter((point) => point.elapsedSeconds >= scopeStart && point.elapsedSeconds <= scopeEnd);
@@ -4415,6 +4417,9 @@ export function App() {
     const decelThreshold = Math.abs(Number(thresholds.ModerateDecelerationThresholdMps2 ?? 2.5));
     const codThreshold = Number(thresholds.CodModerateThresholdDegrees ?? 45);
     const codMinSpeed = Number(thresholds.CodMinimumSpeedMps ?? (10 / 3.6));
+    const fallbackMaxSpeedMps = Number(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond ?? 12);
+    const thresholdMaxSpeedMps = Number(thresholds.EffectiveMaxSpeedMps ?? fallbackMaxSpeedMps);
+    const plausibleSpeedCeilingMps = Math.max(6, (Number.isFinite(thresholdMaxSpeedMps) ? thresholdMaxSpeedMps : fallbackMaxSpeedMps) * 1.25);
 
     const toLocalSecond = (absoluteSecond: number) => {
       const local = Math.round(absoluteSecond - scopeStart);
@@ -4424,9 +4429,9 @@ export function App() {
     let previousSpeedMps: number | null = null;
     let accelEventActive = false;
     let decelEventActive = false;
-    for (let index = 1; index < gpsPoints.length; index += 1) {
-      const previous = gpsPoints[index - 1];
-      const current = gpsPoints[index];
+    for (let index = 1; index < smoothedGpsPoints.length; index += 1) {
+      const previous = smoothedGpsPoints[index - 1];
+      const current = smoothedGpsPoints[index];
       const deltaSeconds = current.elapsedSeconds - previous.elapsedSeconds;
       if (deltaSeconds <= 0) {
         continue;
@@ -4434,6 +4439,11 @@ export function App() {
 
       const distanceMeters = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude);
       const speedMps = distanceMeters / deltaSeconds;
+      if (!Number.isFinite(speedMps) || speedMps > plausibleSpeedCeilingMps) {
+        previousSpeedMps = null;
+        continue;
+      }
+
       const currentSecond = toLocalSecond(current.elapsedSeconds);
       distanceDelta[currentSecond] += distanceMeters;
       speedBySecond[currentSecond] = speedMps;
@@ -4465,10 +4475,10 @@ export function App() {
     }
 
     let codEventActive = false;
-    for (let index = 1; index < gpsPoints.length - 1; index += 1) {
-      const previous = gpsPoints[index - 1];
-      const current = gpsPoints[index];
-      const next = gpsPoints[index + 1];
+    for (let index = 1; index < smoothedGpsPoints.length - 1; index += 1) {
+      const previous = smoothedGpsPoints[index - 1];
+      const current = smoothedGpsPoints[index];
+      const next = smoothedGpsPoints[index + 1];
 
       const inDistance = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude);
       const outDistance = haversineMeters(current.latitude, current.longitude, next.latitude, next.longitude);
