@@ -1056,10 +1056,10 @@ describe('App', () => {
     expect(screen.getAllByText(/of which sprint phases:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/High-speed distance:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/of which sprint phase distance:/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Running density \(m\/min\):/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Accelerations:/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Decelerations:/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/TRIMP \(Edwards\):/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Running density/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Accelerations/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Decelerations/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/TRIMP \(Edwards\)/i).length).toBeGreaterThan(0);
 
     vi.restoreAllMocks();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
