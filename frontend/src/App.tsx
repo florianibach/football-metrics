@@ -502,6 +502,8 @@ type TranslationKey =
   | 'timelineTrackSpeedHsr'
   | 'timelineTrackAccelDecel'
   | 'timelineTrackHeartRate'
+  | 'timelineCursorLabel'
+  | 'timelineHsrEventLabel'
   | 'profileSettingsTitle'
   | 'profilePrimaryPosition'
   | 'profileSecondaryPosition'
@@ -940,6 +942,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineTrackSpeedHsr: 'Speed + HSR events',
     timelineTrackAccelDecel: 'Accel/Decel events',
     timelineTrackHeartRate: 'Heart Rate',
+    timelineCursorLabel: 'Cursor',
+    timelineHsrEventLabel: 'HSR events',
     profileSettingsTitle: 'Profile settings',
     profilePrimaryPosition: 'Primary position',
     profileSecondaryPosition: 'Secondary position',
@@ -1363,6 +1367,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineTrackSpeedHsr: 'Tempo + HSR-Events',
     timelineTrackAccelDecel: 'Accel/Decel-Events',
     timelineTrackHeartRate: 'Herzfrequenz',
+    timelineCursorLabel: 'Cursor',
+    timelineHsrEventLabel: 'HSR-Events',
     profileSettingsTitle: 'Profileinstellungen',
     profilePrimaryPosition: 'Primärposition',
     profileSecondaryPosition: 'Sekundärposition',
@@ -2654,6 +2660,7 @@ export function App() {
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
   const [timelineMode, setTimelineMode] = useState<TimelineMode>('rolling');
+  const [timelineCursorSecond, setTimelineCursorSecond] = useState(0);
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
     matchResult: null,
@@ -4323,7 +4330,7 @@ export function App() {
           ? (startMs - activityStartMs) / 1000
           : aggregate.windowIndex * aggregate.windowDurationSeconds;
         return {
-          x: Math.max(0, offsetSeconds + (aggregate.windowDurationSeconds / 2)),
+          x: Math.max(0, offsetSeconds + aggregate.windowDurationSeconds),
           y: aggregate.coreMetrics.runningDensityMetersPerMinute
         };
       });
@@ -4335,7 +4342,7 @@ export function App() {
           ? (startMs - activityStartMs) / 1000
           : aggregate.windowIndex * aggregate.windowDurationSeconds;
         return {
-          x: Math.max(0, offsetSeconds + (aggregate.windowDurationSeconds / 2)),
+          x: Math.max(0, offsetSeconds + aggregate.windowDurationSeconds),
           y: aggregate.coreMetrics.maxSpeedMetersPerSecond
         };
       });
@@ -4349,7 +4356,7 @@ export function App() {
         const accel = aggregate.coreMetrics.accelerationCount ?? 0;
         const decel = aggregate.coreMetrics.decelerationCount ?? 0;
         return {
-          x: Math.max(0, offsetSeconds + (aggregate.windowDurationSeconds / 2)),
+          x: Math.max(0, offsetSeconds + aggregate.windowDurationSeconds),
           y: accel + decel
         };
       });
@@ -4370,7 +4377,7 @@ export function App() {
           : null;
 
         return {
-          x: Math.max(0, offsetSeconds + (aggregate.windowDurationSeconds / 2)),
+          x: Math.max(0, offsetSeconds + aggregate.windowDurationSeconds),
           y: weightedHr
         };
       });
@@ -4426,15 +4433,37 @@ export function App() {
     return Math.max(1, Math.ceil(Math.max(maxTrackSecond, durationSecond)));
   }, [activeTimelineTracks, selectedSession?.summary.durationSeconds]);
 
-  const rollingHsrEventTotal = useMemo(() => selectedAnalysisAggregates.reduce((sum, aggregate) => sum + (aggregate.coreMetrics.highIntensityRunCount ?? 0), 0), [selectedAnalysisAggregates]);
-  const instantHsrEventTotal = useMemo(() => {
-    const threshold = Number(selectedSession?.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps ?? Number.NaN);
-    if (!Number.isFinite(threshold)) {
-      return null;
+  const hsrEventTotal = useMemo(() => selectedDetectedRuns.filter((run) => run.runType === 'highIntensity').length, [selectedDetectedRuns]);
+
+  const timelineSpeedUnit = selectedSession?.selectedSpeedUnit ?? 'km/h';
+  const timelineSeries = useMemo<TimelineSeries[]>(() => [
+    { key: 'runningDensity', label: t.timelineTrackRunningDensity, valueSuffix: ' m/min', points: activeTimelineTracks.runningDensity },
+    {
+      key: 'speed',
+      label: `${t.timelineTrackSpeedHsr} (${hsrEventTotal} ${t.timelineHsrEventLabel})`,
+      valueFormatter: (valueMps) => formatSpeed(valueMps, timelineSpeedUnit, t.notAvailable),
+      points: activeTimelineTracks.speed
+    },
+    { key: 'accelDecel', label: t.timelineTrackAccelDecel, valueSuffix: ' /s²', points: activeTimelineTracks.accelDecel },
+    { key: 'heartRate', label: t.timelineTrackHeartRate, valueSuffix: ' bpm', points: activeTimelineTracks.heartRate }
+  ], [activeTimelineTracks, hsrEventTotal, t, timelineSpeedUnit]);
+
+  useEffect(() => {
+    setTimelineCursorSecond((current) => Math.max(0, Math.min(timelineAxisMaxSecond, current)));
+  }, [timelineAxisMaxSecond]);
+
+  const timelineCursorValues = useMemo(() => timelineSeries.map((series) => {
+    const nearest = findNearestTimelinePoint(series.points, timelineCursorSecond);
+    if (!nearest || nearest.y === null) {
+      return { key: series.key, text: t.notAvailable };
     }
 
-    return timelineInstantTracks.speed.reduce((sum, point) => sum + ((point.y ?? 0) >= threshold ? 1 : 0), 0);
-  }, [selectedSession?.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps, timelineInstantTracks.speed]);
+    const text = series.valueFormatter
+      ? series.valueFormatter(nearest.y)
+      : `${nearest.y.toFixed(1)}${series.valueSuffix ?? ''}`;
+
+    return { key: series.key, text };
+  }), [timelineCursorSecond, timelineSeries, t.notAvailable]);
 
   const codBandCountsByScope = useMemo(() => {
     if (!selectedSession) {
@@ -6039,71 +6068,45 @@ export function App() {
             <p>{t.intervalAggregationExplanation}</p>
             <div className="timeline-mode-switch" role="group" aria-label={t.timelineModeLabel}>
               <span>{t.timelineModeLabel}</span>
-              <button type="button" className={timelineMode === 'instant' ? 'is-active' : ''} onClick={() => setTimelineMode('instant')}>{t.timelineModeInstant}</button>
-              <button type="button" className={timelineMode === 'rolling' ? 'is-active' : ''} onClick={() => setTimelineMode('rolling')}>{t.timelineModeRolling}</button>
+              <button type="button" aria-pressed={timelineMode === 'instant'} className={timelineMode === 'instant' ? 'is-active' : ''} onClick={() => setTimelineMode('instant')}>{t.timelineModeInstant}</button>
+              <button type="button" aria-pressed={timelineMode === 'rolling'} className={timelineMode === 'rolling' ? 'is-active' : ''} onClick={() => setTimelineMode('rolling')}>{t.timelineModeRolling}</button>
             </div>
-            <label className="form-label" htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
-            <select className="form-select"
-              id="interval-window-selector"
-              value={aggregationWindowMinutes}
-              onChange={(event) => setAggregationWindowMinutes(Number(event.target.value) as 1 | 2 | 5)}
-            >
-              <option value={1}>{t.intervalAggregationWindow1}</option>
-              <option value={2}>{t.intervalAggregationWindow2}</option>
-              <option value={5}>{t.intervalAggregationWindow5}</option>
-            </select>
-            <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedAnalysisAggregates.length.toString() })}</p>
-            <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: 0:00 – {formatSecondsMmSs(timelineAxisMaxSecond)}</p>
+            {timelineMode === 'rolling' && (
+              <>
+                <label className="form-label" htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
+                <select className="form-select"
+                  id="interval-window-selector"
+                  value={aggregationWindowMinutes}
+                  onChange={(event) => setAggregationWindowMinutes(Number(event.target.value) as 1 | 2 | 5)}
+                >
+                  <option value={1}>{t.intervalAggregationWindow1}</option>
+                  <option value={2}>{t.intervalAggregationWindow2}</option>
+                  <option value={5}>{t.intervalAggregationWindow5}</option>
+                </select>
+                <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedAnalysisAggregates.length.toString() })}</p>
+              </>
+            )}
+            <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: 0:00 – {formatSecondsMmSs(timelineAxisMaxSecond)} · {t.timelineCursorLabel}: {formatSecondsMmSs(Math.round(timelineCursorSecond))}</p>
+            <div className="timeline-cursor-readout">
+              {timelineCursorValues.map((entry) => <span key={entry.key}>{entry.text}</span>)}
+            </div>
             <div className="timeline-tracks">
-              <TimelineTrackChart label={t.timelineTrackRunningDensity} points={activeTimelineTracks.runningDensity} axisMaxSecond={timelineAxisMaxSecond} valueSuffix=" m/min" />
-              <TimelineTrackChart
-                label={`${t.timelineTrackSpeedHsr} (${(timelineMode === 'rolling' ? rollingHsrEventTotal : instantHsrEventTotal) ?? 0})`}
-                points={activeTimelineTracks.speed}
-                axisMaxSecond={timelineAxisMaxSecond}
-                valueSuffix=" m/s"
-              />
-              <TimelineTrackChart label={t.timelineTrackAccelDecel} points={activeTimelineTracks.accelDecel} axisMaxSecond={timelineAxisMaxSecond} valueSuffix=" /s²" />
-              <TimelineTrackChart label={t.timelineTrackHeartRate} points={activeTimelineTracks.heartRate} axisMaxSecond={timelineAxisMaxSecond} valueSuffix=" bpm" />
+              {timelineSeries.map((series) => (
+                <TimelineTrackChart
+                  key={series.key}
+                  label={series.label}
+                  points={series.points}
+                  axisMaxSecond={timelineAxisMaxSecond}
+                  valueSuffix={series.valueSuffix}
+                  lineColorClassName={`timeline-track__line--${series.key}`}
+                  cursorSecond={timelineCursorSecond}
+                  onCursorChange={setTimelineCursorSecond}
+                  currentValueLabel={timelineCursorValues.find((entry) => entry.key === series.key)?.text ?? t.notAvailable}
+                />
+              ))}
             </div>
-            {selectedAnalysisAggregates.length === 0 ? (
+            {timelineMode === 'rolling' && selectedAnalysisAggregates.length === 0 && (
               <p>{isSegmentScopeActive ? t.segmentScopeNoTimelineDataHint : t.intervalAggregationNoData}</p>
-            ) : (
-              <table className="history-table table table-sm interval-table">
-                <thead>
-                  <tr>
-                    <th>{t.intervalAggregationStart}</th>
-                    <th>{t.intervalAggregationCoreMetrics}</th>
-                    <th>{t.intervalAggregationDuration}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedAnalysisAggregates.map((aggregate) => (
-                    <tr key={`${aggregate.windowMinutes}-${aggregate.windowIndex}`}>
-                      <td>{formatLocalDateTime(aggregate.windowStartUtc)}</td>
-                      <td>
-                        <ul className="metrics-list list-group interval-core-metrics-list">
-                          <li className="list-group-item"><strong>{t.metricDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricSprintCount}:</strong> {aggregate.coreMetrics.sprintCount ?? t.notAvailable}</li>
-                          <li className="list-group-item"><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(aggregate.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(aggregate.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricHighIntensityRunCount}:</strong> {aggregate.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
-                          <li className="list-group-item"><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricRunningDensity}:</strong> {formatNumber(aggregate.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
-                          <li className="list-group-item"><strong>{t.metricAccelerationCount}:</strong> {aggregate.coreMetrics.accelerationCount ?? t.notAvailable}</li>
-                          <li className="list-group-item"><strong>{t.metricDecelerationCount}:</strong> {aggregate.coreMetrics.decelerationCount ?? t.notAvailable}</li>
-                          <li className="list-group-item"><strong>{t.metricHrZoneLow}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(aggregate.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
-                          <li className="list-group-item"><strong>{t.metricHrRecovery60}:</strong> {aggregate.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
-                        </ul>
-                      </td>
-                      <td>{formatDuration(aggregate.windowDurationSeconds, locale, t.notAvailable)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             )}
             </div>
             )}
@@ -6364,14 +6367,47 @@ type MapSurfaceProps = {
 
 type TimelinePoint = { x: number; y: number | null };
 
+type TimelineSeries = {
+  key: 'runningDensity' | 'speed' | 'accelDecel' | 'heartRate';
+  label: string;
+  valueSuffix?: string;
+  valueFormatter?: (value: number) => string;
+  points: TimelinePoint[];
+};
+
+function findNearestTimelinePoint(points: TimelinePoint[], cursorSecond: number): TimelinePoint | null {
+  const candidates = points.filter((point) => point.y !== null);
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  let nearest = candidates[0];
+  let nearestDelta = Math.abs(nearest.x - cursorSecond);
+
+  for (let index = 1; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
+    const delta = Math.abs(candidate.x - cursorSecond);
+    if (delta < nearestDelta) {
+      nearest = candidate;
+      nearestDelta = delta;
+    }
+  }
+
+  return nearest;
+}
+
 type TimelineTrackChartProps = {
   label: string;
   points: TimelinePoint[];
   axisMaxSecond: number;
   valueSuffix?: string;
+  lineColorClassName: string;
+  cursorSecond: number;
+  onCursorChange: (second: number) => void;
+  currentValueLabel: string;
 };
 
-function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix }: TimelineTrackChartProps) {
+function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineColorClassName, cursorSecond, onCursorChange, currentValueLabel }: TimelineTrackChartProps) {
   const width = 560;
   const height = 120;
   const topPadding = 8;
@@ -6391,16 +6427,29 @@ function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix }: Timel
     })
     .join(' ');
 
+  const cursorX = Math.max(0, Math.min(width, (cursorSecond / axisMaxSecond) * width));
+
   return (
     <article className="timeline-track" aria-label={label}>
       <div className="timeline-track__header">
         <h4>{label}</h4>
-        <span>{numericValues.length > 0 ? `${numericValues[numericValues.length - 1].toFixed(1)}${valueSuffix ?? ''}` : 'n/a'}</span>
+        <span>{currentValueLabel || (numericValues.length > 0 ? `${numericValues[numericValues.length - 1].toFixed(1)}${valueSuffix ?? ''}` : 'n/a')}</span>
       </div>
-      <svg className="timeline-track__svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
+      <svg
+        className="timeline-track__svg"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={label}
+        onPointerDown={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const localX = ((event.clientX - rect.left) / rect.width) * width;
+          onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
+        }}
+      >
         <line x1="0" y1={height - bottomPadding} x2={width} y2={height - bottomPadding} className="timeline-track__axis" />
         <line x1="0" y1={topPadding} x2={0} y2={height - bottomPadding} className="timeline-track__axis" />
-        {polylinePoints.length > 0 && <polyline points={polylinePoints} className="timeline-track__line" />}
+        {polylinePoints.length > 0 && <polyline points={polylinePoints} className={`timeline-track__line ${lineColorClassName}`} />}
+        <line x1={cursorX} y1={topPadding} x2={cursorX} y2={height - bottomPadding} className="timeline-track__cursor" />
       </svg>
     </article>
   );
