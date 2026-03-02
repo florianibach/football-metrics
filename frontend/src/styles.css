@@ -2270,6 +2270,11 @@ input[type='checkbox']::before {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, #000);
 }
 
+
+.timeline-density-switch {
+  margin: 0.55rem 0 0.65rem;
+}
+
 .timeline-shared-axis {
   margin: 0.2rem 0;
   font-size: 0.85rem;

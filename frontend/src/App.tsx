@@ -952,7 +952,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineModeRolling: 'Rolling',
     timelineDensityLabel: 'Layout',
     timelineDensityStandard: 'Standard',
-    timelineDensityCompact: 'Compact (2 columns)',
+    timelineDensityCompact: 'Compact',
     timelineSharedAxisLabel: 'Shared time axis',
     timelineTrackDistance: 'Distance',
     timelineTrackRunningDensity: 'Running density',
@@ -1390,7 +1390,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineModeRolling: 'Rolling',
     timelineDensityLabel: 'Layout',
     timelineDensityStandard: 'Standard',
-    timelineDensityCompact: 'Kompakt (2 Spalten)',
+    timelineDensityCompact: 'Compact',
     timelineSharedAxisLabel: 'Gemeinsame Zeitachse',
     timelineTrackDistance: 'Distanz',
     timelineTrackRunningDensity: 'Laufdichte',
@@ -6323,7 +6323,7 @@ export function App() {
               <button type="button" aria-pressed={timelineMode === 'instant'} className={timelineMode === 'instant' ? 'is-active' : ''} onClick={() => setTimelineMode('instant')}>{t.timelineModeInstant}</button>
               <button type="button" aria-pressed={timelineMode === 'rolling'} className={timelineMode === 'rolling' ? 'is-active' : ''} onClick={() => setTimelineMode('rolling')}>{t.timelineModeRolling}</button>
             </div>
-            <div className="timeline-mode-switch" role="group" aria-label={t.timelineDensityLabel}>
+            <div className="timeline-mode-switch timeline-density-switch" role="group" aria-label={t.timelineDensityLabel}>
               <span>{t.timelineDensityLabel}</span>
               <button type="button" aria-pressed={timelineDensity === 'standard'} className={timelineDensity === 'standard' ? 'is-active' : ''} onClick={() => setTimelineDensity('standard')}>{t.timelineDensityStandard}</button>
               <button type="button" aria-pressed={timelineDensity === 'compact'} className={timelineDensity === 'compact' ? 'is-active' : ''} onClick={() => setTimelineDensity('compact')}>{t.timelineDensityCompact}</button>

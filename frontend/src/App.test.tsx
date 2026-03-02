@@ -1502,7 +1502,7 @@ describe('App', () => {
     expect(screen.getByText('Layout')).toBeInTheDocument();
     expect(document.querySelector('.timeline-tracks')?.classList.contains('timeline-tracks--compact')).toBe(false);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Compact (2 columns)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Compact' }));
     expect(document.querySelector('.timeline-tracks')?.classList.contains('timeline-tracks--compact')).toBe(true);
 
     fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
