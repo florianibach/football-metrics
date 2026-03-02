@@ -493,6 +493,15 @@ type TranslationKey =
   | 'intervalAggregationCoreMetrics'
   | 'intervalAggregationWindowCount'
   | 'intervalAggregationExplanation'
+  | 'timelineModeLabel'
+  | 'timelineModeInstant'
+  | 'timelineModeRolling'
+  | 'timelineTrackTitle'
+  | 'timelineTrackVolume'
+  | 'timelineTrackSpeed'
+  | 'timelineTrackMechanical'
+  | 'timelineTrackInternal'
+  | 'timelineTrackNoData'
   | 'profileSettingsTitle'
   | 'profilePrimaryPosition'
   | 'profileSecondaryPosition'
@@ -923,6 +932,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationCoreMetrics: 'Core metrics',
     intervalAggregationWindowCount: 'Windows: {count}',
     intervalAggregationExplanation: 'Interval views help you understand how effort changes during a session instead of only seeing one total value. 1-minute windows highlight short, intense phases such as pressing, repeated sprints, or quick transitions. 2-minute windows smooth out noise a bit and make it easier to compare short game phases. 5-minute windows show the broader load trend, for example whether intensity drops after a high-pressure period or rises again near the end. Together, these views help coaches and players identify pacing, fatigue patterns, and where targeted training can improve match performance.',
+    timelineModeLabel: 'Timeline mode',
+    timelineModeInstant: 'Instant',
+    timelineModeRolling: 'Rolling',
+    timelineTrackTitle: 'Synchronized timeline tracks',
+    timelineTrackVolume: 'Volume: m/min',
+    timelineTrackSpeed: 'Speed + high-speed events',
+    timelineTrackMechanical: 'Accel/Decel events',
+    timelineTrackInternal: 'Heart rate',
+    timelineTrackNoData: 'No data in this window.',
     profileSettingsTitle: 'Profile settings',
     profilePrimaryPosition: 'Primary position',
     profileSecondaryPosition: 'Secondary position',
@@ -1338,6 +1356,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationCoreMetrics: 'Kernmetriken',
     intervalAggregationWindowCount: 'Fenster: {count}',
     intervalAggregationExplanation: 'Die Intervallansicht hilft dir zu erkennen, wie sich die Belastung innerhalb einer Einheit verändert – statt nur einen Gesamtwert zu sehen. 1-Minuten-Fenster machen kurze, sehr intensive Phasen sichtbar, zum Beispiel Pressing, wiederholte Sprints oder schnelle Umschaltmomente. 2-Minuten-Fenster glätten das Bild etwas und eignen sich gut, um kurze Spielphasen miteinander zu vergleichen. 5-Minuten-Fenster zeigen den größeren Belastungstrend, etwa ob die Intensität nach einer Druckphase abfällt oder zum Ende wieder ansteigt. Zusammen helfen diese Sichten dabei, Tempoverteilung, Ermüdungsmuster und konkrete Trainingsansätze besser zu verstehen.',
+    timelineModeLabel: 'Timeline-Modus',
+    timelineModeInstant: 'Instant',
+    timelineModeRolling: 'Rolling',
+    timelineTrackTitle: 'Synchronisierte Timeline-Spuren',
+    timelineTrackVolume: 'Volumen: m/min',
+    timelineTrackSpeed: 'Speed + High-Speed-Events',
+    timelineTrackMechanical: 'Accel/Decel-Events',
+    timelineTrackInternal: 'Herzfrequenz',
+    timelineTrackNoData: 'Keine Daten in diesem Fenster.',
     profileSettingsTitle: 'Profileinstellungen',
     profilePrimaryPosition: 'Primärposition',
     profileSecondaryPosition: 'Sekundärposition',
@@ -2628,6 +2655,7 @@ export function App() {
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
+  const [timelineMode, setTimelineMode] = useState<'instant' | 'rolling'>('rolling');
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
     matchResult: null,
@@ -4287,6 +4315,82 @@ export function App() {
 
   const selectedAnalysisAggregates = useMemo(() => selectedAnalysisAggregateSlices.map((slice) => slice.aggregate), [selectedAnalysisAggregateSlices]);
 
+  const timelineHeartRateByWindow = useMemo(() => {
+    if (!selectedSession?.summary.heartRateSamples?.length || !selectedSession.summary.activityStartTimeUtc) {
+      return new Map<string, number | null>();
+    }
+
+    const activityStartMs = new Date(selectedSession.summary.activityStartTimeUtc).getTime();
+    if (!Number.isFinite(activityStartMs)) {
+      return new Map<string, number | null>();
+    }
+
+    const scopedSamples = selectedSession.summary.heartRateSamples
+      .filter((sample) => !isSegmentScopeActive || !selectedSegment || (sample.elapsedSeconds >= selectedSegment.startSecond && sample.elapsedSeconds <= selectedSegment.endSecond));
+
+    const valuesByKey = new Map<string, number | null>();
+    selectedAnalysisAggregates.forEach((aggregate) => {
+      const windowStartMs = new Date(aggregate.windowStartUtc).getTime();
+      const offsetSeconds = (windowStartMs - activityStartMs) / 1000;
+      const windowEndSeconds = offsetSeconds + aggregate.windowDurationSeconds;
+      const samplesInWindow = scopedSamples.filter((sample) => sample.elapsedSeconds >= offsetSeconds && sample.elapsedSeconds < windowEndSeconds);
+      const avg = samplesInWindow.length === 0
+        ? null
+        : samplesInWindow.reduce((sum, sample) => sum + sample.heartRateBpm, 0) / samplesInWindow.length;
+      valuesByKey.set(`${aggregate.windowMinutes}-${aggregate.windowIndex}`, avg);
+    });
+
+    return valuesByKey;
+  }, [selectedSession, selectedAnalysisAggregates, isSegmentScopeActive, selectedSegment]);
+
+  const timelineTrackRows = useMemo(() => selectedAnalysisAggregates.map((aggregate) => ({
+    key: `${aggregate.windowMinutes}-${aggregate.windowIndex}`,
+    windowStartUtc: aggregate.windowStartUtc,
+    durationSeconds: aggregate.windowDurationSeconds,
+    volumeMpm: aggregate.coreMetrics.runningDensityMetersPerMinute,
+    speedMaxMps: aggregate.coreMetrics.maxSpeedMetersPerSecond,
+    speedEventCount: (aggregate.coreMetrics.highIntensityRunCount ?? 0) + (aggregate.coreMetrics.sprintCount ?? 0),
+    accelerationCount: aggregate.coreMetrics.accelerationCount,
+    decelerationCount: aggregate.coreMetrics.decelerationCount,
+    heartRateAvgBpm: timelineHeartRateByWindow.get(`${aggregate.windowMinutes}-${aggregate.windowIndex}`) ?? null
+  })), [selectedAnalysisAggregates, timelineHeartRateByWindow]);
+
+  const instantTimelineRow = useMemo(() => {
+    if (!selectedSession) {
+      return null;
+    }
+
+    const safeRows = timelineTrackRows;
+    const avgVolume = safeRows.length === 0
+      ? null
+      : safeRows.reduce((sum, row) => sum + (row.volumeMpm ?? 0), 0) / safeRows.length;
+    const maxSpeed = safeRows.length === 0
+      ? null
+      : safeRows.reduce((max, row) => Math.max(max, row.speedMaxMps ?? 0), 0);
+    const speedEvents = safeRows.reduce((sum, row) => sum + row.speedEventCount, 0);
+    const accels = safeRows.reduce((sum, row) => sum + (row.accelerationCount ?? 0), 0);
+    const decels = safeRows.reduce((sum, row) => sum + (row.decelerationCount ?? 0), 0);
+    const hrRows = safeRows.filter((row) => row.heartRateAvgBpm !== null);
+
+    return {
+      key: 'instant',
+      windowStartUtc: selectedSession.summary.activityStartTimeUtc ?? selectedSession.uploadedAtUtc,
+      durationSeconds: isSegmentScopeActive && selectedSegment
+        ? Math.max(0, selectedSegment.endSecond - selectedSegment.startSecond)
+        : (selectedSession.summary.durationSeconds ?? 0),
+      volumeMpm: avgVolume,
+      speedMaxMps: maxSpeed,
+      speedEventCount: speedEvents,
+      accelerationCount: accels,
+      decelerationCount: decels,
+      heartRateAvgBpm: hrRows.length === 0 ? null : hrRows.reduce((sum, row) => sum + (row.heartRateAvgBpm ?? 0), 0) / hrRows.length
+    };
+  }, [selectedSession, isSegmentScopeActive, selectedSegment, timelineTrackRows]);
+
+  const activeTimelineTrackRows = timelineMode === 'rolling'
+    ? timelineTrackRows
+    : (instantTimelineRow ? [instantTimelineRow] : []);
+
   const codBandCountsByScope = useMemo(() => {
     if (!selectedSession) {
       return { moderate: 0, high: 0, veryHigh: 0, total: 0 };
@@ -5898,10 +6002,46 @@ export function App() {
               <option value={2}>{t.intervalAggregationWindow2}</option>
               <option value={5}>{t.intervalAggregationWindow5}</option>
             </select>
-            <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedAnalysisAggregates.length.toString() })}</p>
-            {selectedAnalysisAggregates.length === 0 ? (
+            <label className="form-label" htmlFor="timeline-mode-selector">{t.timelineModeLabel}</label>
+            <select className="form-select"
+              id="timeline-mode-selector"
+              value={timelineMode}
+              onChange={(event) => setTimelineMode(event.target.value as 'instant' | 'rolling')}
+            >
+              <option value="instant">{t.timelineModeInstant}</option>
+              <option value="rolling">{t.timelineModeRolling}</option>
+            </select>
+            <p>{interpolate(t.intervalAggregationWindowCount, { count: activeTimelineTrackRows.length.toString() })}</p>
+            <h4>{t.timelineTrackTitle}</h4>
+            {activeTimelineTrackRows.length === 0 ? (
               <p>{isSegmentScopeActive ? t.segmentScopeNoTimelineDataHint : t.intervalAggregationNoData}</p>
             ) : (
+              <table className="history-table table table-sm interval-table">
+                <thead>
+                  <tr>
+                    <th>{t.intervalAggregationStart}</th>
+                    <th>{t.timelineTrackVolume}</th>
+                    <th>{t.timelineTrackSpeed}</th>
+                    <th>{t.timelineTrackMechanical}</th>
+                    <th>{t.timelineTrackInternal}</th>
+                    <th>{t.intervalAggregationDuration}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeTimelineTrackRows.map((row) => (
+                    <tr key={row.key}>
+                      <td>{formatLocalDateTime(row.windowStartUtc)}</td>
+                      <td>{row.volumeMpm === null ? t.timelineTrackNoData : `${formatNumber(row.volumeMpm, locale, t.notAvailable, 1)} m/min`}</td>
+                      <td>{`${formatSpeed(row.speedMaxMps, selectedSession.selectedSpeedUnit, t.notAvailable)} · ${row.speedEventCount}`}</td>
+                      <td>{row.accelerationCount === null && row.decelerationCount === null ? t.timelineTrackNoData : `${row.accelerationCount ?? 0}/${row.decelerationCount ?? 0}`}</td>
+                      <td>{row.heartRateAvgBpm === null ? t.timelineTrackNoData : `${formatNumber(row.heartRateAvgBpm, locale, t.notAvailable, 0)} bpm`}</td>
+                      <td>{formatDuration(row.durationSeconds, locale, t.notAvailable)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {timelineMode === 'rolling' && selectedAnalysisAggregates.length > 0 && (
               <table className="history-table table table-sm interval-table">
                 <thead>
                   <tr>
