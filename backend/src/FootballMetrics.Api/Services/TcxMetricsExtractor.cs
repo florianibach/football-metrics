@@ -16,7 +16,7 @@ public static partial class TcxMetricsExtractor
     private const double HighIntensitySpeedThresholdMetersPerSecond = 5.5;
     private const double AccelerationThresholdMetersPerSecondSquared = 2.0;
     private const double DecelerationThresholdMetersPerSecondSquared = -2.0;
-    private const double PauseGapThresholdSeconds = 15.0;
+    private const double PauseGapThresholdSeconds = 300.0;
 
     public static TcxActivitySummary Extract(XDocument document)
         => Extract(document, TcxSmoothingFilters.AdaptiveMedian, null);
