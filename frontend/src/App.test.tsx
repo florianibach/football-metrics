@@ -1962,7 +1962,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
     const distanceCardAgain = await screen.findByRole('article', { name: 'Distance' });
     fireEvent.click(within(distanceCardAgain).getByRole('button', { name: 'Go to timeline' }));
-    expect(await screen.findByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+    expect(await screen.findByText(/Timeline mode/i)).toBeInTheDocument();
   });
 
   it('R1_7_03_Ac04_metric_help_sidebar_opens_from_kpi_card_info_icon', async () => {
