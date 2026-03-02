@@ -169,7 +169,7 @@ type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
 type SessionSubpage = 'analysis' | 'segments' | 'segmentEdit' | 'compare' | 'sessionSettings' | 'technicalInfo';
 type SessionAnalysisTab = 'overview' | 'timeline' | 'peakDemand' | 'segments' | 'heatmap';
 type TimelineMode = 'instant' | 'rolling';
-type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null; segmentId: string | null };
+type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null; segmentId: string | null; analysisTab: SessionAnalysisTab | null };
 
 
 type ProfileRecalculationJob = {
@@ -504,6 +504,7 @@ type TranslationKey =
   | 'timelineTrackHeartRate'
   | 'timelineCursorLabel'
   | 'timelineHsrEventLabel'
+  | 'timelineXAxisLabel'
   | 'profileSettingsTitle'
   | 'profilePrimaryPosition'
   | 'profileSecondaryPosition'
@@ -944,6 +945,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineTrackHeartRate: 'Heart Rate',
     timelineCursorLabel: 'Cursor',
     timelineHsrEventLabel: 'HSR events',
+    timelineXAxisLabel: 'Time axis',
     profileSettingsTitle: 'Profile settings',
     profilePrimaryPosition: 'Primary position',
     profileSecondaryPosition: 'Secondary position',
@@ -1369,6 +1371,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineTrackHeartRate: 'Herzfrequenz',
     timelineCursorLabel: 'Cursor',
     timelineHsrEventLabel: 'HSR-Events',
+    timelineXAxisLabel: 'Zeitachse',
     profileSettingsTitle: 'Profileinstellungen',
     profilePrimaryPosition: 'Primärposition',
     profileSecondaryPosition: 'Sekundärposition',
@@ -2534,20 +2537,25 @@ function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
 
 function resolveRouteFromPath(pathname: string): RouteState {
   if (pathname === '/uploads') {
-    return { mainPage: 'upload', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+    return { mainPage: 'upload', sessionSubpage: 'analysis', sessionId: null, segmentId: null, analysisTab: null };
   }
 
   if (pathname === '/profiles') {
-    return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+    return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null, segmentId: null, analysisTab: null };
   }
 
   if (pathname === '/') {
-    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null, analysisTab: null };
   }
 
   if (pathname === '/sessions') {
-    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null, analysisTab: null };
   }
+
+  const tabQuery = new URLSearchParams(window.location.search).get('tab');
+  const analysisTab = tabQuery === 'timeline' || tabQuery === 'peakDemand' || tabQuery === 'segments' || tabQuery === 'heatmap' || tabQuery === 'overview'
+    ? tabQuery
+    : null;
 
   const segmentAnalysisRouteMatch = pathname.match(/^\/sessions\/([^/]+)\/segments\/([^/]+)$/);
   if (segmentAnalysisRouteMatch) {
@@ -2555,7 +2563,8 @@ function resolveRouteFromPath(pathname: string): RouteState {
       mainPage: 'session',
       sessionSubpage: 'analysis',
       sessionId: decodeURIComponent(segmentAnalysisRouteMatch[1]),
-      segmentId: decodeURIComponent(segmentAnalysisRouteMatch[2])
+      segmentId: decodeURIComponent(segmentAnalysisRouteMatch[2]),
+      analysisTab
     };
   }
 
@@ -2573,14 +2582,15 @@ function resolveRouteFromPath(pathname: string): RouteState {
       mainPage: 'session',
       sessionSubpage: subpage ?? 'analysis',
       sessionId: decodeURIComponent(sessionRouteMatch[1]),
-      segmentId: null
+      segmentId: null,
+      analysisTab
     };
   }
 
-  return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+  return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null, analysisTab: null };
 }
 
-function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, sessionId: string | null, segmentId: string | null): string {
+function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, sessionId: string | null, segmentId: string | null, analysisTab: SessionAnalysisTab | null): string {
   if (mainPage === 'upload') {
     return '/uploads';
   }
@@ -2617,10 +2627,12 @@ function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, ses
     }
 
     if (sessionSubpage === 'analysis' && segmentId) {
-      return `/sessions/${encodedSessionId}/segments/${encodeURIComponent(segmentId)}`;
+      const base = `/sessions/${encodedSessionId}/segments/${encodeURIComponent(segmentId)}`;
+      return analysisTab && analysisTab !== 'overview' ? `${base}?tab=${analysisTab}` : base;
     }
 
-    return `/sessions/${encodedSessionId}`;
+    const base = `/sessions/${encodedSessionId}`;
+    return analysisTab && analysisTab !== 'overview' ? `${base}?tab=${analysisTab}` : base;
   }
 
   return '/sessions';
@@ -2709,7 +2721,7 @@ export function App() {
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
-  const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>('overview');
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>(initialRoute.analysisTab ?? 'overview');
   const [activeMainPage, setActiveMainPage] = useState<MainPage>(initialRoute.mainPage);
   const [activeSessionIdFromRoute, setActiveSessionIdFromRoute] = useState<string | null>(initialRoute.sessionId);
   const [activeSegmentIdFromRoute, setActiveSegmentIdFromRoute] = useState<string | null>(initialRoute.segmentId);
@@ -2813,6 +2825,9 @@ export function App() {
       setActiveSessionSubpage(route.sessionSubpage);
       setActiveSessionIdFromRoute(route.sessionId);
       setActiveSegmentIdFromRoute(route.segmentId);
+      if (route.analysisTab) {
+        setActiveAnalysisTab(route.analysisTab);
+      }
     };
 
     window.addEventListener('popstate', onPopState);
@@ -2874,14 +2889,15 @@ export function App() {
       activeMainPage,
       activeSessionSubpage,
       activeSessionIdFromRoute ?? selectedSession?.id ?? null,
-      activeMainPage === 'session' && activeSessionSubpage === 'analysis' && analysisScope === 'segment' ? selectedSegmentId : null
+      activeMainPage === 'session' && activeSessionSubpage === 'analysis' && analysisScope === 'segment' ? selectedSegmentId : null,
+      activeMainPage === 'session' && activeSessionSubpage === 'analysis' ? activeAnalysisTab : null
     );
     const currentPath = window.location.pathname;
 
     if (currentPath !== nextPath) {
       window.history.pushState({}, '', nextPath);
     }
-  }, [activeMainPage, activeSessionSubpage, activeSessionIdFromRoute, analysisScope, selectedSegmentId, selectedSession?.id]);
+  }, [activeMainPage, activeSessionSubpage, activeSessionIdFromRoute, analysisScope, selectedSegmentId, selectedSession?.id, activeAnalysisTab]);
 
   useEffect(() => {
     if (activeMainPage === 'session' && !selectedSession) {
@@ -4319,6 +4335,8 @@ export function App() {
   }, [isSegmentScopeActive, selectedSegment, selectedSessionAggregates, selectedSession?.summary.activityStartTimeUtc]);
 
   const selectedAnalysisAggregates = useMemo(() => selectedAnalysisAggregateSlices.map((slice) => slice.aggregate), [selectedAnalysisAggregateSlices]);
+  const timelineOffsetSecond = isSegmentScopeActive && selectedSegment ? selectedSegment.startSecond : 0;
+  const timelineRangeSecond = isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : null;
 
   const timelineRollingTracks = useMemo(() => {
     const activityStartMs = selectedSession?.summary.activityStartTimeUtc ? new Date(selectedSession.summary.activityStartTimeUtc).getTime() : Number.NaN;
@@ -4330,7 +4348,7 @@ export function App() {
           ? (startMs - activityStartMs) / 1000
           : aggregate.windowIndex * aggregate.windowDurationSeconds;
         return {
-          x: Math.max(0, offsetSeconds + aggregate.windowDurationSeconds),
+          x: Math.max(0, (offsetSeconds + aggregate.windowDurationSeconds) - timelineOffsetSecond),
           y: aggregate.coreMetrics.runningDensityMetersPerMinute
         };
       });
@@ -4342,7 +4360,7 @@ export function App() {
           ? (startMs - activityStartMs) / 1000
           : aggregate.windowIndex * aggregate.windowDurationSeconds;
         return {
-          x: Math.max(0, offsetSeconds + aggregate.windowDurationSeconds),
+          x: Math.max(0, (offsetSeconds + aggregate.windowDurationSeconds) - timelineOffsetSecond),
           y: aggregate.coreMetrics.maxSpeedMetersPerSecond
         };
       });
@@ -4356,7 +4374,7 @@ export function App() {
         const accel = aggregate.coreMetrics.accelerationCount ?? 0;
         const decel = aggregate.coreMetrics.decelerationCount ?? 0;
         return {
-          x: Math.max(0, offsetSeconds + aggregate.windowDurationSeconds),
+          x: Math.max(0, (offsetSeconds + aggregate.windowDurationSeconds) - timelineOffsetSecond),
           y: accel + decel
         };
       });
@@ -4377,13 +4395,13 @@ export function App() {
           : null;
 
         return {
-          x: Math.max(0, offsetSeconds + aggregate.windowDurationSeconds),
+          x: Math.max(0, (offsetSeconds + aggregate.windowDurationSeconds) - timelineOffsetSecond),
           y: weightedHr
         };
       });
 
     return { runningDensity, speed, accelDecel, heartRate };
-  }, [selectedAnalysisAggregates, selectedSession?.summary.activityStartTimeUtc]);
+  }, [selectedAnalysisAggregates, selectedSession?.summary.activityStartTimeUtc, timelineOffsetSecond]);
 
   const timelineInstantTracks = useMemo(() => {
     if (!selectedSession) {
@@ -4409,15 +4427,15 @@ export function App() {
       speedSamples.push({ x: current.elapsedSeconds, speedMps, accelMps2 });
     }
 
-    const runningDensity = speedSamples.map((sample) => ({ x: sample.x, y: sample.speedMps * 60 }));
-    const speed = speedSamples.map((sample) => ({ x: sample.x, y: sample.speedMps }));
-    const accelDecel = speedSamples.map((sample) => ({ x: sample.x, y: sample.accelMps2 === null ? null : Math.abs(sample.accelMps2) }));
+    const runningDensity = speedSamples.map((sample) => ({ x: Math.max(0, sample.x - timelineOffsetSecond), y: sample.speedMps * 60 }));
+    const speed = speedSamples.map((sample) => ({ x: Math.max(0, sample.x - timelineOffsetSecond), y: sample.speedMps }));
+    const accelDecel = speedSamples.map((sample) => ({ x: Math.max(0, sample.x - timelineOffsetSecond), y: sample.accelMps2 === null ? null : Math.abs(sample.accelMps2) }));
     const heartRate = (selectedSession.summary.heartRateSamples ?? [])
       .filter((sample) => !isSegmentScopeActive || !selectedSegment || (sample.elapsedSeconds >= selectedSegment.startSecond && sample.elapsedSeconds <= selectedSegment.endSecond))
-      .map((sample) => ({ x: sample.elapsedSeconds, y: sample.heartRateBpm }));
+      .map((sample) => ({ x: Math.max(0, sample.elapsedSeconds - timelineOffsetSecond), y: sample.heartRateBpm }));
 
     return { runningDensity, speed, accelDecel, heartRate };
-  }, [selectedSession, selectedGpsTrackpoints, isSegmentScopeActive, selectedSegment]);
+  }, [selectedSession, selectedGpsTrackpoints, isSegmentScopeActive, selectedSegment, timelineOffsetSecond]);
 
   const activeTimelineTracks = timelineMode === 'rolling' ? timelineRollingTracks : timelineInstantTracks;
   const timelineAxisMaxSecond = useMemo(() => {
@@ -4429,9 +4447,9 @@ export function App() {
     ];
 
     const maxTrackSecond = all.length > 0 ? Math.max(...all.map((point) => point.x)) : 0;
-    const durationSecond = selectedSession?.summary.durationSeconds ?? 0;
+    const durationSecond = timelineRangeSecond ?? (selectedSession?.summary.durationSeconds ?? 0);
     return Math.max(1, Math.ceil(Math.max(maxTrackSecond, durationSecond)));
-  }, [activeTimelineTracks, selectedSession?.summary.durationSeconds]);
+  }, [activeTimelineTracks, selectedSession?.summary.durationSeconds, timelineRangeSecond]);
 
   const hsrEventTotal = useMemo(() => selectedDetectedRuns.filter((run) => run.runType === 'highIntensity').length, [selectedDetectedRuns]);
 
@@ -6059,12 +6077,7 @@ export function App() {
 
           <section className={`analysis-disclosure analysis-block--peak-demand ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'peakDemand' ? "" : "is-hidden"}`}><div className="analysis-disclosure__content"><h3>{t.sessionTabPeakDemand}</h3><p>{isSegmentScopeActive ? t.segmentScopeNoPeakDataHint : t.intervalAggregationNoData}</p></div></section>
           <section className={`interval-aggregation analysis-disclosure analysis-block--interval ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'timeline' ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('intervalAggregation')} aria-expanded={analysisAccordionState.intervalAggregation}>
-              <span>{t.intervalAggregationTitle}</span>
-              <span className="analysis-disclosure__action">{analysisAccordionState.intervalAggregation ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
-            </button>
-            {analysisAccordionState.intervalAggregation && (
-            <div className="analysis-disclosure__content">
+            <div className="analysis-disclosure__content timeline-content-always-open">
             <p>{t.intervalAggregationExplanation}</p>
             <div className="timeline-mode-switch" role="group" aria-label={t.timelineModeLabel}>
               <span>{t.timelineModeLabel}</span>
@@ -6087,11 +6100,15 @@ export function App() {
               </>
             )}
             <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: 0:00 – {formatSecondsMmSs(timelineAxisMaxSecond)} · {t.timelineCursorLabel}: {formatSecondsMmSs(Math.round(timelineCursorSecond))}</p>
+            <p className="timeline-shared-axis">{t.timelineXAxisLabel}</p>
             <div className="timeline-cursor-readout">
               {timelineCursorValues.map((entry) => <span key={entry.key}>{entry.text}</span>)}
             </div>
             <div className="timeline-tracks">
-              {timelineSeries.map((series) => (
+              {timelineSeries.map((series) => {
+                const currentValueText = timelineCursorValues.find((entry) => entry.key === series.key)?.text ?? t.notAvailable;
+                const xAxisTicks = [0, 0.25, 0.5, 0.75, 1].map((factor) => Number((timelineAxisMaxSecond * factor).toFixed(0)));
+                return (
                 <TimelineTrackChart
                   key={series.key}
                   label={series.label}
@@ -6101,15 +6118,17 @@ export function App() {
                   lineColorClassName={`timeline-track__line--${series.key}`}
                   cursorSecond={timelineCursorSecond}
                   onCursorChange={setTimelineCursorSecond}
-                  currentValueLabel={timelineCursorValues.find((entry) => entry.key === series.key)?.text ?? t.notAvailable}
+                  currentValueLabel={currentValueText}
+                  yGuideValueLabel={currentValueText}
+                  xAxisTicks={xAxisTicks}
+                  xAxisTickFormatter={(value) => formatSecondsMmSs(value)}
                 />
-              ))}
+              );})}
             </div>
             {timelineMode === 'rolling' && selectedAnalysisAggregates.length === 0 && (
               <p>{isSegmentScopeActive ? t.segmentScopeNoTimelineDataHint : t.intervalAggregationNoData}</p>
             )}
             </div>
-            )}
           </section>
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && (
@@ -6405,9 +6424,12 @@ type TimelineTrackChartProps = {
   cursorSecond: number;
   onCursorChange: (second: number) => void;
   currentValueLabel: string;
+  yGuideValueLabel: string;
+  xAxisTicks: number[];
+  xAxisTickFormatter: (value: number) => string;
 };
 
-function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineColorClassName, cursorSecond, onCursorChange, currentValueLabel }: TimelineTrackChartProps) {
+function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineColorClassName, cursorSecond, onCursorChange, currentValueLabel, yGuideValueLabel, xAxisTicks, xAxisTickFormatter }: TimelineTrackChartProps) {
   const width = 560;
   const height = 120;
   const topPadding = 8;
@@ -6428,6 +6450,10 @@ function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineCol
     .join(' ');
 
   const cursorX = Math.max(0, Math.min(width, (cursorSecond / axisMaxSecond) * width));
+  const nearestCursorPoint = findNearestTimelinePoint(points, cursorSecond);
+  const cursorGuideY = nearestCursorPoint?.y === null || nearestCursorPoint?.y === undefined
+    ? null
+    : (topPadding + ((yMax - nearestCursorPoint.y) / yRange) * chartHeight);
 
   return (
     <article className="timeline-track" aria-label={label}>
@@ -6445,12 +6471,29 @@ function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineCol
           const localX = ((event.clientX - rect.left) / rect.width) * width;
           onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
         }}
+        onPointerMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const localX = ((event.clientX - rect.left) / rect.width) * width;
+          onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
+        }}
       >
         <line x1="0" y1={height - bottomPadding} x2={width} y2={height - bottomPadding} className="timeline-track__axis" />
         <line x1="0" y1={topPadding} x2={0} y2={height - bottomPadding} className="timeline-track__axis" />
         {polylinePoints.length > 0 && <polyline points={polylinePoints} className={`timeline-track__line ${lineColorClassName}`} />}
+        {cursorGuideY !== null && <line x1="0" y1={cursorGuideY} x2={width} y2={cursorGuideY} className="timeline-track__cursor-y" />}
         <line x1={cursorX} y1={topPadding} x2={cursorX} y2={height - bottomPadding} className="timeline-track__cursor" />
+        {cursorGuideY !== null && (
+          <g transform={`translate(${Math.min(width - 2, cursorX + 4)},${Math.max(topPadding + 10, cursorGuideY - 6)})`}>
+            <rect className="timeline-track__cursor-label-bg" x="0" y="-11" width="86" height="16" rx="3" />
+            <text className="timeline-track__cursor-label-text" x="4" y="0">{yGuideValueLabel}</text>
+          </g>
+        )}
       </svg>
+      <div className="timeline-track__x-axis" aria-label="timeline x axis">
+        {xAxisTicks.map((tick) => (
+          <span key={`${label}-${tick}`}>{xAxisTickFormatter(tick)}</span>
+        ))}
+      </div>
     </article>
   );
 }

@@ -1487,8 +1487,11 @@ describe('App', () => {
 
     render(<App />);
 
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getAllByRole('button', { name: /Timeline/i })[0]);
+
     await waitFor(() => {
-      expect(screen.getByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+      expect(screen.getByText(/Timeline mode/i)).toBeInTheDocument();
     });
 
     expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
@@ -3727,7 +3730,7 @@ describe('App', () => {
   });
 
 
-    it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
+  it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
     const withSegment = createUploadRecord({
       segments: [{ id: 'seg-1', label: 'Segment A', startSecond: 0, endSecond: 300, category: 'Other', notes: 'Segment note' }]
     });
@@ -3761,6 +3764,15 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Overview|Übersicht/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Timeline|Zeitverlauf/ }));
+    await waitFor(() => expect(window.location.search).toContain('tab=timeline'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Peak Demand/ }));
+    await waitFor(() => expect(window.location.search).toContain('tab=peakDemand'));
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Heatmap/ })[0]);
+    await waitFor(() => expect(window.location.search).toContain('tab=heatmap'));
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[0]);
@@ -3845,7 +3857,7 @@ describe('App', () => {
 
     const mobileNav = screen.getByLabelText('Session navigation');
     fireEvent.change(mobileNav, { target: { value: 'timeline' } });
-    expect(await screen.findByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+    expect(await screen.findByText(/Timeline mode/i)).toBeInTheDocument();
 
     fireEvent.change(mobileNav, { target: { value: 'peakDemand' } });
     expect(await screen.findByText('No interval data available for this session.')).toBeInTheDocument();
