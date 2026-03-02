@@ -2261,9 +2261,9 @@ input[type='checkbox']::before {
 }
 
 .timeline-mode-switch button.is-active {
-  background: var(--primary);
+  background: var(--bs-primary);
   color: #fff;
-  border-color: var(--primary);
+  border-color: var(--bs-primary);
 }
 
 .timeline-shared-axis {
@@ -2302,14 +2302,15 @@ input[type='checkbox']::before {
 }
 
 .timeline-track__axis {
-  stroke: var(--border);
-  stroke-width: 1;
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 1.2;
 }
 
 .timeline-track__line {
   fill: none;
-  stroke: var(--primary);
-  stroke-width: 2;
+  stroke: var(--bs-primary);
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--bs-primary) 50%, transparent));
 }
