@@ -2700,6 +2700,7 @@ export function App() {
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
   const [timelineMode, setTimelineMode] = useState<TimelineMode>('rolling');
   const [timelineCursorSecond, setTimelineCursorSecond] = useState(0);
+  const [timelineCursorLocked, setTimelineCursorLocked] = useState(false);
   const [timelineScrollTarget, setTimelineScrollTarget] = useState<TimelineSeries['key'] | null>(null);
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
@@ -4511,6 +4512,28 @@ export function App() {
       }
     }
 
+    const scaleEventSeriesToTarget = (series: number[], targetTotal: number | null | undefined) => {
+      if (targetTotal === null || targetTotal === undefined || !Number.isFinite(targetTotal) || targetTotal < 0) {
+        return series;
+      }
+
+      const actualTotal = series.reduce((sum, value) => sum + value, 0);
+      if (actualTotal <= 0) {
+        return series;
+      }
+
+      const factor = targetTotal / actualTotal;
+      return series.map((value) => value * factor);
+    };
+
+    const accelSourceTotal = !isSegmentScopeActive ? selectedSession.summary.coreMetrics.accelerationCount : null;
+    const decelSourceTotal = !isSegmentScopeActive ? selectedSession.summary.coreMetrics.decelerationCount : null;
+    const codSourceTotal = !isSegmentScopeActive ? selectedSession.summary.coreMetrics.directionChanges : null;
+
+    const scaledAccelCountBySecond = scaleEventSeriesToTarget(accelCountBySecond, accelSourceTotal);
+    const scaledDecelCountBySecond = scaleEventSeriesToTarget(decelCountBySecond, decelSourceTotal);
+    const scaledCodCountBySecond = scaleEventSeriesToTarget(codCountBySecond, codSourceTotal);
+
     const prefix = (arr: number[]) => {
       const output = new Array<number>(arr.length + 1).fill(0);
       for (let idx = 0; idx < arr.length; idx += 1) {
@@ -4521,9 +4544,9 @@ export function App() {
 
     const distancePrefix = prefix(distanceDelta);
     const highSpeedDistancePrefix = prefix(highSpeedDistanceDelta);
-    const accelPrefix = prefix(accelCountBySecond);
-    const decelPrefix = prefix(decelCountBySecond);
-    const codPrefix = prefix(codCountBySecond);
+    const accelPrefix = prefix(scaledAccelCountBySecond);
+    const decelPrefix = prefix(scaledDecelCountBySecond);
+    const codPrefix = prefix(scaledCodCountBySecond);
     const hrSumPrefix = prefix(hrSumBySecond);
     const hrCountPrefix = prefix(hrCountBySecond);
     const trimpPrefix = prefix(trimpDeltaBySecond);
@@ -4569,7 +4592,7 @@ export function App() {
       rollingHeartRateAvg.push({ x, y: hrRollingCount > 0 ? hrRollingSum / hrRollingCount : null });
       rollingTrimp.push({ x, y: trimpRolling });
 
-      const mechanicalInstant = accelCountBySecond[second] + decelCountBySecond[second] + codCountBySecond[second];
+      const mechanicalInstant = scaledAccelCountBySecond[second] + scaledDecelCountBySecond[second] + scaledCodCountBySecond[second];
       const hrInstant = hrCountBySecond[second] > 0 ? (hrSumBySecond[second] / hrCountBySecond[second]) : null;
 
       instantDistance.push({ x, y: distanceDelta[second] });
@@ -4581,9 +4604,9 @@ export function App() {
       instantTrimp.push({ x, y: trimpDeltaBySecond[second] * 60 });
 
       mechanicalBreakdownBySecond.set(x, {
-        accel: timelineMode === 'rolling' ? accelRolling : accelCountBySecond[second],
-        decel: timelineMode === 'rolling' ? decelRolling : decelCountBySecond[second],
-        cod: timelineMode === 'rolling' ? codRolling : codCountBySecond[second]
+        accel: timelineMode === 'rolling' ? accelRolling : scaledAccelCountBySecond[second],
+        decel: timelineMode === 'rolling' ? decelRolling : scaledDecelCountBySecond[second],
+        cod: timelineMode === 'rolling' ? codRolling : scaledCodCountBySecond[second]
       });
     }
 
@@ -4620,13 +4643,13 @@ export function App() {
       ...activeTimelineTracks.highSpeedDistance,
       ...activeTimelineTracks.mechanicalLoad,
       ...activeTimelineTracks.heartRateAvg,
-      ...activeTimelineTracks.trimp
+      ...(timelineMode === 'rolling' ? activeTimelineTracks.trimp : [])
     ];
 
     const maxTrackSecond = all.length > 0 ? Math.max(...all.map((point) => point.x)) : 0;
     const durationSecond = timelineRangeSecond ?? (selectedSession?.summary.durationSeconds ?? 0);
     return Math.max(1, Math.ceil(Math.max(maxTrackSecond, durationSecond)));
-  }, [activeTimelineTracks, selectedSession?.summary.durationSeconds, timelineRangeSecond]);
+  }, [activeTimelineTracks, selectedSession?.summary.durationSeconds, timelineMode, timelineRangeSecond]);
 
   const timelineSpeedUnit = selectedSession?.selectedSpeedUnit ?? 'km/h';
   const timelineSeries = useMemo<TimelineSeries[]>(() => [
@@ -4641,8 +4664,8 @@ export function App() {
     { key: 'highSpeedDistance', label: t.timelineTrackHighSpeedDistance, valueSuffix: ' m', points: activeTimelineTracks.highSpeedDistance },
     { key: 'mechanicalLoad', label: t.timelineTrackAccelDecel, valueSuffix: '', points: activeTimelineTracks.mechanicalLoad },
     { key: 'heartRateAvg', label: t.timelineTrackHeartRate, valueSuffix: ' bpm', points: activeTimelineTracks.heartRateAvg },
-    { key: 'trimp', label: t.timelineTrackTrimp, valueSuffix: '', points: activeTimelineTracks.trimp }
-  ], [activeTimelineTracks, t, timelineSpeedUnit]);
+    ...(timelineMode === 'rolling' ? [{ key: 'trimp' as const, label: t.timelineTrackTrimp, valueSuffix: '', points: activeTimelineTracks.trimp }] : [])
+  ], [activeTimelineTracks, t, timelineMode, timelineSpeedUnit]);
   useEffect(() => {
     setTimelineCursorSecond((current) => Math.max(0, Math.min(timelineAxisMaxSecond, current)));
   }, [timelineAxisMaxSecond]);
@@ -6328,7 +6351,9 @@ export function App() {
                   lineColorClassName={`timeline-track__line--${series.key}`}
                   sliderClassName={`timeline-track__slider timeline-track__slider--${series.key}`}
                   cursorSecond={timelineCursorSecond}
+                  isCursorLocked={timelineCursorLocked}
                   onCursorChange={setTimelineCursorSecond}
+                  onToggleCursorLock={() => setTimelineCursorLocked((current) => !current)}
                   currentValueLabel={currentValueText}
                   yGuideValueLabel={currentValueText}
                   xAxisTicks={xAxisTicks}
@@ -6635,14 +6660,16 @@ type TimelineTrackChartProps = {
   lineColorClassName: string;
   sliderClassName: string;
   cursorSecond: number;
+  isCursorLocked: boolean;
   onCursorChange: (second: number) => void;
+  onToggleCursorLock: () => void;
   currentValueLabel: string;
   yGuideValueLabel: string;
   xAxisTicks: number[];
   xAxisTickFormatter: (value: number) => string;
 };
 
-function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix, lineColorClassName, sliderClassName, cursorSecond, onCursorChange, currentValueLabel, yGuideValueLabel, xAxisTicks, xAxisTickFormatter }: TimelineTrackChartProps) {
+function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix, lineColorClassName, sliderClassName, cursorSecond, isCursorLocked, onCursorChange, onToggleCursorLock, currentValueLabel, yGuideValueLabel, xAxisTicks, xAxisTickFormatter }: TimelineTrackChartProps) {
   const width = 560;
   const height = 120;
   const topPadding = 8;
@@ -6680,12 +6707,22 @@ function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix
         role="img"
         aria-label={label}
         onPointerDown={(event) => {
-          event.currentTarget.setPointerCapture(event.pointerId);
           const rect = event.currentTarget.getBoundingClientRect();
           const localX = ((event.clientX - rect.left) / rect.width) * width;
           onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
+
+          if (event.pointerType === 'mouse') {
+            onToggleCursorLock();
+            return;
+          }
+
+          event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
+          if (event.pointerType === 'mouse' && isCursorLocked) {
+            return;
+          }
+
           const rect = event.currentTarget.getBoundingClientRect();
           const localX = ((event.clientX - rect.left) / rect.width) * width;
           onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
@@ -6702,6 +6739,7 @@ function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix
           <span key={`${label}-${tick}`}>{xAxisTickFormatter(tick)}</span>
         ))}
       </div>
+      <p className="timeline-track__cursor-time">{formatSecondsMmSs(Math.round(cursorSecond))} min</p>
       <div className="timeline-mobile-slider timeline-mobile-slider--track">
         <label className="form-label" htmlFor={`timeline-mobile-cursor-${trackId}`}>{label}</label>
         <p className="timeline-mobile-slider__cursor-time">{formatSecondsMmSs(Math.round(cursorSecond))} min</p>

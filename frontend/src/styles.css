@@ -2384,6 +2384,12 @@ input[type='checkbox']::before {
 .timeline-track__x-axis span:nth-child(4) { text-align: center; }
 .timeline-track__x-axis span:nth-child(5) { text-align: right; }
 
+.timeline-track__cursor-time {
+  margin: 0.18rem 0 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
 .timeline-content-always-open {
   padding-top: 0.6rem;
 }
