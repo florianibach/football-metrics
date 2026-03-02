@@ -2700,6 +2700,7 @@ export function App() {
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
   const [timelineMode, setTimelineMode] = useState<TimelineMode>('rolling');
   const [timelineCursorSecond, setTimelineCursorSecond] = useState(0);
+  const [timelineScrollTarget, setTimelineScrollTarget] = useState<TimelineSeries['key'] | null>(null);
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
     matchResult: null,
@@ -4550,15 +4551,13 @@ export function App() {
       rollingHeartRateAvg.push({ x, y: hrRollingCount > 0 ? hrRollingSum / hrRollingCount : null });
       rollingTrimp.push({ x, y: trimpRolling });
 
-      const cumulativeDistance = distancePrefix[second + 1];
-      const cumulativeHighSpeedDistance = highSpeedDistancePrefix[second + 1];
       const mechanicalInstant = accelCountBySecond[second] + decelCountBySecond[second] + codCountBySecond[second];
       const hrInstant = hrCountBySecond[second] > 0 ? (hrSumBySecond[second] / hrCountBySecond[second]) : null;
 
-      instantDistance.push({ x, y: cumulativeDistance });
+      instantDistance.push({ x, y: distanceDelta[second] });
       instantRunningDensity.push({ x, y: speedBySecond[second] * 60 });
       instantSpeed.push({ x, y: speedBySecond[second] });
-      instantHighSpeedDistance.push({ x, y: cumulativeHighSpeedDistance });
+      instantHighSpeedDistance.push({ x, y: highSpeedDistanceDelta[second] });
       instantMechanicalLoad.push({ x, y: mechanicalInstant });
       instantHeartRateAvg.push({ x, y: hrInstant });
       instantTrimp.push({ x, y: trimpDeltaBySecond[second] });
@@ -4629,6 +4628,18 @@ export function App() {
   useEffect(() => {
     setTimelineCursorSecond((current) => Math.max(0, Math.min(timelineAxisMaxSecond, current)));
   }, [timelineAxisMaxSecond]);
+
+  useEffect(() => {
+    if (activeSessionSubpage !== 'analysis' || activeAnalysisTab !== 'timeline' || !timelineScrollTarget) {
+      return;
+    }
+
+    const trackElement = document.getElementById(`timeline-track-${timelineScrollTarget}`);
+    if (trackElement) {
+      trackElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimelineScrollTarget(null);
+    }
+  }, [activeAnalysisTab, activeSessionSubpage, timelineScrollTarget]);
 
   const timelineCursorValues = useMemo(() => timelineSeries.map((series) => {
     const nearest = findNearestTimelinePoint(series.points, timelineCursorSecond);
@@ -4956,6 +4967,13 @@ export function App() {
 
     setIsMobileNavOpen(false);
   }, []);
+
+  const openTimelineWithFocus = useCallback((seriesKey: TimelineSeries['key']) => {
+    setTimelineScrollTarget(seriesKey);
+    setActiveAnalysisTab('timeline');
+    jumpToSection('session-analysis', 'analysis');
+  }, [jumpToSection]);
+
 
   const getSessionMobileNavValue = useCallback(() => {
     if (activeSessionSubpage === 'analysis') {
@@ -6031,7 +6049,7 @@ export function App() {
                         comparisonBest={distanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistance(distanceComparison.bestSeason, locale, t.notAvailable) }) : null}
                         trendHint={t.kpiTrendContextDepends}
                         actions={[
-                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('distance') },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
                         ]}
                       />}
@@ -6052,7 +6070,7 @@ export function App() {
                         comparisonDelta={formatComparisonDelta(displayedCoreMetrics.runningDensityMetersPerMinute, runningDensityComparison.averageLastFive, locale, 2, ' m/min', 'higher')}
                         comparisonBest={runningDensityComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(runningDensityComparison.bestSeason, locale, t.notAvailable, 2) }) : null}
                         trendHint={t.kpiTrendHigherIsBetter}
-                        actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
+                        actions={[{ label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('runningDensity') }]}
                       />}
                     </div>
                     <ul className="metrics-list list-group overview-legacy-list">
@@ -6086,7 +6104,7 @@ export function App() {
                           `${t.metricOfWhichSprintPhasesCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)}`,
                           `${t.metricHighIntensityTime}: ${withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)}`
                         ]}
-                        actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
+                        actions={[{ label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('speed') }]}
                       />}
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label={t.metricHighSpeedDistance}
@@ -6100,7 +6118,7 @@ export function App() {
                           `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceMetersOnly(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`
                         ]}
                         actions={[
-                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('highSpeedDistance') },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
                         ]}
                       />}
@@ -6140,7 +6158,7 @@ export function App() {
                         ]}
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
                         actions={[
-                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('mechanicalLoad') },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
                         ]}
                       />}
@@ -6196,7 +6214,7 @@ export function App() {
                           `Min: ${selectedSession.summary.heartRateMinBpm ?? t.notAvailable} bpm`,
                           `Max: ${selectedSession.summary.heartRateMaxBpm ?? t.notAvailable} bpm`
                         ]}
-                        actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
+                        actions={[{ label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('heartRateAvg') }]}
                       />}
                       {activeDataMode !== 'GpsOnly' && <HrZonesKpiCard
                         label="HR Zones"
@@ -6213,7 +6231,7 @@ export function App() {
                         trendHint={t.kpiTrendLowerIsBetter}
                         comparisonBest={trimpComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(trimpComparison.bestSeason, locale, t.notAvailable, 1) }) : null}
                         actions={[
-                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('trimp') },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
                         ]}
                       />}
@@ -6272,7 +6290,10 @@ export function App() {
             <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: 0.0 – {(timelineAxisMaxSecond / 60).toFixed(1)} {t.timelineSharedAxisUnitMinutes} · {t.timelineCursorLabel}: {(timelineCursorSecond / 60).toFixed(1)} {t.timelineSharedAxisUnitMinutes}</p>
             <p className="timeline-shared-axis">{t.timelineXAxisLabel}</p>
             <div className="timeline-cursor-readout">
-              {timelineCursorValues.map((entry) => <span key={entry.key}>{entry.text}</span>)}
+              {timelineSeries.map((series) => {
+                const valueText = timelineCursorValues.find((entry) => entry.key === series.key)?.text ?? t.notAvailable;
+                return <span key={series.key}><strong>{series.label}:</strong> {valueText}</span>;
+              })}
             </div>
             <div className="timeline-tracks">
               {timelineSeries.map((series) => {
@@ -6281,11 +6302,13 @@ export function App() {
                 return (
                 <TimelineTrackChart
                   key={series.key}
+                  trackId={`timeline-track-${series.key}`}
                   label={series.label}
                   points={series.points}
                   axisMaxSecond={timelineAxisMaxSecond}
                   valueSuffix={series.valueSuffix}
                   lineColorClassName={`timeline-track__line--${series.key}`}
+                  sliderClassName={`timeline-track__slider timeline-track__slider--${series.key}`}
                   cursorSecond={timelineCursorSecond}
                   onCursorChange={setTimelineCursorSecond}
                   currentValueLabel={currentValueText}
@@ -6298,19 +6321,6 @@ export function App() {
             {timelineMode === 'rolling' && selectedAnalysisAggregates.length === 0 && (
               <p>{isSegmentScopeActive ? t.segmentScopeNoTimelineDataHint : t.intervalAggregationNoData}</p>
             )}
-            <div className="timeline-mobile-slider">
-              <label className="form-label" htmlFor="timeline-mobile-cursor">{t.timelineMobileSliderLabel}</label>
-              <input
-                id="timeline-mobile-cursor"
-                type="range"
-                className="form-range"
-                min={0}
-                max={timelineAxisMaxSecond}
-                step={0.5}
-                value={timelineCursorSecond}
-                onChange={(event) => setTimelineCursorSecond(Number(event.target.value))}
-              />
-            </div>
             </div>
           </section>
 
@@ -6599,11 +6609,13 @@ function findNearestTimelinePoint(points: TimelinePoint[], cursorSecond: number)
 }
 
 type TimelineTrackChartProps = {
+  trackId: string;
   label: string;
   points: TimelinePoint[];
   axisMaxSecond: number;
   valueSuffix?: string;
   lineColorClassName: string;
+  sliderClassName: string;
   cursorSecond: number;
   onCursorChange: (second: number) => void;
   currentValueLabel: string;
@@ -6612,7 +6624,7 @@ type TimelineTrackChartProps = {
   xAxisTickFormatter: (value: number) => string;
 };
 
-function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineColorClassName, cursorSecond, onCursorChange, currentValueLabel, yGuideValueLabel, xAxisTicks, xAxisTickFormatter }: TimelineTrackChartProps) {
+function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix, lineColorClassName, sliderClassName, cursorSecond, onCursorChange, currentValueLabel, yGuideValueLabel, xAxisTicks, xAxisTickFormatter }: TimelineTrackChartProps) {
   const width = 560;
   const height = 120;
   const topPadding = 8;
@@ -6641,7 +6653,7 @@ function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineCol
   const cursorLabelX = Math.max(2, Math.min(width - cursorLabelWidth - 2, cursorX + 4));
 
   return (
-    <div className="timeline-track" aria-label={label}>
+    <div id={trackId} className="timeline-track" aria-label={label}>
       <div className="timeline-track__header">
         <h4>{label}</h4>
         <span>{currentValueLabel || (numericValues.length > 0 ? `${numericValues[numericValues.length - 1].toFixed(1)}${valueSuffix ?? ''}` : 'n/a')}</span>
@@ -6652,11 +6664,15 @@ function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineCol
         role="img"
         aria-label={label}
         onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
           const rect = event.currentTarget.getBoundingClientRect();
           const localX = ((event.clientX - rect.left) / rect.width) * width;
           onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
         }}
         onPointerMove={(event) => {
+          if (event.pointerType === 'mouse' && event.buttons === 0) {
+            return;
+          }
           const rect = event.currentTarget.getBoundingClientRect();
           const localX = ((event.clientX - rect.left) / rect.width) * width;
           onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
@@ -6678,6 +6694,19 @@ function TimelineTrackChart({ label, points, axisMaxSecond, valueSuffix, lineCol
         {xAxisTicks.map((tick) => (
           <span key={`${label}-${tick}`}>{xAxisTickFormatter(tick)}</span>
         ))}
+      </div>
+      <div className="timeline-mobile-slider timeline-mobile-slider--track">
+        <label className="form-label" htmlFor={`timeline-mobile-cursor-${trackId}`}>{label}</label>
+        <input
+          id={`timeline-mobile-cursor-${trackId}`}
+          type="range"
+          className={sliderClassName}
+          min={0}
+          max={axisMaxSecond}
+          step={0.5}
+          value={cursorSecond}
+          onChange={(event) => onCursorChange(Number(event.target.value))}
+        />
       </div>
     </div>
   );

@@ -1496,9 +1496,9 @@ describe('App', () => {
 
     expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
     expect(screen.getByText(/Shared time axis: 0\.0 – .* min · Cursor: .* min/)).toBeInTheDocument();
-    expect(screen.getByLabelText('Timeline navigation slider')).toHaveAttribute('step', '0.5');
+    expect(document.querySelectorAll('.timeline-track__slider[step="0.5"]').length).toBeGreaterThan(0);
     expect(screen.getByText(/Rolling samples:/)).toBeInTheDocument();
-    expect(screen.getByText('Running density')).toBeInTheDocument();
+    expect(screen.getAllByText('Running density').length).toBeGreaterThan(0);
 
     fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
 
