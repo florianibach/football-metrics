@@ -2303,6 +2303,7 @@ input[type='checkbox']::before {
   width: 100%;
   height: auto;
   display: block;
+  touch-action: none;
 }
 
 .timeline-track__axis {
@@ -2404,6 +2405,12 @@ input[type='checkbox']::before {
   margin-bottom: 0.15rem;
   font-size: 0.78rem;
   color: var(--muted);
+}
+
+.timeline-mobile-slider__cursor-time {
+  margin: 0 0 0.2rem;
+  font-size: 0.78rem;
+  color: var(--text);
 }
 
 .timeline-track__slider {

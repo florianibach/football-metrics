@@ -4411,6 +4411,8 @@ export function App() {
     };
 
     let previousSpeedMps: number | null = null;
+    let accelEventActive = false;
+    let decelEventActive = false;
     for (let index = 1; index < gpsPoints.length; index += 1) {
       const previous = gpsPoints[index - 1];
       const current = gpsPoints[index];
@@ -4430,17 +4432,28 @@ export function App() {
 
       if (previousSpeedMps !== null) {
         const accelMps2 = (speedMps - previousSpeedMps) / deltaSeconds;
-        if (accelMps2 >= accelThreshold) {
+
+        if (accelMps2 >= accelThreshold && !accelEventActive) {
           accelCountBySecond[currentSecond] += 1;
+          accelEventActive = true;
         }
-        if (accelMps2 <= -decelThreshold) {
+        if (accelMps2 < accelThreshold * 0.5) {
+          accelEventActive = false;
+        }
+
+        if (accelMps2 <= -decelThreshold && !decelEventActive) {
           decelCountBySecond[currentSecond] += 1;
+          decelEventActive = true;
+        }
+        if (accelMps2 > -(decelThreshold * 0.5)) {
+          decelEventActive = false;
         }
       }
 
       previousSpeedMps = speedMps;
     }
 
+    let codEventActive = false;
     for (let index = 1; index < gpsPoints.length - 1; index += 1) {
       const previous = gpsPoints[index - 1];
       const current = gpsPoints[index];
@@ -4457,6 +4470,7 @@ export function App() {
       const inSpeed = inDistance / inDelta;
       const outSpeed = outDistance / outDelta;
       if (Math.min(inSpeed, outSpeed) < codMinSpeed) {
+        codEventActive = false;
         continue;
       }
 
@@ -4464,9 +4478,13 @@ export function App() {
       const outgoingBearing = Math.atan2(next.latitude - current.latitude, next.longitude - current.longitude);
       const diff = Math.abs(outgoingBearing - incomingBearing);
       const diffDeg = Math.min(diff, (Math.PI * 2) - diff) * (180 / Math.PI);
-      if (diffDeg >= codThreshold) {
+      if (diffDeg >= codThreshold && !codEventActive) {
         const currentSecond = toLocalSecond(current.elapsedSeconds);
         codCountBySecond[currentSecond] += 1;
+        codEventActive = true;
+      }
+      if (diffDeg < codThreshold * 0.6) {
+        codEventActive = false;
       }
     }
 
@@ -4488,7 +4506,7 @@ export function App() {
       }
       if (hrCountBySecond[second] > 0) {
         const avgHr = hrSumBySecond[second] / hrCountBySecond[second];
-        const zoneWeight = avgHr < 140 ? 1 : avgHr < 160 ? 2 : 3;
+        const zoneWeight = avgHr < 120 ? 1 : avgHr < 140 ? 2 : avgHr < 160 ? 3 : avgHr < 180 ? 4 : 5;
         trimpDeltaBySecond[second] = zoneWeight / 60;
       }
     }
@@ -4560,7 +4578,7 @@ export function App() {
       instantHighSpeedDistance.push({ x, y: highSpeedDistanceDelta[second] });
       instantMechanicalLoad.push({ x, y: mechanicalInstant });
       instantHeartRateAvg.push({ x, y: hrInstant });
-      instantTrimp.push({ x, y: trimpDeltaBySecond[second] });
+      instantTrimp.push({ x, y: trimpDeltaBySecond[second] * 60 });
 
       mechanicalBreakdownBySecond.set(x, {
         accel: timelineMode === 'rolling' ? accelRolling : accelCountBySecond[second],
@@ -6287,7 +6305,7 @@ export function App() {
                 <p>{interpolate(t.timelineRollingSamplesLabel, { count: timelineSecondSeries.rollingSampleCount.toString() })}</p>
               </>
             )}
-            <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: 0.0 – {(timelineAxisMaxSecond / 60).toFixed(1)} {t.timelineSharedAxisUnitMinutes} · {t.timelineCursorLabel}: {(timelineCursorSecond / 60).toFixed(1)} {t.timelineSharedAxisUnitMinutes}</p>
+            <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: {formatSecondsMmSs(0)} {t.timelineSharedAxisUnitMinutes} – {formatSecondsMmSs(timelineAxisMaxSecond)} {t.timelineSharedAxisUnitMinutes} · {t.timelineCursorLabel}: {formatSecondsMmSs(Math.round(timelineCursorSecond))} {t.timelineSharedAxisUnitMinutes}</p>
             <p className="timeline-shared-axis">{t.timelineXAxisLabel}</p>
             <div className="timeline-cursor-readout">
               {timelineSeries.map((series) => {
@@ -6649,8 +6667,6 @@ function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix
   const cursorGuideY = nearestCursorPoint?.y === null || nearestCursorPoint?.y === undefined
     ? null
     : (topPadding + ((yMax - nearestCursorPoint.y) / yRange) * chartHeight);
-  const cursorLabelWidth = 180;
-  const cursorLabelX = Math.max(2, Math.min(width - cursorLabelWidth - 2, cursorX + 4));
 
   return (
     <div id={trackId} className="timeline-track" aria-label={label}>
@@ -6670,9 +6686,6 @@ function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix
           onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
         }}
         onPointerMove={(event) => {
-          if (event.pointerType === 'mouse' && event.buttons === 0) {
-            return;
-          }
           const rect = event.currentTarget.getBoundingClientRect();
           const localX = ((event.clientX - rect.left) / rect.width) * width;
           onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
@@ -6683,12 +6696,6 @@ function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix
         {polylinePoints.length > 0 && <polyline points={polylinePoints} className={`timeline-track__line ${lineColorClassName}`} />}
         {cursorGuideY !== null && <line x1="0" y1={cursorGuideY} x2={width} y2={cursorGuideY} className="timeline-track__cursor-y" />}
         <line x1={cursorX} y1={topPadding} x2={cursorX} y2={height - bottomPadding} className="timeline-track__cursor" />
-        {cursorGuideY !== null && (
-          <g transform={`translate(${cursorLabelX},${Math.max(topPadding + 10, cursorGuideY - 6)})`}>
-            <rect className="timeline-track__cursor-label-bg" x="0" y="-11" width={cursorLabelWidth} height="16" rx="3" />
-            <text className="timeline-track__cursor-label-text" x="4" y="0">{yGuideValueLabel}</text>
-          </g>
-        )}
       </svg>
       <div className="timeline-track__x-axis" aria-label="timeline x axis">
         {xAxisTicks.map((tick) => (
@@ -6697,6 +6704,7 @@ function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix
       </div>
       <div className="timeline-mobile-slider timeline-mobile-slider--track">
         <label className="form-label" htmlFor={`timeline-mobile-cursor-${trackId}`}>{label}</label>
+        <p className="timeline-mobile-slider__cursor-time">{formatSecondsMmSs(Math.round(cursorSecond))} min</p>
         <input
           id={`timeline-mobile-cursor-${trackId}`}
           type="range"

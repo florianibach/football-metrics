@@ -1495,7 +1495,7 @@ describe('App', () => {
     });
 
     expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
-    expect(screen.getByText(/Shared time axis: 0\.0 – .* min · Cursor: .* min/)).toBeInTheDocument();
+    expect(screen.getByText(/Shared time axis: \d{1,2}:\d{2} min – .* min · Cursor: .* min/)).toBeInTheDocument();
     expect(document.querySelectorAll('.timeline-track__slider[step="0.5"]').length).toBeGreaterThan(0);
     expect(screen.getByText(/Rolling samples:/)).toBeInTheDocument();
     expect(screen.getAllByText('Running density').length).toBeGreaterThan(0);
@@ -3899,7 +3899,7 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Timeline/ }));
     expect(screen.getByText('Segment-focused analysis is active.')).toBeInTheDocument();
-    expect(screen.getByText(/Shared time axis: 0\.0 – .* min · Cursor: .* min/)).toBeInTheDocument();
+    expect(screen.getByText(/Shared time axis: \d{1,2}:\d{2} min – .* min · Cursor: .* min/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
     expect(screen.getByText('Segment-focused analysis is active.')).toBeInTheDocument();
