@@ -1499,6 +1499,11 @@ describe('App', () => {
     expect(document.querySelectorAll('.timeline-track__slider[step="0.5"]').length).toBeGreaterThan(0);
     expect(screen.getByText(/Rolling samples:/)).toBeInTheDocument();
     expect(screen.getAllByText('Running density').length).toBeGreaterThan(0);
+    expect(screen.getByText('Layout')).toBeInTheDocument();
+    expect(document.querySelector('.timeline-tracks')?.classList.contains('timeline-tracks--compact')).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Compact (2 columns)' }));
+    expect(document.querySelector('.timeline-tracks')?.classList.contains('timeline-tracks--compact')).toBe(true);
 
     fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
 

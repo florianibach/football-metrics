@@ -497,6 +497,9 @@ type TranslationKey =
   | 'timelineModeLabel'
   | 'timelineModeInstant'
   | 'timelineModeRolling'
+  | 'timelineDensityLabel'
+  | 'timelineDensityStandard'
+  | 'timelineDensityCompact'
   | 'timelineSharedAxisLabel'
   | 'timelineTrackDistance'
   | 'timelineTrackRunningDensity'
@@ -947,6 +950,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineModeLabel: 'Timeline mode',
     timelineModeInstant: 'Instant',
     timelineModeRolling: 'Rolling',
+    timelineDensityLabel: 'Layout',
+    timelineDensityStandard: 'Standard',
+    timelineDensityCompact: 'Compact (2 columns)',
     timelineSharedAxisLabel: 'Shared time axis',
     timelineTrackDistance: 'Distance',
     timelineTrackRunningDensity: 'Running density',
@@ -1382,6 +1388,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineModeLabel: 'Timeline-Modus',
     timelineModeInstant: 'Instant',
     timelineModeRolling: 'Rolling',
+    timelineDensityLabel: 'Layout',
+    timelineDensityStandard: 'Standard',
+    timelineDensityCompact: 'Kompakt (2 Spalten)',
     timelineSharedAxisLabel: 'Gemeinsame Zeitachse',
     timelineTrackDistance: 'Distanz',
     timelineTrackRunningDensity: 'Laufdichte',
@@ -2699,6 +2708,7 @@ export function App() {
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
   const [timelineMode, setTimelineMode] = useState<TimelineMode>('rolling');
+  const [timelineDensity, setTimelineDensity] = useState<'standard' | 'compact'>('standard');
   const [timelineCursorSecond, setTimelineCursorSecond] = useState(0);
   const [timelineCursorLocked, setTimelineCursorLocked] = useState(false);
   const [timelineScrollTarget, setTimelineScrollTarget] = useState<TimelineSeries['key'] | null>(null);
@@ -6313,6 +6323,11 @@ export function App() {
               <button type="button" aria-pressed={timelineMode === 'instant'} className={timelineMode === 'instant' ? 'is-active' : ''} onClick={() => setTimelineMode('instant')}>{t.timelineModeInstant}</button>
               <button type="button" aria-pressed={timelineMode === 'rolling'} className={timelineMode === 'rolling' ? 'is-active' : ''} onClick={() => setTimelineMode('rolling')}>{t.timelineModeRolling}</button>
             </div>
+            <div className="timeline-mode-switch" role="group" aria-label={t.timelineDensityLabel}>
+              <span>{t.timelineDensityLabel}</span>
+              <button type="button" aria-pressed={timelineDensity === 'standard'} className={timelineDensity === 'standard' ? 'is-active' : ''} onClick={() => setTimelineDensity('standard')}>{t.timelineDensityStandard}</button>
+              <button type="button" aria-pressed={timelineDensity === 'compact'} className={timelineDensity === 'compact' ? 'is-active' : ''} onClick={() => setTimelineDensity('compact')}>{t.timelineDensityCompact}</button>
+            </div>
             {timelineMode === 'rolling' && (
               <>
                 <label className="form-label" htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
@@ -6336,7 +6351,7 @@ export function App() {
                 return <span key={series.key}><strong>{series.label}:</strong> {valueText}</span>;
               })}
             </div>
-            <div className="timeline-tracks">
+            <div className={`timeline-tracks ${timelineDensity === 'compact' ? 'timeline-tracks--compact' : ''}`}>
               {timelineSeries.map((series) => {
                 const currentValueText = timelineCursorValues.find((entry) => entry.key === series.key)?.text ?? t.notAvailable;
                 const xAxisTicks = [0, 0.25, 0.5, 0.75, 1].map((factor) => Number((timelineAxisMaxSecond * factor).toFixed(0)));
@@ -6358,6 +6373,7 @@ export function App() {
                   yGuideValueLabel={currentValueText}
                   xAxisTicks={xAxisTicks}
                   xAxisTickFormatter={(value) => formatSecondsMmSs(value)}
+                  compact={timelineDensity === 'compact'}
                 />
               );})}
             </div>
@@ -6652,6 +6668,7 @@ function findNearestTimelinePoint(points: TimelinePoint[], cursorSecond: number)
 }
 
 type TimelineTrackChartProps = {
+  compact: boolean;
   trackId: string;
   label: string;
   points: TimelinePoint[];
@@ -6669,9 +6686,9 @@ type TimelineTrackChartProps = {
   xAxisTickFormatter: (value: number) => string;
 };
 
-function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix, lineColorClassName, sliderClassName, cursorSecond, isCursorLocked, onCursorChange, onToggleCursorLock, currentValueLabel, yGuideValueLabel, xAxisTicks, xAxisTickFormatter }: TimelineTrackChartProps) {
+function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix, lineColorClassName, sliderClassName, cursorSecond, isCursorLocked, onCursorChange, onToggleCursorLock, currentValueLabel, yGuideValueLabel, xAxisTicks, xAxisTickFormatter, compact }: TimelineTrackChartProps) {
   const width = 560;
-  const height = 120;
+  const height = compact ? 84 : 120;
   const topPadding = 8;
   const bottomPadding = 16;
   const chartHeight = height - topPadding - bottomPadding;
