@@ -16,6 +16,7 @@ public static partial class TcxMetricsExtractor
     private const double HighIntensitySpeedThresholdMetersPerSecond = 5.5;
     private const double AccelerationThresholdMetersPerSecondSquared = 2.0;
     private const double DecelerationThresholdMetersPerSecondSquared = -2.0;
+    private const double PauseGapThresholdSeconds = 15.0;
 
     public static TcxActivitySummary Extract(XDocument document)
         => Extract(document, TcxSmoothingFilters.AdaptiveMedian, null);
@@ -49,14 +50,18 @@ public static partial class TcxMetricsExtractor
             .Select(snapshot => snapshot.HeartRateBpm!.Value)
             .ToList();
 
-        var rawGpsPoints = trackpointSnapshots
-            .Where(snapshot => snapshot.Latitude.HasValue && snapshot.Longitude.HasValue)
+        var rawGpsTrackpoints = trackpointSnapshots
+            .Where(snapshot => snapshot.TimeUtc.HasValue && snapshot.Latitude.HasValue && snapshot.Longitude.HasValue)
+            .OrderBy(snapshot => snapshot.TimeUtc)
+            .ToList();
+
+        var rawGpsPoints = rawGpsTrackpoints
             .Select(snapshot => (snapshot.Latitude!.Value, snapshot.Longitude!.Value))
             .ToList();
 
-        var rawDistanceMeters = rawGpsPoints.Count < 2
+        var rawDistanceMeters = rawGpsTrackpoints.Count < 2
             ? (double?)null
-            : CalculateDistanceMeters(rawGpsPoints);
+            : CalculateDistanceMetersWithPauseGapHandling(rawGpsTrackpoints, PauseGapThresholdSeconds);
 
         var outlierSpeedThresholdMps = ResolveOutlierSpeedThresholdMetersPerSecond(trackpointSnapshots);
         var normalizedFilter = TcxSmoothingFilters.Supported.Contains(selectedSmoothingFilter)
@@ -64,14 +69,18 @@ public static partial class TcxMetricsExtractor
             : TcxSmoothingFilters.AdaptiveMedian;
 
         var smoothedTrackpoints = ApplySmoothingFilter(normalizedFilter, trackpointSnapshots, outlierSpeedThresholdMps, out var correctedOutlierCount);
-        var smoothedGpsPoints = smoothedTrackpoints
-            .Where(snapshot => snapshot.Latitude.HasValue && snapshot.Longitude.HasValue)
+        var smoothedGpsTrackpoints = smoothedTrackpoints
+            .Where(snapshot => snapshot.TimeUtc.HasValue && snapshot.Latitude.HasValue && snapshot.Longitude.HasValue)
+            .OrderBy(snapshot => snapshot.TimeUtc)
+            .ToList();
+
+        var smoothedGpsPoints = smoothedGpsTrackpoints
             .Select(snapshot => (snapshot.Latitude!.Value, snapshot.Longitude!.Value))
             .ToList();
 
-        var smoothedDistanceMeters = smoothedGpsPoints.Count < 2
+        var smoothedDistanceMeters = smoothedGpsTrackpoints.Count < 2
             ? rawDistanceMeters
-            : CalculateDistanceMeters(smoothedGpsPoints);
+            : CalculateDistanceMetersWithPauseGapHandling(smoothedGpsTrackpoints, PauseGapThresholdSeconds);
 
         var fileDistanceMeters = document
             .Descendants()
@@ -643,7 +652,7 @@ public static partial class TcxMetricsExtractor
         }
 
         var elapsedSeconds = (to.TimeUtc.Value - from.TimeUtc.Value).TotalSeconds;
-        if (elapsedSeconds <= 0)
+        if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds)
         {
             return null;
         }
@@ -690,7 +699,7 @@ public static partial class TcxMetricsExtractor
             .Select(pair =>
             {
                 var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
-                if (elapsedSeconds <= 0)
+                if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds)
                 {
                     return (double?)null;
                 }
@@ -1000,7 +1009,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             .Select((pair, index) =>
             {
                 var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
-                if (elapsedSeconds <= 0 || !gpsStartTime.HasValue)
+                if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds || !gpsStartTime.HasValue)
                 {
                     return (IsValid: false, PointIndex: index, StartElapsedSeconds: 0.0, EndElapsedSeconds: 0.0, Distance: 0.0, Speed: 0.0, Duration: 0.0);
                 }
@@ -1247,7 +1256,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 foreach (var pair in pointsWithHrAndTime.Zip(pointsWithHrAndTime.Skip(1), (previous, current) => new { previous, current }))
                 {
                     var elapsed = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
-                    if (elapsed <= 0)
+                    if (elapsed <= 0 || elapsed > PauseGapThresholdSeconds)
                     {
                         continue;
                     }
@@ -1280,7 +1289,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 foreach (var pair in pointsWithHrAndTime.Zip(pointsWithHrAndTime.Skip(1), (previous, current) => new { previous, current }))
                 {
                     var elapsedMinutes = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalMinutes;
-                    if (elapsedMinutes <= 0)
+                    if (elapsedMinutes <= 0 || elapsedMinutes * 60 > PauseGapThresholdSeconds)
                     {
                         continue;
                     }
@@ -1644,7 +1653,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             var previous = pointsWithGpsAndTime[index - 1];
             var current = pointsWithGpsAndTime[index];
             var elapsedSeconds = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
-            if (elapsedSeconds <= 0)
+            if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds)
             {
                 continue;
             }

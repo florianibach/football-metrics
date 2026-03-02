@@ -2436,12 +2436,6 @@ input[type='checkbox']::before {
 }
 
 
-@media (max-width: 960px) {
-  .timeline-track__cursor-time {
-    display: none;
-  }
-}
-
 .timeline-mobile-slider--track .form-label {
   margin-bottom: 0.15rem;
   font-size: 0.78rem;
