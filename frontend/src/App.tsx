@@ -4420,6 +4420,7 @@ export function App() {
     const fallbackMaxSpeedMps = Number(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond ?? 12);
     const thresholdMaxSpeedMps = Number(thresholds.EffectiveMaxSpeedMps ?? fallbackMaxSpeedMps);
     const plausibleSpeedCeilingMps = Math.max(6, (Number.isFinite(thresholdMaxSpeedMps) ? thresholdMaxSpeedMps : fallbackMaxSpeedMps) * 1.25);
+    const pauseGapThresholdSeconds = 15;
 
     const toLocalSecond = (absoluteSecond: number) => {
       const local = Math.round(absoluteSecond - scopeStart);
@@ -4434,6 +4435,12 @@ export function App() {
       const current = smoothedGpsPoints[index];
       const deltaSeconds = current.elapsedSeconds - previous.elapsedSeconds;
       if (deltaSeconds <= 0) {
+        continue;
+      }
+      if (deltaSeconds > pauseGapThresholdSeconds) {
+        previousSpeedMps = null;
+        accelEventActive = false;
+        decelEventActive = false;
         continue;
       }
 
@@ -4485,6 +4492,10 @@ export function App() {
       const inDelta = current.elapsedSeconds - previous.elapsedSeconds;
       const outDelta = next.elapsedSeconds - current.elapsedSeconds;
       if (inDelta <= 0 || outDelta <= 0) {
+        continue;
+      }
+      if (inDelta > pauseGapThresholdSeconds || outDelta > pauseGapThresholdSeconds) {
+        codEventActive = false;
         continue;
       }
 
@@ -6768,11 +6779,10 @@ function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix
       </div>
       <p className="timeline-track__cursor-time">{formatSecondsMmSs(Math.round(cursorSecond))} min</p>
       <div className="timeline-mobile-slider timeline-mobile-slider--track">
-        <label className="form-label" htmlFor={`timeline-mobile-cursor-${trackId}`}>{label}</label>
-        <p className="timeline-mobile-slider__cursor-time">{formatSecondsMmSs(Math.round(cursorSecond))} min</p>
         <input
           id={`timeline-mobile-cursor-${trackId}`}
           type="range"
+          aria-label={label}
           className={sliderClassName}
           min={0}
           max={axisMaxSecond}
