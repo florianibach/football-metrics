@@ -2508,6 +2508,14 @@ input[type='checkbox']::before {
   stroke-width: 0.8;
 }
 
+.timeline-highlight-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
 .peak-demand-dimension {
   margin-top: 1rem;
 }
@@ -2555,27 +2563,24 @@ input[type='checkbox']::before {
 
 @media (max-width: 768px) {
   .peak-demand-table td {
-    position: relative;
-    padding-left: 7.9rem;
+    display: grid;
+    grid-template-columns: minmax(7.2rem, 44%) minmax(0, 1fr);
+    align-items: start;
+    gap: 0.35rem 0.55rem;
+    padding-left: 0.6rem;
     min-height: 2.3rem;
+    overflow-wrap: anywhere;
   }
 
   .peak-demand-table td::before {
     content: attr(data-label);
-    position: absolute;
-    left: 0.6rem;
-    top: 0.55rem;
-    width: 6.9rem;
+    position: static;
+    width: auto;
     color: var(--muted);
-    font-weight: 600;
-    font-size: 0.76rem;
+    font-weight: 700;
+    font-size: 0.74rem;
     text-transform: uppercase;
     letter-spacing: 0.02em;
-  }
-
-  .peak-demand-table td[data-label="Action"]::before,
-  .peak-demand-table td[data-label="Aktion"]::before {
-    top: 0.8rem;
   }
 
   .peak-demand-table td[data-label="Action"] .btn,

@@ -3930,6 +3930,34 @@ describe('App', () => {
 
 
 
+
+
+  it('R1_7_05_Ac04b_allows_resetting_timeline_peak_highlight', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open in timeline' })[0]);
+
+    expect(await screen.findByText(/Highlighted peak:/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset peak highlight' }));
+    expect(screen.queryByText(/Highlighted peak:/)).not.toBeInTheDocument();
+  });
+
   it('R1_7_05_Ac03_uses_peak_based_comparison_values_not_overall_totals', async () => {
     const historyA = createUploadRecord({
       id: 'history-a',

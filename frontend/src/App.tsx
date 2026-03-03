@@ -545,6 +545,8 @@ type TranslationKey =
   | 'peakDemandBestLabel'
   | 'peakDemandInfoDescription'
   | 'timelineHighlightedWindowLabel'
+  | 'timelineHighlightedPeakLabel'
+  | 'timelineHighlightedPeakReset'
   | 'profileSettingsTitle'
   | 'profilePrimaryPosition'
   | 'profileSecondaryPosition'
@@ -1012,6 +1014,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     peakDemandBestLabel: 'Best season',
     peakDemandInfoDescription: 'Peak Demand helps you identify the most intensive phases of the session. Choose 1, 2 or 5 minutes to compare different stress durations. Use Volume, Speed, Mechanical and Internal together: peaks can happen at different times, and that is expected. Click any peak to jump into the synchronized timeline and review the exact window context.',
     timelineHighlightedWindowLabel: 'Highlighted window',
+    timelineHighlightedPeakLabel: 'Highlighted peak',
+    timelineHighlightedPeakReset: 'Reset peak highlight',
     profileSettingsTitle: 'Profile settings',
     profilePrimaryPosition: 'Primary position',
     profileSecondaryPosition: 'Secondary position',
@@ -1464,6 +1468,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     peakDemandBestLabel: 'Best Saison',
     peakDemandInfoDescription: 'Peak Demand hilft dir, die intensivsten Phasen der Session zu erkennen. Wähle 1, 2 oder 5 Minuten, um kurze und längere Belastungsspitzen zu vergleichen. Betrachte Volume, Speed, Mechanical und Internal gemeinsam: Peaks können zeitlich unterschiedlich auftreten und genau das ist fachlich korrekt. Mit Klick auf einen Peak springst du in die synchronisierte Timeline und siehst das zugehörige Zeitfenster im Kontext.',
     timelineHighlightedWindowLabel: 'Markiertes Fenster',
+    timelineHighlightedPeakLabel: 'Markierter Peak',
+    timelineHighlightedPeakReset: 'Peak-Markierung zurücksetzen',
     profileSettingsTitle: 'Profileinstellungen',
     profilePrimaryPosition: 'Primärposition',
     profileSecondaryPosition: 'Sekundärposition',
@@ -2906,6 +2912,7 @@ export function App() {
   const [timelineCursorLocked, setTimelineCursorLocked] = useState(false);
   const [timelineScrollTarget, setTimelineScrollTarget] = useState<TimelineTrackKey | null>(null);
   const [timelineHighlightedWindow, setTimelineHighlightedWindow] = useState<{ startSecond: number; endSecond: number } | null>(null);
+  const [timelineHighlightedPeakLabel, setTimelineHighlightedPeakLabel] = useState<string | null>(null);
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
     matchResult: null,
@@ -4367,7 +4374,7 @@ export function App() {
     }
 
     const comparableValues = sortedHistory
-      .filter((record) => record.id !== selectedSession.id && record.sessionContext.sessionType === selectedSession.sessionContext.sessionType)
+      .filter((record) => record.sessionContext.sessionType === selectedSession.sessionContext.sessionType)
       .map((record) => peakValuesByRecordId.get(record.id)?.[metricKey] ?? null)
       .filter((value): value is number => value !== null);
 
@@ -4888,6 +4895,7 @@ export function App() {
 
   useEffect(() => {
     setTimelineHighlightedWindow(null);
+    setTimelineHighlightedPeakLabel(null);
   }, [timelineMode, aggregationWindowMinutes, isSegmentScopeActive, selectedSegment?.id, selectedSession?.id]);
 
   useEffect(() => {
@@ -6764,6 +6772,7 @@ export function App() {
                                       setAggregationWindowMinutes(peakDemandWindowMinutes);
                                       setTimelineScrollTarget(row.seriesKey);
                                       setTimelineHighlightedWindow({ startSecond: row.windowStartSecond, endSecond: row.windowEndSecond });
+                                      setTimelineHighlightedPeakLabel(`${dimension.title} · ${row.metricLabel} (${peakDemandWindowMinutes} min)`);
                                       setTimelineCursorSecond(row.windowEndSecond);
                                       jumpToSection('session-analysis', 'analysis');
                                     }}
@@ -6814,6 +6823,12 @@ export function App() {
             <p className="timeline-shared-axis">{t.timelineXAxisLabel}</p>
             {timelineHighlightedWindow && (
               <p className="timeline-shared-axis">{t.timelineHighlightedWindowLabel}: {formatSecondsMmSs(timelineHighlightedWindow.startSecond)} {t.timelineSharedAxisUnitMinutes} – {formatSecondsMmSs(timelineHighlightedWindow.endSecond)} {t.timelineSharedAxisUnitMinutes}</p>
+            )}
+            {timelineHighlightedWindow && timelineHighlightedPeakLabel && (
+              <div className="timeline-highlight-meta">
+                <p className="timeline-shared-axis">{t.timelineHighlightedPeakLabel}: {timelineHighlightedPeakLabel}</p>
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setTimelineHighlightedWindow(null); setTimelineHighlightedPeakLabel(null); }}>{t.timelineHighlightedPeakReset}</button>
+              </div>
             )}
             <div className="timeline-cursor-readout">
               {timelineSeries.map((series) => {
