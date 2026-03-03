@@ -2944,9 +2944,9 @@ export function App() {
       activeMainPage === 'session' && activeSessionSubpage === 'analysis' && analysisScope === 'segment' ? selectedSegmentId : null,
       activeMainPage === 'session' && activeSessionSubpage === 'analysis' ? activeAnalysisTab : null
     );
-    const currentPath = window.location.pathname;
+    const currentPathWithQuery = `${window.location.pathname}${window.location.search}`;
 
-    if (currentPath !== nextPath) {
+    if (currentPathWithQuery !== nextPath) {
       window.history.pushState({}, '', nextPath);
     }
   }, [activeMainPage, activeSessionSubpage, activeSessionIdFromRoute, analysisScope, selectedSegmentId, selectedSession?.id, activeAnalysisTab]);
@@ -3188,6 +3188,7 @@ export function App() {
     setShowUploadQualityStep(false);
     setAnalysisScope('session');
     setActiveSessionSubpage('analysis');
+    setActiveAnalysisTab('overview');
     setActiveSessionIdFromRoute(session.id);
     setActiveMainPage('session');
     setIsSessionMenuVisible(true);
@@ -4632,20 +4633,37 @@ export function App() {
   }, [activeTimelineTracks, selectedSession?.summary.durationSeconds, timelineMode, timelineRangeSecond]);
 
   const timelineSpeedUnit = selectedSession?.selectedSpeedUnit ?? 'km/h';
-  const timelineSeries = useMemo<TimelineSeries[]>(() => [
-    { key: 'distance', label: t.timelineTrackDistance, valueSuffix: ' m', points: activeTimelineTracks.distance },
-    { key: 'runningDensity', label: t.timelineTrackRunningDensity, valueSuffix: ' m/min', points: activeTimelineTracks.runningDensity },
-    {
-      key: 'speed',
-      label: t.timelineTrackSpeedHsr,
-      valueFormatter: (valueMps) => formatSpeed(valueMps, timelineSpeedUnit, t.notAvailable),
-      points: activeTimelineTracks.speed
-    },
-    { key: 'highSpeedDistance', label: t.timelineTrackHighSpeedDistance, valueSuffix: ' m', points: activeTimelineTracks.highSpeedDistance },
-    { key: 'mechanicalLoad', label: t.timelineTrackAccelDecel, valueSuffix: '', points: activeTimelineTracks.mechanicalLoad },
-    { key: 'heartRateAvg', label: t.timelineTrackHeartRate, valueSuffix: ' bpm', points: activeTimelineTracks.heartRateAvg },
-    ...(timelineMode === 'rolling' ? [{ key: 'trimp' as const, label: t.timelineTrackTrimp, valueSuffix: '', points: activeTimelineTracks.trimp }] : [])
-  ], [activeTimelineTracks, t, timelineMode, timelineSpeedUnit]);
+  const timelineDataMode = selectedSession ? resolveDataAvailability(selectedSession.summary).mode : 'NotAvailable';
+  const timelineShowGpsTracks = timelineDataMode === 'Dual' || timelineDataMode === 'GpsOnly';
+  const timelineShowHeartRateTracks = timelineDataMode === 'Dual' || timelineDataMode === 'HeartRateOnly';
+
+  const timelineSeries = useMemo<TimelineSeries[]>(() => {
+    const series: TimelineSeries[] = [];
+
+    if (timelineShowGpsTracks) {
+      series.push(
+        { key: 'distance', label: t.timelineTrackDistance, valueSuffix: ' m', points: activeTimelineTracks.distance },
+        { key: 'runningDensity', label: t.timelineTrackRunningDensity, valueSuffix: ' m/min', points: activeTimelineTracks.runningDensity },
+        {
+          key: 'speed',
+          label: t.timelineTrackSpeedHsr,
+          valueFormatter: (valueMps) => formatSpeed(valueMps, timelineSpeedUnit, t.notAvailable),
+          points: activeTimelineTracks.speed
+        },
+        { key: 'highSpeedDistance', label: t.timelineTrackHighSpeedDistance, valueSuffix: ' m', points: activeTimelineTracks.highSpeedDistance },
+        { key: 'mechanicalLoad', label: t.timelineTrackAccelDecel, valueSuffix: '', points: activeTimelineTracks.mechanicalLoad }
+      );
+    }
+
+    if (timelineShowHeartRateTracks) {
+      series.push({ key: 'heartRateAvg', label: t.timelineTrackHeartRate, valueSuffix: ' bpm', points: activeTimelineTracks.heartRateAvg });
+      if (timelineMode === 'rolling') {
+        series.push({ key: 'trimp', label: t.timelineTrackTrimp, valueSuffix: '', points: activeTimelineTracks.trimp });
+      }
+    }
+
+    return series;
+  }, [activeTimelineTracks, t, timelineMode, timelineSpeedUnit, timelineShowGpsTracks, timelineShowHeartRateTracks]);
   useEffect(() => {
     setTimelineCursorSecond((current) => Math.max(0, Math.min(timelineAxisMaxSecond, current)));
   }, [timelineAxisMaxSecond]);
