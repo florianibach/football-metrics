@@ -1,11 +1,4 @@
-function normalizeLocale(locale: string): string {
-  const normalized = (locale || '').toLowerCase();
-  if (normalized.startsWith('de')) {
-    return 'de-DE';
-  }
-
-  return 'en-US';
-}
+import { normalizeLocaleTag } from './locale';
 
 export function toDateInputValue(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -32,7 +25,7 @@ export function formatDistance(distanceMeters: number | null, locale: string, no
     return notAvailable;
   }
 
-  return `${(distanceMeters / 1000).toLocaleString(normalizeLocale(locale), { maximumFractionDigits: 2 })} km`;
+  return `${(distanceMeters / 1000).toLocaleString(normalizeLocaleTag(locale), { maximumFractionDigits: 2 })} km`;
 }
 
 export function formatDistanceComparison(distanceMeters: number | null, locale: string, notAvailable: string): string {
@@ -40,7 +33,7 @@ export function formatDistanceComparison(distanceMeters: number | null, locale: 
     return notAvailable;
   }
 
-  const normalizedLocale = normalizeLocale(locale);
+  const normalizedLocale = normalizeLocaleTag(locale);
   return `${(distanceMeters / 1000).toLocaleString(normalizedLocale, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} km (${distanceMeters.toLocaleString(normalizedLocale, { maximumFractionDigits: 1 })} m)`;
 }
 
@@ -53,5 +46,5 @@ export function formatDistanceDeltaMeters(distanceDeltaMeters: number | null, lo
     return '< 0.001 m';
   }
 
-  return `${distanceDeltaMeters.toLocaleString(normalizeLocale(locale), { minimumFractionDigits: 3, maximumFractionDigits: 3 })} m`;
+  return `${distanceDeltaMeters.toLocaleString(normalizeLocaleTag(locale), { minimumFractionDigits: 3, maximumFractionDigits: 3 })} m`;
 }

@@ -1,6 +1,8 @@
 import { ChangeEvent, DragEvent, FormEvent, PointerEvent, ReactNode, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getFileValidationMessage as getFileValidationMessageBase } from './utils/fileValidation';
 import { formatDistance, formatDistanceComparison, formatDistanceDeltaMeters, formatDuration, formatSecondsMmSs, toDateInputValue } from './utils/formatting';
+import { normalizeLocaleTag, resolveInitialLocale } from './utils/locale';
+import { convertSpeedFromMetersPerSecond, convertSpeedToMetersPerSecond, convertSpeedToUnitValue, formatBandTriplet, formatBpmDrop, formatDistanceMetersOnly, formatHeartRateAverage, formatNumber, formatSignedNumber, formatSpeed } from './utils/metricsFormatting';
 
 type SmoothingTrace = {
   selectedStrategy: string;
@@ -2091,29 +2093,8 @@ function persistAppearancePreferences(profile: Pick<UserProfile, 'preferredTheme
   }
 }
 
-function resolveInitialLocale(): Locale {
-  if (typeof navigator === 'undefined') {
-    return 'en';
-  }
-
-  return navigator.language.toLowerCase().startsWith('de') ? 'de' : 'en';
-}
-
 function formatLocalDateTime(dateText: string): string {
   return new Date(dateText).toLocaleString();
-}
-
-function normalizeLocaleTag(locale: string): string {
-  const normalized = locale.toLowerCase();
-  return normalized.startsWith('de') ? 'de-DE' : 'en-US';
-}
-
-function formatHeartRateAverage(value: number | null, locale: Locale, notAvailable: string): string {
-  if (value === null) {
-    return notAvailable;
-  }
-
-  return `${value.toLocaleString(normalizeLocaleTag(locale), { maximumFractionDigits: 0 })} bpm`;
 }
 
 function formatHeartRate(summary: ActivitySummary, notAvailable: string): string {
@@ -2128,139 +2109,12 @@ function hasCompleteHeartRate(summary: ActivitySummary): boolean {
   return summary.heartRateMinBpm !== null && summary.heartRateAverageBpm !== null && summary.heartRateMaxBpm !== null;
 }
 
-function convertSpeedFromMetersPerSecond(valueMetersPerSecond: number, unit: SpeedUnit): number {
-  if (unit === 'km/h') {
-    return valueMetersPerSecond * 3.6;
-  }
-
-  if (unit === 'mph') {
-    return valueMetersPerSecond * 2.2369362921;
-  }
-
-  if (unit === 'min/km') {
-    if (valueMetersPerSecond <= 0) {
-      return 0;
-    }
-
-    return 1000 / (valueMetersPerSecond * 60);
-  }
-
-  return valueMetersPerSecond;
-}
-
-function convertSpeedToMetersPerSecond(value: number, unit: SpeedUnit): number {
-  if (unit === 'km/h') {
-    return value / 3.6;
-  }
-
-  if (unit === 'mph') {
-    return value / 2.2369362921;
-  }
-
-  if (unit === 'min/km') {
-    if (value <= 0) {
-      return 0;
-    }
-
-    return 1000 / (value * 60);
-  }
-
-  return value;
-}
-
-function formatSpeed(valueMetersPerSecond: number | null, unit: SpeedUnit, notAvailableText: string): string {
-  if (valueMetersPerSecond === null) {
-    return notAvailableText;
-  }
-
-  if (unit === 'km/h') {
-    return `${(valueMetersPerSecond * 3.6).toFixed(1)} km/h`;
-  }
-
-  if (unit === 'mph') {
-    return `${(valueMetersPerSecond * 2.2369362921).toFixed(1)} mph`;
-  }
-
-  if (unit === 'min/km') {
-    if (valueMetersPerSecond <= 0) {
-      return notAvailableText;
-    }
-
-    const minutesPerKilometer = 1000 / (valueMetersPerSecond * 60);
-    return `${minutesPerKilometer.toFixed(2)} min/km`;
-  }
-
-  return `${valueMetersPerSecond.toFixed(2)} m/s`;
-}
-
-
-function formatNumber(value: number | null | undefined, locale: Locale, notAvailable: string, digits = 1): string {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return notAvailable;
-  }
-
-  return value.toLocaleString(normalizeLocaleTag(locale), { minimumFractionDigits: digits, maximumFractionDigits: digits });
-}
-
-function formatBpmDrop(value: number | null | undefined, locale: Locale, notAvailable: string): string {
-  if (value === null || value === undefined || !Number.isFinite(value)) {
-    return notAvailable;
-  }
-
-  return `${value.toLocaleString(normalizeLocaleTag(locale), { maximumFractionDigits: 0 })} bpm`;
-}
-
 function calculatePercent(part: number | null | undefined, total: number): number {
   if (part === null || part === undefined || total <= 0) {
     return 0;
   }
 
   return Math.max(0, Math.min(100, (part / total) * 100));
-}
-
-function formatSignedNumber(value: number, locale: Locale, digits = 1): string {
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${value.toLocaleString(normalizeLocaleTag(locale), { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
-}
-
-function formatBandTriplet(moderate: number | null | undefined, high: number | null | undefined, veryHigh: number | null | undefined, notAvailable: string): string {
-  if (moderate === null || moderate === undefined || high === null || high === undefined || veryHigh === null || veryHigh === undefined) {
-    return notAvailable;
-  }
-
-  return `${moderate} / ${high} / ${veryHigh}`;
-}
-
-function formatDistanceMetersOnly(distanceMeters: number | null, locale: Locale, notAvailable: string): string {
-  if (distanceMeters === null) {
-    return notAvailable;
-  }
-
-  return `${distanceMeters.toLocaleString(normalizeLocaleTag(locale), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m`;
-}
-
-function convertSpeedToUnitValue(valueMetersPerSecond: number, unit: SpeedUnit): number | null {
-  if (!Number.isFinite(valueMetersPerSecond)) {
-    return null;
-  }
-
-  if (unit === 'km/h') {
-    return valueMetersPerSecond * 3.6;
-  }
-
-  if (unit === 'mph') {
-    return valueMetersPerSecond * 2.2369362921;
-  }
-
-  if (unit === 'min/km') {
-    if (valueMetersPerSecond <= 0) {
-      return null;
-    }
-
-    return 1000 / (valueMetersPerSecond * 60);
-  }
-
-  return valueMetersPerSecond;
 }
 
 function speedUnitSuffix(unit: SpeedUnit): string {
