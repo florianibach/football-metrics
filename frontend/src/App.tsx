@@ -2721,7 +2721,7 @@ export function App() {
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
   const [timelineMode, setTimelineMode] = useState<TimelineMode>('rolling');
-  const [timelineDensity, setTimelineDensity] = useState<'standard' | 'compact'>('standard');
+  const [timelineDensity, setTimelineDensity] = useState<'standard' | 'compact'>('compact');
   const [timelineCursorSecond, setTimelineCursorSecond] = useState(0);
   const [timelineCursorLocked, setTimelineCursorLocked] = useState(false);
   const [timelineScrollTarget, setTimelineScrollTarget] = useState<TimelineSeries['key'] | null>(null);
@@ -6390,8 +6390,8 @@ export function App() {
             </div>
             <div className="timeline-mode-switch timeline-density-switch" role="group" aria-label={t.timelineDensityLabel}>
               <span>{t.timelineDensityLabel}</span>
-              <button type="button" aria-pressed={timelineDensity === 'standard'} className={timelineDensity === 'standard' ? 'is-active' : ''} onClick={() => setTimelineDensity('standard')}>{t.timelineDensityStandard}</button>
               <button type="button" aria-pressed={timelineDensity === 'compact'} className={timelineDensity === 'compact' ? 'is-active' : ''} onClick={() => setTimelineDensity('compact')}>{t.timelineDensityCompact}</button>
+              <button type="button" aria-pressed={timelineDensity === 'standard'} className={timelineDensity === 'standard' ? 'is-active' : ''} onClick={() => setTimelineDensity('standard')}>{t.timelineDensityStandard}</button>
             </div>
             {timelineMode === 'rolling' && (
               <>
