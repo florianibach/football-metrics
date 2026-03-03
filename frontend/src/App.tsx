@@ -3065,9 +3065,7 @@ export function App() {
       setActiveSessionSubpage(route.sessionSubpage);
       setActiveSessionIdFromRoute(route.sessionId);
       setActiveSegmentIdFromRoute(route.segmentId);
-      if (route.analysisTab) {
-        setActiveAnalysisTab(route.analysisTab);
-      }
+      setActiveAnalysisTab(route.analysisTab ?? 'overview');
     };
 
     window.addEventListener('popstate', onPopState);
@@ -6030,13 +6028,13 @@ export function App() {
             <tbody>
               {filteredHistory.map((record) => (
                 <tr key={record.id}>
-                  <td>{record.fileName}</td>
-                  <td>{formatLocalDateTime(record.uploadedAtUtc)}</td>
-                  <td>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
-                  <td>{qualityStatusText(record.summary.qualityStatus, t)}</td>
-                  <td>{sessionTypeText(record.sessionContext.sessionType, t)}</td>
-                  <td>{dataModeText(resolveDataAvailability(record.summary).mode, t)}</td>
-                  <td>
+                  <td data-label={t.historyColumnFileName}>{record.fileName}</td>
+                  <td data-label={t.historyColumnUploadTime}>{formatLocalDateTime(record.uploadedAtUtc)}</td>
+                  <td data-label={t.historyColumnActivityTime}>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
+                  <td data-label={t.historyColumnQuality}>{qualityStatusText(record.summary.qualityStatus, t)}</td>
+                  <td data-label={t.historyColumnSessionType}>{sessionTypeText(record.sessionContext.sessionType, t)}</td>
+                  <td data-label={t.historyColumnDataMode}>{dataModeText(resolveDataAvailability(record.summary).mode, t)}</td>
+                  <td data-label={t.historyOpenDetails}>
                     <button
                       type="button"
                       className="secondary-button"
@@ -6092,16 +6090,16 @@ export function App() {
             </thead>
             <tbody>
               <tr>
-                <td>{t.metricQualityStatus}</td>
+                <td data-label={t.compareTitle}>{t.metricQualityStatus}</td>
                 {compareSessions.map((session, index) => (
-                  <td key={`${session.id}-quality-${index}`}>{qualityStatusText(session.summary.qualityStatus, t)}</td>
+                  <td key={`${session.id}-quality-${index}`} data-label={session.fileName}>{qualityStatusText(session.summary.qualityStatus, t)}</td>
                 ))}
               </tr>
               {comparisonRows.map((row) => (
                 <tr key={row.key}>
-                  <td>{row.label}</td>
+                  <td data-label={t.compareTitle}>{row.label}</td>
                   {row.cells.map((cell, index) => (
-                    <td key={`${row.key}-${compareSessions[index].id}-${index}`}>
+                    <td key={`${row.key}-${compareSessions[index].id}-${index}`} data-label={compareSessions[index].fileName}>
                       <div>{cell.formattedValue}</div>
                       <div>{t.sessionCompareDelta}: {cell.deltaText}</div>
                       <div>{t.sessionCompareDeltaPercent}: {cell.deltaPercentText}</div>
@@ -6215,11 +6213,11 @@ export function App() {
                 <tbody>
                   {selectedSession.segments.map((segment) => (
                     <tr key={segment.id}>
-                      <td>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
-                      <td>{segment.label}</td>
-                      <td>{segment.startSecond}</td>
-                      <td>{segment.endSecond}</td>
-                      <td>
+                      <td data-label={t.segmentCategory}>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
+                      <td data-label={t.segmentLabel}>{segment.label}</td>
+                      <td data-label={t.segmentStartSecond}>{segment.startSecond}</td>
+                      <td data-label={t.segmentEndSecond}>{segment.endSecond}</td>
+                      <td data-label={t.historyOpenDetails}>
                         <button type="button" className="secondary-button" onClick={() => { setSelectedSegmentId(segment.id); setAnalysisScope('segment'); setActiveSessionSubpage('analysis'); }}>{t.segmentAnalyzeAction}</button>
                       </td>
                     </tr>
@@ -6315,11 +6313,11 @@ export function App() {
               <tbody>
                 {selectedSession.segments.map((segment) => (
                   <tr key={`edit-${segment.id}`}>
-                    <td>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
-                    <td>{segment.label}</td>
-                    <td>{segment.startSecond}</td>
-                    <td>{segment.endSecond}</td>
-                    <td className="segment-table__actions">
+                    <td data-label={t.segmentCategory}>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
+                    <td data-label={t.segmentLabel}>{segment.label}</td>
+                    <td data-label={t.segmentStartSecond}>{segment.startSecond}</td>
+                    <td data-label={t.segmentEndSecond}>{segment.endSecond}</td>
+                    <td className="segment-table__actions" data-label={t.historyOpenDetails}>
                       <button type="button" className="secondary-button" onClick={() => onEditSegment(segment)}>{t.segmentEdit}</button>
                       <button type="button" className="secondary-button" onClick={() => { setMergeForm((current) => ({ ...current, sourceSegmentId: segment.id, targetSegmentId: selectedSession.segments.find((candidate) => candidate.id !== segment.id)?.id ?? '' })); setSegmentEditorsOpen({ edit: false, merge: true, split: false }); }}>{t.segmentMergeAction}</button>
                       <button type="button" className="secondary-button" onClick={() => { const midpoint = Math.floor((segment.startSecond + segment.endSecond) / 2); setSplitForm({ segmentId: segment.id, splitSecond: String(midpoint), leftLabel: '', rightLabel: '', notes: segment.notes ?? '' }); setSegmentEditorsOpen({ edit: false, merge: false, split: true }); }}>{t.segmentSplitAction}</button>

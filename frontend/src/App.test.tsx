@@ -3835,6 +3835,48 @@ describe('App', () => {
     });
   });
 
+  it('R1_7_14_Ac01_browser_back_restores_overview_tab_state_from_timeline_and_peak', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    window.history.pushState({}, '', '/');
+    render(<App />);
+
+    await screen.findByText('Session details');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Timeline' }));
+    await waitFor(() => expect(window.location.search).toContain('tab=timeline'));
+
+    await act(async () => {
+      window.history.back();
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+
+    await waitFor(() => expect(window.location.search).toBe(''));
+    expect(screen.getByRole('button', { name: 'Overview' }).classList.contains('side-nav__item--active')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+    await waitFor(() => expect(window.location.search).toContain('tab=peakDemand'));
+
+    await act(async () => {
+      window.history.back();
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+
+    await waitFor(() => expect(window.location.search).toBe(''));
+    expect(screen.getByRole('button', { name: 'Overview' }).classList.contains('side-nav__item--active')).toBe(true);
+  });
+
 
   it('R1_7_01_Ac01_uses_side_navigation_and_mobile_dropdown_for_session_views', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {

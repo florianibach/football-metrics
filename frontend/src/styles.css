@@ -992,7 +992,23 @@ button:focus-visible {
 
   .history-table td {
     border-bottom: 1px dashed var(--border);
+    display: block;
+    padding: 0.45rem 0.6rem;
     white-space: normal;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .history-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.22rem;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: 0.71rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.25;
   }
 
   .history-table td:last-child {
