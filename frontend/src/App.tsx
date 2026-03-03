@@ -182,6 +182,7 @@ type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
 type SessionSubpage = 'analysis' | 'segments' | 'segmentEdit' | 'compare' | 'sessionSettings' | 'technicalInfo';
 type SessionAnalysisTab = 'overview' | 'timeline' | 'peakDemand' | 'segments' | 'heatmap';
 type TimelineMode = 'instant' | 'rolling';
+type TimelineTrackKey = 'distance' | 'runningDensity' | 'speed' | 'highSpeedDistance' | 'mechanicalLoad' | 'heartRateAvg' | 'trimp';
 type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null; segmentId: string | null; analysisTab: SessionAnalysisTab | null };
 
 
@@ -530,6 +531,22 @@ type TranslationKey =
   | 'timelineXAxisLabel'
   | 'timelineSharedAxisUnitMinutes'
   | 'timelineMobileSliderLabel'
+  | 'peakDemandWindowSelectorLabel'
+  | 'peakDemandDimensionVolume'
+  | 'peakDemandDimensionSpeed'
+  | 'peakDemandDimensionMechanical'
+  | 'peakDemandDimensionInternal'
+  | 'peakDemandMetricLabel'
+  | 'peakDemandValueLabel'
+  | 'peakDemandActionLabel'
+  | 'peakDemandActionJumpTimeline'
+  | 'peakDemandNoData'
+  | 'peakDemandAverageLabel'
+  | 'peakDemandBestLabel'
+  | 'peakDemandInfoDescription'
+  | 'timelineHighlightedWindowLabel'
+  | 'timelineHighlightedPeakLabel'
+  | 'timelineHighlightedPeakReset'
   | 'profileSettingsTitle'
   | 'profilePrimaryPosition'
   | 'profileSecondaryPosition'
@@ -983,6 +1000,22 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineXAxisLabel: 'Time axis',
     timelineSharedAxisUnitMinutes: 'min',
     timelineMobileSliderLabel: 'Timeline navigation slider',
+    peakDemandWindowSelectorLabel: 'Peak window',
+    peakDemandDimensionVolume: 'Volume',
+    peakDemandDimensionSpeed: 'Speed',
+    peakDemandDimensionMechanical: 'Mechanical',
+    peakDemandDimensionInternal: 'Internal',
+    peakDemandMetricLabel: 'Metric',
+    peakDemandValueLabel: 'Peak',
+    peakDemandActionLabel: 'Action',
+    peakDemandActionJumpTimeline: 'Open in timeline',
+    peakDemandNoData: 'No peak-demand values are available for this selection.',
+    peakDemandAverageLabel: 'Average last sessions',
+    peakDemandBestLabel: 'Best season',
+    peakDemandInfoDescription: 'Peak Demand helps you identify the most intensive phases of the session. Choose 1, 2 or 5 minutes to compare different stress durations. Use Volume, Speed, Mechanical and Internal together: peaks can happen at different times, and that is expected. Click any peak to jump into the synchronized timeline and review the exact window context.',
+    timelineHighlightedWindowLabel: 'Highlighted window',
+    timelineHighlightedPeakLabel: 'Highlighted peak',
+    timelineHighlightedPeakReset: 'Reset peak highlight',
     profileSettingsTitle: 'Profile settings',
     profilePrimaryPosition: 'Primary position',
     profileSecondaryPosition: 'Secondary position',
@@ -1421,6 +1454,22 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     timelineXAxisLabel: 'Zeitachse',
     timelineSharedAxisUnitMinutes: 'min',
     timelineMobileSliderLabel: 'Timeline-Navigationsslider',
+    peakDemandWindowSelectorLabel: 'Peak-Fenster',
+    peakDemandDimensionVolume: 'Volume',
+    peakDemandDimensionSpeed: 'Speed',
+    peakDemandDimensionMechanical: 'Mechanical',
+    peakDemandDimensionInternal: 'Internal',
+    peakDemandMetricLabel: 'Metrik',
+    peakDemandValueLabel: 'Peak',
+    peakDemandActionLabel: 'Aktion',
+    peakDemandActionJumpTimeline: 'In Timeline öffnen',
+    peakDemandNoData: 'Keine Peak-Demand-Werte für diese Auswahl verfügbar.',
+    peakDemandAverageLabel: 'Ø letzte Sessions',
+    peakDemandBestLabel: 'Best Saison',
+    peakDemandInfoDescription: 'Peak Demand hilft dir, die intensivsten Phasen der Session zu erkennen. Wähle 1, 2 oder 5 Minuten, um kurze und längere Belastungsspitzen zu vergleichen. Betrachte Volume, Speed, Mechanical und Internal gemeinsam: Peaks können zeitlich unterschiedlich auftreten und genau das ist fachlich korrekt. Mit Klick auf einen Peak springst du in die synchronisierte Timeline und siehst das zugehörige Zeitfenster im Kontext.',
+    timelineHighlightedWindowLabel: 'Markiertes Fenster',
+    timelineHighlightedPeakLabel: 'Markierter Peak',
+    timelineHighlightedPeakReset: 'Peak-Markierung zurücksetzen',
     profileSettingsTitle: 'Profileinstellungen',
     profilePrimaryPosition: 'Primärposition',
     profileSecondaryPosition: 'Sekundärposition',
@@ -1855,6 +1904,142 @@ function calculateKpiComparison(
     : null;
 
   return { averageLastFive, bestSeason };
+}
+
+
+
+type PeakComparisonMetricKey = 'distance' | 'highSpeedDistance' | 'mechanicalLoad' | 'trimp' | 'heartRateAvg';
+type PeakMetricValues = Record<PeakComparisonMetricKey, number | null>;
+
+function toPeakComparisonValues(record: UploadRecord, windowMinutes: 1 | 2 | 5): PeakMetricValues {
+  const durationFromSummary = Math.max(0, Math.floor(record.summary.durationSeconds ?? 0));
+  const gpsPoints = record.summary.gpsTrackpoints
+    .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+    .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+
+  const maxElapsedGps = gpsPoints.length > 0 ? Math.max(...gpsPoints.map((point) => Math.floor(point.elapsedSeconds))) : 0;
+  const hrSamples = (record.summary.heartRateSamples ?? []).slice().sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+  const maxElapsedHr = hrSamples.length > 0 ? Math.max(...hrSamples.map((sample) => Math.floor(sample.elapsedSeconds))) : 0;
+  const durationSeconds = Math.max(1, durationFromSummary, maxElapsedGps, maxElapsedHr);
+
+  const distanceDelta = new Array<number>(durationSeconds + 1).fill(0);
+  const highSpeedDistanceDelta = new Array<number>(durationSeconds + 1).fill(0);
+  const accelBySecond = new Array<number>(durationSeconds + 1).fill(0);
+  const decelBySecond = new Array<number>(durationSeconds + 1).fill(0);
+  const codBySecond = new Array<number>(durationSeconds + 1).fill(0);
+  const hrSumBySecond = new Array<number>(durationSeconds + 1).fill(0);
+  const hrCountBySecond = new Array<number>(durationSeconds + 1).fill(0);
+  const trimpDeltaBySecond = new Array<number>(durationSeconds + 1).fill(0);
+
+  const toSecond = (elapsed: number) => Math.max(0, Math.min(durationSeconds, Math.floor(elapsed)));
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const distanceMetersBetween = (first: GpsTrackpoint, second: GpsTrackpoint) => {
+    const dLat = toRadians(second.latitude - first.latitude);
+    const dLon = toRadians(second.longitude - first.longitude);
+    const lat1 = toRadians(first.latitude);
+    const lat2 = toRadians(second.latitude);
+    const a = (Math.sin(dLat / 2) ** 2)
+      + (Math.cos(lat1) * Math.cos(lat2) * (Math.sin(dLon / 2) ** 2));
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return 6371000 * c;
+  };
+
+  const highSpeedThresholdRaw = record.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps;
+  const parsedThreshold = highSpeedThresholdRaw ? Number(highSpeedThresholdRaw) : Number.NaN;
+  const highSpeedThreshold = Number.isFinite(parsedThreshold) ? parsedThreshold : (7 / 3.6);
+
+  for (let index = 1; index < gpsPoints.length; index += 1) {
+    const previous = gpsPoints[index - 1];
+    const current = gpsPoints[index];
+    const elapsed = current.elapsedSeconds - previous.elapsedSeconds;
+    if (elapsed <= 0) {
+      continue;
+    }
+
+    const distanceMeters = distanceMetersBetween(previous, current);
+    const speedMps = distanceMeters / elapsed;
+    const second = toSecond(current.elapsedSeconds);
+    distanceDelta[second] += distanceMeters;
+    if (speedMps >= highSpeedThreshold) {
+      highSpeedDistanceDelta[second] += distanceMeters;
+    }
+  }
+
+  const addEvents = (events: MechanicalEvent[] | undefined, target: number[]) => {
+    (events ?? []).forEach((event) => {
+      const second = toSecond(event.startElapsedSeconds);
+      target[second] += 1;
+    });
+  };
+  addEvents(record.summary.accelerations, accelBySecond);
+  addEvents(record.summary.decelerations, decelBySecond);
+  addEvents(record.summary.highIntensityDirectionChanges, codBySecond);
+
+  hrSamples.forEach((sample) => {
+    const second = toSecond(sample.elapsedSeconds);
+    hrSumBySecond[second] += sample.heartRateBpm;
+    hrCountBySecond[second] += 1;
+  });
+
+  for (let second = 0; second <= durationSeconds; second += 1) {
+    if (hrCountBySecond[second] === 0 && second > 0 && hrCountBySecond[second - 1] > 0) {
+      hrSumBySecond[second] = hrSumBySecond[second - 1] / hrCountBySecond[second - 1];
+      hrCountBySecond[second] = 1;
+    }
+    if (hrCountBySecond[second] > 0) {
+      const avgHr = hrSumBySecond[second] / hrCountBySecond[second];
+      const zoneWeight = avgHr < 120 ? 1 : avgHr < 140 ? 2 : avgHr < 160 ? 3 : avgHr < 180 ? 4 : 5;
+      trimpDeltaBySecond[second] = zoneWeight / 60;
+    }
+  }
+
+  const prefix = (arr: number[]) => {
+    const out = new Array<number>(arr.length + 1).fill(0);
+    for (let i = 0; i < arr.length; i += 1) {
+      out[i + 1] = out[i] + arr[i];
+    }
+    return out;
+  };
+
+  const distancePrefix = prefix(distanceDelta);
+  const highSpeedPrefix = prefix(highSpeedDistanceDelta);
+  const accelPrefix = prefix(accelBySecond);
+  const decelPrefix = prefix(decelBySecond);
+  const codPrefix = prefix(codBySecond);
+  const hrSumPrefix = prefix(hrSumBySecond);
+  const hrCountPrefix = prefix(hrCountBySecond);
+  const trimpPrefix = prefix(trimpDeltaBySecond);
+
+  const rollingWindowSeconds = windowMinutes * 60;
+  let maxDistance = 0;
+  let maxHighSpeedDistance = 0;
+  let maxMechanicalLoad = 0;
+  let maxTrimp = 0;
+  let maxHeartRateAvg: number | null = null;
+
+  for (let second = 0; second <= durationSeconds; second += 1) {
+    const rangeStart = Math.max(0, second - rollingWindowSeconds + 1);
+    const sumOverRange = (pref: number[]) => pref[second + 1] - pref[rangeStart];
+
+    maxDistance = Math.max(maxDistance, sumOverRange(distancePrefix));
+    maxHighSpeedDistance = Math.max(maxHighSpeedDistance, sumOverRange(highSpeedPrefix));
+    maxMechanicalLoad = Math.max(maxMechanicalLoad, sumOverRange(accelPrefix) + sumOverRange(decelPrefix) + sumOverRange(codPrefix));
+    maxTrimp = Math.max(maxTrimp, sumOverRange(trimpPrefix));
+
+    const hrCount = sumOverRange(hrCountPrefix);
+    if (hrCount > 0) {
+      const hrAvg = sumOverRange(hrSumPrefix) / hrCount;
+      maxHeartRateAvg = maxHeartRateAvg === null ? hrAvg : Math.max(maxHeartRateAvg, hrAvg);
+    }
+  }
+
+  return {
+    distance: maxDistance > 0 ? maxDistance : null,
+    highSpeedDistance: maxHighSpeedDistance > 0 ? maxHighSpeedDistance : null,
+    mechanicalLoad: maxMechanicalLoad > 0 ? maxMechanicalLoad : null,
+    trimp: maxTrimp > 0 ? maxTrimp : null,
+    heartRateAvg: maxHeartRateAvg
+  };
 }
 
 type CachedAppearancePreferences = {
@@ -2720,11 +2905,14 @@ export function App() {
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
+  const [peakDemandWindowMinutes, setPeakDemandWindowMinutes] = useState<1 | 2 | 5>(5);
   const [timelineMode, setTimelineMode] = useState<TimelineMode>('rolling');
   const [timelineDensity, setTimelineDensity] = useState<'standard' | 'compact'>('compact');
   const [timelineCursorSecond, setTimelineCursorSecond] = useState(0);
   const [timelineCursorLocked, setTimelineCursorLocked] = useState(false);
-  const [timelineScrollTarget, setTimelineScrollTarget] = useState<TimelineSeries['key'] | null>(null);
+  const [timelineScrollTarget, setTimelineScrollTarget] = useState<TimelineTrackKey | null>(null);
+  const [timelineHighlightedWindow, setTimelineHighlightedWindow] = useState<{ startSecond: number; endSecond: number } | null>(null);
+  const [timelineHighlightedPeakLabel, setTimelineHighlightedPeakLabel] = useState<string | null>(null);
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
     matchResult: null,
@@ -2877,9 +3065,7 @@ export function App() {
       setActiveSessionSubpage(route.sessionSubpage);
       setActiveSessionIdFromRoute(route.sessionId);
       setActiveSegmentIdFromRoute(route.segmentId);
-      if (route.analysisTab) {
-        setActiveAnalysisTab(route.analysisTab);
-      }
+      setActiveAnalysisTab(route.analysisTab ?? 'overview');
     };
 
     window.addEventListener('popstate', onPopState);
@@ -4171,6 +4357,43 @@ export function App() {
   const heartRateAvgComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.heartRateAverageBpm ?? null);
   const trimpComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.trainingImpulseEdwards ?? null);
   const hrRecoveryComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? null);
+
+  const peakValuesByRecordId = useMemo(() => {
+    const map = new Map<string, PeakMetricValues>();
+    sortedHistory.forEach((record) => {
+      map.set(record.id, toPeakComparisonValues(record, peakDemandWindowMinutes));
+    });
+    return map;
+  }, [peakDemandWindowMinutes, sortedHistory]);
+
+  const calculatePeakComparison = useCallback((metricKey: PeakComparisonMetricKey) => {
+    if (!selectedSession) {
+      return { averageLastFive: null, bestSeason: null };
+    }
+
+    const comparableValues = sortedHistory
+      .filter((record) => record.sessionContext.sessionType === selectedSession.sessionContext.sessionType)
+      .map((record) => peakValuesByRecordId.get(record.id)?.[metricKey] ?? null)
+      .filter((value): value is number => value !== null);
+
+    const lastFive = comparableValues.slice(0, 5);
+    const averageLastFive = lastFive.length > 0
+      ? lastFive.reduce((sum, value) => sum + value, 0) / lastFive.length
+      : null;
+
+    const bestSeason = comparableValues.length > 0
+      ? Math.max(...comparableValues)
+      : null;
+
+    return { averageLastFive, bestSeason };
+  }, [peakValuesByRecordId, selectedSession, sortedHistory]);
+
+  const distancePeakComparison = useMemo(() => calculatePeakComparison('distance'), [calculatePeakComparison]);
+  const highSpeedDistancePeakComparison = useMemo(() => calculatePeakComparison('highSpeedDistance'), [calculatePeakComparison]);
+  const heartRatePeakComparison = useMemo(() => calculatePeakComparison('heartRateAvg'), [calculatePeakComparison]);
+  const trimpPeakComparison = useMemo(() => calculatePeakComparison('trimp'), [calculatePeakComparison]);
+  const mechanicalPeakComparison = useMemo(() => calculatePeakComparison('mechanicalLoad'), [calculatePeakComparison]);
+
   const compareOpponentSession = compareOpponentSessionId && selectedSession
     ? compareOpponentSessionId === selectedSession.id
       ? selectedSession
@@ -4669,6 +4892,33 @@ export function App() {
   }, [timelineAxisMaxSecond]);
 
   useEffect(() => {
+    setTimelineHighlightedWindow(null);
+    setTimelineHighlightedPeakLabel(null);
+  }, [timelineMode, aggregationWindowMinutes, isSegmentScopeActive, selectedSegment?.id, selectedSession?.id]);
+
+
+  useEffect(() => {
+    if (activeSessionSubpage !== 'analysis' || activeAnalysisTab !== 'timeline') {
+      return;
+    }
+
+    const query = new URLSearchParams(window.location.search);
+    const peakTrack = query.get('peakTrack');
+    const peakStart = Number(query.get('peakStart'));
+    const peakEnd = Number(query.get('peakEnd'));
+    const peakLabel = query.get('peakLabel');
+
+    const validTrack = peakTrack === 'distance' || peakTrack === 'runningDensity' || peakTrack === 'speed' || peakTrack === 'highSpeedDistance' || peakTrack === 'mechanicalLoad' || peakTrack === 'heartRateAvg' || peakTrack === 'trimp';
+    if (!validTrack || !Number.isFinite(peakStart) || !Number.isFinite(peakEnd) || !peakLabel) {
+      return;
+    }
+
+    setTimelineScrollTarget(peakTrack);
+    setTimelineHighlightedWindow({ startSecond: Math.max(0, Math.round(peakStart)), endSecond: Math.max(0, Math.round(peakEnd)) });
+    setTimelineHighlightedPeakLabel(peakLabel);
+  }, [activeAnalysisTab, activeSessionSubpage, selectedSession?.id]);
+
+  useEffect(() => {
     if (activeSessionSubpage !== 'analysis' || activeAnalysisTab !== 'timeline' || !timelineScrollTarget) {
       return;
     }
@@ -4702,6 +4952,108 @@ export function App() {
 
     return { key: series.key, text: textValue };
   }), [timelineCursorSecond, timelineSecondSeries.mechanicalBreakdownBySecond, timelineSeries, t.notAvailable, t.timelineMechanicalAccel, t.timelineMechanicalCod, t.timelineMechanicalDecel]);
+
+
+  useEffect(() => {
+    if (activeAnalysisTab === 'peakDemand' && aggregationWindowMinutes !== peakDemandWindowMinutes) {
+      setAggregationWindowMinutes(peakDemandWindowMinutes);
+    }
+  }, [activeAnalysisTab, aggregationWindowMinutes, peakDemandWindowMinutes]);
+
+  const peakRowsByDimension = useMemo(() => {
+    const toPeak = (points: TimelinePoint[]) => {
+      const valid = points.filter((point) => point.y !== null && point.y > 0) as Array<{ x: number; y: number }>;
+      if (valid.length === 0) {
+        return null;
+      }
+
+      return valid.reduce((best, current) => current.y > best.y ? current : best);
+    };
+
+    const buildPeakRow = (config: {
+      metricLabel: string;
+      seriesKey: TimelineTrackKey;
+      points: TimelinePoint[];
+      comparison: { averageLastFive: number | null; bestSeason: number | null };
+      formatPeak: (value: number) => string;
+      formatComparison: (value: number) => string;
+    }) => {
+      const peakPoint = toPeak(config.points);
+      if (!peakPoint) {
+        return null;
+      }
+
+      const windowLengthSeconds = peakDemandWindowMinutes * 60;
+      const windowEndSecond = Math.max(0, Math.round(peakPoint.x));
+      const windowStartSecond = Math.max(0, windowEndSecond - windowLengthSeconds + 1);
+
+      return {
+        metricLabel: config.metricLabel,
+        seriesKey: config.seriesKey,
+        peakValue: config.formatPeak(peakPoint.y),
+        averageLastFive: config.comparison.averageLastFive !== null
+          ? interpolate(t.kpiComparisonLastFive, { value: config.formatComparison(config.comparison.averageLastFive) })
+          : null,
+        bestSeason: config.comparison.bestSeason !== null
+          ? interpolate(t.kpiComparisonBestSeason, { value: config.formatComparison(config.comparison.bestSeason) })
+          : null,
+        windowStartSecond,
+        windowEndSecond
+      };
+    };
+
+    return {
+      volume: [
+        buildPeakRow({
+          metricLabel: t.metricDistance,
+          seriesKey: 'distance',
+          points: timelineSecondSeries.rolling.distance,
+          comparison: distancePeakComparison,
+          formatPeak: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable),
+          formatComparison: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable)
+        })
+      ].filter((row): row is NonNullable<typeof row> => row !== null),
+      speed: [
+        buildPeakRow({
+          metricLabel: t.metricHighSpeedDistance,
+          seriesKey: 'highSpeedDistance',
+          points: timelineSecondSeries.rolling.highSpeedDistance,
+          comparison: highSpeedDistancePeakComparison,
+          formatPeak: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable),
+          formatComparison: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable)
+        })
+      ].filter((row): row is NonNullable<typeof row> => row !== null),
+      mechanical: [
+        buildPeakRow({
+          metricLabel: t.metricAccelerationCount,
+          seriesKey: 'mechanicalLoad',
+          points: timelineSecondSeries.rolling.mechanicalLoad,
+          comparison: mechanicalPeakComparison,
+          formatPeak: (value) => formatNumber(value, locale, t.notAvailable, 0),
+          formatComparison: (value) => formatNumber(value, locale, t.notAvailable, 0)
+        })
+      ].filter((row): row is NonNullable<typeof row> => row !== null),
+      internal: [
+        buildPeakRow({
+          metricLabel: t.metricTrimpPerMinute,
+          seriesKey: 'trimp',
+          points: timelineSecondSeries.rolling.trimp,
+          comparison: trimpPeakComparison,
+          formatPeak: (value) => formatNumber(value, locale, t.notAvailable, 2),
+          formatComparison: (value) => formatNumber(value, locale, t.notAvailable, 2)
+        }),
+        buildPeakRow({
+          metricLabel: t.metricHeartRate,
+          seriesKey: 'heartRateAvg',
+          points: timelineSecondSeries.rolling.heartRateAvg,
+          comparison: heartRatePeakComparison,
+          formatPeak: (value) => `${formatNumber(value, locale, t.notAvailable, 1)} bpm`,
+          formatComparison: (value) => `${formatNumber(value, locale, t.notAvailable, 1)} bpm`
+        })
+      ].filter((row): row is NonNullable<typeof row> => row !== null)
+    };
+  }, [distancePeakComparison, heartRatePeakComparison, highSpeedDistancePeakComparison, locale, mechanicalPeakComparison, peakDemandWindowMinutes, t, timelineSecondSeries.rolling.distance, timelineSecondSeries.rolling.heartRateAvg, timelineSecondSeries.rolling.highSpeedDistance, timelineSecondSeries.rolling.mechanicalLoad, timelineSecondSeries.rolling.trimp, trimpPeakComparison]);
+
 
   const codBandCountsByScope = useMemo(() => {
     if (!selectedSession) {
@@ -5084,7 +5436,28 @@ export function App() {
     setIsMobileNavOpen(false);
   }, []);
 
-  const openTimelineWithFocus = useCallback((seriesKey: TimelineSeries['key']) => {
+
+  const writePeakContextToUrl = useCallback((params: { trackKey: TimelineTrackKey; startSecond: number; endSecond: number; label: string; windowMinutes: 1 | 2 | 5 } | null) => {
+    const url = new URL(window.location.href);
+    if (!params) {
+      url.searchParams.delete('peakTrack');
+      url.searchParams.delete('peakStart');
+      url.searchParams.delete('peakEnd');
+      url.searchParams.delete('peakLabel');
+      url.searchParams.delete('peakWindow');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+      return;
+    }
+
+    url.searchParams.set('peakTrack', params.trackKey);
+    url.searchParams.set('peakStart', String(params.startSecond));
+    url.searchParams.set('peakEnd', String(params.endSecond));
+    url.searchParams.set('peakLabel', params.label);
+    url.searchParams.set('peakWindow', String(params.windowMinutes));
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+  }, []);
+
+  const openTimelineWithFocus = useCallback((seriesKey: TimelineTrackKey) => {
     setTimelineScrollTarget(seriesKey);
     setActiveAnalysisTab('timeline');
     jumpToSection('session-analysis', 'analysis');
@@ -5655,13 +6028,13 @@ export function App() {
             <tbody>
               {filteredHistory.map((record) => (
                 <tr key={record.id}>
-                  <td>{record.fileName}</td>
-                  <td>{formatLocalDateTime(record.uploadedAtUtc)}</td>
-                  <td>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
-                  <td>{qualityStatusText(record.summary.qualityStatus, t)}</td>
-                  <td>{sessionTypeText(record.sessionContext.sessionType, t)}</td>
-                  <td>{dataModeText(resolveDataAvailability(record.summary).mode, t)}</td>
-                  <td>
+                  <td data-label={t.historyColumnFileName}>{record.fileName}</td>
+                  <td data-label={t.historyColumnUploadTime}>{formatLocalDateTime(record.uploadedAtUtc)}</td>
+                  <td data-label={t.historyColumnActivityTime}>{record.summary.activityStartTimeUtc ? formatLocalDateTime(record.summary.activityStartTimeUtc) : t.notAvailable}</td>
+                  <td data-label={t.historyColumnQuality}>{qualityStatusText(record.summary.qualityStatus, t)}</td>
+                  <td data-label={t.historyColumnSessionType}>{sessionTypeText(record.sessionContext.sessionType, t)}</td>
+                  <td data-label={t.historyColumnDataMode}>{dataModeText(resolveDataAvailability(record.summary).mode, t)}</td>
+                  <td data-label={t.historyOpenDetails}>
                     <button
                       type="button"
                       className="secondary-button"
@@ -5717,16 +6090,16 @@ export function App() {
             </thead>
             <tbody>
               <tr>
-                <td>{t.metricQualityStatus}</td>
+                <td data-label={t.compareTitle}>{t.metricQualityStatus}</td>
                 {compareSessions.map((session, index) => (
-                  <td key={`${session.id}-quality-${index}`}>{qualityStatusText(session.summary.qualityStatus, t)}</td>
+                  <td key={`${session.id}-quality-${index}`} data-label={session.fileName}>{qualityStatusText(session.summary.qualityStatus, t)}</td>
                 ))}
               </tr>
               {comparisonRows.map((row) => (
                 <tr key={row.key}>
-                  <td>{row.label}</td>
+                  <td data-label={t.compareTitle}>{row.label}</td>
                   {row.cells.map((cell, index) => (
-                    <td key={`${row.key}-${compareSessions[index].id}-${index}`}>
+                    <td key={`${row.key}-${compareSessions[index].id}-${index}`} data-label={compareSessions[index].fileName}>
                       <div>{cell.formattedValue}</div>
                       <div>{t.sessionCompareDelta}: {cell.deltaText}</div>
                       <div>{t.sessionCompareDeltaPercent}: {cell.deltaPercentText}</div>
@@ -5840,11 +6213,11 @@ export function App() {
                 <tbody>
                   {selectedSession.segments.map((segment) => (
                     <tr key={segment.id}>
-                      <td>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
-                      <td>{segment.label}</td>
-                      <td>{segment.startSecond}</td>
-                      <td>{segment.endSecond}</td>
-                      <td>
+                      <td data-label={t.segmentCategory}>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
+                      <td data-label={t.segmentLabel}>{segment.label}</td>
+                      <td data-label={t.segmentStartSecond}>{segment.startSecond}</td>
+                      <td data-label={t.segmentEndSecond}>{segment.endSecond}</td>
+                      <td data-label={t.historyOpenDetails}>
                         <button type="button" className="secondary-button" onClick={() => { setSelectedSegmentId(segment.id); setAnalysisScope('segment'); setActiveSessionSubpage('analysis'); }}>{t.segmentAnalyzeAction}</button>
                       </td>
                     </tr>
@@ -5940,11 +6313,11 @@ export function App() {
               <tbody>
                 {selectedSession.segments.map((segment) => (
                   <tr key={`edit-${segment.id}`}>
-                    <td>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
-                    <td>{segment.label}</td>
-                    <td>{segment.startSecond}</td>
-                    <td>{segment.endSecond}</td>
-                    <td className="segment-table__actions">
+                    <td data-label={t.segmentCategory}>{segmentCategoryLabel(segment.category ?? 'Other', t)}</td>
+                    <td data-label={t.segmentLabel}>{segment.label}</td>
+                    <td data-label={t.segmentStartSecond}>{segment.startSecond}</td>
+                    <td data-label={t.segmentEndSecond}>{segment.endSecond}</td>
+                    <td className="segment-table__actions" data-label={t.historyOpenDetails}>
                       <button type="button" className="secondary-button" onClick={() => onEditSegment(segment)}>{t.segmentEdit}</button>
                       <button type="button" className="secondary-button" onClick={() => { setMergeForm((current) => ({ ...current, sourceSegmentId: segment.id, targetSegmentId: selectedSession.segments.find((candidate) => candidate.id !== segment.id)?.id ?? '' })); setSegmentEditorsOpen({ edit: false, merge: true, split: false }); }}>{t.segmentMergeAction}</button>
                       <button type="button" className="secondary-button" onClick={() => { const midpoint = Math.floor((segment.startSecond + segment.endSecond) / 2); setSplitForm({ segmentId: segment.id, splitSecond: String(midpoint), leftLabel: '', rightLabel: '', notes: segment.notes ?? '' }); setSegmentEditorsOpen({ edit: false, merge: false, split: true }); }}>{t.segmentSplitAction}</button>
@@ -6379,7 +6752,97 @@ export function App() {
             </>
           )}
 
-          <section className={`analysis-disclosure analysis-block--peak-demand ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'peakDemand' ? "" : "is-hidden"}`}><div className="analysis-disclosure__content"><h3>{t.sessionTabPeakDemand}</h3><p>{isSegmentScopeActive ? t.segmentScopeNoPeakDataHint : t.intervalAggregationNoData}</p></div></section>
+          <section className={`analysis-disclosure analysis-block--peak-demand ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'peakDemand' ? "" : "is-hidden"}`}>
+            <div className="analysis-disclosure__content">
+              <div className="peak-demand-header">
+                <h3>{t.sessionTabPeakDemand}</h3>
+                <button
+                  type="button"
+                  className="metric-help peak-demand-info"
+                  aria-label={`${t.sessionTabPeakDemand} explanation`}
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('metric-help-open', { detail: { label: t.sessionTabPeakDemand, helpText: t.peakDemandInfoDescription } }));
+                  }}
+                >
+                  <i className="bi bi-info-circle" aria-hidden="true" />
+                </button>
+              </div>
+              <label className="form-label" htmlFor="peak-window-selector">{t.peakDemandWindowSelectorLabel}</label>
+              <select
+                className="form-select"
+                id="peak-window-selector"
+                value={peakDemandWindowMinutes}
+                onChange={(event) => setPeakDemandWindowMinutes(Number(event.target.value) as 1 | 2 | 5)}
+              >
+                <option value={1}>{t.intervalAggregationWindow1}</option>
+                <option value={2}>{t.intervalAggregationWindow2}</option>
+                <option value={5}>{t.intervalAggregationWindow5}</option>
+              </select>
+              {((selectedSession?.summary.intervalAggregates.length ?? 0) === 0 || selectedAnalysisAggregates.length === 0 || (peakRowsByDimension.volume.length + peakRowsByDimension.speed.length + peakRowsByDimension.mechanical.length + peakRowsByDimension.internal.length) === 0) ? (
+                <p>{isSegmentScopeActive ? t.segmentScopeNoPeakDataHint : t.intervalAggregationNoData}</p>
+              ) : (
+                <>
+                  {[
+                    { key: 'volume', title: t.peakDemandDimensionVolume, rows: peakRowsByDimension.volume },
+                    { key: 'speed', title: t.peakDemandDimensionSpeed, rows: peakRowsByDimension.speed },
+                    { key: 'mechanical', title: t.peakDemandDimensionMechanical, rows: peakRowsByDimension.mechanical },
+                    { key: 'internal', title: t.peakDemandDimensionInternal, rows: peakRowsByDimension.internal }
+                  ].map((dimension) => (
+                    <div key={dimension.key} className="peak-demand-dimension">
+                      <h4>{dimension.title} · Peaks</h4>
+                      {dimension.rows.length === 0 ? (
+                        <p>{t.notAvailable}</p>
+                      ) : (
+                        <table className="history-table peak-demand-table">
+                          <thead>
+                            <tr>
+                              <th>{t.peakDemandMetricLabel}</th>
+                              <th>{t.peakDemandValueLabel}</th>
+                              <th>{t.peakDemandAverageLabel}</th>
+                              <th>{t.peakDemandBestLabel}</th>
+                              <th>{t.peakDemandActionLabel}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dimension.rows.map((row) => (
+                              <tr key={`${dimension.key}-${row.metricLabel}`}>
+                                <td data-label={t.peakDemandMetricLabel}>{row.metricLabel}</td>
+                                <td data-label={t.peakDemandValueLabel}>{row.peakValue}</td>
+                                <td data-label={t.peakDemandAverageLabel}><i className="bi bi-slash-circle" aria-hidden="true" /> {row.averageLastFive ?? t.notAvailable}</td>
+                                <td data-label={t.peakDemandBestLabel}><i className="bi bi-star-fill" aria-hidden="true" /> {row.bestSeason ?? t.notAvailable}</td>
+                                <td data-label={t.peakDemandActionLabel}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-secondary"
+                                    onClick={() => {
+                                      setActiveAnalysisTab('timeline');
+                                      setTimelineMode('rolling');
+                                      setAggregationWindowMinutes(peakDemandWindowMinutes);
+                                      setTimelineScrollTarget(row.seriesKey);
+                                      setTimelineHighlightedWindow({ startSecond: row.windowStartSecond, endSecond: row.windowEndSecond });
+                                      const peakLabel = `${dimension.title} · ${row.metricLabel} (${peakDemandWindowMinutes} min)`;
+                                      setTimelineHighlightedPeakLabel(peakLabel);
+                                      setTimelineCursorSecond(row.windowEndSecond);
+                                      jumpToSection('session-analysis', 'analysis');
+                                      requestAnimationFrame(() => {
+                                        writePeakContextToUrl({ trackKey: row.seriesKey, startSecond: row.windowStartSecond, endSecond: row.windowEndSecond, label: peakLabel, windowMinutes: peakDemandWindowMinutes });
+                                      });
+                                    }}
+                                  >
+                                    {t.peakDemandActionJumpTimeline}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </section>
           <section className={`interval-aggregation analysis-disclosure analysis-block--interval ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'timeline' ? "" : "is-hidden"}`}>
             <div className="analysis-disclosure__content timeline-content-always-open">
             <p>{t.intervalAggregationExplanation}</p>
@@ -6410,6 +6873,15 @@ export function App() {
             )}
             <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: {formatSecondsMmSs(0)} {t.timelineSharedAxisUnitMinutes} – {formatSecondsMmSs(timelineAxisMaxSecond)} {t.timelineSharedAxisUnitMinutes} · {t.timelineCursorLabel}: {formatSecondsMmSs(Math.round(timelineCursorSecond))} {t.timelineSharedAxisUnitMinutes}</p>
             <p className="timeline-shared-axis">{t.timelineXAxisLabel}</p>
+            {timelineHighlightedWindow && (
+              <p className="timeline-shared-axis">{t.timelineHighlightedWindowLabel}: {formatSecondsMmSs(timelineHighlightedWindow.startSecond)} {t.timelineSharedAxisUnitMinutes} – {formatSecondsMmSs(timelineHighlightedWindow.endSecond)} {t.timelineSharedAxisUnitMinutes}</p>
+            )}
+            {timelineHighlightedWindow && timelineHighlightedPeakLabel && (
+              <div className="timeline-highlight-meta">
+                <p className="timeline-shared-axis">{t.timelineHighlightedPeakLabel}: {timelineHighlightedPeakLabel}</p>
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setTimelineHighlightedWindow(null); setTimelineHighlightedPeakLabel(null); writePeakContextToUrl(null); }}>{t.timelineHighlightedPeakReset}</button>
+              </div>
+            )}
             <div className="timeline-cursor-readout">
               {timelineSeries.map((series) => {
                 const valueText = timelineCursorValues.find((entry) => entry.key === series.key)?.text ?? t.notAvailable;
@@ -6439,6 +6911,7 @@ export function App() {
                   xAxisTicks={xAxisTicks}
                   xAxisTickFormatter={(value) => formatSecondsMmSs(value)}
                   compact={timelineDensity === 'compact'}
+                  highlightedWindow={timelineHighlightedWindow}
                 />
               );})}
             </div>
@@ -6704,7 +7177,7 @@ type MapSurfaceProps = {
 type TimelinePoint = { x: number; y: number | null };
 
 type TimelineSeries = {
-  key: 'distance' | 'runningDensity' | 'speed' | 'highSpeedDistance' | 'mechanicalLoad' | 'heartRateAvg' | 'trimp';
+  key: TimelineTrackKey;
   label: string;
   valueSuffix?: string;
   valueFormatter?: (value: number) => string;
@@ -6749,9 +7222,10 @@ type TimelineTrackChartProps = {
   yGuideValueLabel: string;
   xAxisTicks: number[];
   xAxisTickFormatter: (value: number) => string;
+  highlightedWindow: { startSecond: number; endSecond: number } | null;
 };
 
-function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix, lineColorClassName, sliderClassName, cursorSecond, isCursorLocked, onCursorChange, onToggleCursorLock, currentValueLabel, yGuideValueLabel, xAxisTicks, xAxisTickFormatter, compact }: TimelineTrackChartProps) {
+function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix, lineColorClassName, sliderClassName, cursorSecond, isCursorLocked, onCursorChange, onToggleCursorLock, currentValueLabel, yGuideValueLabel, xAxisTicks, xAxisTickFormatter, compact, highlightedWindow }: TimelineTrackChartProps) {
   const width = 560;
   const height = compact ? 84 : 120;
   const topPadding = 8;
@@ -6812,6 +7286,15 @@ function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix
       >
         <line x1="0" y1={height - bottomPadding} x2={width} y2={height - bottomPadding} className="timeline-track__axis" />
         <line x1="0" y1={topPadding} x2={0} y2={height - bottomPadding} className="timeline-track__axis" />
+        {highlightedWindow && (
+          <rect
+            x={Math.max(0, Math.min(width, (highlightedWindow.startSecond / axisMaxSecond) * width))}
+            y={topPadding}
+            width={Math.max(2, Math.min(width, ((highlightedWindow.endSecond - highlightedWindow.startSecond + 1) / axisMaxSecond) * width))}
+            height={chartHeight}
+            className="timeline-track__highlight-window"
+          />
+        )}
         {polylinePoints.length > 0 && <polyline points={polylinePoints} className={`timeline-track__line ${lineColorClassName}`} />}
         {cursorGuideY !== null && <line x1="0" y1={cursorGuideY} x2={width} y2={cursorGuideY} className="timeline-track__cursor-y" />}
         <line x1={cursorX} y1={topPadding} x2={cursorX} y2={height - bottomPadding} className="timeline-track__cursor" />

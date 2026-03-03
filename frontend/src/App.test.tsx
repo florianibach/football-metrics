@@ -3775,7 +3775,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Timeline|Zeitverlauf/ }));
     await waitFor(() => expect(window.location.search).toContain('tab=timeline'));
 
-    fireEvent.click(screen.getByRole('button', { name: /Peak Demand/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Peak Demand$/ }));
     await waitFor(() => expect(window.location.search).toContain('tab=peakDemand'));
 
     fireEvent.click(screen.getAllByRole('button', { name: /Heatmap/ })[0]);
@@ -3835,6 +3835,48 @@ describe('App', () => {
     });
   });
 
+  it('R1_7_14_Ac01_browser_back_restores_overview_tab_state_from_timeline_and_peak', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    window.history.pushState({}, '', '/');
+    render(<App />);
+
+    await screen.findByText('Session details');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Timeline' }));
+    await waitFor(() => expect(window.location.search).toContain('tab=timeline'));
+
+    await act(async () => {
+      window.history.back();
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+
+    await waitFor(() => expect(window.location.search).toBe(''));
+    expect(screen.getByRole('button', { name: 'Overview' }).classList.contains('side-nav__item--active')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+    await waitFor(() => expect(window.location.search).toContain('tab=peakDemand'));
+
+    await act(async () => {
+      window.history.back();
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+
+    await waitFor(() => expect(window.location.search).toBe(''));
+    expect(screen.getByRole('button', { name: 'Overview' }).classList.contains('side-nav__item--active')).toBe(true);
+  });
+
 
   it('R1_7_01_Ac01_uses_side_navigation_and_mobile_dropdown_for_session_views', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
@@ -3867,13 +3909,228 @@ describe('App', () => {
     expect(await screen.findByText(/Timeline mode/i)).toBeInTheDocument();
 
     fireEvent.change(mobileNav, { target: { value: 'peakDemand' } });
-    expect(await screen.findByText('No interval data available for this session.')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Peak window')).toBeInTheDocument();
 
     fireEvent.change(mobileNav, { target: { value: 'sessionSettings' } });
     expect(await screen.findByText('Session context')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Technical info' }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/technical-info'));
+  });
+
+
+  it('R1_7_05_Ac01_shows_peak_window_selector_with_default_5_minutes', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredAggregationWindowMinutes: 1 }) } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+
+    const selector = screen.getByLabelText('Peak window') as HTMLSelectElement;
+    expect(selector).toBeInTheDocument();
+    expect(selector.value).toBe('5');
+
+    fireEvent.change(selector, { target: { value: '2' } });
+    expect(selector.value).toBe('2');
+  });
+
+
+
+  it('R1_7_05_Ac01b_peak_window_switch_propagates_to_timeline_context', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+
+    const selector = screen.getByLabelText('Peak window');
+    fireEvent.change(selector, { target: { value: '1' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open in timeline' })[0]);
+
+    expect(await screen.findByText(/\(1 min\)/)).toBeInTheDocument();
+    expect(window.location.search).toContain('peakWindow=1');
+  });
+
+  it('R1_7_05_Ac04c_persists_peak_context_in_url_and_clears_on_reset', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open in timeline' })[0]);
+
+    await waitFor(() => expect(window.location.search).toContain('peakTrack='));
+    await waitFor(() => expect(window.location.search).toContain('peakWindow='));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset peak highlight' }));
+    await waitFor(() => expect(window.location.search).not.toContain('peakTrack='));
+  });
+
+  it('R1_7_05_Ac04_peak_action_opens_timeline_and_marks_window', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open in timeline' })[0]);
+
+    expect(await screen.findByText(/Highlighted window:/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Timeline' })).toBeInTheDocument();
+  });
+
+
+
+
+
+  it('R1_7_05_Ac04b_allows_resetting_timeline_peak_highlight', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open in timeline' })[0]);
+
+    expect(await screen.findByText(/Highlighted peak:/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset peak highlight' }));
+    expect(screen.queryByText(/Highlighted peak:/)).not.toBeInTheDocument();
+  });
+
+  it('R1_7_05_Ac03_uses_peak_based_comparison_values_not_overall_totals', async () => {
+    const historyA = createUploadRecord({
+      id: 'history-a',
+      sessionContext: { sessionType: 'Training', matchResult: null, competition: null, opponentName: null, opponentLogoUrl: null },
+      summary: createSummary({
+        durationSeconds: 600,
+        coreMetrics: {
+          ...baseCoreMetrics(),
+          distanceMeters: 9000,
+          highSpeedDistanceMeters: 2400,
+          trainingImpulseEdwards: 420
+        },
+        gpsTrackpoints: [
+          { latitude: 50.9365, longitude: 6.9603, elapsedSeconds: 0 },
+          { latitude: 50.9366, longitude: 6.9604, elapsedSeconds: 300 },
+          { latitude: 50.9367, longitude: 6.9605, elapsedSeconds: 600 }
+        ],
+        heartRateSamples: [
+          { elapsedSeconds: 0, heartRateBpm: 128 },
+          { elapsedSeconds: 300, heartRateBpm: 132 },
+          { elapsedSeconds: 600, heartRateBpm: 130 }
+        ]
+      })
+    });
+
+    const selected = createUploadRecord({
+      id: 'selected-peak',
+      sessionContext: { sessionType: 'Training', matchResult: null, competition: null, opponentName: null, opponentLogoUrl: null }
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [selected, historyA] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+
+    expect(screen.queryByText(/9,000/i)).not.toBeInTheDocument();
+  });
+
+  it('R1_7_05_Ac02_shows_peak_info_help_and_mobile_data_labels', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand explanation' }));
+    expect(await screen.findByText(/Peak Demand helps you identify the most intensive phases/i)).toBeInTheDocument();
+
+    const firstDataCell = screen.getAllByRole('cell').find((cell) => cell.getAttribute('data-label') === 'Metric');
+    expect(firstDataCell).toBeTruthy();
   });
 
   it('R1_7_06a_Ac02_preserves_segment_scope_while_switching_tabs_and_mobile_views', async () => {
