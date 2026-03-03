@@ -99,7 +99,7 @@ public static partial class TcxMetricsExtractor
         var dataAvailability = BuildDataAvailability(rawGpsPoints.Count > 0, heartRates.Count > 0, qualityAssessment.Status, qualityAssessment.GpsAssessment, qualityAssessment.HeartRateAssessment);
         var smoothingTrace = BuildSmoothingTrace(normalizedFilter, trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
         var effectiveThresholds = thresholdProfile ?? MetricThresholdProfile.CreateDefault();
-        var (coreMetrics, detectedRuns) = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
+        var (coreMetrics, detectedRuns, accelerations, decelerations, highIntensityDirectionChanges) = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
         var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints, effectiveThresholds);
 
 
@@ -140,7 +140,10 @@ public static partial class TcxMetricsExtractor
             smoothingTrace,
             coreMetrics,
             intervalAggregates,
-            detectedRuns);
+            detectedRuns,
+            accelerations,
+            decelerations,
+            highIntensityDirectionChanges);
     }
 
 
@@ -445,7 +448,7 @@ public static partial class TcxMetricsExtractor
         return ordered[middle];
     }
 
-    private static (int TotalCount, int ModerateCount, int HighCount, int VeryHighCount) DetectDirectionChangeBands(
+    private static (int TotalCount, int ModerateCount, int HighCount, int VeryHighCount, IReadOnlyList<TcxMechanicalEvent> Events) DetectDirectionChangeBands(
         IReadOnlyList<TrackpointSnapshot> points,
         double moderateThresholdDegrees,
         double highThresholdDegrees,
@@ -460,7 +463,7 @@ public static partial class TcxMetricsExtractor
 
         if (pointsWithGps.Count < 3)
         {
-            return (0, 0, 0, 0);
+            return (0, 0, 0, 0, Array.Empty<TcxMechanicalEvent>());
         }
 
         var events = 0;
@@ -471,6 +474,8 @@ public static partial class TcxMetricsExtractor
         var inEvent = false;
         int? candidateTurnDirection = null;
         CodBand? highestBandInStreak = null;
+        var eventCandidates = new List<(int PointIndex, double ElapsedSeconds, double DistanceMeters, CodBand Band)>();
+        var eventsList = new List<TcxMechanicalEvent>();
 
         for (var index = 1; index < pointsWithGps.Count - 1; index++)
         {
@@ -496,6 +501,7 @@ public static partial class TcxMetricsExtractor
                 candidateTurnDirection = null;
                 highestBandInStreak = null;
                 inEvent = false;
+                eventCandidates.Clear();
                 continue;
             }
 
@@ -506,6 +512,7 @@ public static partial class TcxMetricsExtractor
                 candidateTurnDirection = null;
                 highestBandInStreak = null;
                 inEvent = false;
+                eventCandidates.Clear();
                 continue;
             }
 
@@ -517,6 +524,7 @@ public static partial class TcxMetricsExtractor
                     ? band.Value
                     : highestBandInStreak;
                 consecutiveCandidates++;
+                eventCandidates.Add((index, Math.Max(0, (current.TimeUtc!.Value - pointsWithGps[0].TimeUtc!.Value).TotalSeconds), (incomingSpeed.Value + outgoingSpeed.Value) / 2.0, band.Value));
             }
             else
             {
@@ -524,6 +532,8 @@ public static partial class TcxMetricsExtractor
                 highestBandInStreak = band.Value;
                 consecutiveCandidates = 1;
                 inEvent = false;
+                eventCandidates.Clear();
+                eventCandidates.Add((index, Math.Max(0, (current.TimeUtc!.Value - pointsWithGps[0].TimeUtc!.Value).TotalSeconds), (incomingSpeed.Value + outgoingSpeed.Value) / 2.0, band.Value));
             }
 
             if (!inEvent && consecutiveCandidates >= consecutiveSamplesRequired)
@@ -543,10 +553,28 @@ public static partial class TcxMetricsExtractor
                         veryHigh++;
                         break;
                 }
+
+                var pointIndices = eventCandidates.Select(candidate => candidate.PointIndex).Distinct().OrderBy(i => i).ToList();
+                var startElapsedSeconds = eventCandidates.Count == 0 ? 0 : eventCandidates.Min(candidate => candidate.ElapsedSeconds);
+                var endElapsedSeconds = eventCandidates.Count == 0 ? startElapsedSeconds : eventCandidates.Max(candidate => candidate.ElapsedSeconds);
+                var totalDistance = eventCandidates.Sum(candidate => candidate.DistanceMeters);
+                eventsList.Add(new TcxMechanicalEvent(
+                    $"cod-{eventsList.Count + 1}",
+                    "highIntensityDirectionChange",
+                    classifiedBand switch
+                    {
+                        CodBand.Moderate => "moderate",
+                        CodBand.High => "high",
+                        _ => "veryHigh"
+                    },
+                    startElapsedSeconds,
+                    Math.Max(0, endElapsedSeconds - startElapsedSeconds),
+                    totalDistance,
+                    pointIndices));
             }
         }
 
-        return (events, moderate, high, veryHigh);
+        return (events, moderate, high, veryHigh, eventsList);
     }
 
     private static CodBand? ResolveCodBand(
@@ -815,7 +843,7 @@ public static partial class TcxMetricsExtractor
                 .Where(point => point.TimeUtc.HasValue && point.TimeUtc.Value >= windowStart && point.TimeUtc.Value <= windowEnd)
                 .ToList();
 
-            var (intervalCoreMetrics, _) = BuildFootballCoreMetrics(
+            var (intervalCoreMetrics, _, _, _, _) = BuildFootballCoreMetrics(
                 windowTrackpoints,
                 "High",
                 coveredSeconds > 0 ? distanceMeters : null,
@@ -953,7 +981,7 @@ public static partial class TcxMetricsExtractor
         return new QualityAssessment(status, reasons, new ChannelQualityAssessment(gpsStatus, gpsReasons), new ChannelQualityAssessment(hrStatus, hrReasons));
     }
 
-private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun> DetectedRuns) BuildFootballCoreMetrics(
+private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun> DetectedRuns, IReadOnlyList<TcxMechanicalEvent> Accelerations, IReadOnlyList<TcxMechanicalEvent> Decelerations, IReadOnlyList<TcxMechanicalEvent> HighIntensityDirectionChanges) BuildFootballCoreMetrics(
         IReadOnlyList<TrackpointSnapshot> trackpoints,
         string qualityStatus,
         double? totalDistanceMeters,
@@ -1056,6 +1084,9 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         int? veryHighDirectionChangeCount = null;
         double? distanceMeters = null;
         var detectedRuns = new List<TcxDetectedRun>();
+        var accelerationEvents = new List<TcxMechanicalEvent>();
+        var decelerationEvents = new List<TcxMechanicalEvent>();
+        var directionChangeEventsList = new List<TcxMechanicalEvent>();
 
         if (!hasGpsMeasurements)
         {
@@ -1179,17 +1210,17 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 : (double?)null;
 
             var accelerationSamples = segments
-                .Select(segment => new SpeedSample(segment.EndElapsedSeconds, segment.Speed, segment.Distance))
+                .Select(segment => new SpeedSample(segment.PointIndex, segment.StartElapsedSeconds, segment.EndElapsedSeconds, segment.Speed, segment.Distance))
                 .ToList();
 
             var accelerationWindowSamples = BuildAccelerationWindowSamples(accelerationSamples, thresholdsProfile);
 
-            var moderateAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.Moderate, sample => sample.AccelerationBand);
-            var highAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.High, sample => sample.AccelerationBand);
-            var veryHighAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.VeryHigh, sample => sample.AccelerationBand);
-            var moderateDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.Moderate, sample => sample.DecelerationBand);
-            var highDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.High, sample => sample.DecelerationBand);
-            var veryHighDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.VeryHigh, sample => sample.DecelerationBand);
+            var moderateAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.Moderate, sample => sample.AccelerationBand, "acceleration");
+            var highAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.High, sample => sample.AccelerationBand, "acceleration");
+            var veryHighAccelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.VeryHigh, sample => sample.AccelerationBand, "acceleration");
+            var moderateDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.Moderate, sample => sample.DecelerationBand, "deceleration");
+            var highDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.High, sample => sample.DecelerationBand, "deceleration");
+            var veryHighDecelerationEvents = DetectBandEvents(accelerationWindowSamples, AccelDecelBand.VeryHigh, sample => sample.DecelerationBand, "deceleration");
 
             moderateAccelerationCount = moderateAccelerationEvents.EventCount;
             highAccelerationCount = highAccelerationEvents.EventCount;
@@ -1197,6 +1228,12 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             moderateDecelerationCount = moderateDecelerationEvents.EventCount;
             highDecelerationCount = highDecelerationEvents.EventCount;
             veryHighDecelerationCount = veryHighDecelerationEvents.EventCount;
+            accelerationEvents.AddRange(moderateAccelerationEvents.Events);
+            accelerationEvents.AddRange(highAccelerationEvents.Events);
+            accelerationEvents.AddRange(veryHighAccelerationEvents.Events);
+            decelerationEvents.AddRange(moderateDecelerationEvents.Events);
+            decelerationEvents.AddRange(highDecelerationEvents.Events);
+            decelerationEvents.AddRange(veryHighDecelerationEvents.Events);
 
             var directionChangeEvents = DetectDirectionChangeBands(
                 gpsPoints,
@@ -1210,6 +1247,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             highDirectionChangeCount = directionChangeEvents.HighCount;
             veryHighDirectionChangeCount = directionChangeEvents.VeryHighCount;
             directionChanges = directionChangeEvents.TotalCount;
+            directionChangeEventsList.AddRange(directionChangeEvents.Events);
 
             accelerationCount = moderateAccelerationEvents.EventCount + highAccelerationEvents.EventCount + veryHighAccelerationEvents.EventCount;
             decelerationCount = moderateDecelerationEvents.EventCount + highDecelerationEvents.EventCount + veryHighDecelerationEvents.EventCount;
@@ -1385,7 +1423,10 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             hrRecoveryAfter60Seconds,
             metricAvailability,
             thresholds),
-            detectedRuns);
+            detectedRuns,
+            accelerationEvents,
+            decelerationEvents,
+            directionChangeEventsList);
     }
 
     private static List<TcxDetectedRun> DetectRunsWithConsecutiveSamples(
@@ -1497,10 +1538,12 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         VeryHigh
     }
 
-    private readonly record struct SpeedSample(double ElapsedSeconds, double SpeedMps, double DistanceMeters);
+    private readonly record struct SpeedSample(int PointIndex, double StartElapsedSeconds, double EndElapsedSeconds, double SpeedMps, double DistanceMeters);
 
     private readonly record struct AccelWindowSample(
-        double ElapsedSeconds,
+        int PointIndex,
+        double StartElapsedSeconds,
+        double EndElapsedSeconds,
         double NetAccelerationMps2,
         double DistanceMeters,
         AccelDecelBand AccelerationBand,
@@ -1518,7 +1561,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         {
             var current = samples[index];
             var start = samples[index - 2];
-            var elapsedWindowSeconds = current.ElapsedSeconds - start.ElapsedSeconds;
+            var elapsedWindowSeconds = current.EndElapsedSeconds - start.EndElapsedSeconds;
             if (elapsedWindowSeconds <= 0 || Math.Abs(elapsedWindowSeconds - expectedWindowSeconds) > windowToleranceSeconds)
             {
                 continue;
@@ -1534,7 +1577,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 ? ClassifyDecelerationBand(netAccelerationMps2, thresholdsProfile)
                 : AccelDecelBand.None;
 
-            windows.Add(new AccelWindowSample(current.ElapsedSeconds, netAccelerationMps2, current.DistanceMeters, accelerationBand, decelerationBand));
+            windows.Add(new AccelWindowSample(current.PointIndex, start.StartElapsedSeconds, current.EndElapsedSeconds, netAccelerationMps2, current.DistanceMeters, accelerationBand, decelerationBand));
         }
 
         return windows;
@@ -1580,16 +1623,45 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
         return AccelDecelBand.None;
     }
 
-    private static (int EventCount, double DistanceMeters) DetectBandEvents(
+    private static (int EventCount, double DistanceMeters, IReadOnlyList<TcxMechanicalEvent> Events) DetectBandEvents(
         IReadOnlyList<AccelWindowSample> samples,
         AccelDecelBand targetBand,
-        Func<AccelWindowSample, AccelDecelBand> bandSelector)
+        Func<AccelWindowSample, AccelDecelBand> bandSelector,
+        string eventType)
     {
         const int consecutiveNonCandidatesForEnd = 2;
         var eventCount = 0;
         var eventDistanceMeters = 0d;
         var inEvent = false;
         var consecutiveOutsideBand = 0;
+        var activeEventSamples = new List<AccelWindowSample>();
+        var events = new List<TcxMechanicalEvent>();
+
+        void FinalizeEvent()
+        {
+            eventCount++;
+            if (activeEventSamples.Count == 0)
+            {
+                return;
+            }
+
+            var first = activeEventSamples.MinBy(sample => sample.StartElapsedSeconds);
+            var last = activeEventSamples.MaxBy(sample => sample.EndElapsedSeconds);
+            events.Add(new TcxMechanicalEvent(
+                $"{eventType}-{events.Count + 1}",
+                eventType,
+                targetBand switch
+                {
+                    AccelDecelBand.Moderate => "moderate",
+                    AccelDecelBand.High => "high",
+                    _ => "veryHigh"
+                },
+                first.StartElapsedSeconds,
+                Math.Max(0, last.EndElapsedSeconds - first.StartElapsedSeconds),
+                activeEventSamples.Sum(sample => sample.DistanceMeters),
+                activeEventSamples.Select(sample => sample.PointIndex).Distinct().OrderBy(pointIndex => pointIndex).ToList()));
+            activeEventSamples.Clear();
+        }
 
         foreach (var sample in samples)
         {
@@ -1605,6 +1677,7 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
                 inEvent = true;
                 consecutiveOutsideBand = 0;
                 eventDistanceMeters += sample.DistanceMeters;
+                activeEventSamples.Add(sample);
                 continue;
             }
 
@@ -1612,13 +1685,14 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             {
                 eventDistanceMeters += sample.DistanceMeters;
                 consecutiveOutsideBand = 0;
+                activeEventSamples.Add(sample);
                 continue;
             }
 
             consecutiveOutsideBand++;
             if (consecutiveOutsideBand >= consecutiveNonCandidatesForEnd)
             {
-                eventCount++;
+                FinalizeEvent();
                 inEvent = false;
                 consecutiveOutsideBand = 0;
             }
@@ -1626,10 +1700,10 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
 
         if (inEvent)
         {
-            eventCount++;
+            FinalizeEvent();
         }
 
-        return (eventCount, eventDistanceMeters);
+        return (eventCount, eventDistanceMeters, events);
     }
 
 

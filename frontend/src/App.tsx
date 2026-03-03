@@ -105,6 +105,16 @@ type DetectedRun = {
   sprintPhases?: SprintPhase[];
 };
 
+type MechanicalEvent = {
+  eventId?: string;
+  eventType: 'acceleration' | 'deceleration' | 'highIntensityDirectionChange';
+  intensity: 'moderate' | 'high' | 'veryHigh';
+  startElapsedSeconds: number;
+  durationSeconds: number;
+  distanceMeters: number;
+  pointIndices: number[];
+};
+
 type ActivitySummary = {
   activityStartTimeUtc: string | null;
   durationSeconds: number | null;
@@ -125,6 +135,9 @@ type ActivitySummary = {
   coreMetrics: FootballCoreMetrics;
   intervalAggregates: IntervalAggregate[];
   detectedRuns?: DetectedRun[];
+  accelerations?: MechanicalEvent[];
+  decelerations?: MechanicalEvent[];
+  highIntensityDirectionChanges?: MechanicalEvent[];
 };
 
 type SessionType = 'Training' | 'Match' | 'Rehab' | 'Athletics' | 'Other';
@@ -4428,8 +4441,6 @@ export function App() {
     };
 
     let previousSpeedMps: number | null = null;
-    let accelEventActive = false;
-    let decelEventActive = false;
     for (let index = 1; index < smoothedGpsPoints.length; index += 1) {
       const previous = smoothedGpsPoints[index - 1];
       const current = smoothedGpsPoints[index];
@@ -4458,67 +4469,29 @@ export function App() {
         highSpeedDistanceDelta[currentSecond] += distanceMeters;
       }
 
-      if (previousSpeedMps !== null) {
-        const accelMps2 = (speedMps - previousSpeedMps) / deltaSeconds;
-
-        if (accelMps2 >= accelThreshold && !accelEventActive) {
-          accelCountBySecond[currentSecond] += 1;
-          accelEventActive = true;
-        }
-        if (accelMps2 < accelThreshold * 0.5) {
-          accelEventActive = false;
-        }
-
-        if (accelMps2 <= -decelThreshold && !decelEventActive) {
-          decelCountBySecond[currentSecond] += 1;
-          decelEventActive = true;
-        }
-        if (accelMps2 > -(decelThreshold * 0.5)) {
-          decelEventActive = false;
-        }
-      }
-
       previousSpeedMps = speedMps;
     }
 
-    let codEventActive = false;
-    for (let index = 1; index < smoothedGpsPoints.length - 1; index += 1) {
-      const previous = smoothedGpsPoints[index - 1];
-      const current = smoothedGpsPoints[index];
-      const next = smoothedGpsPoints[index + 1];
+    const hasPointInScope = (pointIndex: number) => {
+      const elapsed = normalizedGpsTrackpoints[pointIndex]?.elapsedSeconds;
+      return typeof elapsed === 'number' && elapsed >= scopeStart && elapsed <= scopeEnd;
+    };
 
-      const inDistance = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude);
-      const outDistance = haversineMeters(current.latitude, current.longitude, next.latitude, next.longitude);
-      const inDelta = current.elapsedSeconds - previous.elapsedSeconds;
-      const outDelta = next.elapsedSeconds - current.elapsedSeconds;
-      if (inDelta <= 0 || outDelta <= 0) {
-        continue;
-      }
-      if (inDelta > pauseGapThresholdSeconds || outDelta > pauseGapThresholdSeconds) {
-        codEventActive = false;
-        continue;
-      }
+    const addMechanicalEventsBySecond = (events: MechanicalEvent[] | undefined, target: number[]) => {
+      (events ?? []).forEach((event) => {
+        if (!event.pointIndices.some((pointIndex) => hasPointInScope(pointIndex))) {
+          return;
+        }
+        const second = toLocalSecond(event.startElapsedSeconds);
+        if (second >= 0 && second <= durationSeconds) {
+          target[second] += 1;
+        }
+      });
+    };
 
-      const inSpeed = inDistance / inDelta;
-      const outSpeed = outDistance / outDelta;
-      if (Math.min(inSpeed, outSpeed) < codMinSpeed) {
-        codEventActive = false;
-        continue;
-      }
-
-      const incomingBearing = Math.atan2(current.latitude - previous.latitude, current.longitude - previous.longitude);
-      const outgoingBearing = Math.atan2(next.latitude - current.latitude, next.longitude - current.longitude);
-      const diff = Math.abs(outgoingBearing - incomingBearing);
-      const diffDeg = Math.min(diff, (Math.PI * 2) - diff) * (180 / Math.PI);
-      if (diffDeg >= codThreshold && !codEventActive) {
-        const currentSecond = toLocalSecond(current.elapsedSeconds);
-        codCountBySecond[currentSecond] += 1;
-        codEventActive = true;
-      }
-      if (diffDeg < codThreshold * 0.6) {
-        codEventActive = false;
-      }
-    }
+    addMechanicalEventsBySecond(selectedSession.summary.accelerations, accelCountBySecond);
+    addMechanicalEventsBySecond(selectedSession.summary.decelerations, decelCountBySecond);
+    addMechanicalEventsBySecond(selectedSession.summary.highIntensityDirectionChanges, codCountBySecond);
 
     const hrSamples = (selectedSession.summary.heartRateSamples ?? [])
       .filter((sample) => sample.elapsedSeconds >= scopeStart && sample.elapsedSeconds <= scopeEnd)
@@ -4543,27 +4516,9 @@ export function App() {
       }
     }
 
-    const scaleEventSeriesToTarget = (series: number[], targetTotal: number | null | undefined) => {
-      if (targetTotal === null || targetTotal === undefined || !Number.isFinite(targetTotal) || targetTotal < 0) {
-        return series;
-      }
-
-      const actualTotal = series.reduce((sum, value) => sum + value, 0);
-      if (actualTotal <= 0) {
-        return series;
-      }
-
-      const factor = targetTotal / actualTotal;
-      return series.map((value) => value * factor);
-    };
-
-    const accelSourceTotal = !isSegmentScopeActive ? selectedSession.summary.coreMetrics.accelerationCount : null;
-    const decelSourceTotal = !isSegmentScopeActive ? selectedSession.summary.coreMetrics.decelerationCount : null;
-    const codSourceTotal = !isSegmentScopeActive ? selectedSession.summary.coreMetrics.directionChanges : null;
-
-    const scaledAccelCountBySecond = scaleEventSeriesToTarget(accelCountBySecond, accelSourceTotal);
-    const scaledDecelCountBySecond = scaleEventSeriesToTarget(decelCountBySecond, decelSourceTotal);
-    const scaledCodCountBySecond = scaleEventSeriesToTarget(codCountBySecond, codSourceTotal);
+    const scaledAccelCountBySecond = accelCountBySecond;
+    const scaledDecelCountBySecond = decelCountBySecond;
+    const scaledCodCountBySecond = codCountBySecond;
 
     const prefix = (arr: number[]) => {
       const output = new Array<number>(arr.length + 1).fill(0);
@@ -4740,27 +4695,90 @@ export function App() {
     if (!selectedSession) {
       return { moderate: 0, high: 0, veryHigh: 0, total: 0 };
     }
+    const scopeStart = isSegmentScopeActive && selectedSegment ? selectedSegment.startSecond : 0;
+    const scopeEnd = isSegmentScopeActive && selectedSegment
+      ? selectedSegment.endSecond
+      : Math.max(0, selectedSession.summary.durationSeconds ?? 0);
 
-    const thresholds = selectedSession.summary.coreMetrics.thresholds ?? {};
-    const moderateThreshold = Number(thresholds.CodModerateThresholdDegrees ?? 45);
-    const highThreshold = Number(thresholds.CodHighThresholdDegrees ?? 60);
-    const veryHighThreshold = Number(thresholds.CodVeryHighThresholdDegrees ?? 90);
-    const minSpeed = Number(thresholds.CodMinimumSpeedMps ?? (10 / 3.6));
-    const consecutiveSamples = Number(thresholds.CodConsecutiveSamplesRequired ?? 2);
-
-    const points = (selectedSession.summary.gpsTrackpoints ?? [])
-      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
-      .filter((point) => !isSegmentScopeActive || !selectedSegment || (point.elapsedSeconds >= selectedSegment.startSecond && point.elapsedSeconds <= selectedSegment.endSecond));
-
-    return computeCodBandCounts(points, {
-      moderateThresholdDegrees: Number.isFinite(moderateThreshold) ? moderateThreshold : 45,
-      highThresholdDegrees: Number.isFinite(highThreshold) ? highThreshold : 60,
-      veryHighThresholdDegrees: Number.isFinite(veryHighThreshold) ? veryHighThreshold : 90,
-      minSpeedMps: Number.isFinite(minSpeed) ? minSpeed : (10 / 3.6),
-      consecutiveSamplesRequired: Number.isFinite(consecutiveSamples) ? Math.max(1, Math.round(consecutiveSamples)) : 2,
-      minStepDistanceMeters: 2
+    const inScope = (event: MechanicalEvent) => event.pointIndices.some((pointIndex) => {
+      const elapsed = normalizedGpsTrackpoints[pointIndex]?.elapsedSeconds;
+      return typeof elapsed === 'number' && elapsed >= scopeStart && elapsed <= scopeEnd;
     });
-  }, [selectedSession, isSegmentScopeActive, selectedSegment]);
+
+    const codSource = selectedSession.summary.highIntensityDirectionChanges;
+    if (!codSource || codSource.length === 0) {
+      return {
+        moderate: selectedSession.summary.coreMetrics.moderateDirectionChangeCount ?? 0,
+        high: selectedSession.summary.coreMetrics.highDirectionChangeCount ?? 0,
+        veryHigh: selectedSession.summary.coreMetrics.veryHighDirectionChangeCount ?? 0,
+        total: selectedSession.summary.coreMetrics.directionChanges ?? 0
+      };
+    }
+
+    const codEvents = codSource.filter(inScope);
+    const moderate = codEvents.filter((event) => event.intensity === 'moderate').length;
+    const high = codEvents.filter((event) => event.intensity === 'high').length;
+    const veryHigh = codEvents.filter((event) => event.intensity === 'veryHigh').length;
+
+    return { moderate, high, veryHigh, total: codEvents.length };
+  }, [selectedSession, isSegmentScopeActive, selectedSegment, normalizedGpsTrackpoints]);
+
+
+  const mechanicalBandCountsByScope = useMemo(() => {
+    if (!selectedSession) {
+      return {
+        acceleration: { moderate: 0, high: 0, veryHigh: 0, total: 0 },
+        deceleration: { moderate: 0, high: 0, veryHigh: 0, total: 0 }
+      };
+    }
+
+    const scopeStart = isSegmentScopeActive && selectedSegment ? selectedSegment.startSecond : 0;
+    const scopeEnd = isSegmentScopeActive && selectedSegment
+      ? selectedSegment.endSecond
+      : Math.max(0, selectedSession.summary.durationSeconds ?? 0);
+
+    const inScope = (event: MechanicalEvent) => event.pointIndices.some((pointIndex) => {
+      const elapsed = normalizedGpsTrackpoints[pointIndex]?.elapsedSeconds;
+      return typeof elapsed === 'number' && elapsed >= scopeStart && elapsed <= scopeEnd;
+    });
+
+    const countByBand = (
+      events: MechanicalEvent[] | undefined,
+      fallback: { moderate: number | null | undefined; high: number | null | undefined; veryHigh: number | null | undefined; total: number | null | undefined }
+    ) => {
+      if (events && events.length > 0) {
+        const scoped = events.filter(inScope);
+        return {
+          moderate: scoped.filter((event) => event.intensity === 'moderate').length,
+          high: scoped.filter((event) => event.intensity === 'high').length,
+          veryHigh: scoped.filter((event) => event.intensity === 'veryHigh').length,
+          total: scoped.length
+        };
+      }
+
+      return {
+        moderate: fallback.moderate ?? 0,
+        high: fallback.high ?? 0,
+        veryHigh: fallback.veryHigh ?? 0,
+        total: fallback.total ?? 0
+      };
+    };
+
+    return {
+      acceleration: countByBand(selectedSession.summary.accelerations, {
+        moderate: selectedSession.summary.coreMetrics.moderateAccelerationCount,
+        high: selectedSession.summary.coreMetrics.highAccelerationCount,
+        veryHigh: selectedSession.summary.coreMetrics.veryHighAccelerationCount,
+        total: selectedSession.summary.coreMetrics.accelerationCount
+      }),
+      deceleration: countByBand(selectedSession.summary.decelerations, {
+        moderate: selectedSession.summary.coreMetrics.moderateDecelerationCount,
+        high: selectedSession.summary.coreMetrics.highDecelerationCount,
+        veryHigh: selectedSession.summary.coreMetrics.veryHighDecelerationCount,
+        total: selectedSession.summary.coreMetrics.decelerationCount
+      })
+    };
+  }, [selectedSession, isSegmentScopeActive, selectedSegment, normalizedGpsTrackpoints]);
 
   const displayedCoreMetrics = useMemo(() => {
     // Backend delivers a single session summary + interval aggregates.
@@ -4771,7 +4789,21 @@ export function App() {
     }
 
     if (!isSegmentScopeActive) {
-      return selectedSession.summary.coreMetrics;
+      return {
+        ...selectedSession.summary.coreMetrics,
+        accelerationCount: mechanicalBandCountsByScope.acceleration.total,
+        decelerationCount: mechanicalBandCountsByScope.deceleration.total,
+        moderateAccelerationCount: mechanicalBandCountsByScope.acceleration.moderate,
+        highAccelerationCount: mechanicalBandCountsByScope.acceleration.high,
+        veryHighAccelerationCount: mechanicalBandCountsByScope.acceleration.veryHigh,
+        moderateDecelerationCount: mechanicalBandCountsByScope.deceleration.moderate,
+        highDecelerationCount: mechanicalBandCountsByScope.deceleration.high,
+        veryHighDecelerationCount: mechanicalBandCountsByScope.deceleration.veryHigh,
+        directionChanges: codBandCountsByScope.total,
+        moderateDirectionChangeCount: codBandCountsByScope.moderate,
+        highDirectionChangeCount: codBandCountsByScope.high,
+        veryHighDirectionChangeCount: codBandCountsByScope.veryHigh
+      };
     }
 
     if (selectedAnalysisAggregates.length === 0) {
@@ -4893,14 +4925,14 @@ export function App() {
       runningDensityMetersPerMinute: distanceMeters === null || !isMetricAvailableForAggregation(combinedMetricAvailability, 'runningDensityMetersPerMinute')
         ? null
         : (distanceMeters / durationSeconds) * 60,
-      accelerationCount: sumMetric('accelerationCount', (metrics) => metrics.accelerationCount, { round: true }),
-      decelerationCount: sumMetric('decelerationCount', (metrics) => metrics.decelerationCount, { round: true }),
-      moderateAccelerationCount: sumMetric('moderateAccelerationCount', (metrics) => metrics.moderateAccelerationCount, { round: true }),
-      highAccelerationCount: sumMetric('highAccelerationCount', (metrics) => metrics.highAccelerationCount, { round: true }),
-      veryHighAccelerationCount: sumMetric('veryHighAccelerationCount', (metrics) => metrics.veryHighAccelerationCount, { round: true }),
-      moderateDecelerationCount: sumMetric('moderateDecelerationCount', (metrics) => metrics.moderateDecelerationCount, { round: true }),
-      highDecelerationCount: sumMetric('highDecelerationCount', (metrics) => metrics.highDecelerationCount, { round: true }),
-      veryHighDecelerationCount: sumMetric('veryHighDecelerationCount', (metrics) => metrics.veryHighDecelerationCount, { round: true }),
+      accelerationCount: mechanicalBandCountsByScope.acceleration.total,
+      decelerationCount: mechanicalBandCountsByScope.deceleration.total,
+      moderateAccelerationCount: mechanicalBandCountsByScope.acceleration.moderate,
+      highAccelerationCount: mechanicalBandCountsByScope.acceleration.high,
+      veryHighAccelerationCount: mechanicalBandCountsByScope.acceleration.veryHigh,
+      moderateDecelerationCount: mechanicalBandCountsByScope.deceleration.moderate,
+      highDecelerationCount: mechanicalBandCountsByScope.deceleration.high,
+      veryHighDecelerationCount: mechanicalBandCountsByScope.deceleration.veryHigh,
       directionChanges: codBandCountsByScope.total,
       moderateDirectionChangeCount: codBandCountsByScope.moderate,
       highDirectionChangeCount: codBandCountsByScope.high,
@@ -4922,7 +4954,7 @@ export function App() {
             return null;
           })()
     } satisfies FootballCoreMetrics;
-  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics, segmentSpeedDerivedMetrics, codBandCountsByScope, t.segmentScopeNoTimelineDataHint]);
+  }, [selectedSession, isSegmentScopeActive, selectedAnalysisAggregates, selectedAnalysisAggregateSlices, selectedSegment, segmentRunDerivedMetrics, segmentSpeedDerivedMetrics, codBandCountsByScope, mechanicalBandCountsByScope, t.segmentScopeNoTimelineDataHint]);
 
   const detectedRunHierarchySummary = useMemo(() => {
     if (!selectedSession) {

@@ -1,5 +1,7 @@
 namespace FootballMetrics.Api.Models;
 
+using System.Text.Json.Serialization;
+
 public sealed record TcxFootballCoreMetrics(
     bool IsAvailable,
     string? UnavailableReason,
@@ -11,18 +13,18 @@ public sealed record TcxFootballCoreMetrics(
     int? HighIntensityRunCount,
     double? HighSpeedDistanceMeters,
     double? RunningDensityMetersPerMinute,
-    int? AccelerationCount,
-    int? DecelerationCount,
-    int? ModerateAccelerationCount,
-    int? HighAccelerationCount,
-    int? VeryHighAccelerationCount,
-    int? ModerateDecelerationCount,
-    int? HighDecelerationCount,
-    int? VeryHighDecelerationCount,
-    int? DirectionChanges,
-    int? ModerateDirectionChangeCount,
-    int? HighDirectionChangeCount,
-    int? VeryHighDirectionChangeCount,
+    [property: JsonIgnore] int? AccelerationCount,
+    [property: JsonIgnore] int? DecelerationCount,
+    [property: JsonIgnore] int? ModerateAccelerationCount,
+    [property: JsonIgnore] int? HighAccelerationCount,
+    [property: JsonIgnore] int? VeryHighAccelerationCount,
+    [property: JsonIgnore] int? ModerateDecelerationCount,
+    [property: JsonIgnore] int? HighDecelerationCount,
+    [property: JsonIgnore] int? VeryHighDecelerationCount,
+    [property: JsonIgnore] int? DirectionChanges,
+    [property: JsonIgnore] int? ModerateDirectionChangeCount,
+    [property: JsonIgnore] int? HighDirectionChangeCount,
+    [property: JsonIgnore] int? VeryHighDirectionChangeCount,
     double? HeartRateZoneLowSeconds,
     double? HeartRateZoneMediumSeconds,
     double? HeartRateZoneHighSeconds,
