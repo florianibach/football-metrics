@@ -1500,10 +1500,10 @@ describe('App', () => {
     expect(screen.getByText(/Rolling samples:/)).toBeInTheDocument();
     expect(screen.getAllByText('Running density').length).toBeGreaterThan(0);
     expect(screen.getByText('Layout')).toBeInTheDocument();
-    expect(document.querySelector('.timeline-tracks')?.classList.contains('timeline-tracks--compact')).toBe(false);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Compact' }));
     expect(document.querySelector('.timeline-tracks')?.classList.contains('timeline-tracks--compact')).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Standard' }));
+    expect(document.querySelector('.timeline-tracks')?.classList.contains('timeline-tracks--compact')).toBe(false);
 
     fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
 

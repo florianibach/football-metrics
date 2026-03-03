@@ -19,7 +19,19 @@ public sealed record TcxActivitySummary(
     TcxSmoothingTrace Smoothing,
     TcxFootballCoreMetrics CoreMetrics,
     IReadOnlyList<TcxIntervalAggregate> IntervalAggregates,
-    IReadOnlyList<TcxDetectedRun> DetectedRuns);
+    IReadOnlyList<TcxDetectedRun> DetectedRuns,
+    IReadOnlyList<TcxMechanicalEvent> Accelerations,
+    IReadOnlyList<TcxMechanicalEvent> Decelerations,
+    IReadOnlyList<TcxMechanicalEvent> HighIntensityDirectionChanges);
+
+public sealed record TcxMechanicalEvent(
+    string EventId,
+    string EventType,
+    string Intensity,
+    double StartElapsedSeconds,
+    double DurationSeconds,
+    double DistanceMeters,
+    IReadOnlyList<int> PointIndices);
 
 public sealed record TcxGpsTrackpoint(
     double Latitude,
