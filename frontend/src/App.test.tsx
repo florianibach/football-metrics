@@ -1056,10 +1056,10 @@ describe('App', () => {
     expect(screen.getAllByText(/of which sprint phases:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/High-speed distance:/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/of which sprint phase distance:/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Running density \(m\/min\):/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Accelerations:/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Decelerations:/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/TRIMP \(Edwards\):/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Running density/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Accelerations/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Decelerations/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/TRIMP \(Edwards\)/i).length).toBeGreaterThan(0);
 
     vi.restoreAllMocks();
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -1487,20 +1487,33 @@ describe('App', () => {
 
     render(<App />);
 
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getAllByRole('button', { name: /Timeline/i })[0]);
+
     await waitFor(() => {
-      expect(screen.getByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+      expect(screen.getByText(/Timeline mode/i)).toBeInTheDocument();
     });
 
     expect(screen.getByText(/Interval views help you understand how effort changes during a session/)).toBeInTheDocument();
-    expect(screen.getByText('Windows: 1')).toBeInTheDocument();
-    expect(screen.getAllByText(/Duration:/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Shared time axis: \d{1,2}:\d{2} min – .* min · Cursor: .* min/)).toBeInTheDocument();
+    expect(document.querySelectorAll('.timeline-track__slider[step="0.5"]').length).toBeGreaterThan(0);
+    expect(screen.getByText(/Rolling samples:/)).toBeInTheDocument();
+    expect(screen.getAllByText('Running density').length).toBeGreaterThan(0);
+    expect(screen.getByText('Layout')).toBeInTheDocument();
+    expect(document.querySelector('.timeline-tracks')?.classList.contains('timeline-tracks--compact')).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Compact' }));
+    expect(document.querySelector('.timeline-tracks')?.classList.contains('timeline-tracks--compact')).toBe(true);
 
     fireEvent.change(screen.getByLabelText('Aggregation window'), { target: { value: '5' } });
 
     await waitFor(() => {
-      expect(screen.getByText('Windows: 1')).toBeInTheDocument();
-      expect(screen.getByText(/1 min 0 s/)).toBeInTheDocument();
+      expect(screen.getByText(/Rolling samples:/)).toBeInTheDocument();
+      expect(screen.getAllByText('Speed').length).toBeGreaterThan(0);
     });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Instant' }));
+    expect(screen.queryByLabelText('Aggregation window')).not.toBeInTheDocument();
   });
 
 
@@ -1865,7 +1878,7 @@ describe('App', () => {
     await waitFor(() => expect(getOverviewToggle('Volume')).toBeInTheDocument());
 
     expect(screen.getByText('Volume')).toBeInTheDocument();
-    expect(screen.getByText('Speed')).toBeInTheDocument();
+    expect(screen.getAllByText('Speed').length).toBeGreaterThan(0);
     expect(screen.getByText('Mechanical')).toBeInTheDocument();
     expect(screen.getByText('Internal')).toBeInTheDocument();
   });
@@ -1956,7 +1969,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Overview' }));
     const distanceCardAgain = await screen.findByRole('article', { name: 'Distance' });
     fireEvent.click(within(distanceCardAgain).getByRole('button', { name: 'Go to timeline' }));
-    expect(await screen.findByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+    expect(await screen.findByText(/Timeline mode/i)).toBeInTheDocument();
   });
 
   it('R1_7_03_Ac04_metric_help_sidebar_opens_from_kpi_card_info_icon', async () => {
@@ -3724,7 +3737,7 @@ describe('App', () => {
   });
 
 
-    it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
+  it('R1_6_14_Ac01_updates_url_and_supports_browser_history_on_navigation', async () => {
     const withSegment = createUploadRecord({
       segments: [{ id: 'seg-1', label: 'Segment A', startSecond: 0, endSecond: 300, category: 'Other', notes: 'Segment note' }]
     });
@@ -3758,6 +3771,15 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Overview|Übersicht/ }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Timeline|Zeitverlauf/ }));
+    await waitFor(() => expect(window.location.search).toContain('tab=timeline'));
+
+    fireEvent.click(screen.getByRole('button', { name: /Peak Demand/ }));
+    await waitFor(() => expect(window.location.search).toContain('tab=peakDemand'));
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Heatmap/ })[0]);
+    await waitFor(() => expect(window.location.search).toContain('tab=heatmap'));
 
     fireEvent.click(screen.getByRole('button', { name: /Segments|Segmente/ }));
     fireEvent.click(screen.getAllByRole('button', { name: 'Analyze segment' })[0]);
@@ -3842,7 +3864,7 @@ describe('App', () => {
 
     const mobileNav = screen.getByLabelText('Session navigation');
     fireEvent.change(mobileNav, { target: { value: 'timeline' } });
-    expect(await screen.findByText('Interval aggregation (1 / 2 / 5 minutes)')).toBeInTheDocument();
+    expect(await screen.findByText(/Timeline mode/i)).toBeInTheDocument();
 
     fireEvent.change(mobileNav, { target: { value: 'peakDemand' } });
     expect(await screen.findByText('No interval data available for this session.')).toBeInTheDocument();
@@ -3882,6 +3904,7 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Timeline/ }));
     expect(screen.getByText('Segment-focused analysis is active.')).toBeInTheDocument();
+    expect(screen.getByText(/Shared time axis: \d{1,2}:\d{2} min – .* min · Cursor: .* min/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
     expect(screen.getByText('Segment-focused analysis is active.')).toBeInTheDocument();

@@ -168,7 +168,8 @@ type SpeedUnit = 'km/h' | 'mph' | 'm/s' | 'min/km';
 type MainPage = 'sessions' | 'upload' | 'profile' | 'session';
 type SessionSubpage = 'analysis' | 'segments' | 'segmentEdit' | 'compare' | 'sessionSettings' | 'technicalInfo';
 type SessionAnalysisTab = 'overview' | 'timeline' | 'peakDemand' | 'segments' | 'heatmap';
-type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null; segmentId: string | null };
+type TimelineMode = 'instant' | 'rolling';
+type RouteState = { mainPage: MainPage; sessionSubpage: SessionSubpage; sessionId: string | null; segmentId: string | null; analysisTab: SessionAnalysisTab | null };
 
 
 type ProfileRecalculationJob = {
@@ -493,6 +494,29 @@ type TranslationKey =
   | 'intervalAggregationCoreMetrics'
   | 'intervalAggregationWindowCount'
   | 'intervalAggregationExplanation'
+  | 'timelineModeLabel'
+  | 'timelineModeInstant'
+  | 'timelineModeRolling'
+  | 'timelineDensityLabel'
+  | 'timelineDensityStandard'
+  | 'timelineDensityCompact'
+  | 'timelineSharedAxisLabel'
+  | 'timelineTrackDistance'
+  | 'timelineTrackRunningDensity'
+  | 'timelineTrackSpeedHsr'
+  | 'timelineTrackHighSpeedDistance'
+  | 'timelineTrackAccelDecel'
+  | 'timelineTrackHeartRate'
+  | 'timelineTrackTrimp'
+  | 'timelineMechanicalAccel'
+  | 'timelineMechanicalDecel'
+  | 'timelineMechanicalCod'
+  | 'timelineRollingSamplesLabel'
+  | 'timelineCursorLabel'
+  | 'timelineHsrEventLabel'
+  | 'timelineXAxisLabel'
+  | 'timelineSharedAxisUnitMinutes'
+  | 'timelineMobileSliderLabel'
   | 'profileSettingsTitle'
   | 'profilePrimaryPosition'
   | 'profileSecondaryPosition'
@@ -923,6 +947,29 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationCoreMetrics: 'Core metrics',
     intervalAggregationWindowCount: 'Windows: {count}',
     intervalAggregationExplanation: 'Interval views help you understand how effort changes during a session instead of only seeing one total value. 1-minute windows highlight short, intense phases such as pressing, repeated sprints, or quick transitions. 2-minute windows smooth out noise a bit and make it easier to compare short game phases. 5-minute windows show the broader load trend, for example whether intensity drops after a high-pressure period or rises again near the end. Together, these views help coaches and players identify pacing, fatigue patterns, and where targeted training can improve match performance.',
+    timelineModeLabel: 'Timeline mode',
+    timelineModeInstant: 'Instant',
+    timelineModeRolling: 'Rolling',
+    timelineDensityLabel: 'Layout',
+    timelineDensityStandard: 'Standard',
+    timelineDensityCompact: 'Compact',
+    timelineSharedAxisLabel: 'Shared time axis',
+    timelineTrackDistance: 'Distance',
+    timelineTrackRunningDensity: 'Running density',
+    timelineTrackSpeedHsr: 'Speed',
+    timelineTrackHighSpeedDistance: 'High-speed distance',
+    timelineTrackAccelDecel: 'Mechanical load',
+    timelineTrackHeartRate: 'Heart Rate (avg)',
+    timelineTrackTrimp: 'TRIMP (Edwards)',
+    timelineMechanicalAccel: 'Accelerations',
+    timelineMechanicalDecel: 'Decelerations',
+    timelineMechanicalCod: 'Direction changes',
+    timelineRollingSamplesLabel: 'Rolling samples: {count}',
+    timelineCursorLabel: 'Cursor',
+    timelineHsrEventLabel: 'HSR events',
+    timelineXAxisLabel: 'Time axis',
+    timelineSharedAxisUnitMinutes: 'min',
+    timelineMobileSliderLabel: 'Timeline navigation slider',
     profileSettingsTitle: 'Profile settings',
     profilePrimaryPosition: 'Primary position',
     profileSecondaryPosition: 'Secondary position',
@@ -1338,6 +1385,29 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     intervalAggregationCoreMetrics: 'Kernmetriken',
     intervalAggregationWindowCount: 'Fenster: {count}',
     intervalAggregationExplanation: 'Die Intervallansicht hilft dir zu erkennen, wie sich die Belastung innerhalb einer Einheit verändert – statt nur einen Gesamtwert zu sehen. 1-Minuten-Fenster machen kurze, sehr intensive Phasen sichtbar, zum Beispiel Pressing, wiederholte Sprints oder schnelle Umschaltmomente. 2-Minuten-Fenster glätten das Bild etwas und eignen sich gut, um kurze Spielphasen miteinander zu vergleichen. 5-Minuten-Fenster zeigen den größeren Belastungstrend, etwa ob die Intensität nach einer Druckphase abfällt oder zum Ende wieder ansteigt. Zusammen helfen diese Sichten dabei, Tempoverteilung, Ermüdungsmuster und konkrete Trainingsansätze besser zu verstehen.',
+    timelineModeLabel: 'Timeline-Modus',
+    timelineModeInstant: 'Instant',
+    timelineModeRolling: 'Rolling',
+    timelineDensityLabel: 'Layout',
+    timelineDensityStandard: 'Standard',
+    timelineDensityCompact: 'Compact',
+    timelineSharedAxisLabel: 'Gemeinsame Zeitachse',
+    timelineTrackDistance: 'Distanz',
+    timelineTrackRunningDensity: 'Laufdichte',
+    timelineTrackSpeedHsr: 'Tempo',
+    timelineTrackHighSpeedDistance: 'High-Speed-Distanz',
+    timelineTrackAccelDecel: 'Mechanische Last',
+    timelineTrackHeartRate: 'Herzfrequenz (Ø)',
+    timelineTrackTrimp: 'TRIMP (Edwards)',
+    timelineMechanicalAccel: 'Beschleunigungen',
+    timelineMechanicalDecel: 'Abbremsungen',
+    timelineMechanicalCod: 'Richtungswechsel',
+    timelineRollingSamplesLabel: 'Rolling-Samples: {count}',
+    timelineCursorLabel: 'Cursor',
+    timelineHsrEventLabel: 'HSR-Events',
+    timelineXAxisLabel: 'Zeitachse',
+    timelineSharedAxisUnitMinutes: 'min',
+    timelineMobileSliderLabel: 'Timeline-Navigationsslider',
     profileSettingsTitle: 'Profileinstellungen',
     profilePrimaryPosition: 'Primärposition',
     profileSecondaryPosition: 'Sekundärposition',
@@ -2503,20 +2573,25 @@ function getFilterDescriptionKey(filter: SmoothingFilter): TranslationKey {
 
 function resolveRouteFromPath(pathname: string): RouteState {
   if (pathname === '/uploads') {
-    return { mainPage: 'upload', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+    return { mainPage: 'upload', sessionSubpage: 'analysis', sessionId: null, segmentId: null, analysisTab: null };
   }
 
   if (pathname === '/profiles') {
-    return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+    return { mainPage: 'profile', sessionSubpage: 'analysis', sessionId: null, segmentId: null, analysisTab: null };
   }
 
   if (pathname === '/') {
-    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null, analysisTab: null };
   }
 
   if (pathname === '/sessions') {
-    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+    return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null, analysisTab: null };
   }
+
+  const tabQuery = new URLSearchParams(window.location.search).get('tab');
+  const analysisTab = tabQuery === 'timeline' || tabQuery === 'peakDemand' || tabQuery === 'segments' || tabQuery === 'heatmap' || tabQuery === 'overview'
+    ? tabQuery
+    : null;
 
   const segmentAnalysisRouteMatch = pathname.match(/^\/sessions\/([^/]+)\/segments\/([^/]+)$/);
   if (segmentAnalysisRouteMatch) {
@@ -2524,7 +2599,8 @@ function resolveRouteFromPath(pathname: string): RouteState {
       mainPage: 'session',
       sessionSubpage: 'analysis',
       sessionId: decodeURIComponent(segmentAnalysisRouteMatch[1]),
-      segmentId: decodeURIComponent(segmentAnalysisRouteMatch[2])
+      segmentId: decodeURIComponent(segmentAnalysisRouteMatch[2]),
+      analysisTab
     };
   }
 
@@ -2542,14 +2618,15 @@ function resolveRouteFromPath(pathname: string): RouteState {
       mainPage: 'session',
       sessionSubpage: subpage ?? 'analysis',
       sessionId: decodeURIComponent(sessionRouteMatch[1]),
-      segmentId: null
+      segmentId: null,
+      analysisTab
     };
   }
 
-  return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null };
+  return { mainPage: 'sessions', sessionSubpage: 'analysis', sessionId: null, segmentId: null, analysisTab: null };
 }
 
-function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, sessionId: string | null, segmentId: string | null): string {
+function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, sessionId: string | null, segmentId: string | null, analysisTab: SessionAnalysisTab | null): string {
   if (mainPage === 'upload') {
     return '/uploads';
   }
@@ -2586,10 +2663,12 @@ function getPathForRoute(mainPage: MainPage, sessionSubpage: SessionSubpage, ses
     }
 
     if (sessionSubpage === 'analysis' && segmentId) {
-      return `/sessions/${encodedSessionId}/segments/${encodeURIComponent(segmentId)}`;
+      const base = `/sessions/${encodedSessionId}/segments/${encodeURIComponent(segmentId)}`;
+      return analysisTab && analysisTab !== 'overview' ? `${base}?tab=${analysisTab}` : base;
     }
 
-    return `/sessions/${encodedSessionId}`;
+    const base = `/sessions/${encodedSessionId}`;
+    return analysisTab && analysisTab !== 'overview' ? `${base}?tab=${analysisTab}` : base;
   }
 
   return '/sessions';
@@ -2628,6 +2707,11 @@ export function App() {
   const [compareMode, setCompareMode] = useState<CompareMode>('smoothed');
   const [selectedFilter, setSelectedFilter] = useState<SmoothingFilter>('AdaptiveMedian');
   const [aggregationWindowMinutes, setAggregationWindowMinutes] = useState<1 | 2 | 5>(5);
+  const [timelineMode, setTimelineMode] = useState<TimelineMode>('rolling');
+  const [timelineDensity, setTimelineDensity] = useState<'standard' | 'compact'>('standard');
+  const [timelineCursorSecond, setTimelineCursorSecond] = useState(0);
+  const [timelineCursorLocked, setTimelineCursorLocked] = useState(false);
+  const [timelineScrollTarget, setTimelineScrollTarget] = useState<TimelineSeries['key'] | null>(null);
   const [sessionContextForm, setSessionContextForm] = useState<SessionContext>({
     sessionType: 'Training',
     matchResult: null,
@@ -2676,7 +2760,7 @@ export function App() {
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
-  const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>('overview');
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>(initialRoute.analysisTab ?? 'overview');
   const [activeMainPage, setActiveMainPage] = useState<MainPage>(initialRoute.mainPage);
   const [activeSessionIdFromRoute, setActiveSessionIdFromRoute] = useState<string | null>(initialRoute.sessionId);
   const [activeSegmentIdFromRoute, setActiveSegmentIdFromRoute] = useState<string | null>(initialRoute.segmentId);
@@ -2780,6 +2864,9 @@ export function App() {
       setActiveSessionSubpage(route.sessionSubpage);
       setActiveSessionIdFromRoute(route.sessionId);
       setActiveSegmentIdFromRoute(route.segmentId);
+      if (route.analysisTab) {
+        setActiveAnalysisTab(route.analysisTab);
+      }
     };
 
     window.addEventListener('popstate', onPopState);
@@ -2841,14 +2928,15 @@ export function App() {
       activeMainPage,
       activeSessionSubpage,
       activeSessionIdFromRoute ?? selectedSession?.id ?? null,
-      activeMainPage === 'session' && activeSessionSubpage === 'analysis' && analysisScope === 'segment' ? selectedSegmentId : null
+      activeMainPage === 'session' && activeSessionSubpage === 'analysis' && analysisScope === 'segment' ? selectedSegmentId : null,
+      activeMainPage === 'session' && activeSessionSubpage === 'analysis' ? activeAnalysisTab : null
     );
     const currentPath = window.location.pathname;
 
     if (currentPath !== nextPath) {
       window.history.pushState({}, '', nextPath);
     }
-  }, [activeMainPage, activeSessionSubpage, activeSessionIdFromRoute, analysisScope, selectedSegmentId, selectedSession?.id]);
+  }, [activeMainPage, activeSessionSubpage, activeSessionIdFromRoute, analysisScope, selectedSegmentId, selectedSession?.id, activeAnalysisTab]);
 
   useEffect(() => {
     if (activeMainPage === 'session' && !selectedSession) {
@@ -4286,6 +4374,367 @@ export function App() {
   }, [isSegmentScopeActive, selectedSegment, selectedSessionAggregates, selectedSession?.summary.activityStartTimeUtc]);
 
   const selectedAnalysisAggregates = useMemo(() => selectedAnalysisAggregateSlices.map((slice) => slice.aggregate), [selectedAnalysisAggregateSlices]);
+  const timelineOffsetSecond = isSegmentScopeActive && selectedSegment ? selectedSegment.startSecond : 0;
+  const timelineRangeSecond = isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : null;
+
+  const timelineSecondSeries = useMemo(() => {
+    if (!selectedSession) {
+      return {
+        rolling: { distance: [], runningDensity: [], speed: [], highSpeedDistance: [], mechanicalLoad: [], heartRateAvg: [], trimp: [] },
+        instant: { distance: [], runningDensity: [], speed: [], highSpeedDistance: [], mechanicalLoad: [], heartRateAvg: [], trimp: [] },
+        mechanicalBreakdownBySecond: new Map<number, { accel: number; decel: number; cod: number }>(),
+        rollingSampleCount: 0
+      };
+    }
+
+    const scopeStart = timelineOffsetSecond;
+    const scopeEnd = isSegmentScopeActive && selectedSegment
+      ? selectedSegment.endSecond
+      : Math.max(scopeStart, Math.floor(selectedSession.summary.durationSeconds ?? 0));
+
+    // `summary.gpsTrackpoints` are already smoothed by backend filter selection.
+    // We still add a plausibility guard for residual teleport jumps to avoid raw-like spikes in timeline distance.
+    const smoothedGpsPoints = selectedGpsTrackpoints
+      .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds)
+      .filter((point) => point.elapsedSeconds >= scopeStart && point.elapsedSeconds <= scopeEnd);
+
+    const durationSeconds = Math.max(1, Math.ceil(scopeEnd - scopeStart));
+    const secondCount = durationSeconds + 1;
+    const distanceDelta = new Array<number>(secondCount).fill(0);
+    const speedBySecond = new Array<number>(secondCount).fill(0);
+    const highSpeedDistanceDelta = new Array<number>(secondCount).fill(0);
+    const accelCountBySecond = new Array<number>(secondCount).fill(0);
+    const decelCountBySecond = new Array<number>(secondCount).fill(0);
+    const codCountBySecond = new Array<number>(secondCount).fill(0);
+    const hrSumBySecond = new Array<number>(secondCount).fill(0);
+    const hrCountBySecond = new Array<number>(secondCount).fill(0);
+    const trimpDeltaBySecond = new Array<number>(secondCount).fill(0);
+
+    const thresholds = selectedSession.summary.coreMetrics.thresholds ?? {};
+    const highSpeedThreshold = Number(thresholds.HighIntensitySpeedThresholdMps ?? (19.8 / 3.6));
+    const accelThreshold = Number(thresholds.ModerateAccelerationThresholdMps2 ?? 2.5);
+    const decelThreshold = Math.abs(Number(thresholds.ModerateDecelerationThresholdMps2 ?? 2.5));
+    const codThreshold = Number(thresholds.CodModerateThresholdDegrees ?? 45);
+    const codMinSpeed = Number(thresholds.CodMinimumSpeedMps ?? (10 / 3.6));
+    const fallbackMaxSpeedMps = Number(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond ?? 12);
+    const thresholdMaxSpeedMps = Number(thresholds.EffectiveMaxSpeedMps ?? fallbackMaxSpeedMps);
+    const plausibleSpeedCeilingMps = Math.max(6, (Number.isFinite(thresholdMaxSpeedMps) ? thresholdMaxSpeedMps : fallbackMaxSpeedMps) * 1.25);
+    const pauseGapThresholdSeconds = 15;
+
+    const toLocalSecond = (absoluteSecond: number) => {
+      const local = Math.round(absoluteSecond - scopeStart);
+      return Math.max(0, Math.min(durationSeconds, local));
+    };
+
+    let previousSpeedMps: number | null = null;
+    let accelEventActive = false;
+    let decelEventActive = false;
+    for (let index = 1; index < smoothedGpsPoints.length; index += 1) {
+      const previous = smoothedGpsPoints[index - 1];
+      const current = smoothedGpsPoints[index];
+      const deltaSeconds = current.elapsedSeconds - previous.elapsedSeconds;
+      if (deltaSeconds <= 0) {
+        continue;
+      }
+      if (deltaSeconds > pauseGapThresholdSeconds) {
+        previousSpeedMps = null;
+        accelEventActive = false;
+        decelEventActive = false;
+        continue;
+      }
+
+      const distanceMeters = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude);
+      const speedMps = distanceMeters / deltaSeconds;
+      if (!Number.isFinite(speedMps) || speedMps > plausibleSpeedCeilingMps) {
+        previousSpeedMps = null;
+        continue;
+      }
+
+      const currentSecond = toLocalSecond(current.elapsedSeconds);
+      distanceDelta[currentSecond] += distanceMeters;
+      speedBySecond[currentSecond] = speedMps;
+      if (speedMps >= highSpeedThreshold) {
+        highSpeedDistanceDelta[currentSecond] += distanceMeters;
+      }
+
+      if (previousSpeedMps !== null) {
+        const accelMps2 = (speedMps - previousSpeedMps) / deltaSeconds;
+
+        if (accelMps2 >= accelThreshold && !accelEventActive) {
+          accelCountBySecond[currentSecond] += 1;
+          accelEventActive = true;
+        }
+        if (accelMps2 < accelThreshold * 0.5) {
+          accelEventActive = false;
+        }
+
+        if (accelMps2 <= -decelThreshold && !decelEventActive) {
+          decelCountBySecond[currentSecond] += 1;
+          decelEventActive = true;
+        }
+        if (accelMps2 > -(decelThreshold * 0.5)) {
+          decelEventActive = false;
+        }
+      }
+
+      previousSpeedMps = speedMps;
+    }
+
+    let codEventActive = false;
+    for (let index = 1; index < smoothedGpsPoints.length - 1; index += 1) {
+      const previous = smoothedGpsPoints[index - 1];
+      const current = smoothedGpsPoints[index];
+      const next = smoothedGpsPoints[index + 1];
+
+      const inDistance = haversineMeters(previous.latitude, previous.longitude, current.latitude, current.longitude);
+      const outDistance = haversineMeters(current.latitude, current.longitude, next.latitude, next.longitude);
+      const inDelta = current.elapsedSeconds - previous.elapsedSeconds;
+      const outDelta = next.elapsedSeconds - current.elapsedSeconds;
+      if (inDelta <= 0 || outDelta <= 0) {
+        continue;
+      }
+      if (inDelta > pauseGapThresholdSeconds || outDelta > pauseGapThresholdSeconds) {
+        codEventActive = false;
+        continue;
+      }
+
+      const inSpeed = inDistance / inDelta;
+      const outSpeed = outDistance / outDelta;
+      if (Math.min(inSpeed, outSpeed) < codMinSpeed) {
+        codEventActive = false;
+        continue;
+      }
+
+      const incomingBearing = Math.atan2(current.latitude - previous.latitude, current.longitude - previous.longitude);
+      const outgoingBearing = Math.atan2(next.latitude - current.latitude, next.longitude - current.longitude);
+      const diff = Math.abs(outgoingBearing - incomingBearing);
+      const diffDeg = Math.min(diff, (Math.PI * 2) - diff) * (180 / Math.PI);
+      if (diffDeg >= codThreshold && !codEventActive) {
+        const currentSecond = toLocalSecond(current.elapsedSeconds);
+        codCountBySecond[currentSecond] += 1;
+        codEventActive = true;
+      }
+      if (diffDeg < codThreshold * 0.6) {
+        codEventActive = false;
+      }
+    }
+
+    const hrSamples = (selectedSession.summary.heartRateSamples ?? [])
+      .filter((sample) => sample.elapsedSeconds >= scopeStart && sample.elapsedSeconds <= scopeEnd)
+      .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+
+    for (let index = 0; index < hrSamples.length; index += 1) {
+      const sample = hrSamples[index];
+      const localSecond = toLocalSecond(sample.elapsedSeconds);
+      hrSumBySecond[localSecond] += sample.heartRateBpm;
+      hrCountBySecond[localSecond] += 1;
+    }
+
+    for (let second = 0; second <= durationSeconds; second += 1) {
+      if (hrCountBySecond[second] === 0 && second > 0 && hrCountBySecond[second - 1] > 0) {
+        hrSumBySecond[second] = hrSumBySecond[second - 1] / hrCountBySecond[second - 1];
+        hrCountBySecond[second] = 1;
+      }
+      if (hrCountBySecond[second] > 0) {
+        const avgHr = hrSumBySecond[second] / hrCountBySecond[second];
+        const zoneWeight = avgHr < 120 ? 1 : avgHr < 140 ? 2 : avgHr < 160 ? 3 : avgHr < 180 ? 4 : 5;
+        trimpDeltaBySecond[second] = zoneWeight / 60;
+      }
+    }
+
+    const scaleEventSeriesToTarget = (series: number[], targetTotal: number | null | undefined) => {
+      if (targetTotal === null || targetTotal === undefined || !Number.isFinite(targetTotal) || targetTotal < 0) {
+        return series;
+      }
+
+      const actualTotal = series.reduce((sum, value) => sum + value, 0);
+      if (actualTotal <= 0) {
+        return series;
+      }
+
+      const factor = targetTotal / actualTotal;
+      return series.map((value) => value * factor);
+    };
+
+    const accelSourceTotal = !isSegmentScopeActive ? selectedSession.summary.coreMetrics.accelerationCount : null;
+    const decelSourceTotal = !isSegmentScopeActive ? selectedSession.summary.coreMetrics.decelerationCount : null;
+    const codSourceTotal = !isSegmentScopeActive ? selectedSession.summary.coreMetrics.directionChanges : null;
+
+    const scaledAccelCountBySecond = scaleEventSeriesToTarget(accelCountBySecond, accelSourceTotal);
+    const scaledDecelCountBySecond = scaleEventSeriesToTarget(decelCountBySecond, decelSourceTotal);
+    const scaledCodCountBySecond = scaleEventSeriesToTarget(codCountBySecond, codSourceTotal);
+
+    const prefix = (arr: number[]) => {
+      const output = new Array<number>(arr.length + 1).fill(0);
+      for (let idx = 0; idx < arr.length; idx += 1) {
+        output[idx + 1] = output[idx] + arr[idx];
+      }
+      return output;
+    };
+
+    const distancePrefix = prefix(distanceDelta);
+    const highSpeedDistancePrefix = prefix(highSpeedDistanceDelta);
+    const accelPrefix = prefix(scaledAccelCountBySecond);
+    const decelPrefix = prefix(scaledDecelCountBySecond);
+    const codPrefix = prefix(scaledCodCountBySecond);
+    const hrSumPrefix = prefix(hrSumBySecond);
+    const hrCountPrefix = prefix(hrCountBySecond);
+    const trimpPrefix = prefix(trimpDeltaBySecond);
+
+    const rollingWindowSeconds = aggregationWindowMinutes * 60;
+    const rollingDistance: TimelinePoint[] = [];
+    const rollingRunningDensity: TimelinePoint[] = [];
+    const rollingSpeed: TimelinePoint[] = [];
+    const rollingHighSpeedDistance: TimelinePoint[] = [];
+    const rollingMechanicalLoad: TimelinePoint[] = [];
+    const rollingHeartRateAvg: TimelinePoint[] = [];
+    const rollingTrimp: TimelinePoint[] = [];
+
+    const instantDistance: TimelinePoint[] = [];
+    const instantRunningDensity: TimelinePoint[] = [];
+    const instantSpeed: TimelinePoint[] = [];
+    const instantHighSpeedDistance: TimelinePoint[] = [];
+    const instantMechanicalLoad: TimelinePoint[] = [];
+    const instantHeartRateAvg: TimelinePoint[] = [];
+    const instantTrimp: TimelinePoint[] = [];
+
+    const mechanicalBreakdownBySecond = new Map<number, { accel: number; decel: number; cod: number }>();
+
+    for (let second = 0; second <= durationSeconds; second += 1) {
+      const rangeStart = Math.max(0, second - rollingWindowSeconds + 1);
+      const sumOverRange = (pref: number[]) => pref[second + 1] - pref[rangeStart];
+      const distanceRollingSum = sumOverRange(distancePrefix);
+      const highSpeedRollingSum = sumOverRange(highSpeedDistancePrefix);
+      const accelRolling = sumOverRange(accelPrefix);
+      const decelRolling = sumOverRange(decelPrefix);
+      const codRolling = sumOverRange(codPrefix);
+      const hrRollingSum = sumOverRange(hrSumPrefix);
+      const hrRollingCount = sumOverRange(hrCountPrefix);
+      const trimpRolling = sumOverRange(trimpPrefix);
+      const windowLengthSeconds = second - rangeStart + 1;
+
+      const x = second;
+      rollingDistance.push({ x, y: distanceRollingSum });
+      rollingRunningDensity.push({ x, y: windowLengthSeconds > 0 ? (distanceRollingSum / windowLengthSeconds) * 60 : null });
+      rollingSpeed.push({ x, y: windowLengthSeconds > 0 ? distanceRollingSum / windowLengthSeconds : null });
+      rollingHighSpeedDistance.push({ x, y: highSpeedRollingSum });
+      rollingMechanicalLoad.push({ x, y: accelRolling + decelRolling + codRolling });
+      rollingHeartRateAvg.push({ x, y: hrRollingCount > 0 ? hrRollingSum / hrRollingCount : null });
+      rollingTrimp.push({ x, y: trimpRolling });
+
+      const mechanicalInstant = scaledAccelCountBySecond[second] + scaledDecelCountBySecond[second] + scaledCodCountBySecond[second];
+      const hrInstant = hrCountBySecond[second] > 0 ? (hrSumBySecond[second] / hrCountBySecond[second]) : null;
+
+      instantDistance.push({ x, y: distanceDelta[second] });
+      instantRunningDensity.push({ x, y: speedBySecond[second] * 60 });
+      instantSpeed.push({ x, y: speedBySecond[second] });
+      instantHighSpeedDistance.push({ x, y: highSpeedDistanceDelta[second] });
+      instantMechanicalLoad.push({ x, y: mechanicalInstant });
+      instantHeartRateAvg.push({ x, y: hrInstant });
+      instantTrimp.push({ x, y: trimpDeltaBySecond[second] * 60 });
+
+      mechanicalBreakdownBySecond.set(x, {
+        accel: timelineMode === 'rolling' ? accelRolling : scaledAccelCountBySecond[second],
+        decel: timelineMode === 'rolling' ? decelRolling : scaledDecelCountBySecond[second],
+        cod: timelineMode === 'rolling' ? codRolling : scaledCodCountBySecond[second]
+      });
+    }
+
+    return {
+      rolling: {
+        distance: rollingDistance,
+        runningDensity: rollingRunningDensity,
+        speed: rollingSpeed,
+        highSpeedDistance: rollingHighSpeedDistance,
+        mechanicalLoad: rollingMechanicalLoad,
+        heartRateAvg: rollingHeartRateAvg,
+        trimp: rollingTrimp
+      },
+      instant: {
+        distance: instantDistance,
+        runningDensity: instantRunningDensity,
+        speed: instantSpeed,
+        highSpeedDistance: instantHighSpeedDistance,
+        mechanicalLoad: instantMechanicalLoad,
+        heartRateAvg: instantHeartRateAvg,
+        trimp: instantTrimp
+      },
+      mechanicalBreakdownBySecond,
+      rollingSampleCount: rollingDistance.length
+    };
+  }, [aggregationWindowMinutes, isSegmentScopeActive, selectedGpsTrackpoints, selectedSegment, selectedSession, timelineMode, timelineOffsetSecond]);
+
+  const activeTimelineTracks = timelineMode === 'rolling' ? timelineSecondSeries.rolling : timelineSecondSeries.instant;
+  const timelineAxisMaxSecond = useMemo(() => {
+    const all = [
+      ...activeTimelineTracks.distance,
+      ...activeTimelineTracks.runningDensity,
+      ...activeTimelineTracks.speed,
+      ...activeTimelineTracks.highSpeedDistance,
+      ...activeTimelineTracks.mechanicalLoad,
+      ...activeTimelineTracks.heartRateAvg,
+      ...(timelineMode === 'rolling' ? activeTimelineTracks.trimp : [])
+    ];
+
+    const maxTrackSecond = all.length > 0 ? Math.max(...all.map((point) => point.x)) : 0;
+    const durationSecond = timelineRangeSecond ?? (selectedSession?.summary.durationSeconds ?? 0);
+    return Math.max(1, Math.ceil(Math.max(maxTrackSecond, durationSecond)));
+  }, [activeTimelineTracks, selectedSession?.summary.durationSeconds, timelineMode, timelineRangeSecond]);
+
+  const timelineSpeedUnit = selectedSession?.selectedSpeedUnit ?? 'km/h';
+  const timelineSeries = useMemo<TimelineSeries[]>(() => [
+    { key: 'distance', label: t.timelineTrackDistance, valueSuffix: ' m', points: activeTimelineTracks.distance },
+    { key: 'runningDensity', label: t.timelineTrackRunningDensity, valueSuffix: ' m/min', points: activeTimelineTracks.runningDensity },
+    {
+      key: 'speed',
+      label: t.timelineTrackSpeedHsr,
+      valueFormatter: (valueMps) => formatSpeed(valueMps, timelineSpeedUnit, t.notAvailable),
+      points: activeTimelineTracks.speed
+    },
+    { key: 'highSpeedDistance', label: t.timelineTrackHighSpeedDistance, valueSuffix: ' m', points: activeTimelineTracks.highSpeedDistance },
+    { key: 'mechanicalLoad', label: t.timelineTrackAccelDecel, valueSuffix: '', points: activeTimelineTracks.mechanicalLoad },
+    { key: 'heartRateAvg', label: t.timelineTrackHeartRate, valueSuffix: ' bpm', points: activeTimelineTracks.heartRateAvg },
+    ...(timelineMode === 'rolling' ? [{ key: 'trimp' as const, label: t.timelineTrackTrimp, valueSuffix: '', points: activeTimelineTracks.trimp }] : [])
+  ], [activeTimelineTracks, t, timelineMode, timelineSpeedUnit]);
+  useEffect(() => {
+    setTimelineCursorSecond((current) => Math.max(0, Math.min(timelineAxisMaxSecond, current)));
+  }, [timelineAxisMaxSecond]);
+
+  useEffect(() => {
+    if (activeSessionSubpage !== 'analysis' || activeAnalysisTab !== 'timeline' || !timelineScrollTarget) {
+      return;
+    }
+
+    const trackElement = document.getElementById(`timeline-track-${timelineScrollTarget}`);
+    if (trackElement) {
+      trackElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimelineScrollTarget(null);
+    }
+  }, [activeAnalysisTab, activeSessionSubpage, timelineScrollTarget]);
+
+  const timelineCursorValues = useMemo(() => timelineSeries.map((series) => {
+    const nearest = findNearestTimelinePoint(series.points, timelineCursorSecond);
+    if (!nearest || nearest.y === null) {
+      return { key: series.key, text: t.notAvailable };
+    }
+
+    if (series.key === 'mechanicalLoad') {
+      const second = Math.round(nearest.x);
+      const breakdown = timelineSecondSeries.mechanicalBreakdownBySecond.get(second) ?? { accel: 0, decel: 0, cod: 0 };
+      const total = breakdown.accel + breakdown.decel + breakdown.cod;
+      return {
+        key: series.key,
+        text: `${total.toFixed(0)} (${t.timelineMechanicalAccel}: ${breakdown.accel.toFixed(0)} · ${t.timelineMechanicalDecel}: ${breakdown.decel.toFixed(0)} · ${t.timelineMechanicalCod}: ${breakdown.cod.toFixed(0)})`
+      };
+    }
+
+    const textValue = series.valueFormatter
+      ? series.valueFormatter(nearest.y)
+      : `${nearest.y.toFixed(1)}${series.valueSuffix ?? ''}`;
+
+    return { key: series.key, text: textValue };
+  }), [timelineCursorSecond, timelineSecondSeries.mechanicalBreakdownBySecond, timelineSeries, t.notAvailable, t.timelineMechanicalAccel, t.timelineMechanicalCod, t.timelineMechanicalDecel]);
 
   const codBandCountsByScope = useMemo(() => {
     if (!selectedSession) {
@@ -4590,6 +5039,13 @@ export function App() {
 
     setIsMobileNavOpen(false);
   }, []);
+
+  const openTimelineWithFocus = useCallback((seriesKey: TimelineSeries['key']) => {
+    setTimelineScrollTarget(seriesKey);
+    setActiveAnalysisTab('timeline');
+    jumpToSection('session-analysis', 'analysis');
+  }, [jumpToSection]);
+
 
   const getSessionMobileNavValue = useCallback(() => {
     if (activeSessionSubpage === 'analysis') {
@@ -5665,7 +6121,7 @@ export function App() {
                         comparisonBest={distanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistance(distanceComparison.bestSeason, locale, t.notAvailable) }) : null}
                         trendHint={t.kpiTrendContextDepends}
                         actions={[
-                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('distance') },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
                         ]}
                       />}
@@ -5686,7 +6142,7 @@ export function App() {
                         comparisonDelta={formatComparisonDelta(displayedCoreMetrics.runningDensityMetersPerMinute, runningDensityComparison.averageLastFive, locale, 2, ' m/min', 'higher')}
                         comparisonBest={runningDensityComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(runningDensityComparison.bestSeason, locale, t.notAvailable, 2) }) : null}
                         trendHint={t.kpiTrendHigherIsBetter}
-                        actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
+                        actions={[{ label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('runningDensity') }]}
                       />}
                     </div>
                     <ul className="metrics-list list-group overview-legacy-list">
@@ -5720,7 +6176,7 @@ export function App() {
                           `${t.metricOfWhichSprintPhasesCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)}`,
                           `${t.metricHighIntensityTime}: ${withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)}`
                         ]}
-                        actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
+                        actions={[{ label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('speed') }]}
                       />}
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label={t.metricHighSpeedDistance}
@@ -5734,7 +6190,7 @@ export function App() {
                           `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceMetersOnly(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`
                         ]}
                         actions={[
-                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('highSpeedDistance') },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
                         ]}
                       />}
@@ -5774,7 +6230,7 @@ export function App() {
                         ]}
                         helpText={`${metricHelp.accelerationCount} ${metricHelp.decelerationCount} ${metricHelp.directionChanges}`}
                         actions={[
-                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('mechanicalLoad') },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
                         ]}
                       />}
@@ -5830,7 +6286,7 @@ export function App() {
                           `Min: ${selectedSession.summary.heartRateMinBpm ?? t.notAvailable} bpm`,
                           `Max: ${selectedSession.summary.heartRateMaxBpm ?? t.notAvailable} bpm`
                         ]}
-                        actions={[{ label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } }]}
+                        actions={[{ label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('heartRateAvg') }]}
                       />}
                       {activeDataMode !== 'GpsOnly' && <HrZonesKpiCard
                         label="HR Zones"
@@ -5847,7 +6303,7 @@ export function App() {
                         trendHint={t.kpiTrendLowerIsBetter}
                         comparisonBest={trimpComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatNumber(trimpComparison.bestSeason, locale, t.notAvailable, 1) }) : null}
                         actions={[
-                          { label: t.kpiActionTimeline, onClick: () => { setActiveAnalysisTab('timeline'); jumpToSection('session-analysis', 'analysis'); } },
+                          { label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('trimp') },
                           { label: t.kpiActionPeakAnalysis, onClick: () => { setActiveAnalysisTab('peakDemand'); jumpToSection('session-analysis', 'analysis'); } }
                         ]}
                       />}
@@ -5881,66 +6337,71 @@ export function App() {
 
           <section className={`analysis-disclosure analysis-block--peak-demand ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'peakDemand' ? "" : "is-hidden"}`}><div className="analysis-disclosure__content"><h3>{t.sessionTabPeakDemand}</h3><p>{isSegmentScopeActive ? t.segmentScopeNoPeakDataHint : t.intervalAggregationNoData}</p></div></section>
           <section className={`interval-aggregation analysis-disclosure analysis-block--interval ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'timeline' ? "" : "is-hidden"}`}>
-            <button type="button" className="analysis-disclosure__toggle" onClick={() => toggleAnalysisSection('intervalAggregation')} aria-expanded={analysisAccordionState.intervalAggregation}>
-              <span>{t.intervalAggregationTitle}</span>
-              <span className="analysis-disclosure__action">{analysisAccordionState.intervalAggregation ? t.analysisSectionCollapse : t.analysisSectionExpand}</span>
-            </button>
-            {analysisAccordionState.intervalAggregation && (
-            <div className="analysis-disclosure__content">
+            <div className="analysis-disclosure__content timeline-content-always-open">
             <p>{t.intervalAggregationExplanation}</p>
-            <label className="form-label" htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
-            <select className="form-select"
-              id="interval-window-selector"
-              value={aggregationWindowMinutes}
-              onChange={(event) => setAggregationWindowMinutes(Number(event.target.value) as 1 | 2 | 5)}
-            >
-              <option value={1}>{t.intervalAggregationWindow1}</option>
-              <option value={2}>{t.intervalAggregationWindow2}</option>
-              <option value={5}>{t.intervalAggregationWindow5}</option>
-            </select>
-            <p>{interpolate(t.intervalAggregationWindowCount, { count: selectedAnalysisAggregates.length.toString() })}</p>
-            {selectedAnalysisAggregates.length === 0 ? (
+            <div className="timeline-mode-switch" role="group" aria-label={t.timelineModeLabel}>
+              <span>{t.timelineModeLabel}</span>
+              <button type="button" aria-pressed={timelineMode === 'instant'} className={timelineMode === 'instant' ? 'is-active' : ''} onClick={() => setTimelineMode('instant')}>{t.timelineModeInstant}</button>
+              <button type="button" aria-pressed={timelineMode === 'rolling'} className={timelineMode === 'rolling' ? 'is-active' : ''} onClick={() => setTimelineMode('rolling')}>{t.timelineModeRolling}</button>
+            </div>
+            <div className="timeline-mode-switch timeline-density-switch" role="group" aria-label={t.timelineDensityLabel}>
+              <span>{t.timelineDensityLabel}</span>
+              <button type="button" aria-pressed={timelineDensity === 'standard'} className={timelineDensity === 'standard' ? 'is-active' : ''} onClick={() => setTimelineDensity('standard')}>{t.timelineDensityStandard}</button>
+              <button type="button" aria-pressed={timelineDensity === 'compact'} className={timelineDensity === 'compact' ? 'is-active' : ''} onClick={() => setTimelineDensity('compact')}>{t.timelineDensityCompact}</button>
+            </div>
+            {timelineMode === 'rolling' && (
+              <>
+                <label className="form-label" htmlFor="interval-window-selector">{t.intervalAggregationWindowLabel}</label>
+                <select className="form-select"
+                  id="interval-window-selector"
+                  value={aggregationWindowMinutes}
+                  onChange={(event) => setAggregationWindowMinutes(Number(event.target.value) as 1 | 2 | 5)}
+                >
+                  <option value={1}>{t.intervalAggregationWindow1}</option>
+                  <option value={2}>{t.intervalAggregationWindow2}</option>
+                  <option value={5}>{t.intervalAggregationWindow5}</option>
+                </select>
+                <p>{interpolate(t.timelineRollingSamplesLabel, { count: timelineSecondSeries.rollingSampleCount.toString() })}</p>
+              </>
+            )}
+            <p className="timeline-shared-axis">{t.timelineSharedAxisLabel}: {formatSecondsMmSs(0)} {t.timelineSharedAxisUnitMinutes} – {formatSecondsMmSs(timelineAxisMaxSecond)} {t.timelineSharedAxisUnitMinutes} · {t.timelineCursorLabel}: {formatSecondsMmSs(Math.round(timelineCursorSecond))} {t.timelineSharedAxisUnitMinutes}</p>
+            <p className="timeline-shared-axis">{t.timelineXAxisLabel}</p>
+            <div className="timeline-cursor-readout">
+              {timelineSeries.map((series) => {
+                const valueText = timelineCursorValues.find((entry) => entry.key === series.key)?.text ?? t.notAvailable;
+                return <span key={series.key}><strong>{series.label}:</strong> {valueText}</span>;
+              })}
+            </div>
+            <div className={`timeline-tracks ${timelineDensity === 'compact' ? 'timeline-tracks--compact' : ''}`}>
+              {timelineSeries.map((series) => {
+                const currentValueText = timelineCursorValues.find((entry) => entry.key === series.key)?.text ?? t.notAvailable;
+                const xAxisTicks = [0, 0.25, 0.5, 0.75, 1].map((factor) => Number((timelineAxisMaxSecond * factor).toFixed(0)));
+                return (
+                <TimelineTrackChart
+                  key={series.key}
+                  trackId={`timeline-track-${series.key}`}
+                  label={series.label}
+                  points={series.points}
+                  axisMaxSecond={timelineAxisMaxSecond}
+                  valueSuffix={series.valueSuffix}
+                  lineColorClassName={`timeline-track__line--${series.key}`}
+                  sliderClassName={`timeline-track__slider timeline-track__slider--${series.key}`}
+                  cursorSecond={timelineCursorSecond}
+                  isCursorLocked={timelineCursorLocked}
+                  onCursorChange={setTimelineCursorSecond}
+                  onToggleCursorLock={() => setTimelineCursorLocked((current) => !current)}
+                  currentValueLabel={currentValueText}
+                  yGuideValueLabel={currentValueText}
+                  xAxisTicks={xAxisTicks}
+                  xAxisTickFormatter={(value) => formatSecondsMmSs(value)}
+                  compact={timelineDensity === 'compact'}
+                />
+              );})}
+            </div>
+            {timelineMode === 'rolling' && selectedAnalysisAggregates.length === 0 && (
               <p>{isSegmentScopeActive ? t.segmentScopeNoTimelineDataHint : t.intervalAggregationNoData}</p>
-            ) : (
-              <table className="history-table table table-sm interval-table">
-                <thead>
-                  <tr>
-                    <th>{t.intervalAggregationStart}</th>
-                    <th>{t.intervalAggregationCoreMetrics}</th>
-                    <th>{t.intervalAggregationDuration}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedAnalysisAggregates.map((aggregate) => (
-                    <tr key={`${aggregate.windowMinutes}-${aggregate.windowIndex}`}>
-                      <td>{formatLocalDateTime(aggregate.windowStartUtc)}</td>
-                      <td>
-                        <ul className="metrics-list list-group interval-core-metrics-list">
-                          <li className="list-group-item"><strong>{t.metricDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.distanceMeters, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricSprintDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.sprintDistanceMeters, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricSprintCount}:</strong> {aggregate.coreMetrics.sprintCount ?? t.notAvailable}</li>
-                          <li className="list-group-item"><strong>{t.metricMaxSpeed}:</strong> {formatSpeed(aggregate.coreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricHighIntensityTime}:</strong> {formatDuration(aggregate.coreMetrics.highIntensityTimeSeconds, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricHighIntensityRunCount}:</strong> {aggregate.coreMetrics.highIntensityRunCount ?? t.notAvailable}</li>
-                          <li className="list-group-item"><strong>{t.metricHighSpeedDistance}:</strong> {formatDistanceComparison(aggregate.coreMetrics.highSpeedDistanceMeters, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricRunningDensity}:</strong> {formatNumber(aggregate.coreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2)}</li>
-                          <li className="list-group-item"><strong>{t.metricAccelerationCount}:</strong> {aggregate.coreMetrics.accelerationCount ?? t.notAvailable}</li>
-                          <li className="list-group-item"><strong>{t.metricDecelerationCount}:</strong> {aggregate.coreMetrics.decelerationCount ?? t.notAvailable}</li>
-                          <li className="list-group-item"><strong>{t.metricHrZoneLow}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricHrZoneMedium}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricHrZoneHigh}:</strong> {formatDuration(aggregate.coreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable)}</li>
-                          <li className="list-group-item"><strong>{t.metricTrimpEdwards}:</strong> {formatNumber(aggregate.coreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1)}</li>
-                          <li className="list-group-item"><strong>{t.metricHrRecovery60}:</strong> {aggregate.coreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable}</li>
-                        </ul>
-                      </td>
-                      <td>{formatDuration(aggregate.windowDurationSeconds, locale, t.notAvailable)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             )}
             </div>
-            )}
           </section>
 
           {activeSessionSubpage === "analysis" && shouldShowGpsHeatmap && (
@@ -6195,6 +6656,144 @@ type MapSurfaceProps = {
   satelliteImageUrl: string;
   children: ReactNode;
 };
+
+type TimelinePoint = { x: number; y: number | null };
+
+type TimelineSeries = {
+  key: 'distance' | 'runningDensity' | 'speed' | 'highSpeedDistance' | 'mechanicalLoad' | 'heartRateAvg' | 'trimp';
+  label: string;
+  valueSuffix?: string;
+  valueFormatter?: (value: number) => string;
+  points: TimelinePoint[];
+};
+
+function findNearestTimelinePoint(points: TimelinePoint[], cursorSecond: number): TimelinePoint | null {
+  const candidates = points.filter((point) => point.y !== null);
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  let nearest = candidates[0];
+  let nearestDelta = Math.abs(nearest.x - cursorSecond);
+
+  for (let index = 1; index < candidates.length; index += 1) {
+    const candidate = candidates[index];
+    const delta = Math.abs(candidate.x - cursorSecond);
+    if (delta < nearestDelta) {
+      nearest = candidate;
+      nearestDelta = delta;
+    }
+  }
+
+  return nearest;
+}
+
+type TimelineTrackChartProps = {
+  compact: boolean;
+  trackId: string;
+  label: string;
+  points: TimelinePoint[];
+  axisMaxSecond: number;
+  valueSuffix?: string;
+  lineColorClassName: string;
+  sliderClassName: string;
+  cursorSecond: number;
+  isCursorLocked: boolean;
+  onCursorChange: (second: number) => void;
+  onToggleCursorLock: () => void;
+  currentValueLabel: string;
+  yGuideValueLabel: string;
+  xAxisTicks: number[];
+  xAxisTickFormatter: (value: number) => string;
+};
+
+function TimelineTrackChart({ trackId, label, points, axisMaxSecond, valueSuffix, lineColorClassName, sliderClassName, cursorSecond, isCursorLocked, onCursorChange, onToggleCursorLock, currentValueLabel, yGuideValueLabel, xAxisTicks, xAxisTickFormatter, compact }: TimelineTrackChartProps) {
+  const width = 560;
+  const height = compact ? 84 : 120;
+  const topPadding = 8;
+  const bottomPadding = 16;
+  const chartHeight = height - topPadding - bottomPadding;
+  const numericValues = points.flatMap((point) => point.y === null ? [] : [point.y]);
+  const yMin = numericValues.length > 0 ? Math.min(...numericValues) : 0;
+  const yMax = numericValues.length > 0 ? Math.max(...numericValues) : 1;
+  const yRange = Math.max(1, yMax - yMin);
+
+  const polylinePoints = points
+    .filter((point) => point.y !== null)
+    .map((point) => {
+      const x = Math.max(0, Math.min(width, (point.x / axisMaxSecond) * width));
+      const y = topPadding + ((yMax - (point.y ?? yMin)) / yRange) * chartHeight;
+      return `${x},${y}`;
+    })
+    .join(' ');
+
+  const cursorX = Math.max(0, Math.min(width, (cursorSecond / axisMaxSecond) * width));
+  const nearestCursorPoint = findNearestTimelinePoint(points, cursorSecond);
+  const cursorGuideY = nearestCursorPoint?.y === null || nearestCursorPoint?.y === undefined
+    ? null
+    : (topPadding + ((yMax - nearestCursorPoint.y) / yRange) * chartHeight);
+
+  return (
+    <div id={trackId} className="timeline-track" aria-label={label}>
+      <div className="timeline-track__header">
+        <h4>{label}</h4>
+        <span>{currentValueLabel || (numericValues.length > 0 ? `${numericValues[numericValues.length - 1].toFixed(1)}${valueSuffix ?? ''}` : 'n/a')}</span>
+      </div>
+      <svg
+        className="timeline-track__svg"
+        viewBox={`0 0 ${width} ${height}`}
+        role="img"
+        aria-label={label}
+        onPointerDown={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const localX = ((event.clientX - rect.left) / rect.width) * width;
+          onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
+
+          if (event.pointerType === 'mouse') {
+            onToggleCursorLock();
+            return;
+          }
+
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (event.pointerType === 'mouse' && isCursorLocked) {
+            return;
+          }
+
+          const rect = event.currentTarget.getBoundingClientRect();
+          const localX = ((event.clientX - rect.left) / rect.width) * width;
+          onCursorChange((Math.max(0, Math.min(width, localX)) / width) * axisMaxSecond);
+        }}
+      >
+        <line x1="0" y1={height - bottomPadding} x2={width} y2={height - bottomPadding} className="timeline-track__axis" />
+        <line x1="0" y1={topPadding} x2={0} y2={height - bottomPadding} className="timeline-track__axis" />
+        {polylinePoints.length > 0 && <polyline points={polylinePoints} className={`timeline-track__line ${lineColorClassName}`} />}
+        {cursorGuideY !== null && <line x1="0" y1={cursorGuideY} x2={width} y2={cursorGuideY} className="timeline-track__cursor-y" />}
+        <line x1={cursorX} y1={topPadding} x2={cursorX} y2={height - bottomPadding} className="timeline-track__cursor" />
+      </svg>
+      <div className="timeline-track__x-axis" aria-label="timeline x axis">
+        {xAxisTicks.map((tick) => (
+          <span key={`${label}-${tick}`}>{xAxisTickFormatter(tick)}</span>
+        ))}
+      </div>
+      <p className="timeline-track__cursor-time">{formatSecondsMmSs(Math.round(cursorSecond))} min</p>
+      <div className="timeline-mobile-slider timeline-mobile-slider--track">
+        <input
+          id={`timeline-mobile-cursor-${trackId}`}
+          type="range"
+          aria-label={label}
+          className={sliderClassName}
+          min={0}
+          max={axisMaxSecond}
+          step={0.5}
+          value={cursorSecond}
+          onChange={(event) => onCursorChange(Number(event.target.value))}
+        />
+      </div>
+    </div>
+  );
+}
 
 type InteractiveMapProps = {
   zoomInLabel: string;

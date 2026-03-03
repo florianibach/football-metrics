@@ -51,6 +51,31 @@ public static partial class TcxMetricsExtractor
         return total;
     }
 
+
+    private static double CalculateDistanceMetersWithPauseGapHandling(IReadOnlyList<TrackpointSnapshot> points, double pauseGapThresholdSeconds)
+    {
+        double total = 0;
+        for (var index = 1; index < points.Count; index++)
+        {
+            var previous = points[index - 1];
+            var current = points[index];
+            if (!previous.TimeUtc.HasValue || !current.TimeUtc.HasValue || !previous.Latitude.HasValue || !previous.Longitude.HasValue || !current.Latitude.HasValue || !current.Longitude.HasValue)
+            {
+                continue;
+            }
+
+            var elapsedSeconds = (current.TimeUtc.Value - previous.TimeUtc.Value).TotalSeconds;
+            if (elapsedSeconds <= 0 || elapsedSeconds > pauseGapThresholdSeconds)
+            {
+                continue;
+            }
+
+            total += HaversineMeters((previous.Latitude.Value, previous.Longitude.Value), (current.Latitude.Value, current.Longitude.Value));
+        }
+
+        return total;
+    }
+
     private static double HaversineMeters((double Lat, double Lon) start, (double Lat, double Lon) end)
     {
         var lat1 = DegreesToRadians(start.Lat);
