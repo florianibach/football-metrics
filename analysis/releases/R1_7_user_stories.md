@@ -67,16 +67,16 @@ Siehe hierzu auch r1_7_concept.md für mehr Details.
 
 ---
 
-## Story R1.7-05: Peak-Demand-Tab auf bestehender Rolling-Logik aufsetzen
+## Story R1.7-05: Peak-Demand-Tab auf bestehender Rolling-Logik aufsetzen ✅ done
 **Als** Nutzer
 **möchte ich** Peak-Werte pro Metrik in 1/2/5-Minuten-Fenstern vergleichen
 **damit** ich Maximalbelastungen gezielt beurteilen kann.
 
 ### Acceptance Criteria
-- [ ] `Peak Demand` bietet einen klaren Window-Selector (1/2/5 min), Default = 5 min.
-- [ ] Peaks werden nach den vier Belastungsdimensionen tabellarisch dargestellt.
-- [ ] Pro Peak-Metrik können (falls vorhanden) `Ø letzte Sessions` und `Best Saison` angezeigt werden.
-- [ ] Klick auf einen Peak springt in die Timeline und markiert das zugehörige Zeitfenster.
+- [x] `Peak Demand` bietet einen klaren Window-Selector (1/2/5 min), Default = 5 min.
+- [x] Peaks werden nach den vier Belastungsdimensionen tabellarisch dargestellt.
+- [x] Pro Peak-Metrik können (falls vorhanden) `Ø letzte Sessions` und `Best Saison` angezeigt werden.
+- [x] Klick auf einen Peak springt in die Timeline und markiert das zugehörige Zeitfenster.
 
 Peak Definition:
 - Distance: Rolling Sum

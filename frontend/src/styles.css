@@ -2501,3 +2501,17 @@ input[type='checkbox']::before {
   font-size: 0.85rem;
   background: color-mix(in srgb, var(--surface) 90%, #000 10%);
 }
+
+.timeline-track__highlight-window {
+  fill: color-mix(in srgb, var(--accent) 28%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 70%, #fff 30%);
+  stroke-width: 0.8;
+}
+
+.peak-demand-dimension {
+  margin-top: 1rem;
+}
+
+.peak-demand-dimension h4 {
+  margin: 0 0 0.5rem;
+}

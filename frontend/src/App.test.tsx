@@ -3867,13 +3867,65 @@ describe('App', () => {
     expect(await screen.findByText(/Timeline mode/i)).toBeInTheDocument();
 
     fireEvent.change(mobileNav, { target: { value: 'peakDemand' } });
-    expect(await screen.findByText('No interval data available for this session.')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Peak window')).toBeInTheDocument();
 
     fireEvent.change(mobileNav, { target: { value: 'sessionSettings' } });
     expect(await screen.findByText('Session context')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Technical info' }));
     await waitFor(() => expect(window.location.pathname).toBe('/sessions/upload-1/technical-info'));
+  });
+
+
+  it('R1_7_05_Ac01_shows_peak_window_selector_with_default_5_minutes', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile({ preferredAggregationWindowMinutes: 1 }) } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+
+    const selector = screen.getByLabelText('Peak window') as HTMLSelectElement;
+    expect(selector).toBeInTheDocument();
+    expect(selector.value).toBe('5');
+
+    fireEvent.change(selector, { target: { value: '2' } });
+    expect(selector.value).toBe('2');
+  });
+
+  it('R1_7_05_Ac04_peak_action_opens_timeline_and_marks_window', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open in timeline' })[0]);
+
+    expect(await screen.findByText(/Highlighted window:/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Timeline' })).toBeInTheDocument();
   });
 
   it('R1_7_06a_Ac02_preserves_segment_scope_while_switching_tabs_and_mobile_views', async () => {
