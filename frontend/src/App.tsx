@@ -1,5 +1,6 @@
 import { ChangeEvent, DragEvent, FormEvent, PointerEvent, ReactNode, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getFileValidationMessage as getFileValidationMessageBase } from './utils/fileValidation';
+import { formatDistance, formatDistanceComparison, formatDistanceDeltaMeters, formatDuration, formatSecondsMmSs, toDateInputValue } from './utils/formatting';
 
 type SmoothingTrace = {
   selectedStrategy: string;
@@ -2102,53 +2103,9 @@ function formatLocalDateTime(dateText: string): string {
   return new Date(dateText).toLocaleString();
 }
 
-function toDateInputValue(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-function formatSecondsMmSs(seconds: number): string {
-  const mins = Math.floor(Math.max(0, seconds) / 60);
-  const remaining = Math.floor(Math.max(0, seconds) % 60);
-  return `${mins.toString().padStart(2, '0')}:${remaining.toString().padStart(2, '0')}`;
-}
-
-function formatDuration(durationSeconds: number | null, locale: Locale, notAvailable: string): string {
-  if (durationSeconds === null) {
-    return notAvailable;
-  }
-
-  const minutes = Math.floor(durationSeconds / 60);
-  const seconds = Math.round(durationSeconds % 60);
-  return locale === 'de' ? `${minutes} min ${seconds} s` : `${minutes} min ${seconds} s`;
-}
-
-function formatDistance(distanceMeters: number | null, locale: Locale, notAvailable: string): string {
-  if (distanceMeters === null) {
-    return notAvailable;
-  }
-
-  return `${(distanceMeters / 1000).toLocaleString(locale, { maximumFractionDigits: 2 })} km`;
-}
-
-function formatDistanceComparison(distanceMeters: number | null, locale: Locale, notAvailable: string): string {
-  if (distanceMeters === null) {
-    return notAvailable;
-  }
-
-  return `${(distanceMeters / 1000).toLocaleString(locale, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} km (${distanceMeters.toLocaleString(locale, { maximumFractionDigits: 1 })} m)`;
-}
-
-
-function formatDistanceDeltaMeters(distanceDeltaMeters: number | null, locale: Locale, notAvailable: string): string {
-  if (distanceDeltaMeters === null) {
-    return notAvailable;
-  }
-
-  if (distanceDeltaMeters > 0 && distanceDeltaMeters < 0.001) {
-    return '< 0.001 m';
-  }
-
-  return `${distanceDeltaMeters.toLocaleString(locale, { minimumFractionDigits: 3, maximumFractionDigits: 3 })} m`;
+function normalizeLocaleTag(locale: string): string {
+  const normalized = locale.toLowerCase();
+  return normalized.startsWith('de') ? 'de-DE' : 'en-US';
 }
 
 function formatHeartRateAverage(value: number | null, locale: Locale, notAvailable: string): string {
@@ -2156,7 +2113,7 @@ function formatHeartRateAverage(value: number | null, locale: Locale, notAvailab
     return notAvailable;
   }
 
-  return `${value.toLocaleString(locale, { maximumFractionDigits: 0 })} bpm`;
+  return `${value.toLocaleString(normalizeLocaleTag(locale), { maximumFractionDigits: 0 })} bpm`;
 }
 
 function formatHeartRate(summary: ActivitySummary, notAvailable: string): string {
@@ -2242,7 +2199,7 @@ function formatNumber(value: number | null | undefined, locale: Locale, notAvail
     return notAvailable;
   }
 
-  return value.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return value.toLocaleString(normalizeLocaleTag(locale), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
 function formatBpmDrop(value: number | null | undefined, locale: Locale, notAvailable: string): string {
@@ -2250,7 +2207,7 @@ function formatBpmDrop(value: number | null | undefined, locale: Locale, notAvai
     return notAvailable;
   }
 
-  return `${value.toLocaleString(locale, { maximumFractionDigits: 0 })} bpm`;
+  return `${value.toLocaleString(normalizeLocaleTag(locale), { maximumFractionDigits: 0 })} bpm`;
 }
 
 function calculatePercent(part: number | null | undefined, total: number): number {
@@ -2263,7 +2220,7 @@ function calculatePercent(part: number | null | undefined, total: number): numbe
 
 function formatSignedNumber(value: number, locale: Locale, digits = 1): string {
   const sign = value > 0 ? '+' : '';
-  return `${sign}${value.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+  return `${sign}${value.toLocaleString(normalizeLocaleTag(locale), { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 }
 
 function formatBandTriplet(moderate: number | null | undefined, high: number | null | undefined, veryHigh: number | null | undefined, notAvailable: string): string {
@@ -2279,7 +2236,7 @@ function formatDistanceMetersOnly(distanceMeters: number | null, locale: Locale,
     return notAvailable;
   }
 
-  return `${distanceMeters.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m`;
+  return `${distanceMeters.toLocaleString(normalizeLocaleTag(locale), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m`;
 }
 
 function convertSpeedToUnitValue(valueMetersPerSecond: number, unit: SpeedUnit): number | null {
@@ -2336,7 +2293,7 @@ function formatSpeedComparisonDelta(
 
   return {
     value: diff === 0
-      ? `±${(0).toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits })}${speedUnitSuffix(unit)}`
+      ? `±${(0).toLocaleString(normalizeLocaleTag(locale), { minimumFractionDigits: digits, maximumFractionDigits: digits })}${speedUnitSuffix(unit)}`
       : `${formatSignedNumber(diff, locale, digits)}${speedUnitSuffix(unit)}`,
     tone: diff === 0 ? 'neutral' : (diff > 0 ? 'positive' : 'negative')
   };
@@ -2366,7 +2323,7 @@ function formatComparisonDelta(
         : (diff < 0 ? 'positive' : 'negative');
 
   const formatted = diff === 0
-    ? `±${(0).toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits })}${suffix}`
+    ? `±${(0).toLocaleString(normalizeLocaleTag(locale), { minimumFractionDigits: digits, maximumFractionDigits: digits })}${suffix}`
     : `${formatSignedNumber(diff, locale, digits)}${suffix}`;
 
   return {
@@ -4302,7 +4259,7 @@ export function App() {
           : null;
       const distanceDelta = distanceDeltaMeters === null
         ? t.notAvailable
-        : formatDistanceDeltaMeters(distanceDeltaMeters, locale, t.notAvailable);
+        : formatDistanceDeltaMeters(distanceDeltaMeters, t.notAvailable);
 
       return interpolate(t.metricDataChangeHelp, {
         correctedShare,
@@ -4415,7 +4372,7 @@ export function App() {
       key: 'duration',
       label: t.sessionCompareMetricDuration,
       getter: (session: UploadRecord) => session.summary.durationSeconds ?? null,
-      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatDuration(value, currentLocale, notAvailable)
+      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatDuration(value, notAvailable)
     },
     {
       key: 'heartRateAverage',
@@ -4445,7 +4402,7 @@ export function App() {
       key: 'highIntensityTime',
       label: t.sessionCompareMetricHighIntensityTime,
       getter: (session: UploadRecord) => session.summary.coreMetrics.highIntensityTimeSeconds ?? null,
-      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatDuration(value, currentLocale, notAvailable)
+      formatter: (value: number | null, currentLocale: Locale, notAvailable: string) => formatDuration(value, notAvailable)
     },
     {
       key: 'trainingLoad',
@@ -4480,7 +4437,7 @@ export function App() {
       }
 
       return {
-        formattedValue: metric.formatter(value, locale, t.notAvailable),
+        formattedValue: metric.formatter(value, t.notAvailable),
         deltaText,
         deltaPercentText
       };
@@ -5002,8 +4959,8 @@ export function App() {
           seriesKey: 'distance',
           points: timelineSecondSeries.rolling.distance,
           comparison: distancePeakComparison,
-          formatPeak: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable),
-          formatComparison: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable)
+          formatPeak: (value) => formatDistanceMetersOnly(value, t.notAvailable),
+          formatComparison: (value) => formatDistanceMetersOnly(value, t.notAvailable)
         })
       ].filter((row): row is NonNullable<typeof row> => row !== null),
       speed: [
@@ -5012,8 +4969,8 @@ export function App() {
           seriesKey: 'highSpeedDistance',
           points: timelineSecondSeries.rolling.highSpeedDistance,
           comparison: highSpeedDistancePeakComparison,
-          formatPeak: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable),
-          formatComparison: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable)
+          formatPeak: (value) => formatDistanceMetersOnly(value, t.notAvailable),
+          formatComparison: (value) => formatDistanceMetersOnly(value, t.notAvailable)
         })
       ].filter((row): row is NonNullable<typeof row> => row !== null),
       mechanical: [
@@ -5345,9 +5302,9 @@ export function App() {
   const hrZoneTotalSeconds = (displayedCoreMetrics?.heartRateZoneLowSeconds ?? 0) + (displayedCoreMetrics?.heartRateZoneMediumSeconds ?? 0) + (displayedCoreMetrics?.heartRateZoneHighSeconds ?? 0);
   const hrZoneBars: HrZoneBar[] = displayedCoreMetrics
     ? [
-      { label: '<70%', value: withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t), percent: calculatePercent(displayedCoreMetrics.heartRateZoneLowSeconds, hrZoneTotalSeconds) },
-      { label: '70–85%', value: withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t), percent: calculatePercent(displayedCoreMetrics.heartRateZoneMediumSeconds, hrZoneTotalSeconds) },
-      { label: '>85%', value: withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t), percent: calculatePercent(displayedCoreMetrics.heartRateZoneHighSeconds, hrZoneTotalSeconds) }
+      { label: '<70%', value: withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t), percent: calculatePercent(displayedCoreMetrics.heartRateZoneLowSeconds, hrZoneTotalSeconds) },
+      { label: '70–85%', value: withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t), percent: calculatePercent(displayedCoreMetrics.heartRateZoneMediumSeconds, hrZoneTotalSeconds) },
+      { label: '>85%', value: withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t), percent: calculatePercent(displayedCoreMetrics.heartRateZoneHighSeconds, hrZoneTotalSeconds) }
     ]
     : [];
 
@@ -5846,7 +5803,7 @@ export function App() {
           <p>{t.profileAdaptiveDataBasisHint}</p>
 
           <p>{t.profileThresholdVersion}: {profileForm.metricThresholds.version}</p>
-          <p>{t.profileThresholdUpdatedAt}: {formatUtcDateTime(profileForm.metricThresholds.updatedAtUtc, locale, t.notAvailable)}</p>
+          <p>{t.profileThresholdUpdatedAt}: {formatUtcDateTime(profileForm.metricThresholds.updatedAtUtc, t.notAvailable)}</p>
 
           <button type="submit" className="btn-primary">{t.profileSave}</button>
           <button type="button" className="secondary-button" onClick={onTriggerProfileRecalculation}>{t.profileRecalculateAllButton}</button>
@@ -6537,11 +6494,11 @@ export function App() {
                       />}
                       <KpiCard
                         label={t.metricDuration}
-                        primaryValue={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)}
+                        primaryValue={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)}
                         helpText={`${metricHelp.duration} ${t.metricHelpDuration}`}
-                        comparisonAverage={durationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDuration(durationComparison.averageLastFive, locale, t.notAvailable) }) : null}
+                        comparisonAverage={durationComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDuration(durationComparison.averageLastFive, t.notAvailable) }) : null}
                         comparisonDelta={formatDurationDelta(selectedSession.summary.durationSeconds ?? null, durationComparison.averageLastFive, 'neutral')}
-                        comparisonBest={durationComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDuration(durationComparison.bestSeason, locale, t.notAvailable) }) : null}
+                        comparisonBest={durationComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDuration(durationComparison.bestSeason, t.notAvailable) }) : null}
                         trendHint={t.kpiTrendContextDepends}
                       />
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
@@ -6557,7 +6514,7 @@ export function App() {
                     </div>
                     <ul className="metrics-list list-group overview-legacy-list">
                       {activeDataMode !== 'HeartRateOnly' && <MetricListItem label={t.metricDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.distanceMeters, locale, t.notAvailable), 'distanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.distance} />}
-                      <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, locale, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
+                      <MetricListItem label={t.metricDuration} value={withMetricStatus(formatDuration(isSegmentScopeActive && selectedSegment ? selectedSegment.endSecond - selectedSegment.startSecond : selectedSession.summary.durationSeconds, t.notAvailable), 'durationSeconds', displayedCoreMetrics, t)} helpText={`${metricHelp.duration} ${t.metricHelpDuration}`} />
                       {activeDataMode !== 'HeartRateOnly' && <MetricListItem label={t.metricRunningDensity} value={withMetricStatus(formatNumber(displayedCoreMetrics.runningDensityMetersPerMinute, locale, t.notAvailable, 2), 'runningDensityMetersPerMinute', displayedCoreMetrics, t)} helpText={metricHelp.runningDensity} />}
                     </ul>
                   </div>
@@ -6584,20 +6541,20 @@ export function App() {
                         secondaryRows={[
                           `${t.metricHighIntensityRunCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)}`,
                           `${t.metricOfWhichSprintPhasesCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)}`,
-                          `${t.metricHighIntensityTime}: ${withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)}`
+                          `${t.metricHighIntensityTime}: ${withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)}`
                         ]}
                         actions={[{ label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('speed') }]}
                       />}
                       {activeDataMode !== 'HeartRateOnly' && <KpiCard
                         label={t.metricHighSpeedDistance}
-                        primaryValue={withMetricStatus(formatDistanceMetersOnly(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)}
+                        primaryValue={withMetricStatus(formatDistanceMetersOnly(displayedCoreMetrics.highSpeedDistanceMeters, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)}
                         helpText={metricHelp.highSpeedDistance}
-                        comparisonAverage={highSpeedDistanceComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDistanceMetersOnly(highSpeedDistanceComparison.averageLastFive, locale, t.notAvailable) }) : null}
+                        comparisonAverage={highSpeedDistanceComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatDistanceMetersOnly(highSpeedDistanceComparison.averageLastFive, t.notAvailable) }) : null}
                         comparisonDelta={formatComparisonDelta(displayedCoreMetrics.highSpeedDistanceMeters, highSpeedDistanceComparison.averageLastFive, locale, 1, ' m', 'higher')}
-                        comparisonBest={highSpeedDistanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistanceMetersOnly(highSpeedDistanceComparison.bestSeason, locale, t.notAvailable) }) : null}
+                        comparisonBest={highSpeedDistanceComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatDistanceMetersOnly(highSpeedDistanceComparison.bestSeason, t.notAvailable) }) : null}
                         trendHint={t.kpiTrendHigherIsBetter}
                         secondaryRows={[
-                          `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceMetersOnly(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, locale, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`
+                          `${t.metricSprintDistance}: ${withMetricStatus(formatDistanceMetersOnly(detectedRunHierarchySummary?.sprintPhaseDistanceMeters ?? displayedCoreMetrics.sprintDistanceMeters, t.notAvailable), 'sprintDistanceMeters', displayedCoreMetrics, t)}`
                         ]}
                         actions={[
                           { label: t.kpiActionTimeline, onClick: () => openTimelineWithFocus('highSpeedDistance') },
@@ -6609,7 +6566,7 @@ export function App() {
                       {activeDataMode !== 'HeartRateOnly' && (
                         <>
                           <MetricListItem label={t.metricMaxSpeed} value={withMetricStatus(formatSpeed(displayedCoreMetrics.maxSpeedMetersPerSecond, selectedSession.selectedSpeedUnit, t.notAvailable), 'maxSpeedMetersPerSecond', displayedCoreMetrics, t)} helpText={metricHelp.maxSpeed} />
-                          <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, locale, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityTime} />
+                          <MetricListItem label={t.metricHighIntensityTime} value={withMetricStatus(formatDuration(displayedCoreMetrics.highIntensityTimeSeconds, t.notAvailable), 'highIntensityTimeSeconds', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityTime} />
                           <MetricListItem label={t.metricHighIntensityRunCount} value={withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)} helpText={metricHelp.highIntensityRunCount} />
                           <MetricListItem label={t.metricOfWhichSprintPhasesCount} value={withMetricStatus(String(detectedRunHierarchySummary?.sprintPhaseCount ?? displayedCoreMetrics.sprintCount ?? t.notAvailable), 'sprintCount', displayedCoreMetrics, t)} helpText={metricHelp.sprintCount} />
                           <MetricListItem label={t.metricHighSpeedDistance} value={withMetricStatus(formatDistanceComparison(displayedCoreMetrics.highSpeedDistanceMeters, locale, t.notAvailable), 'highSpeedDistanceMeters', displayedCoreMetrics, t)} helpText={metricHelp.highSpeedDistance} />
@@ -6689,7 +6646,7 @@ export function App() {
                         label="Heart Rate"
                         primaryValue={`${selectedSession.summary.heartRateAverageBpm ?? t.notAvailable} bpm (avg)`}
                         helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`}
-                        comparisonAverage={heartRateAvgComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatHeartRateAverage(heartRateAvgComparison.averageLastFive, locale, t.notAvailable) }) : null}
+                        comparisonAverage={heartRateAvgComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatHeartRateAverage(heartRateAvgComparison.averageLastFive, t.notAvailable) }) : null}
                         comparisonDelta={formatComparisonDelta(selectedSession.summary.heartRateAverageBpm, heartRateAvgComparison.averageLastFive, locale, 0, ' bpm', 'neutral')}
                         trendHint={t.kpiTrendContextDepends}
                         secondaryRows={[
@@ -6719,9 +6676,9 @@ export function App() {
                       />}
                       {activeDataMode !== 'GpsOnly' && <KpiCard
                         label="HR Recovery (60s)"
-                        primaryValue={withMetricStatus(formatBpmDrop(displayedCoreMetrics.heartRateRecoveryAfter60Seconds, locale, t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)}
+                        primaryValue={withMetricStatus(formatBpmDrop(displayedCoreMetrics.heartRateRecoveryAfter60Seconds, t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)}
                         helpText={metricHelp.hrRecovery60}
-                        comparisonAverage={hrRecoveryComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatBpmDrop(hrRecoveryComparison.averageLastFive, locale, t.notAvailable) }) : null}
+                        comparisonAverage={hrRecoveryComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatBpmDrop(hrRecoveryComparison.averageLastFive, t.notAvailable) }) : null}
                         comparisonDelta={formatComparisonDelta(displayedCoreMetrics.heartRateRecoveryAfter60Seconds, hrRecoveryComparison.averageLastFive, locale, 0, ' bpm', 'higher')}
                         trendHint={t.kpiTrendHigherIsBetter}
                       />}
@@ -6730,9 +6687,9 @@ export function App() {
                       {activeDataMode !== 'GpsOnly' && (
                         <>
                           <MetricListItem label={t.metricHeartRate} value={withMetricStatus(formatHeartRate(selectedSession.summary, t.notAvailable), 'heartRateMinAvgMaxBpm', displayedCoreMetrics, t)} helpText={`${metricHelp.heartRate} ${t.metricHelpHeartRate}`} />
-                          <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, locale, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneLow} />
-                          <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, locale, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
-                          <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, locale, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
+                          <MetricListItem label={t.metricHrZoneLow} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneLowSeconds, t.notAvailable), 'heartRateZoneLowSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneLow} />
+                          <MetricListItem label={t.metricHrZoneMedium} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneMediumSeconds, t.notAvailable), 'heartRateZoneMediumSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneMedium} />
+                          <MetricListItem label={t.metricHrZoneHigh} value={withMetricStatus(formatDuration(displayedCoreMetrics.heartRateZoneHighSeconds, t.notAvailable), 'heartRateZoneHighSeconds', displayedCoreMetrics, t)} helpText={metricHelp.hrZoneHigh} />
                           <MetricListItem label={t.metricTrimpEdwards} value={withMetricStatus(formatNumber(displayedCoreMetrics.trainingImpulseEdwards, locale, t.notAvailable, 1), 'trainingImpulseEdwards', displayedCoreMetrics, t)} helpText={metricHelp.trimpEdwards} />
                           <MetricListItem label={t.metricTrimpPerMinute} value={formatNumber(displayedCoreMetrics.trainingImpulseEdwards !== null ? displayedCoreMetrics.trainingImpulseEdwards / ((isSegmentScopeActive && selectedSegment ? Math.max(1, selectedSegment.endSecond - selectedSegment.startSecond) : Math.max(1, selectedSession.summary.durationSeconds ?? 0)) / 60) : null, locale, t.notAvailable, 2)} helpText={metricHelp.trimpEdwards} />
                           <MetricListItem label={t.metricHrRecovery60} value={withMetricStatus(String(displayedCoreMetrics.heartRateRecoveryAfter60Seconds ?? t.notAvailable), 'heartRateRecoveryAfter60Seconds', displayedCoreMetrics, t)} helpText={metricHelp.hrRecovery60} />
@@ -8154,7 +8111,7 @@ function GpsRunsMap({ points, detectedRuns, minLatitude, maxLatitude, minLongitu
                       className={selectedRunId === segment.id ? 'is-active' : ''}
                       onClick={() => setSelectedRunId(segment.id)}
                     >
-                      {label} #{index + 1} · {formatElapsed(segment.startElapsedSeconds)} · {formatDuration(segment.durationSeconds, locale, '0s')} · {formatDistanceComparison(segment.distanceMeters, locale, '0 m')} · {topSpeedLabel}: {formatSpeed(segment.topSpeedMetersPerSecond, speedUnit, 'n/a')}
+                      {label} #{index + 1} · {formatElapsed(segment.startElapsedSeconds)} · {formatDuration(segment.durationSeconds, '0s')} · {formatDistanceComparison(segment.distanceMeters, locale, '0 m')} · {topSpeedLabel}: {formatSpeed(segment.topSpeedMetersPerSecond, speedUnit, 'n/a')}
                     </button>
                   </li>
                 );
