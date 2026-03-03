@@ -2515,3 +2515,71 @@ input[type='checkbox']::before {
 .peak-demand-dimension h4 {
   margin: 0 0 0.5rem;
 }
+
+.peak-demand-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.peak-demand-info {
+  flex: 0 0 auto;
+}
+
+.peak-demand-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.peak-demand-table th,
+.peak-demand-table td {
+  vertical-align: middle;
+}
+
+.peak-demand-table th:nth-child(1),
+.peak-demand-table td:nth-child(1) { width: 24%; }
+.peak-demand-table th:nth-child(2),
+.peak-demand-table td:nth-child(2) { width: 14%; }
+.peak-demand-table th:nth-child(3),
+.peak-demand-table td:nth-child(3) { width: 22%; }
+.peak-demand-table th:nth-child(4),
+.peak-demand-table td:nth-child(4) { width: 22%; }
+.peak-demand-table th:nth-child(5),
+.peak-demand-table td:nth-child(5) { width: 18%; }
+
+.peak-demand-table td .bi {
+  margin-right: 0.35rem;
+  color: var(--muted);
+}
+
+@media (max-width: 768px) {
+  .peak-demand-table td {
+    position: relative;
+    padding-left: 7.9rem;
+    min-height: 2.3rem;
+  }
+
+  .peak-demand-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0.6rem;
+    top: 0.55rem;
+    width: 6.9rem;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .peak-demand-table td[data-label="Action"]::before,
+  .peak-demand-table td[data-label="Aktion"]::before {
+    top: 0.8rem;
+  }
+
+  .peak-demand-table td[data-label="Action"] .btn,
+  .peak-demand-table td[data-label="Aktion"] .btn {
+    width: 100%;
+  }
+}

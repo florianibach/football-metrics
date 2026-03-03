@@ -541,6 +541,9 @@ type TranslationKey =
   | 'peakDemandActionLabel'
   | 'peakDemandActionJumpTimeline'
   | 'peakDemandNoData'
+  | 'peakDemandAverageLabel'
+  | 'peakDemandBestLabel'
+  | 'peakDemandInfoDescription'
   | 'timelineHighlightedWindowLabel'
   | 'profileSettingsTitle'
   | 'profilePrimaryPosition'
@@ -1005,6 +1008,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     peakDemandActionLabel: 'Action',
     peakDemandActionJumpTimeline: 'Open in timeline',
     peakDemandNoData: 'No peak-demand values are available for this selection.',
+    peakDemandAverageLabel: 'Average last sessions',
+    peakDemandBestLabel: 'Best season',
+    peakDemandInfoDescription: 'Peak Demand helps you identify the most intensive phases of the session. Choose 1, 2 or 5 minutes to compare different stress durations. Use Volume, Speed, Mechanical and Internal together: peaks can happen at different times, and that is expected. Click any peak to jump into the synchronized timeline and review the exact window context.',
     timelineHighlightedWindowLabel: 'Highlighted window',
     profileSettingsTitle: 'Profile settings',
     profilePrimaryPosition: 'Primary position',
@@ -1454,6 +1460,9 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     peakDemandActionLabel: 'Aktion',
     peakDemandActionJumpTimeline: 'In Timeline öffnen',
     peakDemandNoData: 'Keine Peak-Demand-Werte für diese Auswahl verfügbar.',
+    peakDemandAverageLabel: 'Ø letzte Sessions',
+    peakDemandBestLabel: 'Best Saison',
+    peakDemandInfoDescription: 'Peak Demand hilft dir, die intensivsten Phasen der Session zu erkennen. Wähle 1, 2 oder 5 Minuten, um kurze und längere Belastungsspitzen zu vergleichen. Betrachte Volume, Speed, Mechanical und Internal gemeinsam: Peaks können zeitlich unterschiedlich auftreten und genau das ist fachlich korrekt. Mit Klick auf einen Peak springst du in die synchronisierte Timeline und siehst das zugehörige Zeitfenster im Kontext.',
     timelineHighlightedWindowLabel: 'Markiertes Fenster',
     profileSettingsTitle: 'Profileinstellungen',
     profilePrimaryPosition: 'Primärposition',
@@ -1889,6 +1898,142 @@ function calculateKpiComparison(
     : null;
 
   return { averageLastFive, bestSeason };
+}
+
+
+
+type PeakComparisonMetricKey = 'distance' | 'highSpeedDistance' | 'mechanicalLoad' | 'trimp' | 'heartRateAvg';
+type PeakMetricValues = Record<PeakComparisonMetricKey, number | null>;
+
+function toPeakComparisonValues(record: UploadRecord, windowMinutes: 1 | 2 | 5): PeakMetricValues {
+  const durationFromSummary = Math.max(0, Math.floor(record.summary.durationSeconds ?? 0));
+  const gpsPoints = record.summary.gpsTrackpoints
+    .filter((point): point is GpsTrackpoint & { elapsedSeconds: number } => point.elapsedSeconds !== null)
+    .sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+
+  const maxElapsedGps = gpsPoints.length > 0 ? Math.max(...gpsPoints.map((point) => Math.floor(point.elapsedSeconds))) : 0;
+  const hrSamples = (record.summary.heartRateSamples ?? []).slice().sort((a, b) => a.elapsedSeconds - b.elapsedSeconds);
+  const maxElapsedHr = hrSamples.length > 0 ? Math.max(...hrSamples.map((sample) => Math.floor(sample.elapsedSeconds))) : 0;
+  const durationSeconds = Math.max(1, durationFromSummary, maxElapsedGps, maxElapsedHr);
+
+  const distanceDelta = new Array<number>(durationSeconds + 1).fill(0);
+  const highSpeedDistanceDelta = new Array<number>(durationSeconds + 1).fill(0);
+  const accelBySecond = new Array<number>(durationSeconds + 1).fill(0);
+  const decelBySecond = new Array<number>(durationSeconds + 1).fill(0);
+  const codBySecond = new Array<number>(durationSeconds + 1).fill(0);
+  const hrSumBySecond = new Array<number>(durationSeconds + 1).fill(0);
+  const hrCountBySecond = new Array<number>(durationSeconds + 1).fill(0);
+  const trimpDeltaBySecond = new Array<number>(durationSeconds + 1).fill(0);
+
+  const toSecond = (elapsed: number) => Math.max(0, Math.min(durationSeconds, Math.floor(elapsed)));
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const distanceMetersBetween = (first: GpsTrackpoint, second: GpsTrackpoint) => {
+    const dLat = toRadians(second.latitude - first.latitude);
+    const dLon = toRadians(second.longitude - first.longitude);
+    const lat1 = toRadians(first.latitude);
+    const lat2 = toRadians(second.latitude);
+    const a = (Math.sin(dLat / 2) ** 2)
+      + (Math.cos(lat1) * Math.cos(lat2) * (Math.sin(dLon / 2) ** 2));
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return 6371000 * c;
+  };
+
+  const highSpeedThresholdRaw = record.summary.coreMetrics.thresholds.HighIntensitySpeedThresholdMps;
+  const parsedThreshold = highSpeedThresholdRaw ? Number(highSpeedThresholdRaw) : Number.NaN;
+  const highSpeedThreshold = Number.isFinite(parsedThreshold) ? parsedThreshold : (7 / 3.6);
+
+  for (let index = 1; index < gpsPoints.length; index += 1) {
+    const previous = gpsPoints[index - 1];
+    const current = gpsPoints[index];
+    const elapsed = current.elapsedSeconds - previous.elapsedSeconds;
+    if (elapsed <= 0) {
+      continue;
+    }
+
+    const distanceMeters = distanceMetersBetween(previous, current);
+    const speedMps = distanceMeters / elapsed;
+    const second = toSecond(current.elapsedSeconds);
+    distanceDelta[second] += distanceMeters;
+    if (speedMps >= highSpeedThreshold) {
+      highSpeedDistanceDelta[second] += distanceMeters;
+    }
+  }
+
+  const addEvents = (events: MechanicalEvent[] | undefined, target: number[]) => {
+    (events ?? []).forEach((event) => {
+      const second = toSecond(event.startElapsedSeconds);
+      target[second] += 1;
+    });
+  };
+  addEvents(record.summary.accelerations, accelBySecond);
+  addEvents(record.summary.decelerations, decelBySecond);
+  addEvents(record.summary.highIntensityDirectionChanges, codBySecond);
+
+  hrSamples.forEach((sample) => {
+    const second = toSecond(sample.elapsedSeconds);
+    hrSumBySecond[second] += sample.heartRateBpm;
+    hrCountBySecond[second] += 1;
+  });
+
+  for (let second = 0; second <= durationSeconds; second += 1) {
+    if (hrCountBySecond[second] === 0 && second > 0 && hrCountBySecond[second - 1] > 0) {
+      hrSumBySecond[second] = hrSumBySecond[second - 1] / hrCountBySecond[second - 1];
+      hrCountBySecond[second] = 1;
+    }
+    if (hrCountBySecond[second] > 0) {
+      const avgHr = hrSumBySecond[second] / hrCountBySecond[second];
+      const zoneWeight = avgHr < 120 ? 1 : avgHr < 140 ? 2 : avgHr < 160 ? 3 : avgHr < 180 ? 4 : 5;
+      trimpDeltaBySecond[second] = zoneWeight / 60;
+    }
+  }
+
+  const prefix = (arr: number[]) => {
+    const out = new Array<number>(arr.length + 1).fill(0);
+    for (let i = 0; i < arr.length; i += 1) {
+      out[i + 1] = out[i] + arr[i];
+    }
+    return out;
+  };
+
+  const distancePrefix = prefix(distanceDelta);
+  const highSpeedPrefix = prefix(highSpeedDistanceDelta);
+  const accelPrefix = prefix(accelBySecond);
+  const decelPrefix = prefix(decelBySecond);
+  const codPrefix = prefix(codBySecond);
+  const hrSumPrefix = prefix(hrSumBySecond);
+  const hrCountPrefix = prefix(hrCountBySecond);
+  const trimpPrefix = prefix(trimpDeltaBySecond);
+
+  const rollingWindowSeconds = windowMinutes * 60;
+  let maxDistance = 0;
+  let maxHighSpeedDistance = 0;
+  let maxMechanicalLoad = 0;
+  let maxTrimp = 0;
+  let maxHeartRateAvg: number | null = null;
+
+  for (let second = 0; second <= durationSeconds; second += 1) {
+    const rangeStart = Math.max(0, second - rollingWindowSeconds + 1);
+    const sumOverRange = (pref: number[]) => pref[second + 1] - pref[rangeStart];
+
+    maxDistance = Math.max(maxDistance, sumOverRange(distancePrefix));
+    maxHighSpeedDistance = Math.max(maxHighSpeedDistance, sumOverRange(highSpeedPrefix));
+    maxMechanicalLoad = Math.max(maxMechanicalLoad, sumOverRange(accelPrefix) + sumOverRange(decelPrefix) + sumOverRange(codPrefix));
+    maxTrimp = Math.max(maxTrimp, sumOverRange(trimpPrefix));
+
+    const hrCount = sumOverRange(hrCountPrefix);
+    if (hrCount > 0) {
+      const hrAvg = sumOverRange(hrSumPrefix) / hrCount;
+      maxHeartRateAvg = maxHeartRateAvg === null ? hrAvg : Math.max(maxHeartRateAvg, hrAvg);
+    }
+  }
+
+  return {
+    distance: maxDistance > 0 ? maxDistance : null,
+    highSpeedDistance: maxHighSpeedDistance > 0 ? maxHighSpeedDistance : null,
+    mechanicalLoad: maxMechanicalLoad > 0 ? maxMechanicalLoad : null,
+    trimp: maxTrimp > 0 ? maxTrimp : null,
+    heartRateAvg: maxHeartRateAvg
+  };
 }
 
 type CachedAppearancePreferences = {
@@ -4208,6 +4353,41 @@ export function App() {
   const trimpComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.trainingImpulseEdwards ?? null);
   const hrRecoveryComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? null);
 
+  const peakValuesByRecordId = useMemo(() => {
+    const map = new Map<string, PeakMetricValues>();
+    sortedHistory.forEach((record) => {
+      map.set(record.id, toPeakComparisonValues(record, peakDemandWindowMinutes));
+    });
+    return map;
+  }, [peakDemandWindowMinutes, sortedHistory]);
+
+  const calculatePeakComparison = useCallback((metricKey: PeakComparisonMetricKey) => {
+    if (!selectedSession) {
+      return { averageLastFive: null, bestSeason: null };
+    }
+
+    const comparableValues = sortedHistory
+      .filter((record) => record.id !== selectedSession.id && record.sessionContext.sessionType === selectedSession.sessionContext.sessionType)
+      .map((record) => peakValuesByRecordId.get(record.id)?.[metricKey] ?? null)
+      .filter((value): value is number => value !== null);
+
+    const lastFive = comparableValues.slice(0, 5);
+    const averageLastFive = lastFive.length > 0
+      ? lastFive.reduce((sum, value) => sum + value, 0) / lastFive.length
+      : null;
+
+    const bestSeason = comparableValues.length > 0
+      ? Math.max(...comparableValues)
+      : null;
+
+    return { averageLastFive, bestSeason };
+  }, [peakValuesByRecordId, selectedSession, sortedHistory]);
+
+  const distancePeakComparison = useMemo(() => calculatePeakComparison('distance'), [calculatePeakComparison]);
+  const highSpeedDistancePeakComparison = useMemo(() => calculatePeakComparison('highSpeedDistance'), [calculatePeakComparison]);
+  const heartRatePeakComparison = useMemo(() => calculatePeakComparison('heartRateAvg'), [calculatePeakComparison]);
+  const trimpPeakComparison = useMemo(() => calculatePeakComparison('trimp'), [calculatePeakComparison]);
+  const mechanicalPeakComparison = useMemo(() => calculatePeakComparison('mechanicalLoad'), [calculatePeakComparison]);
 
   const compareOpponentSession = compareOpponentSessionId && selectedSession
     ? compareOpponentSessionId === selectedSession.id
@@ -4793,7 +4973,7 @@ export function App() {
           metricLabel: t.metricDistance,
           seriesKey: 'distance',
           points: timelineSecondSeries.rolling.distance,
-          comparison: distanceComparison,
+          comparison: distancePeakComparison,
           formatPeak: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable),
           formatComparison: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable)
         })
@@ -4803,7 +4983,7 @@ export function App() {
           metricLabel: t.metricHighSpeedDistance,
           seriesKey: 'highSpeedDistance',
           points: timelineSecondSeries.rolling.highSpeedDistance,
-          comparison: highSpeedDistanceComparison,
+          comparison: highSpeedDistancePeakComparison,
           formatPeak: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable),
           formatComparison: (value) => formatDistanceMetersOnly(value, locale, t.notAvailable)
         })
@@ -4813,7 +4993,7 @@ export function App() {
           metricLabel: t.metricAccelerationCount,
           seriesKey: 'mechanicalLoad',
           points: timelineSecondSeries.rolling.mechanicalLoad,
-          comparison: { averageLastFive: null, bestSeason: null },
+          comparison: mechanicalPeakComparison,
           formatPeak: (value) => formatNumber(value, locale, t.notAvailable, 0),
           formatComparison: (value) => formatNumber(value, locale, t.notAvailable, 0)
         })
@@ -4823,7 +5003,7 @@ export function App() {
           metricLabel: t.metricTrimpPerMinute,
           seriesKey: 'trimp',
           points: timelineSecondSeries.rolling.trimp,
-          comparison: { averageLastFive: null, bestSeason: null },
+          comparison: trimpPeakComparison,
           formatPeak: (value) => formatNumber(value, locale, t.notAvailable, 2),
           formatComparison: (value) => formatNumber(value, locale, t.notAvailable, 2)
         }),
@@ -4831,13 +5011,13 @@ export function App() {
           metricLabel: t.metricHeartRate,
           seriesKey: 'heartRateAvg',
           points: timelineSecondSeries.rolling.heartRateAvg,
-          comparison: heartRateAvgComparison,
+          comparison: heartRatePeakComparison,
           formatPeak: (value) => `${formatNumber(value, locale, t.notAvailable, 1)} bpm`,
           formatComparison: (value) => `${formatNumber(value, locale, t.notAvailable, 1)} bpm`
         })
       ].filter((row): row is NonNullable<typeof row> => row !== null)
     };
-  }, [peakDemandWindowMinutes, distanceComparison, heartRateAvgComparison, highSpeedDistanceComparison, locale, t, timelineSecondSeries.rolling.distance, timelineSecondSeries.rolling.heartRateAvg, timelineSecondSeries.rolling.highSpeedDistance, timelineSecondSeries.rolling.mechanicalLoad, timelineSecondSeries.rolling.trimp]);
+  }, [distancePeakComparison, heartRatePeakComparison, highSpeedDistancePeakComparison, locale, mechanicalPeakComparison, peakDemandWindowMinutes, t, timelineSecondSeries.rolling.distance, timelineSecondSeries.rolling.heartRateAvg, timelineSecondSeries.rolling.highSpeedDistance, timelineSecondSeries.rolling.mechanicalLoad, timelineSecondSeries.rolling.trimp, trimpPeakComparison]);
 
 
   const codBandCountsByScope = useMemo(() => {
@@ -6518,7 +6698,19 @@ export function App() {
 
           <section className={`analysis-disclosure analysis-block--peak-demand ${activeSessionSubpage === "analysis" && activeAnalysisTab === 'peakDemand' ? "" : "is-hidden"}`}>
             <div className="analysis-disclosure__content">
-              <h3>{t.sessionTabPeakDemand}</h3>
+              <div className="peak-demand-header">
+                <h3>{t.sessionTabPeakDemand}</h3>
+                <button
+                  type="button"
+                  className="metric-help peak-demand-info"
+                  aria-label={`${t.sessionTabPeakDemand} explanation`}
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('metric-help-open', { detail: { label: t.sessionTabPeakDemand, helpText: t.peakDemandInfoDescription } }));
+                  }}
+                >
+                  <i className="bi bi-info-circle" aria-hidden="true" />
+                </button>
+              </div>
               <label className="form-label" htmlFor="peak-window-selector">{t.peakDemandWindowSelectorLabel}</label>
               <select
                 className="form-select"
@@ -6545,24 +6737,24 @@ export function App() {
                       {dimension.rows.length === 0 ? (
                         <p>{t.notAvailable}</p>
                       ) : (
-                        <table className="history-table">
+                        <table className="history-table peak-demand-table">
                           <thead>
                             <tr>
                               <th>{t.peakDemandMetricLabel}</th>
                               <th>{t.peakDemandValueLabel}</th>
-                              <th>Ø letzte Sessions</th>
-                              <th>Best Saison</th>
+                              <th>{t.peakDemandAverageLabel}</th>
+                              <th>{t.peakDemandBestLabel}</th>
                               <th>{t.peakDemandActionLabel}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {dimension.rows.map((row) => (
                               <tr key={`${dimension.key}-${row.metricLabel}`}>
-                                <td>{row.metricLabel}</td>
-                                <td>{row.peakValue}</td>
-                                <td>{row.averageLastFive ?? t.notAvailable}</td>
-                                <td>{row.bestSeason ?? t.notAvailable}</td>
-                                <td>
+                                <td data-label={t.peakDemandMetricLabel}>{row.metricLabel}</td>
+                                <td data-label={t.peakDemandValueLabel}>{row.peakValue}</td>
+                                <td data-label={t.peakDemandAverageLabel}><i className="bi bi-slash-circle" aria-hidden="true" /> {row.averageLastFive ?? t.notAvailable}</td>
+                                <td data-label={t.peakDemandBestLabel}><i className="bi bi-star-fill" aria-hidden="true" /> {row.bestSeason ?? t.notAvailable}</td>
+                                <td data-label={t.peakDemandActionLabel}>
                                   <button
                                     type="button"
                                     className="btn btn-sm btn-outline-secondary"

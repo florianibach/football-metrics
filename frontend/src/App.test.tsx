@@ -3775,7 +3775,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /Timeline|Zeitverlauf/ }));
     await waitFor(() => expect(window.location.search).toContain('tab=timeline'));
 
-    fireEvent.click(screen.getByRole('button', { name: /Peak Demand/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Peak Demand$/ }));
     await waitFor(() => expect(window.location.search).toContain('tab=peakDemand'));
 
     fireEvent.click(screen.getAllByRole('button', { name: /Heatmap/ })[0]);
@@ -3926,6 +3926,85 @@ describe('App', () => {
 
     expect(await screen.findByText(/Highlighted window:/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Timeline' })).toBeInTheDocument();
+  });
+
+
+
+  it('R1_7_05_Ac03_uses_peak_based_comparison_values_not_overall_totals', async () => {
+    const historyA = createUploadRecord({
+      id: 'history-a',
+      sessionContext: { sessionType: 'Training', matchResult: null, competition: null, opponentName: null, opponentLogoUrl: null },
+      summary: createSummary({
+        durationSeconds: 600,
+        coreMetrics: {
+          ...baseCoreMetrics(),
+          distanceMeters: 9000,
+          highSpeedDistanceMeters: 2400,
+          trainingImpulseEdwards: 420
+        },
+        gpsTrackpoints: [
+          { latitude: 50.9365, longitude: 6.9603, elapsedSeconds: 0 },
+          { latitude: 50.9366, longitude: 6.9604, elapsedSeconds: 300 },
+          { latitude: 50.9367, longitude: 6.9605, elapsedSeconds: 600 }
+        ],
+        heartRateSamples: [
+          { elapsedSeconds: 0, heartRateBpm: 128 },
+          { elapsedSeconds: 300, heartRateBpm: 132 },
+          { elapsedSeconds: 600, heartRateBpm: 130 }
+        ]
+      })
+    });
+
+    const selected = createUploadRecord({
+      id: 'selected-peak',
+      sessionContext: { sessionType: 'Training', matchResult: null, competition: null, opponentName: null, opponentLogoUrl: null }
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [selected, historyA] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+
+    expect(screen.queryByText(/9,000/i)).not.toBeInTheDocument();
+  });
+
+  it('R1_7_05_Ac02_shows_peak_info_help_and_mobile_data_labels', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand explanation' }));
+    expect(await screen.findByText(/Peak Demand helps you identify the most intensive phases/i)).toBeInTheDocument();
+
+    const firstDataCell = screen.getAllByRole('cell').find((cell) => cell.getAttribute('data-label') === 'Metric');
+    expect(firstDataCell).toBeTruthy();
   });
 
   it('R1_7_06a_Ac02_preserves_segment_scope_while_switching_tabs_and_mobile_views', async () => {
