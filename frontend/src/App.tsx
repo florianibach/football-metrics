@@ -4898,6 +4898,28 @@ export function App() {
     setTimelineHighlightedPeakLabel(null);
   }, [timelineMode, aggregationWindowMinutes, isSegmentScopeActive, selectedSegment?.id, selectedSession?.id]);
 
+
+  useEffect(() => {
+    if (activeSessionSubpage !== 'analysis' || activeAnalysisTab !== 'timeline') {
+      return;
+    }
+
+    const query = new URLSearchParams(window.location.search);
+    const peakTrack = query.get('peakTrack');
+    const peakStart = Number(query.get('peakStart'));
+    const peakEnd = Number(query.get('peakEnd'));
+    const peakLabel = query.get('peakLabel');
+
+    const validTrack = peakTrack === 'distance' || peakTrack === 'runningDensity' || peakTrack === 'speed' || peakTrack === 'highSpeedDistance' || peakTrack === 'mechanicalLoad' || peakTrack === 'heartRateAvg' || peakTrack === 'trimp';
+    if (!validTrack || !Number.isFinite(peakStart) || !Number.isFinite(peakEnd) || !peakLabel) {
+      return;
+    }
+
+    setTimelineScrollTarget(peakTrack);
+    setTimelineHighlightedWindow({ startSecond: Math.max(0, Math.round(peakStart)), endSecond: Math.max(0, Math.round(peakEnd)) });
+    setTimelineHighlightedPeakLabel(peakLabel);
+  }, [activeAnalysisTab, activeSessionSubpage, selectedSession?.id]);
+
   useEffect(() => {
     if (activeSessionSubpage !== 'analysis' || activeAnalysisTab !== 'timeline' || !timelineScrollTarget) {
       return;
@@ -4932,6 +4954,13 @@ export function App() {
 
     return { key: series.key, text: textValue };
   }), [timelineCursorSecond, timelineSecondSeries.mechanicalBreakdownBySecond, timelineSeries, t.notAvailable, t.timelineMechanicalAccel, t.timelineMechanicalCod, t.timelineMechanicalDecel]);
+
+
+  useEffect(() => {
+    if (activeAnalysisTab === 'peakDemand' && aggregationWindowMinutes !== peakDemandWindowMinutes) {
+      setAggregationWindowMinutes(peakDemandWindowMinutes);
+    }
+  }, [activeAnalysisTab, aggregationWindowMinutes, peakDemandWindowMinutes]);
 
   const peakRowsByDimension = useMemo(() => {
     const toPeak = (points: TimelinePoint[]) => {
@@ -5407,6 +5436,27 @@ export function App() {
     }
 
     setIsMobileNavOpen(false);
+  }, []);
+
+
+  const writePeakContextToUrl = useCallback((params: { trackKey: TimelineTrackKey; startSecond: number; endSecond: number; label: string; windowMinutes: 1 | 2 | 5 } | null) => {
+    const url = new URL(window.location.href);
+    if (!params) {
+      url.searchParams.delete('peakTrack');
+      url.searchParams.delete('peakStart');
+      url.searchParams.delete('peakEnd');
+      url.searchParams.delete('peakLabel');
+      url.searchParams.delete('peakWindow');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+      return;
+    }
+
+    url.searchParams.set('peakTrack', params.trackKey);
+    url.searchParams.set('peakStart', String(params.startSecond));
+    url.searchParams.set('peakEnd', String(params.endSecond));
+    url.searchParams.set('peakLabel', params.label);
+    url.searchParams.set('peakWindow', String(params.windowMinutes));
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
   }, []);
 
   const openTimelineWithFocus = useCallback((seriesKey: TimelineTrackKey) => {
@@ -6772,9 +6822,13 @@ export function App() {
                                       setAggregationWindowMinutes(peakDemandWindowMinutes);
                                       setTimelineScrollTarget(row.seriesKey);
                                       setTimelineHighlightedWindow({ startSecond: row.windowStartSecond, endSecond: row.windowEndSecond });
-                                      setTimelineHighlightedPeakLabel(`${dimension.title} · ${row.metricLabel} (${peakDemandWindowMinutes} min)`);
+                                      const peakLabel = `${dimension.title} · ${row.metricLabel} (${peakDemandWindowMinutes} min)`;
+                                      setTimelineHighlightedPeakLabel(peakLabel);
                                       setTimelineCursorSecond(row.windowEndSecond);
                                       jumpToSection('session-analysis', 'analysis');
+                                      requestAnimationFrame(() => {
+                                        writePeakContextToUrl({ trackKey: row.seriesKey, startSecond: row.windowStartSecond, endSecond: row.windowEndSecond, label: peakLabel, windowMinutes: peakDemandWindowMinutes });
+                                      });
                                     }}
                                   >
                                     {t.peakDemandActionJumpTimeline}
@@ -6827,7 +6881,7 @@ export function App() {
             {timelineHighlightedWindow && timelineHighlightedPeakLabel && (
               <div className="timeline-highlight-meta">
                 <p className="timeline-shared-axis">{t.timelineHighlightedPeakLabel}: {timelineHighlightedPeakLabel}</p>
-                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setTimelineHighlightedWindow(null); setTimelineHighlightedPeakLabel(null); }}>{t.timelineHighlightedPeakReset}</button>
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setTimelineHighlightedWindow(null); setTimelineHighlightedPeakLabel(null); writePeakContextToUrl(null); }}>{t.timelineHighlightedPeakReset}</button>
               </div>
             )}
             <div className="timeline-cursor-readout">

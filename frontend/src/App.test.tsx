@@ -3904,6 +3904,62 @@ describe('App', () => {
     expect(selector.value).toBe('2');
   });
 
+
+
+  it('R1_7_05_Ac01b_peak_window_switch_propagates_to_timeline_context', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+
+    const selector = screen.getByLabelText('Peak window');
+    fireEvent.change(selector, { target: { value: '1' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open in timeline' })[0]);
+
+    expect(await screen.findByText(/\(1 min\)/)).toBeInTheDocument();
+    expect(window.location.search).toContain('peakWindow=1');
+  });
+
+  it('R1_7_05_Ac04c_persists_peak_context_in_url_and_clears_on_reset', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [createUploadRecord()] } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    await screen.findByText('Session details');
+    fireEvent.click(screen.getByRole('button', { name: 'Peak Demand' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open in timeline' })[0]);
+
+    await waitFor(() => expect(window.location.search).toContain('peakTrack='));
+    await waitFor(() => expect(window.location.search).toContain('peakWindow='));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset peak highlight' }));
+    await waitFor(() => expect(window.location.search).not.toContain('peakTrack='));
+  });
+
   it('R1_7_05_Ac04_peak_action_opens_timeline_and_marks_window', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);

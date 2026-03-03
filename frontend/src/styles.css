@@ -2563,28 +2563,26 @@ input[type='checkbox']::before {
 
 @media (max-width: 768px) {
   .peak-demand-table td {
-    display: grid;
-    grid-template-columns: minmax(7.2rem, 44%) minmax(0, 1fr);
-    align-items: start;
-    gap: 0.35rem 0.55rem;
-    padding-left: 0.6rem;
+    display: block;
+    padding: 0.45rem 0.6rem;
     min-height: 2.3rem;
-    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .peak-demand-table td::before {
     content: attr(data-label);
-    position: static;
-    width: auto;
+    display: block;
+    margin-bottom: 0.22rem;
     color: var(--muted);
     font-weight: 700;
-    font-size: 0.74rem;
+    font-size: 0.71rem;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.03em;
   }
 
   .peak-demand-table td[data-label="Action"] .btn,
   .peak-demand-table td[data-label="Aktion"] .btn {
     width: 100%;
+    max-width: 220px;
   }
 }
