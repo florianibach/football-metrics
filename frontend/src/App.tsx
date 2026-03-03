@@ -1,4 +1,5 @@
 import { ChangeEvent, DragEvent, FormEvent, PointerEvent, ReactNode, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getFileValidationMessage as getFileValidationMessageBase } from './utils/fileValidation';
 
 type SmoothingTrace = {
   selectedStrategy: string;
@@ -2709,19 +2710,11 @@ function interpolate(template: string, values: Record<string, string>): string {
 }
 
 function getFileValidationMessage(file: File | null, locale: Locale): string | null {
-  if (!file) {
-    return null;
-  }
-
-  if (!file.name.toLowerCase().endsWith('.tcx')) {
-    return translations[locale].invalidExtension;
-  }
-
-  if (file.size > maxFileSizeInBytes) {
-    return translations[locale].invalidSize;
-  }
-
-  return null;
+  return getFileValidationMessageBase(file, {
+    invalidExtensionMessage: translations[locale].invalidExtension,
+    invalidSizeMessage: translations[locale].invalidSize,
+    maxFileSizeInBytes
+  });
 }
 
 const smoothingFilterOptions: SmoothingFilter[] = ['Raw', 'AdaptiveMedian', 'Savitzky-Golay', 'Butterworth'];
