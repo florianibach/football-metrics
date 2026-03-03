@@ -4426,10 +4426,6 @@ export function App() {
 
     const thresholds = selectedSession.summary.coreMetrics.thresholds ?? {};
     const highSpeedThreshold = Number(thresholds.HighIntensitySpeedThresholdMps ?? (19.8 / 3.6));
-    const accelThreshold = Number(thresholds.ModerateAccelerationThresholdMps2 ?? 2.5);
-    const decelThreshold = Math.abs(Number(thresholds.ModerateDecelerationThresholdMps2 ?? 2.5));
-    const codThreshold = Number(thresholds.CodModerateThresholdDegrees ?? 45);
-    const codMinSpeed = Number(thresholds.CodMinimumSpeedMps ?? (10 / 3.6));
     const fallbackMaxSpeedMps = Number(selectedSession.summary.coreMetrics.maxSpeedMetersPerSecond ?? 12);
     const thresholdMaxSpeedMps = Number(thresholds.EffectiveMaxSpeedMps ?? fallbackMaxSpeedMps);
     const plausibleSpeedCeilingMps = Math.max(6, (Number.isFinite(thresholdMaxSpeedMps) ? thresholdMaxSpeedMps : fallbackMaxSpeedMps) * 1.25);
@@ -4450,8 +4446,6 @@ export function App() {
       }
       if (deltaSeconds > pauseGapThresholdSeconds) {
         previousSpeedMps = null;
-        accelEventActive = false;
-        decelEventActive = false;
         continue;
       }
 
