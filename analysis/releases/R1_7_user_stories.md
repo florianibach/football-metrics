@@ -220,3 +220,24 @@ Dimension Score basiert auf 5-min Peak im Vergleich zu Ø letzte 5 Sessions.
 - [ ] Kontextdaten werden in Vergleichsmodulen als Filterkriterium technisch vorbereitbar gemacht (ohne Pflicht-UI im MVP).
 - [ ] Fehlende Kontextdaten verschlechtern nicht die Kernanalyse und werden neutral behandelt.
 - [ ] Fachliche Abgrenzung „R1.7 vorbereitet / R2 produktiv“ ist dokumentiert.
+
+
+---
+
+## Story R1.7-14: Vergleichswerte (Ø/Best) backendseitig zentral berechnen (Overview + Peak + Segment)
+**Als** Nutzer
+**möchte ich** dass alle Vergleichswerte (`Ø letzte Sessions`, `Best Saison`) serverseitig und konsistent geliefert werden
+**damit** ich in Overview und Peak belastbare, reproduzierbare Vergleiche pro Session-Typ und Segmentkontext habe.
+
+### Acceptance Criteria
+- [ ] Backend liefert Vergleichswerte für **Overview und Peak Demand** aus einem zentralen Vergleichsservice, statt aus Frontend-Berechnungen.
+- [ ] Vergleichswerte sind nach **Session Type** getrennt (`Match`, `Training`, …) und verwenden denselben Scope in allen Views.
+- [ ] Segmentkontext wird unterstützt: z. B. `Match-Halbzeit 1`, `Training-Spielform`, `Training-Athletics` (falls Segmentdaten vorhanden), andernfalls transparent `nicht verfügbar`.
+- [ ] Für jede vergleichbare Metrik werden mindestens `averageLastN` und `bestSeason` serverseitig bereitgestellt.
+- [ ] Das Profil enthält eine Einstellung `comparisonSessionsCount` (Anzahl berücksichtigter Sessions), **Default = 8**.
+- [ ] Änderungen an `comparisonSessionsCount` wirken in Overview und Peak einheitlich, ohne UI-Neuberechnung.
+- [ ] API-/DTO-Dokumentation beschreibt klar, welche Felder Peak-basiert und welche Overview-basiert sind.
+- [ ] Bei fehlender Datenbasis oder Qualitätsproblemen liefert die API erklärbare Availability-Flags statt impliziter Nullwerte.
+
+Hinweis:
+Diese Story löst Inkonsistenzen zwischen Frontend-State und Datenbasis und ist Grundlage für stabile URL-/Deep-Link-Analysen über Tabs hinweg.
