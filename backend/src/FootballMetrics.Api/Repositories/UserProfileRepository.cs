@@ -21,7 +21,7 @@ public class UserProfileRepository : IUserProfileRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            SELECT PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes, PreferredTheme, PreferredLocale
+            SELECT PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes, PreferredTheme, PreferredLocale, ComparisonSessionsCount
             FROM UserProfiles
             WHERE Id = $id;
         ";
@@ -42,7 +42,8 @@ public class UserProfileRepository : IUserProfileRepository
             PreferredSpeedUnit = DeserializePreferredSpeedUnit(reader.IsDBNull(4) ? null : reader.GetString(4)),
             PreferredAggregationWindowMinutes = DeserializePreferredAggregationWindowMinutes(reader.IsDBNull(5) ? null : reader.GetInt32(5)),
             PreferredTheme = DeserializePreferredTheme(reader.IsDBNull(6) ? null : reader.GetString(6)),
-            PreferredLocale = DeserializePreferredLocale(reader.IsDBNull(7) ? null : reader.GetString(7))
+            PreferredLocale = DeserializePreferredLocale(reader.IsDBNull(7) ? null : reader.GetString(7)),
+            ComparisonSessionsCount = DeserializeComparisonSessionsCount(reader.IsDBNull(8) ? null : reader.GetInt32(8))
         };
     }
 
@@ -53,8 +54,8 @@ public class UserProfileRepository : IUserProfileRepository
 
         var command = connection.CreateCommand();
         command.CommandText = @"
-            INSERT INTO UserProfiles (Id, PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes, PreferredTheme, PreferredLocale)
-            VALUES ($id, $primaryPosition, $secondaryPosition, $metricThresholdsJson, $defaultSmoothingFilter, $preferredSpeedUnit, $preferredAggregationWindowMinutes, $preferredTheme, $preferredLocale)
+            INSERT INTO UserProfiles (Id, PrimaryPosition, SecondaryPosition, MetricThresholdsJson, DefaultSmoothingFilter, PreferredSpeedUnit, PreferredAggregationWindowMinutes, PreferredTheme, PreferredLocale, ComparisonSessionsCount)
+            VALUES ($id, $primaryPosition, $secondaryPosition, $metricThresholdsJson, $defaultSmoothingFilter, $preferredSpeedUnit, $preferredAggregationWindowMinutes, $preferredTheme, $preferredLocale, $comparisonSessionsCount)
             ON CONFLICT(Id) DO UPDATE SET
                 PrimaryPosition = excluded.PrimaryPosition,
                 SecondaryPosition = excluded.SecondaryPosition,
@@ -63,7 +64,8 @@ public class UserProfileRepository : IUserProfileRepository
                 PreferredSpeedUnit = excluded.PreferredSpeedUnit,
                 PreferredAggregationWindowMinutes = excluded.PreferredAggregationWindowMinutes,
                 PreferredTheme = excluded.PreferredTheme,
-                PreferredLocale = excluded.PreferredLocale;
+                PreferredLocale = excluded.PreferredLocale,
+                ComparisonSessionsCount = excluded.ComparisonSessionsCount;
         ";
         command.Parameters.AddWithValue("$id", SingletonProfileId);
         command.Parameters.AddWithValue("$primaryPosition", profile.PrimaryPosition);
@@ -74,6 +76,7 @@ public class UserProfileRepository : IUserProfileRepository
         command.Parameters.AddWithValue("$preferredAggregationWindowMinutes", profile.PreferredAggregationWindowMinutes);
         command.Parameters.AddWithValue("$preferredTheme", profile.PreferredTheme);
         command.Parameters.AddWithValue("$preferredLocale", (object?)profile.PreferredLocale ?? DBNull.Value);
+        command.Parameters.AddWithValue("$comparisonSessionsCount", profile.ComparisonSessionsCount);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return profile;
@@ -151,5 +154,6 @@ public class UserProfileRepository : IUserProfileRepository
         return UiThemes.Supported.FirstOrDefault(theme => string.Equals(theme, value, StringComparison.OrdinalIgnoreCase))
             ?? UiThemes.Dark;
     }
+    private static int DeserializeComparisonSessionsCount(int? value)
+        => value.HasValue && value.Value >= 1 && value.Value <= 20 ? value.Value : 5;
 }
-

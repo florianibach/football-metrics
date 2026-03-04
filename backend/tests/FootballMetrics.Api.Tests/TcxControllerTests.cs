@@ -166,6 +166,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             profile.DefaultSmoothingFilter,
             profile.PreferredSpeedUnit,
             profile.PreferredAggregationWindowMinutes,
+            null,
             profile.PreferredTheme);
 
         var updateProfileResponse = await client.PutAsJsonAsync("/api/v1/profile", adaptiveProfileRequest);
@@ -977,7 +978,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var resolver = CreateAdapterResolver();
         var useCase = new TcxSessionUseCase(repository, resolver, new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxSessionUseCase>.Instance);
-        return new TcxController(useCase, resolver, NullLogger<TcxController>.Instance);
+        return new TcxController(useCase, resolver, new StubProfileUseCase(), new SessionComparisonService(), NullLogger<TcxController>.Instance);
     }
 
     private static IUploadFormatAdapterResolver CreateAdapterResolver() =>
@@ -1224,4 +1225,13 @@ internal sealed class PassThroughMetricThresholdResolver : IMetricThresholdResol
         int? candidateMaxHeartRateBpm = null,
         CancellationToken cancellationToken = default)
         => Task.FromResult(baseProfile);
+}
+
+
+internal sealed class StubProfileUseCase : IProfileUseCase
+{
+    public Task<UserProfile> GetProfileAsync(CancellationToken cancellationToken) => Task.FromResult(new UserProfile());
+    public Task<ProfileRecalculationJob?> GetLatestRecalculationJobAsync(CancellationToken cancellationToken) => Task.FromResult<ProfileRecalculationJob?>(null);
+    public Task<ProfileRecalculationJob> TriggerFullRecalculationAsync(string trigger, CancellationToken cancellationToken) => throw new NotImplementedException();
+    public Task<UserProfile> UpdateProfileAsync(UpdateUserProfileRequest request, CancellationToken cancellationToken) => throw new NotImplementedException();
 }

@@ -52,6 +52,7 @@ builder.Services.AddSingleton<IUploadFormatAdapter, TcxUploadFormatAdapter>();
 builder.Services.AddSingleton<IUploadFormatAdapterResolver, UploadFormatAdapterResolver>();
 builder.Services.AddScoped<ITcxSessionUseCase, TcxSessionUseCase>();
 builder.Services.AddScoped<IProfileUseCase, ProfileUseCase>();
+builder.Services.AddScoped<ISessionComparisonService, SessionComparisonService>();
 builder.Services.AddSingleton<ProfileRecalculationBackgroundService>();
 builder.Services.AddSingleton<IProfileRecalculationOrchestrator>(sp => sp.GetRequiredService<ProfileRecalculationBackgroundService>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ProfileRecalculationBackgroundService>());

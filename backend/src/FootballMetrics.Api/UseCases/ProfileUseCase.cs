@@ -106,7 +106,8 @@ public class ProfileUseCase : IProfileUseCase
                 PreferredSpeedUnit = normalizedPreferredSpeedUnit,
                 PreferredAggregationWindowMinutes = normalizedPreferredAggregationWindowMinutes,
                 PreferredTheme = normalizedPreferredTheme,
-                PreferredLocale = normalizedPreferredLocale
+                PreferredLocale = normalizedPreferredLocale,
+                ComparisonSessionsCount = NormalizeComparisonSessionsCount(request.ComparisonSessionsCount, existingProfile.ComparisonSessionsCount) ?? existingProfile.ComparisonSessionsCount
             },
             cancellationToken);
 
@@ -186,6 +187,19 @@ public class ProfileUseCase : IProfileUseCase
 
         return UiLanguages.Supported.FirstOrDefault(locale =>
             string.Equals(locale, requestedLocale.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+
+    public static int? NormalizeComparisonSessionsCount(int? requestedCount, int fallbackCount)
+    {
+        if (!requestedCount.HasValue)
+        {
+            return fallbackCount;
+        }
+
+        return requestedCount.Value is >= 1 and <= 20
+            ? requestedCount.Value
+            : null;
     }
 
     public static int? NormalizePreferredAggregationWindowMinutes(int? requestedWindow, int fallbackWindow)
