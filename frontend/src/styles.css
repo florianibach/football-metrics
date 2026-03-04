@@ -2646,3 +2646,7 @@ input[type='checkbox']::before {
   color: var(--color-text-muted);
   font-size: 0.9rem;
 }
+
+.toast-notification--secondary {
+  background: #6c757d;
+}

@@ -1298,6 +1298,9 @@ export function App() {
   const [latestComparisonRefreshJob, setLatestComparisonRefreshJob] = useState<ComparisonRefreshJob | null>(null);
   const [comparisonRefreshToast, setComparisonRefreshToast] = useState<string | null>(null);
   const [comparisonRefreshPending, setComparisonRefreshPending] = useState(false);
+  const [comparisonRefreshPendingSinceUtc, setComparisonRefreshPendingSinceUtc] = useState<string | null>(null);
+  const [comparisonRefreshPendingDismissed, setComparisonRefreshPendingDismissed] = useState(false);
+  const [dismissedComparisonRefreshJobId, setDismissedComparisonRefreshJobId] = useState<string | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>(initialRoute.analysisTab ?? 'overview');
@@ -1853,22 +1856,37 @@ export function App() {
       setActiveSessionSubpage('analysis');
       setActiveMainPage('session');
       setIsSessionMenuVisible(true);
-    setMessage(t.sessionContextSaveSuccess);
+    await onComparisonRefreshTriggered(t.sessionContextSaveSuccess);
   }
 
 
   async function onComparisonRefreshTriggered(baseMessage: string) {
+    const startedAtUtc = new Date().toISOString();
     setComparisonRefreshPending(true);
+    setComparisonRefreshPendingSinceUtc(startedAtUtc);
+    setComparisonRefreshPendingDismissed(false);
     setMessage(`${baseMessage} ${t.comparisonRefreshStarted}`);
 
     const latest = await loadLatestComparisonRefreshJob();
-    if (latest && latest.status !== 'Running') {
-      const statusText = latest.status === 'Completed'
-        ? t.comparisonRefreshStatusCompleted
-        : t.comparisonRefreshStatusFailed;
-      setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
-      setComparisonRefreshPending(false);
+    if (!latest) {
+      return;
     }
+
+    if (latest.status === 'Running') {
+      setDismissedComparisonRefreshJobId((current) => (current === latest.id ? null : current));
+      return;
+    }
+
+    if (latest.requestedAtUtc < startedAtUtc) {
+      return;
+    }
+
+    const statusText = latest.status === 'Completed'
+      ? t.comparisonRefreshStatusCompleted
+      : t.comparisonRefreshStatusFailed;
+    setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
+    setComparisonRefreshPending(false);
+    setComparisonRefreshPendingSinceUtc(null);
   }
 
 
@@ -2153,7 +2171,7 @@ export function App() {
 
       const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
       const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
-      setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
+      const uploadSuccessMessage = interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime });
       setSelectedSession(payload);
       resetSegmentForms();
       setCompareMode('smoothed');
@@ -2168,6 +2186,7 @@ export function App() {
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setCompareOpponentSessionId(null);
       setSelectedFile(null);
+      await onComparisonRefreshTriggered(uploadSuccessMessage);
     } catch {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
     } finally {
@@ -2336,6 +2355,8 @@ export function App() {
   const effectiveComparisonRefreshStatusText = comparisonRefreshPending
     ? t.comparisonRefreshStatusRunning
     : comparisonRefreshStatusText;
+  const hasActiveRunningComparisonRefresh = (latestComparisonRefreshJob?.status === 'Running' && latestComparisonRefreshJob.id !== dismissedComparisonRefreshJobId)
+    || (comparisonRefreshPending && !comparisonRefreshPendingDismissed);
 
   const distanceSourceText = (source: ActivitySummary['distanceSource']) => {
     switch (source) {
@@ -2393,46 +2414,42 @@ export function App() {
 
 
   useEffect(() => {
-    if (!selectedSession) {
-      setLatestComparisonRefreshJob(null);
-      return;
-    }
-
     void loadLatestComparisonRefreshJob();
-  }, [loadLatestComparisonRefreshJob, selectedSession?.id]);
 
-  useEffect(() => {
-    if (!comparisonRefreshPending && (!latestComparisonRefreshJob || latestComparisonRefreshJob.status !== 'Running')) {
-      return;
-    }
+    const intervalMs = comparisonRefreshPending || latestComparisonRefreshJob?.status === 'Running'
+      ? 2000
+      : 10000;
 
     const interval = setInterval(() => {
       void loadLatestComparisonRefreshJob();
-    }, 2000);
+    }, intervalMs);
 
     return () => clearInterval(interval);
-  }, [comparisonRefreshPending, latestComparisonRefreshJob, loadLatestComparisonRefreshJob]);
+  }, [comparisonRefreshPending, latestComparisonRefreshJob?.status, loadLatestComparisonRefreshJob]);
 
   const previousComparisonRefreshStatusRef = useRef<ComparisonRefreshJob['status'] | null>(null);
   useEffect(() => {
     const previousStatus = previousComparisonRefreshStatusRef.current;
     const currentStatus = latestComparisonRefreshJob?.status ?? null;
 
-    if (comparisonRefreshPending && currentStatus && currentStatus !== 'Running') {
+    if (comparisonRefreshPending && currentStatus && currentStatus !== 'Running' && latestComparisonRefreshJob && (!comparisonRefreshPendingSinceUtc || latestComparisonRefreshJob.requestedAtUtc >= comparisonRefreshPendingSinceUtc)) {
       const statusText = currentStatus === 'Completed'
         ? t.comparisonRefreshStatusCompleted
         : t.comparisonRefreshStatusFailed;
       setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
       setComparisonRefreshPending(false);
+      setComparisonRefreshPendingSinceUtc(null);
     } else if (previousStatus === 'Running' && currentStatus && currentStatus !== 'Running') {
       const statusText = currentStatus === 'Completed'
         ? t.comparisonRefreshStatusCompleted
         : t.comparisonRefreshStatusFailed;
       setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
+      setComparisonRefreshPending(false);
+      setComparisonRefreshPendingSinceUtc(null);
     }
 
     previousComparisonRefreshStatusRef.current = currentStatus;
-  }, [comparisonRefreshPending, latestComparisonRefreshJob?.status, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
+  }, [comparisonRefreshPending, comparisonRefreshPendingSinceUtc, latestComparisonRefreshJob, latestComparisonRefreshJob?.status, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
 
   useEffect(() => {
     if (!comparisonRefreshToast) {
@@ -4326,7 +4343,7 @@ export function App() {
         {latestProfileRecalculationJob && profileRecalculationStatusText ? (
           <p>
             {t.profileRecalculationStatusTitle}: {profileRecalculationStatusText} · {formatLocalDateTime(latestProfileRecalculationJob.requestedAtUtc)} · v{latestProfileRecalculationJob.profileThresholdVersion} · {latestProfileRecalculationJob.updatedSessions}/{latestProfileRecalculationJob.totalSessions}
-            {latestProfileRecalculationJob.failedSessions > 0 ? ` (${latestProfileRecalculationJob.failedSessions} failed)` : ''}
+            {latestProfileRecalculationJob.failedSessions > 0 ? ` (${interpolate(t.profileRecalculationFailedSessions, { count: String(latestProfileRecalculationJob.failedSessions) })})` : ''}
             {latestProfileRecalculationJob.errorMessage ? ` - ${latestProfileRecalculationJob.errorMessage}` : ''}
           </p>
         ) : null}
@@ -4697,7 +4714,7 @@ export function App() {
               <p className="comparison-refresh-status" role="status" aria-live="polite">
                 {t.comparisonRefreshStatusTitle}: {effectiveComparisonRefreshStatusText}
                 {latestComparisonRefreshJob ? ` · ${formatLocalDateTime(latestComparisonRefreshJob.requestedAtUtc)} · ${latestComparisonRefreshJob.updatedSessions}/${latestComparisonRefreshJob.totalSessions}` : ''}
-                {latestComparisonRefreshJob && latestComparisonRefreshJob.failedSessions > 0 ? ` (${latestComparisonRefreshJob.failedSessions} failed)` : ''}
+                {latestComparisonRefreshJob && latestComparisonRefreshJob.failedSessions > 0 ? ` (${interpolate(t.comparisonRefreshFailedSessions, { count: String(latestComparisonRefreshJob.failedSessions) })})` : ''}
                 {latestComparisonRefreshJob?.errorMessage ? ` - ${latestComparisonRefreshJob.errorMessage}` : ''}
               </p>
             ) : null}
@@ -5504,6 +5521,27 @@ export function App() {
           )}
         </section>
       )}
+      {hasActiveRunningComparisonRefresh ? (
+        <div className="toast-notification toast-notification--secondary" role="status" aria-live="polite">
+          <span>
+            {t.comparisonRefreshStatusTitle}: {t.comparisonRefreshStatusRunning}
+            {latestComparisonRefreshJob ? ` · ${formatLocalDateTime(latestComparisonRefreshJob.requestedAtUtc)} · ${latestComparisonRefreshJob.updatedSessions}/${latestComparisonRefreshJob.totalSessions}` : ''}
+          </span>
+          <button
+            type="button"
+            className="toast-notification__close"
+            aria-label="Dismiss notification"
+            onClick={() => {
+              if (latestComparisonRefreshJob?.status === 'Running') {
+                setDismissedComparisonRefreshJobId(latestComparisonRefreshJob.id);
+              }
+              if (comparisonRefreshPending) {
+                setComparisonRefreshPendingDismissed(true);
+              }
+            }}
+          >×</button>
+        </div>
+      ) : null}
       {comparisonRefreshToast ? (
         <div className="toast-notification" role="status" aria-live="polite">
           <span>{comparisonRefreshToast}</span>
