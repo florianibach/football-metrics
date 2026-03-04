@@ -47,6 +47,7 @@ builder.Services.AddSingleton<IDatabaseInitializer, DatabaseInitializer>();
 builder.Services.AddScoped<ITcxUploadRepository, TcxUploadRepository>();
 builder.Services.AddScoped<IUserProfileRepository, UserProfileRepository>();
 builder.Services.AddScoped<IProfileRecalculationJobRepository, ProfileRecalculationJobRepository>();
+builder.Services.AddScoped<IComparisonSnapshotRefreshJobRepository, ComparisonSnapshotRefreshJobRepository>();
 builder.Services.AddScoped<IMetricThresholdResolver, MetricThresholdResolver>();
 builder.Services.AddSingleton<IUploadFormatAdapter, TcxUploadFormatAdapter>();
 builder.Services.AddSingleton<IUploadFormatAdapterResolver, UploadFormatAdapterResolver>();
@@ -56,6 +57,9 @@ builder.Services.AddScoped<ISessionComparisonService, SessionComparisonService>(
 builder.Services.AddSingleton<ProfileRecalculationBackgroundService>();
 builder.Services.AddSingleton<IProfileRecalculationOrchestrator>(sp => sp.GetRequiredService<ProfileRecalculationBackgroundService>());
 builder.Services.AddHostedService(sp => sp.GetRequiredService<ProfileRecalculationBackgroundService>());
+builder.Services.AddSingleton<ComparisonSnapshotRefreshBackgroundService>();
+builder.Services.AddSingleton<IComparisonSnapshotRefreshOrchestrator>(sp => sp.GetRequiredService<ComparisonSnapshotRefreshBackgroundService>());
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ComparisonSnapshotRefreshBackgroundService>());
 
 var app = builder.Build();
 

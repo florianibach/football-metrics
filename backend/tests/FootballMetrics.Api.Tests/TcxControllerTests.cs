@@ -977,7 +977,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     private static TcxController CreateController(ITcxUploadRepository repository)
     {
         var resolver = CreateAdapterResolver();
-        var useCase = new TcxSessionUseCase(repository, resolver, new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), new SessionComparisonService(), NullLogger<TcxSessionUseCase>.Instance);
+        var useCase = new TcxSessionUseCase(repository, resolver, new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), new SessionComparisonService(), new TestComparisonSnapshotRefreshOrchestrator(), NullLogger<TcxSessionUseCase>.Instance);
         return new TcxController(useCase, resolver, NullLogger<TcxController>.Instance);
     }
 
@@ -998,6 +998,20 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         });
 
         return factory.CreateClient();
+    }
+
+
+
+    private sealed class TestComparisonSnapshotRefreshOrchestrator : IComparisonSnapshotRefreshOrchestrator
+    {
+        public Task<ComparisonSnapshotRefreshJob> EnqueueAsync(string trigger, CancellationToken cancellationToken)
+            => Task.FromResult(new ComparisonSnapshotRefreshJob
+            {
+                Id = Guid.NewGuid(),
+                Status = ComparisonSnapshotRefreshStatuses.Running,
+                Trigger = trigger,
+                RequestedAtUtc = DateTime.UtcNow
+            });
     }
 
     private sealed class ThrowingOnceRepository : ITcxUploadRepository

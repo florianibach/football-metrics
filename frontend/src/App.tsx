@@ -205,6 +205,18 @@ type ProfileRecalculationJob = {
   errorMessage: string | null;
 };
 
+type ComparisonRefreshJob = {
+  id: string;
+  status: 'Running' | 'Completed' | 'Failed';
+  trigger: 'UploadCreated' | 'SessionUpdated' | 'SegmentUpdated' | 'SessionDeleted' | 'ProfileComparisonCountUpdated';
+  requestedAtUtc: string;
+  completedAtUtc: string | null;
+  totalSessions: number;
+  updatedSessions: number;
+  failedSessions: number;
+  errorMessage: string | null;
+};
+
 type UserProfile = {
   primaryPosition: PlayerPosition;
   secondaryPosition: PlayerPosition | null;
@@ -1283,6 +1295,8 @@ export function App() {
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
   const [profileRecalculationToast, setProfileRecalculationToast] = useState<string | null>(null);
+  const [latestComparisonRefreshJob, setLatestComparisonRefreshJob] = useState<ComparisonRefreshJob | null>(null);
+  const [comparisonRefreshToast, setComparisonRefreshToast] = useState<string | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>(initialRoute.analysisTab ?? 'overview');
@@ -1900,6 +1914,7 @@ export function App() {
     resetSegmentForms();
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
+    await loadLatestComparisonRefreshJob();
     setMessage(editingSegmentId ? t.segmentUpdateSuccess : t.segmentCreateSuccess);
   }
 
@@ -1937,6 +1952,7 @@ export function App() {
     applyUpdatedSession(payload);
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
+    await loadLatestComparisonRefreshJob();
     setMessage(t.segmentDeleteSuccess);
   }
 
@@ -1976,6 +1992,7 @@ export function App() {
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', notes: '' });
+    await loadLatestComparisonRefreshJob();
     setMessage(t.segmentMergeSuccess);
   }
 
@@ -2047,6 +2064,7 @@ export function App() {
     applyUpdatedSession(payload);
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
+    await loadLatestComparisonRefreshJob();
     setMessage(t.segmentSplitSuccess);
   }
 
@@ -2093,6 +2111,7 @@ export function App() {
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setSplitForm({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
+    await loadLatestComparisonRefreshJob();
     setMessage(translations[locale].defaultMessage);
   }
 
@@ -2259,6 +2278,22 @@ export function App() {
   }
 
 
+  const loadLatestComparisonRefreshJob = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/comparison-refresh/latest`);
+      if (!response.ok) {
+        return null;
+      }
+
+      const payload = (await response.json()) as ComparisonRefreshJob | null;
+      setLatestComparisonRefreshJob(payload);
+      return payload;
+    } catch {
+      return null;
+    }
+  }, [apiBaseUrl]);
+
+
   async function onTriggerProfileRecalculation() {
     const response = await fetch(`${apiBaseUrl}/profile/recalculations`, { method: 'POST' });
     if (!response.ok) {
@@ -2277,6 +2312,15 @@ export function App() {
       : latestProfileRecalculationJob.status === 'Completed'
         ? t.profileRecalculationStatusCompleted
         : t.profileRecalculationStatusFailed)
+    : null;
+
+
+  const comparisonRefreshStatusText = latestComparisonRefreshJob
+    ? (latestComparisonRefreshJob.status === 'Running'
+      ? t.comparisonRefreshStatusRunning
+      : latestComparisonRefreshJob.status === 'Completed'
+        ? t.comparisonRefreshStatusCompleted
+        : t.comparisonRefreshStatusFailed)
     : null;
 
   const distanceSourceText = (source: ActivitySummary['distanceSource']) => {
@@ -2332,6 +2376,52 @@ export function App() {
     const timeout = setTimeout(() => setProfileRecalculationToast(null), 7000);
     return () => clearTimeout(timeout);
   }, [profileRecalculationToast]);
+
+
+  useEffect(() => {
+    if (!selectedSession) {
+      setLatestComparisonRefreshJob(null);
+      return;
+    }
+
+    void loadLatestComparisonRefreshJob();
+  }, [loadLatestComparisonRefreshJob, selectedSession?.id]);
+
+  useEffect(() => {
+    if (!latestComparisonRefreshJob || latestComparisonRefreshJob.status !== 'Running') {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      void loadLatestComparisonRefreshJob();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [latestComparisonRefreshJob, loadLatestComparisonRefreshJob]);
+
+  const previousComparisonRefreshStatusRef = useRef<ComparisonRefreshJob['status'] | null>(null);
+  useEffect(() => {
+    const previousStatus = previousComparisonRefreshStatusRef.current;
+    const currentStatus = latestComparisonRefreshJob?.status ?? null;
+
+    if (previousStatus === 'Running' && currentStatus && currentStatus !== 'Running') {
+      const statusText = currentStatus === 'Completed'
+        ? t.comparisonRefreshStatusCompleted
+        : t.comparisonRefreshStatusFailed;
+      setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
+    }
+
+    previousComparisonRefreshStatusRef.current = currentStatus;
+  }, [latestComparisonRefreshJob?.status, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
+
+  useEffect(() => {
+    if (!comparisonRefreshToast) {
+      return;
+    }
+
+    const timeout = setTimeout(() => setComparisonRefreshToast(null), 7000);
+    return () => clearTimeout(timeout);
+  }, [comparisonRefreshToast]);
 
   const showMissingHeartRateHint = selectedSession ? !hasCompleteHeartRate(selectedSession.summary) : false;
   const showMissingDistanceHint = selectedSession ? selectedSession.summary.distanceMeters === null : false;
@@ -4226,6 +4316,12 @@ export function App() {
             <button type="button" className="toast-notification__close" aria-label="Dismiss notification" onClick={() => setProfileRecalculationToast(null)}>×</button>
           </div>
         ) : null}
+        {comparisonRefreshToast ? (
+          <div className="toast-notification" role="status" aria-live="polite">
+            <span>{comparisonRefreshToast}</span>
+            <button type="button" className="toast-notification__close" aria-label="Dismiss notification" onClick={() => setComparisonRefreshToast(null)}>×</button>
+          </div>
+        ) : null}
       </section>
       <form onSubmit={handleSubmit} id="upload-flow" className={`upload-form ${activeMainPage === "upload" ? "" : "is-hidden"}`}>
         <label
@@ -4583,6 +4679,13 @@ export function App() {
 
           <div className={`segment-management ${activeSessionSubpage === "segmentEdit" ? "" : "is-hidden"}`} id="session-segment-edit">
             <h3>{t.segmentEditTitle}</h3>
+            {latestComparisonRefreshJob && comparisonRefreshStatusText ? (
+              <p className="comparison-refresh-status" role="status" aria-live="polite">
+                {t.comparisonRefreshStatusTitle}: {comparisonRefreshStatusText} · {formatLocalDateTime(latestComparisonRefreshJob.requestedAtUtc)} · {latestComparisonRefreshJob.updatedSessions}/{latestComparisonRefreshJob.totalSessions}
+                {latestComparisonRefreshJob.failedSessions > 0 ? ` (${latestComparisonRefreshJob.failedSessions} failed)` : ''}
+                {latestComparisonRefreshJob.errorMessage ? ` - ${latestComparisonRefreshJob.errorMessage}` : ''}
+              </p>
+            ) : null}
             <section className="segment-timeline-helper" aria-label={t.segmentTimelineTitle}>
               <h4>{t.segmentManualAssistantTitle}</h4>
               <p>{t.segmentManualAssistantDescription}</p>

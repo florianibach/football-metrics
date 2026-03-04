@@ -18,6 +18,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
     private readonly IUserProfileRepository _userProfileRepository;
     private readonly IMetricThresholdResolver _metricThresholdResolver;
     private readonly ISessionComparisonService _sessionComparisonService;
+    private readonly IComparisonSnapshotRefreshOrchestrator _comparisonSnapshotRefreshOrchestrator;
 
     public TcxSessionUseCase(
         ITcxUploadRepository repository,
@@ -25,6 +26,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         IUserProfileRepository userProfileRepository,
         IMetricThresholdResolver metricThresholdResolver,
         ISessionComparisonService sessionComparisonService,
+        IComparisonSnapshotRefreshOrchestrator comparisonSnapshotRefreshOrchestrator,
         ILogger<TcxSessionUseCase> logger)
     {
         _repository = repository;
@@ -32,6 +34,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         _userProfileRepository = userProfileRepository;
         _metricThresholdResolver = metricThresholdResolver;
         _sessionComparisonService = sessionComparisonService;
+        _comparisonSnapshotRefreshOrchestrator = comparisonSnapshotRefreshOrchestrator;
         _logger = logger;
     }
 
@@ -109,7 +112,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         try
         {
             await _repository.AddWithAdaptiveStatsAsync(upload, summarySnapshot.CoreMetrics.MaxSpeedMetersPerSecond, summarySnapshot.HeartRateMaxBpm, DateTime.UtcNow, cancellationToken);
-            await RefreshComparisonSnapshotsAsync(cancellationToken);
+            await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.UploadCreated, cancellationToken);
             var refreshed = await _repository.GetByIdAsync(upload.Id, cancellationToken) ?? upload;
             return new UploadTcxOutcome(refreshed, true);
         }
@@ -162,7 +165,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             await RefreshAdaptiveStatsAsync(refreshedUpload, cancellationToken);
         }
 
-        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SessionUpdated, cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -195,7 +198,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
-        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SessionUpdated, cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -220,7 +223,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
-        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SessionUpdated, cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -230,7 +233,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         var deleted = await _repository.DeleteAsync(id, cancellationToken);
         if (deleted)
         {
-            await RefreshComparisonSnapshotsAsync(cancellationToken);
+            await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SessionDeleted, cancellationToken);
         }
 
         return deleted;
@@ -280,7 +283,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             await RefreshAdaptiveStatsAsync(refreshedUpload, cancellationToken);
         }
 
-        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SessionUpdated, cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -312,7 +315,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
-        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SegmentUpdated, cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -348,7 +351,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
-        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SegmentUpdated, cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -374,7 +377,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
-        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SegmentUpdated, cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -418,7 +421,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
-        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SegmentUpdated, cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -453,7 +456,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
-        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SegmentUpdated, cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -615,6 +618,19 @@ public class TcxSessionUseCase : ITcxSessionUseCase
 
         return JsonSerializer.Deserialize<List<TcxSegmentChangeEntry>>(upload.SegmentChangeHistoryJson)
             ?? new List<TcxSegmentChangeEntry>();
+    }
+
+
+    private async Task EnqueueComparisonRefreshAsync(string trigger, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _comparisonSnapshotRefreshOrchestrator.EnqueueAsync(trigger, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to enqueue comparison snapshot refresh trigger {Trigger}", trigger);
+        }
     }
 
 

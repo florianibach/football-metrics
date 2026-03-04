@@ -10,20 +10,20 @@ public class ProfileUseCase : IProfileUseCase
     private readonly IMetricThresholdResolver _metricThresholdResolver;
     private readonly IProfileRecalculationOrchestrator _recalculationOrchestrator;
     private readonly IProfileRecalculationJobRepository _recalculationJobRepository;
-    private readonly ITcxSessionUseCase _tcxSessionUseCase;
+    private readonly IComparisonSnapshotRefreshOrchestrator _comparisonSnapshotRefreshOrchestrator;
 
     public ProfileUseCase(
         IUserProfileRepository repository,
         IMetricThresholdResolver metricThresholdResolver,
         IProfileRecalculationOrchestrator recalculationOrchestrator,
         IProfileRecalculationJobRepository recalculationJobRepository,
-        ITcxSessionUseCase tcxSessionUseCase)
+        IComparisonSnapshotRefreshOrchestrator comparisonSnapshotRefreshOrchestrator)
     {
         _repository = repository;
         _metricThresholdResolver = metricThresholdResolver;
         _recalculationOrchestrator = recalculationOrchestrator;
         _recalculationJobRepository = recalculationJobRepository;
-        _tcxSessionUseCase = tcxSessionUseCase;
+        _comparisonSnapshotRefreshOrchestrator = comparisonSnapshotRefreshOrchestrator;
     }
 
     public async Task<UserProfile> GetProfileAsync(CancellationToken cancellationToken)
@@ -130,7 +130,7 @@ public class ProfileUseCase : IProfileUseCase
         var comparisonSessionsCountChanged = existingProfile.ComparisonSessionsCount != profile.ComparisonSessionsCount;
         if (comparisonSessionsCountChanged)
         {
-            await _tcxSessionUseCase.RefreshComparisonSnapshotsAsync(cancellationToken);
+            await _comparisonSnapshotRefreshOrchestrator.EnqueueAsync(ComparisonSnapshotRefreshTriggers.ProfileComparisonCountUpdated, cancellationToken);
         }
 
         var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken: cancellationToken);
