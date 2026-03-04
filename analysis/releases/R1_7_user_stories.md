@@ -226,16 +226,20 @@ Dimension Score basiert auf 5-min Peak im Vergleich zu Ø letzte 5 Sessions.
 
 ## Story R1.7-14: Vergleichswerte (Ø/Best) backendseitig zentral berechnen (Overview + Peak + Segment)
 **Als** Nutzer
-**möchte ich** dass alle Vergleichswerte (`Ø letzte Sessions`, `Best Saison`) serverseitig und konsistent geliefert werden
+**möchte ich** dass alle Vergleichswerte (`Ø letzte Sessions`, `Best`) serverseitig und konsistent geliefert werden
 **damit** ich in Overview und Peak belastbare, reproduzierbare Vergleiche pro Session-Typ und Segmentkontext habe.
 
 ### Acceptance Criteria
 - [ ] Backend liefert Vergleichswerte für **Overview und Peak Demand** aus einem zentralen Vergleichsservice, statt aus Frontend-Berechnungen.
 - [ ] Vergleichswerte sind nach **Session Type** getrennt (`Match`, `Training`, …) und verwenden denselben Scope in allen Views.
-- [ ] Segmentkontext wird unterstützt: z. B. `Match-Halbzeit 1`, `Training-Spielform`, `Training-Athletics` (falls Segmentdaten vorhanden), andernfalls transparent `nicht verfügbar`.
-- [ ] Für jede vergleichbare Metrik werden mindestens `averageLastN` und `bestSeason` serverseitig bereitgestellt.
-- [ ] Das Profil enthält eine Einstellung `comparisonSessionsCount` (Anzahl berücksichtigter Sessions), **Default = 8**.
+- [ ] Segmentkontext wird unterstützt: z. B. `Match-Halbzeit 1`, `Training-Spielform`, `Training-Athletics` (falls Segmentdaten vorhanden), andernfalls transparent `nicht verfügbar`. Das bedeutet dass Segment Categories nur innerhalb des selben Session Typs vergleichbar sind. Das bedeutet mehrere "Training" Sessions vom Typ Spielform tragen zum Vergleich bei, eine Categorie Spielform bei einer z.B.  Warmup-Session trägt hier nicht zum Vergleich bei. 
+- [ ] Für jede vergleichbare Metrik werden mindestens `averageLastN` und `best` serverseitig bereitgestellt.
+- [ ] Das Profil enthält eine Einstellung `comparisonSessionsCount` (Anzahl berücksichtigter Sessions), **Default = 5**.
+      Bei Segmenten bedeutet das, wenn 2 Segmente der selben Categorie innerhalb einer Session liegt, dann werden trotzdem die comparisonSessionsCount Anzahl an Sessions genutzt - also wir haben dann ggf. mehr als 8 Datenpunkte zum Vergleich      
 - [ ] Änderungen an `comparisonSessionsCount` wirken in Overview und Peak einheitlich, ohne UI-Neuberechnung.
+- [ ] wenn weniger als comparisonSessionsCount Sessions vorliegen, dann werden alle zur Verfügung stehenden Sessions verwendet
+- [ ] der Durchschnitt und Best ist immer auf Basis der letzten Session (bis comparisonSessionsCount), auch wenn man beispielsweise die 20. letzte session betrachtet.
+- [ ] Die Session mit dem höchsten Session Datum zählt auch mit rein
 - [ ] API-/DTO-Dokumentation beschreibt klar, welche Felder Peak-basiert und welche Overview-basiert sind.
 - [ ] Bei fehlender Datenbasis oder Qualitätsproblemen liefert die API erklärbare Availability-Flags statt impliziter Nullwerte.
 
