@@ -166,6 +166,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             profile.DefaultSmoothingFilter,
             profile.PreferredSpeedUnit,
             profile.PreferredAggregationWindowMinutes,
+            null,
             profile.PreferredTheme);
 
         var updateProfileResponse = await client.PutAsJsonAsync("/api/v1/profile", adaptiveProfileRequest);
@@ -976,7 +977,7 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     private static TcxController CreateController(ITcxUploadRepository repository)
     {
         var resolver = CreateAdapterResolver();
-        var useCase = new TcxSessionUseCase(repository, resolver, new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxSessionUseCase>.Instance);
+        var useCase = new TcxSessionUseCase(repository, resolver, new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), new SessionComparisonService(), new TestComparisonSnapshotRefreshOrchestrator(), NullLogger<TcxSessionUseCase>.Instance);
         return new TcxController(useCase, resolver, NullLogger<TcxController>.Instance);
     }
 
@@ -997,6 +998,20 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         });
 
         return factory.CreateClient();
+    }
+
+
+
+    private sealed class TestComparisonSnapshotRefreshOrchestrator : IComparisonSnapshotRefreshOrchestrator
+    {
+        public Task<ComparisonSnapshotRefreshJob> EnqueueAsync(string trigger, CancellationToken cancellationToken)
+            => Task.FromResult(new ComparisonSnapshotRefreshJob
+            {
+                Id = Guid.NewGuid(),
+                Status = ComparisonSnapshotRefreshStatuses.Running,
+                Trigger = trigger,
+                RequestedAtUtc = DateTime.UtcNow
+            });
     }
 
     private sealed class ThrowingOnceRepository : ITcxUploadRepository
@@ -1036,6 +1051,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             => Task.FromResult(false);
 
         public Task<bool> UpdateSegmentsAsync(Guid id, string segmentsSnapshotJson, string segmentChangeHistoryJson, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<bool> UpdateComparisonContextSnapshotAsync(Guid id, string? comparisonContextSnapshotJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
         public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
@@ -1124,6 +1142,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             => Task.FromResult(false);
 
         public Task<bool> UpdateSegmentsAsync(Guid id, string segmentsSnapshotJson, string segmentChangeHistoryJson, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<bool> UpdateComparisonContextSnapshotAsync(Guid id, string? comparisonContextSnapshotJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
         public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
@@ -1225,3 +1246,5 @@ internal sealed class PassThroughMetricThresholdResolver : IMetricThresholdResol
         CancellationToken cancellationToken = default)
         => Task.FromResult(baseProfile);
 }
+
+

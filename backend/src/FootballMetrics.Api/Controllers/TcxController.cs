@@ -309,6 +309,8 @@ public class TcxController : ControllerBase
                 DetectedRuns = Array.Empty<TcxDetectedRun>()
             };
 
+        var comparisonContext = isDetailed ? _tcxSessionUseCase.ResolveComparisonContext(upload) : null;
+
         return new TcxUploadResponseDto(
             upload.Id,
             upload.FileName,
@@ -322,7 +324,8 @@ public class TcxController : ControllerBase
             _tcxSessionUseCase.ResolveRecalculationHistory(upload),
             _tcxSessionUseCase.ResolveSegments(upload),
             _tcxSessionUseCase.ResolveSegmentChangeHistory(upload),
-            isDetailed);
+            isDetailed,
+            comparisonContext);
     }
 
     private static string? NormalizeOptional(string? value)

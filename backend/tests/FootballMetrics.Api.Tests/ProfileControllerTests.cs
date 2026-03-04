@@ -297,14 +297,14 @@ public class ProfileControllerTests : IClassFixture<WebApplicationFactory<Progra
     {
         var client = _factory.CreateClient();
 
-        var validResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, null, null, null, "de"));
+        var validResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, null, null, null, null, "de"));
         validResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var validPayload = await validResponse.Content.ReadFromJsonAsync<UserProfileResponse>();
         validPayload.Should().NotBeNull();
         validPayload!.PreferredLocale.Should().Be("de");
 
-        var invalidResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, null, null, null, "fr"));
+        var invalidResponse = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, null, null, null, null, null, "fr"));
         invalidResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 

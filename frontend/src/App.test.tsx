@@ -1945,7 +1945,31 @@ describe('App', () => {
   });
 
   it('R1_7_03_Ac02_shows_last_five_and_best_season_comparison_values_when_available', async () => {
-    const baseline = createUploadRecord({ id: 'upload-1', uploadedAtUtc: '2026-02-16T22:00:00.000Z' });
+    const comparisonContext = {
+      comparisonSessionsCount: 5,
+      sessionType: 'Training',
+      overview: {
+        distanceMeters: { averageLastN: 5000, best: 6000, isAvailable: true, availabilityReason: null },
+        durationSeconds: { averageLastN: 3600, best: 3900, isAvailable: true, availabilityReason: null },
+        runningDensityMetersPerMinute: { averageLastN: 85, best: 92, isAvailable: true, availabilityReason: null },
+        maxSpeedMetersPerSecond: { averageLastN: 7.8, best: 8.3, isAvailable: true, availabilityReason: null },
+        highSpeedDistanceMeters: { averageLastN: 1400, best: 1900, isAvailable: true, availabilityReason: null },
+        heartRateAverageBpm: { averageLastN: 153, best: 165, isAvailable: true, availabilityReason: null },
+        trainingImpulseEdwards: { averageLastN: 142, best: 180, isAvailable: true, availabilityReason: null },
+        heartRateRecoveryAfter60Seconds: { averageLastN: 24, best: 30, isAvailable: true, availabilityReason: null }
+      },
+      peak: {
+        distance: { 1: { averageLastN: 120, best: 150, isAvailable: true, availabilityReason: null }, 2: { averageLastN: 220, best: 280, isAvailable: true, availabilityReason: null }, 5: { averageLastN: 500, best: 620, isAvailable: true, availabilityReason: null } },
+        highSpeedDistance: { 1: { averageLastN: 40, best: 50, isAvailable: true, availabilityReason: null }, 2: { averageLastN: 70, best: 90, isAvailable: true, availabilityReason: null }, 5: { averageLastN: 180, best: 220, isAvailable: true, availabilityReason: null } },
+        mechanicalLoad: { 1: { averageLastN: 7, best: 10, isAvailable: true, availabilityReason: null }, 2: { averageLastN: 11, best: 15, isAvailable: true, availabilityReason: null }, 5: { averageLastN: 22, best: 28, isAvailable: true, availabilityReason: null } },
+        trimp: { 1: { averageLastN: 1.9, best: 2.2, isAvailable: true, availabilityReason: null }, 2: { averageLastN: 1.6, best: 2.0, isAvailable: true, availabilityReason: null }, 5: { averageLastN: 1.3, best: 1.8, isAvailable: true, availabilityReason: null } },
+        heartRateAvg: { 1: { averageLastN: 158, best: 170, isAvailable: true, availabilityReason: null }, 2: { averageLastN: 155, best: 166, isAvailable: true, availabilityReason: null }, 5: { averageLastN: 151, best: 161, isAvailable: true, availabilityReason: null } }
+      },
+      segmentOverviewByCategory: {},
+      segmentPeakByCategory: {}
+    } as const;
+
+    const baseline = { ...createUploadRecord({ id: 'upload-1', uploadedAtUtc: '2026-02-16T22:00:00.000Z' }), comparisonContext };
     const session2 = createUploadRecord({ id: 'upload-2', uploadedAtUtc: '2026-02-15T22:00:00.000Z', summary: createSummary({ coreMetrics: { ...baseCoreMetrics(), distanceMeters: 4000, highSpeedDistanceMeters: 1000, accelerationCount: 10 } }) });
     const session3 = createUploadRecord({ id: 'upload-3', uploadedAtUtc: '2026-02-14T22:00:00.000Z', summary: createSummary({ coreMetrics: { ...baseCoreMetrics(), distanceMeters: 6000, highSpeedDistanceMeters: 1900, accelerationCount: 20 } }) });
 

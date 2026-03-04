@@ -10,6 +10,7 @@ public class UserProfile
     public int PreferredAggregationWindowMinutes { get; set; } = AggregationWindows.FiveMinutes;
     public string PreferredTheme { get; set; } = UiThemes.Dark;
     public string? PreferredLocale { get; set; }
+    public int ComparisonSessionsCount { get; set; } = 5;
 }
 
 public static class UiLanguages
@@ -225,5 +226,5 @@ public static class MetricThresholdModes
     public static readonly IReadOnlyList<string> Supported = [Fixed, Adaptive];
 }
 
-public record UpdateUserProfileRequest(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile? MetricThresholds, string? DefaultSmoothingFilter, string? PreferredSpeedUnit, int? PreferredAggregationWindowMinutes, string? PreferredTheme = null, string? PreferredLocale = null);
+public record UpdateUserProfileRequest(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile? MetricThresholds, string? DefaultSmoothingFilter, string? PreferredSpeedUnit, int? PreferredAggregationWindowMinutes, int? ComparisonSessionsCount = null, string? PreferredTheme = null, string? PreferredLocale = null);
 public record UserProfileResponse(string PrimaryPosition, string? SecondaryPosition, MetricThresholdProfile MetricThresholds, string DefaultSmoothingFilter, string PreferredSpeedUnit, int PreferredAggregationWindowMinutes, string PreferredTheme, string? PreferredLocale = null);

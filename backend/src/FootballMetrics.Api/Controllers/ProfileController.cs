@@ -77,6 +77,13 @@ public class ProfileController : ControllerBase
         }
 
         var submittedThresholds = request.MetricThresholds ?? existingProfile.MetricThresholds;
+
+        var normalizedComparisonSessionsCount = ProfileUseCase.NormalizeComparisonSessionsCount(request.ComparisonSessionsCount, existingProfile.ComparisonSessionsCount);
+        if (normalizedComparisonSessionsCount is null)
+        {
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported comparison session count", "ComparisonSessionsCount must be between 1 and 20.", ApiErrorCodes.ValidationError);
+        }
+
         submittedThresholds.MaxSpeedMode = ProfileUseCase.NormalizeThresholdMode(submittedThresholds.MaxSpeedMode);
         submittedThresholds.MaxHeartRateMode = ProfileUseCase.NormalizeThresholdMode(submittedThresholds.MaxHeartRateMode);
 
@@ -93,7 +100,7 @@ public class ProfileController : ControllerBase
         }
 
         var profile = await _profileUseCase.UpdateProfileAsync(
-            new UpdateUserProfileRequest(request.PrimaryPosition, request.SecondaryPosition, request.MetricThresholds, request.DefaultSmoothingFilter, request.PreferredSpeedUnit, request.PreferredAggregationWindowMinutes, request.PreferredTheme, request.PreferredLocale),
+            new UpdateUserProfileRequest(request.PrimaryPosition, request.SecondaryPosition, request.MetricThresholds, request.DefaultSmoothingFilter, request.PreferredSpeedUnit, request.PreferredAggregationWindowMinutes, normalizedComparisonSessionsCount, request.PreferredTheme, request.PreferredLocale),
             cancellationToken);
 
         var latestRecalculationJob = await _profileUseCase.GetLatestRecalculationJobAsync(cancellationToken);
@@ -107,7 +114,7 @@ public class ProfileController : ControllerBase
     }
 
     private static UserProfileResponseDto ToResponse(UserProfile profile, ProfileRecalculationJob? latestRecalculationJob)
-        => new(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes, profile.PreferredTheme, profile.PreferredLocale, ToDto(latestRecalculationJob));
+        => new(profile.PrimaryPosition, profile.SecondaryPosition, profile.MetricThresholds, profile.DefaultSmoothingFilter, profile.PreferredSpeedUnit, profile.PreferredAggregationWindowMinutes, profile.ComparisonSessionsCount, profile.PreferredTheme, profile.PreferredLocale, ToDto(latestRecalculationJob));
 
     private static ProfileRecalculationJobDto? ToDto(ProfileRecalculationJob? job)
         => job is null

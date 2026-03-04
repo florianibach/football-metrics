@@ -205,6 +205,18 @@ type ProfileRecalculationJob = {
   errorMessage: string | null;
 };
 
+type ComparisonRefreshJob = {
+  id: string;
+  status: 'Running' | 'Completed' | 'Failed';
+  trigger: 'UploadCreated' | 'SessionUpdated' | 'SegmentUpdated' | 'SessionDeleted' | 'ProfileComparisonCountUpdated';
+  requestedAtUtc: string;
+  completedAtUtc: string | null;
+  totalSessions: number;
+  updatedSessions: number;
+  failedSessions: number;
+  errorMessage: string | null;
+};
+
 type UserProfile = {
   primaryPosition: PlayerPosition;
   secondaryPosition: PlayerPosition | null;
@@ -212,6 +224,7 @@ type UserProfile = {
   defaultSmoothingFilter: SmoothingFilter;
   preferredSpeedUnit: SpeedUnit;
   preferredAggregationWindowMinutes: 1 | 2 | 5;
+  comparisonSessionsCount: number;
   preferredTheme: 'light' | 'dark';
   preferredLocale: Locale | null;
   latestRecalculationJob?: ProfileRecalculationJob | null;
@@ -248,6 +261,23 @@ type SegmentChangeEntry = {
   segmentsSnapshot: SessionSegment[];
 };
 
+
+type ComparisonMetric = {
+  averageLastN: number | null;
+  best: number | null;
+  isAvailable: boolean;
+  availabilityReason: string | null;
+};
+
+type SessionComparisonContext = {
+  comparisonSessionsCount: number;
+  sessionType: SessionType;
+  overview: Record<string, ComparisonMetric>;
+  peak: Record<string, Record<1 | 2 | 5, ComparisonMetric>>;
+  segmentOverviewByCategory: Record<string, Record<string, ComparisonMetric>>;
+  segmentPeakByCategory: Record<string, Record<string, Record<1 | 2 | 5, ComparisonMetric>>>;
+};
+
 type UploadRecord = {
   id: string;
   fileName: string;
@@ -262,6 +292,7 @@ type UploadRecord = {
   segments: SessionSegment[];
   segmentChangeHistory: SegmentChangeEntry[];
   isDetailed: boolean;
+  comparisonContext?: SessionComparisonContext | null;
 };
 
 
@@ -1257,11 +1288,19 @@ export function App() {
     defaultSmoothingFilter: 'AdaptiveMedian',
     preferredSpeedUnit: 'km/h',
     preferredAggregationWindowMinutes: 5,
+    comparisonSessionsCount: 5,
     preferredTheme: 'dark',
     preferredLocale: null
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
+  const [profileRecalculationToast, setProfileRecalculationToast] = useState<string | null>(null);
+  const [latestComparisonRefreshJob, setLatestComparisonRefreshJob] = useState<ComparisonRefreshJob | null>(null);
+  const [comparisonRefreshToast, setComparisonRefreshToast] = useState<string | null>(null);
+  const [comparisonRefreshPending, setComparisonRefreshPending] = useState(false);
+  const [comparisonRefreshPendingSinceUtc, setComparisonRefreshPendingSinceUtc] = useState<string | null>(null);
+  const [comparisonRefreshPendingDismissed, setComparisonRefreshPendingDismissed] = useState(false);
+  const [dismissedComparisonRefreshJobId, setDismissedComparisonRefreshJobId] = useState<string | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>(initialRoute.analysisTab ?? 'overview');
@@ -1546,6 +1585,7 @@ export function App() {
               defaultSmoothingFilter: (profilePayload.defaultSmoothingFilter as SmoothingFilter) ?? 'AdaptiveMedian',
               preferredSpeedUnit: (profilePayload.preferredSpeedUnit as SpeedUnit) ?? 'km/h',
               preferredAggregationWindowMinutes: (profilePayload.preferredAggregationWindowMinutes as 1 | 2 | 5) ?? 5,
+              comparisonSessionsCount: Number(profilePayload.comparisonSessionsCount ?? 5),
               preferredTheme: (profilePayload.preferredTheme as 'light' | 'dark') ?? 'dark',
               preferredLocale: (profilePayload.preferredLocale as Locale | null) ?? null
             });
@@ -1816,7 +1856,37 @@ export function App() {
       setActiveSessionSubpage('analysis');
       setActiveMainPage('session');
       setIsSessionMenuVisible(true);
-    setMessage(t.sessionContextSaveSuccess);
+    await onComparisonRefreshTriggered(t.sessionContextSaveSuccess);
+  }
+
+
+  async function onComparisonRefreshTriggered(baseMessage: string) {
+    const startedAtUtc = new Date().toISOString();
+    setComparisonRefreshPending(true);
+    setComparisonRefreshPendingSinceUtc(startedAtUtc);
+    setComparisonRefreshPendingDismissed(false);
+    setMessage(`${baseMessage} ${t.comparisonRefreshStarted}`);
+
+    const latest = await loadLatestComparisonRefreshJob();
+    if (!latest) {
+      return;
+    }
+
+    if (latest.status === 'Running') {
+      setDismissedComparisonRefreshJobId((current) => (current === latest.id ? null : current));
+      return;
+    }
+
+    if (latest.requestedAtUtc < startedAtUtc) {
+      return;
+    }
+
+    const statusText = latest.status === 'Completed'
+      ? t.comparisonRefreshStatusCompleted
+      : t.comparisonRefreshStatusFailed;
+    setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
+    setComparisonRefreshPending(false);
+    setComparisonRefreshPendingSinceUtc(null);
   }
 
 
@@ -1878,7 +1948,7 @@ export function App() {
     resetSegmentForms();
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
-    setMessage(editingSegmentId ? t.segmentUpdateSuccess : t.segmentCreateSuccess);
+    await onComparisonRefreshTriggered(editingSegmentId ? t.segmentUpdateSuccess : t.segmentCreateSuccess);
   }
 
   function onEditSegment(segment: SessionSegment) {
@@ -1915,7 +1985,7 @@ export function App() {
     applyUpdatedSession(payload);
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
-    setMessage(t.segmentDeleteSuccess);
+    await onComparisonRefreshTriggered(t.segmentDeleteSuccess);
   }
 
   async function onMergeSegments() {
@@ -1954,7 +2024,7 @@ export function App() {
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', notes: '' });
-    setMessage(t.segmentMergeSuccess);
+    await onComparisonRefreshTriggered(t.segmentMergeSuccess);
   }
 
 
@@ -2025,7 +2095,7 @@ export function App() {
     applyUpdatedSession(payload);
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
-    setMessage(t.segmentSplitSuccess);
+    await onComparisonRefreshTriggered(t.segmentSplitSuccess);
   }
 
   async function onSplitSegment() {
@@ -2071,7 +2141,7 @@ export function App() {
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setSplitForm({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
-    setMessage(translations[locale].defaultMessage);
+    await onComparisonRefreshTriggered(t.segmentSplitSuccess);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -2101,7 +2171,7 @@ export function App() {
 
       const payload = normalizeUploadRecord((await response.json()) as UploadRecord);
       const uploadTime = formatLocalDateTime(payload.uploadedAtUtc);
-      setMessage(interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime }));
+      const uploadSuccessMessage = interpolate(t.uploadSuccess, { fileName: payload.fileName, uploadTime });
       setSelectedSession(payload);
       resetSegmentForms();
       setCompareMode('smoothed');
@@ -2116,6 +2186,7 @@ export function App() {
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setCompareOpponentSessionId(null);
       setSelectedFile(null);
+      await onComparisonRefreshTriggered(uploadSuccessMessage);
     } catch {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
     } finally {
@@ -2179,6 +2250,7 @@ export function App() {
         defaultSmoothingFilter: payload.defaultSmoothingFilter,
         preferredSpeedUnit: payload.preferredSpeedUnit,
         preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes,
+        comparisonSessionsCount: payload.comparisonSessionsCount,
         preferredTheme: payload.preferredTheme,
         preferredLocale: (payload.preferredLocale as Locale | null) ?? null
       });
@@ -2223,6 +2295,7 @@ export function App() {
       defaultSmoothingFilter: payload.defaultSmoothingFilter,
       preferredSpeedUnit: payload.preferredSpeedUnit,
       preferredAggregationWindowMinutes: payload.preferredAggregationWindowMinutes,
+      comparisonSessionsCount: payload.comparisonSessionsCount,
       preferredTheme: payload.preferredTheme,
       preferredLocale: (payload.preferredLocale as Locale | null) ?? null
     });
@@ -2233,6 +2306,22 @@ export function App() {
     persistAppearancePreferences({ preferredTheme: payload.preferredTheme, preferredLocale: (payload.preferredLocale as Locale | null) ?? null });
     setProfileValidationMessage(t.profileSaveSuccess);
   }
+
+
+  const loadLatestComparisonRefreshJob = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/comparison-refresh/latest`);
+      if (!response.ok) {
+        return null;
+      }
+
+      const payload = (await response.json()) as ComparisonRefreshJob | null;
+      setLatestComparisonRefreshJob(payload);
+      return payload;
+    } catch {
+      return null;
+    }
+  }, [apiBaseUrl]);
 
 
   async function onTriggerProfileRecalculation() {
@@ -2254,6 +2343,20 @@ export function App() {
         ? t.profileRecalculationStatusCompleted
         : t.profileRecalculationStatusFailed)
     : null;
+
+
+  const comparisonRefreshStatusText = latestComparisonRefreshJob
+    ? (latestComparisonRefreshJob.status === 'Running'
+      ? t.comparisonRefreshStatusRunning
+      : latestComparisonRefreshJob.status === 'Completed'
+        ? t.comparisonRefreshStatusCompleted
+        : t.comparisonRefreshStatusFailed)
+    : null;
+  const effectiveComparisonRefreshStatusText = comparisonRefreshPending
+    ? t.comparisonRefreshStatusRunning
+    : comparisonRefreshStatusText;
+  const hasActiveRunningComparisonRefresh = (latestComparisonRefreshJob?.status === 'Running' && latestComparisonRefreshJob.id !== dismissedComparisonRefreshJobId)
+    || (comparisonRefreshPending && !comparisonRefreshPendingDismissed);
 
   const distanceSourceText = (source: ActivitySummary['distanceSource']) => {
     switch (source) {
@@ -2284,6 +2387,78 @@ export function App() {
 
     return () => clearInterval(interval);
   }, [apiBaseUrl, latestProfileRecalculationJob]);
+
+  const previousRecalculationStatusRef = useRef<ProfileRecalculationJob['status'] | null>(null);
+  useEffect(() => {
+    const previousStatus = previousRecalculationStatusRef.current;
+    const currentStatus = latestProfileRecalculationJob?.status ?? null;
+
+    if (previousStatus === 'Running' && currentStatus && currentStatus !== 'Running') {
+      const statusText = currentStatus === 'Completed'
+        ? t.profileRecalculationStatusCompleted
+        : t.profileRecalculationStatusFailed;
+      setProfileRecalculationToast(`${t.profileRecalculationStatusTitle}: ${statusText}`);
+    }
+
+    previousRecalculationStatusRef.current = currentStatus;
+  }, [latestProfileRecalculationJob?.status, t.profileRecalculationStatusCompleted, t.profileRecalculationStatusFailed, t.profileRecalculationStatusTitle]);
+
+  useEffect(() => {
+    if (!profileRecalculationToast) {
+      return;
+    }
+
+    const timeout = setTimeout(() => setProfileRecalculationToast(null), 7000);
+    return () => clearTimeout(timeout);
+  }, [profileRecalculationToast]);
+
+
+  useEffect(() => {
+    void loadLatestComparisonRefreshJob();
+
+    const intervalMs = comparisonRefreshPending || latestComparisonRefreshJob?.status === 'Running'
+      ? 2000
+      : 10000;
+
+    const interval = setInterval(() => {
+      void loadLatestComparisonRefreshJob();
+    }, intervalMs);
+
+    return () => clearInterval(interval);
+  }, [comparisonRefreshPending, latestComparisonRefreshJob?.status, loadLatestComparisonRefreshJob]);
+
+  const previousComparisonRefreshStatusRef = useRef<ComparisonRefreshJob['status'] | null>(null);
+  useEffect(() => {
+    const previousStatus = previousComparisonRefreshStatusRef.current;
+    const currentStatus = latestComparisonRefreshJob?.status ?? null;
+
+    if (comparisonRefreshPending && currentStatus && currentStatus !== 'Running' && latestComparisonRefreshJob && (!comparisonRefreshPendingSinceUtc || latestComparisonRefreshJob.requestedAtUtc >= comparisonRefreshPendingSinceUtc)) {
+      const statusText = currentStatus === 'Completed'
+        ? t.comparisonRefreshStatusCompleted
+        : t.comparisonRefreshStatusFailed;
+      setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
+      setComparisonRefreshPending(false);
+      setComparisonRefreshPendingSinceUtc(null);
+    } else if (previousStatus === 'Running' && currentStatus && currentStatus !== 'Running') {
+      const statusText = currentStatus === 'Completed'
+        ? t.comparisonRefreshStatusCompleted
+        : t.comparisonRefreshStatusFailed;
+      setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
+      setComparisonRefreshPending(false);
+      setComparisonRefreshPendingSinceUtc(null);
+    }
+
+    previousComparisonRefreshStatusRef.current = currentStatus;
+  }, [comparisonRefreshPending, comparisonRefreshPendingSinceUtc, latestComparisonRefreshJob, latestComparisonRefreshJob?.status, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
+
+  useEffect(() => {
+    if (!comparisonRefreshToast) {
+      return;
+    }
+
+    const timeout = setTimeout(() => setComparisonRefreshToast(null), 7000);
+    return () => clearTimeout(timeout);
+  }, [comparisonRefreshToast]);
 
   const showMissingHeartRateHint = selectedSession ? !hasCompleteHeartRate(selectedSession.summary) : false;
   const showMissingDistanceHint = selectedSession ? selectedSession.summary.distanceMeters === null : false;
@@ -2652,50 +2827,47 @@ export function App() {
     ? sortedHistory.filter((record) => record.sessionContext.sessionType === activeSessionType && record.id !== selectedSession.id)
     : [];
 
-  const distanceComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.distanceMeters ?? null);
-  const durationComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.durationSeconds ?? null);
-  const runningDensityComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.runningDensityMetersPerMinute ?? null);
-  const maxSpeedComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.maxSpeedMetersPerSecond ?? null);
-  const highSpeedDistanceComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.highSpeedDistanceMeters ?? null);
-  const heartRateAvgComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.heartRateAverageBpm ?? null);
-  const trimpComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.trainingImpulseEdwards ?? null);
-  const hrRecoveryComparison = calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? null);
-
-  const peakValuesByRecordId = useMemo(() => {
-    const map = new Map<string, PeakMetricValues>();
-    sortedHistory.forEach((record) => {
-      map.set(record.id, toPeakComparisonValues(record, peakDemandWindowMinutes));
-    });
-    return map;
-  }, [peakDemandWindowMinutes, sortedHistory]);
-
-  const calculatePeakComparison = useCallback((metricKey: PeakComparisonMetricKey) => {
-    if (!selectedSession) {
+  const readComparisonMetric = useCallback((scope: 'overview' | 'peak', metric: string) => {
+    const context = selectedSession?.comparisonContext;
+    if (!context) {
       return { averageLastFive: null, bestSeason: null };
     }
 
-    const comparableValues = sortedHistory
-      .filter((record) => record.sessionContext.sessionType === selectedSession.sessionContext.sessionType)
-      .map((record) => peakValuesByRecordId.get(record.id)?.[metricKey] ?? null)
-      .filter((value): value is number => value !== null);
+    if (scope === 'overview') {
+      if (isSegmentScopeActive && selectedSegment && selectedSegment.category) {
+        const categoryMetrics = context.segmentOverviewByCategory?.[selectedSegment.category];
+        const item = categoryMetrics?.[metric];
+        return { averageLastFive: item?.averageLastN ?? null, bestSeason: item?.best ?? null };
+      }
 
-    const lastFive = comparableValues.slice(0, 5);
-    const averageLastFive = lastFive.length > 0
-      ? lastFive.reduce((sum, value) => sum + value, 0) / lastFive.length
-      : null;
+      const item = context.overview?.[metric];
+      return { averageLastFive: item?.averageLastN ?? null, bestSeason: item?.best ?? null };
+    }
 
-    const bestSeason = comparableValues.length > 0
-      ? Math.max(...comparableValues)
-      : null;
+    if (isSegmentScopeActive && selectedSegment && selectedSegment.category) {
+      const categoryMetrics = context.segmentPeakByCategory?.[selectedSegment.category];
+      const item = categoryMetrics?.[metric]?.[peakDemandWindowMinutes];
+      return { averageLastFive: item?.averageLastN ?? null, bestSeason: item?.best ?? null };
+    }
 
-    return { averageLastFive, bestSeason };
-  }, [peakValuesByRecordId, selectedSession, sortedHistory]);
+    const item = context.peak?.[metric]?.[peakDemandWindowMinutes];
+    return { averageLastFive: item?.averageLastN ?? null, bestSeason: item?.best ?? null };
+  }, [isSegmentScopeActive, peakDemandWindowMinutes, selectedSegment, selectedSession?.comparisonContext]);
 
-  const distancePeakComparison = useMemo(() => calculatePeakComparison('distance'), [calculatePeakComparison]);
-  const highSpeedDistancePeakComparison = useMemo(() => calculatePeakComparison('highSpeedDistance'), [calculatePeakComparison]);
-  const heartRatePeakComparison = useMemo(() => calculatePeakComparison('heartRateAvg'), [calculatePeakComparison]);
-  const trimpPeakComparison = useMemo(() => calculatePeakComparison('trimp'), [calculatePeakComparison]);
-  const mechanicalPeakComparison = useMemo(() => calculatePeakComparison('mechanicalLoad'), [calculatePeakComparison]);
+  const distanceComparison = readComparisonMetric('overview', 'distanceMeters');
+  const durationComparison = readComparisonMetric('overview', 'durationSeconds');
+  const runningDensityComparison = readComparisonMetric('overview', 'runningDensityMetersPerMinute');
+  const maxSpeedComparison = readComparisonMetric('overview', 'maxSpeedMetersPerSecond');
+  const highSpeedDistanceComparison = readComparisonMetric('overview', 'highSpeedDistanceMeters');
+  const heartRateAvgComparison = readComparisonMetric('overview', 'heartRateAverageBpm');
+  const trimpComparison = readComparisonMetric('overview', 'trainingImpulseEdwards');
+  const hrRecoveryComparison = readComparisonMetric('overview', 'heartRateRecoveryAfter60Seconds');
+
+  const distancePeakComparison = readComparisonMetric('peak', 'distance');
+  const highSpeedDistancePeakComparison = readComparisonMetric('peak', 'highSpeedDistance');
+  const heartRatePeakComparison = readComparisonMetric('peak', 'heartRateAvg');
+  const trimpPeakComparison = readComparisonMetric('peak', 'trimp');
+  const mechanicalPeakComparison = readComparisonMetric('peak', 'mechanicalLoad');
 
   const compareOpponentSession = compareOpponentSessionId && selectedSession
     ? compareOpponentSessionId === selectedSession.id
@@ -4171,9 +4343,15 @@ export function App() {
         {latestProfileRecalculationJob && profileRecalculationStatusText ? (
           <p>
             {t.profileRecalculationStatusTitle}: {profileRecalculationStatusText} · {formatLocalDateTime(latestProfileRecalculationJob.requestedAtUtc)} · v{latestProfileRecalculationJob.profileThresholdVersion} · {latestProfileRecalculationJob.updatedSessions}/{latestProfileRecalculationJob.totalSessions}
-            {latestProfileRecalculationJob.failedSessions > 0 ? ` (${latestProfileRecalculationJob.failedSessions} failed)` : ''}
+            {latestProfileRecalculationJob.failedSessions > 0 ? ` (${interpolate(t.profileRecalculationFailedSessions, { count: String(latestProfileRecalculationJob.failedSessions) })})` : ''}
             {latestProfileRecalculationJob.errorMessage ? ` - ${latestProfileRecalculationJob.errorMessage}` : ''}
           </p>
+        ) : null}
+        {profileRecalculationToast ? (
+          <div className="toast-notification" role="status" aria-live="polite">
+            <span>{profileRecalculationToast}</span>
+            <button type="button" className="toast-notification__close" aria-label="Dismiss notification" onClick={() => setProfileRecalculationToast(null)}>×</button>
+          </div>
         ) : null}
       </section>
       <form onSubmit={handleSubmit} id="upload-flow" className={`upload-form ${activeMainPage === "upload" ? "" : "is-hidden"}`}>
@@ -4532,6 +4710,14 @@ export function App() {
 
           <div className={`segment-management ${activeSessionSubpage === "segmentEdit" ? "" : "is-hidden"}`} id="session-segment-edit">
             <h3>{t.segmentEditTitle}</h3>
+            {(comparisonRefreshPending || (latestComparisonRefreshJob && comparisonRefreshStatusText)) ? (
+              <p className="comparison-refresh-status" role="status" aria-live="polite">
+                {t.comparisonRefreshStatusTitle}: {effectiveComparisonRefreshStatusText}
+                {latestComparisonRefreshJob ? ` · ${formatLocalDateTime(latestComparisonRefreshJob.requestedAtUtc)} · ${latestComparisonRefreshJob.updatedSessions}/${latestComparisonRefreshJob.totalSessions}` : ''}
+                {latestComparisonRefreshJob && latestComparisonRefreshJob.failedSessions > 0 ? ` (${interpolate(t.comparisonRefreshFailedSessions, { count: String(latestComparisonRefreshJob.failedSessions) })})` : ''}
+                {latestComparisonRefreshJob?.errorMessage ? ` - ${latestComparisonRefreshJob.errorMessage}` : ''}
+              </p>
+            ) : null}
             <section className="segment-timeline-helper" aria-label={t.segmentTimelineTitle}>
               <h4>{t.segmentManualAssistantTitle}</h4>
               <p>{t.segmentManualAssistantDescription}</p>
@@ -5335,6 +5521,33 @@ export function App() {
           )}
         </section>
       )}
+      {hasActiveRunningComparisonRefresh ? (
+        <div className="toast-notification toast-notification--secondary" role="status" aria-live="polite">
+          <span>
+            {t.comparisonRefreshStatusTitle}: {t.comparisonRefreshStatusRunning}
+            {latestComparisonRefreshJob ? ` · ${formatLocalDateTime(latestComparisonRefreshJob.requestedAtUtc)} · ${latestComparisonRefreshJob.updatedSessions}/${latestComparisonRefreshJob.totalSessions}` : ''}
+          </span>
+          <button
+            type="button"
+            className="toast-notification__close"
+            aria-label="Dismiss notification"
+            onClick={() => {
+              if (latestComparisonRefreshJob?.status === 'Running') {
+                setDismissedComparisonRefreshJobId(latestComparisonRefreshJob.id);
+              }
+              if (comparisonRefreshPending) {
+                setComparisonRefreshPendingDismissed(true);
+              }
+            }}
+          >×</button>
+        </div>
+      ) : null}
+      {comparisonRefreshToast ? (
+        <div className="toast-notification" role="status" aria-live="polite">
+          <span>{comparisonRefreshToast}</span>
+          <button type="button" className="toast-notification__close" aria-label="Dismiss notification" onClick={() => setComparisonRefreshToast(null)}>×</button>
+        </div>
+      ) : null}
     </main>
     </div>
   );

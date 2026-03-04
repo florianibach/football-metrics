@@ -10,22 +10,28 @@ public class ProfileUseCase : IProfileUseCase
     private readonly IMetricThresholdResolver _metricThresholdResolver;
     private readonly IProfileRecalculationOrchestrator _recalculationOrchestrator;
     private readonly IProfileRecalculationJobRepository _recalculationJobRepository;
+    private readonly IComparisonSnapshotRefreshOrchestrator _comparisonSnapshotRefreshOrchestrator;
 
     public ProfileUseCase(
         IUserProfileRepository repository,
         IMetricThresholdResolver metricThresholdResolver,
         IProfileRecalculationOrchestrator recalculationOrchestrator,
-        IProfileRecalculationJobRepository recalculationJobRepository)
+        IProfileRecalculationJobRepository recalculationJobRepository,
+        IComparisonSnapshotRefreshOrchestrator comparisonSnapshotRefreshOrchestrator)
     {
         _repository = repository;
         _metricThresholdResolver = metricThresholdResolver;
         _recalculationOrchestrator = recalculationOrchestrator;
         _recalculationJobRepository = recalculationJobRepository;
+        _comparisonSnapshotRefreshOrchestrator = comparisonSnapshotRefreshOrchestrator;
     }
 
     public async Task<UserProfile> GetProfileAsync(CancellationToken cancellationToken)
     {
         var profile = await _repository.GetAsync(cancellationToken);
+
+
+
         var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken: cancellationToken);
         profile.MetricThresholds = effectiveThresholds;
         return profile;
@@ -106,7 +112,8 @@ public class ProfileUseCase : IProfileUseCase
                 PreferredSpeedUnit = normalizedPreferredSpeedUnit,
                 PreferredAggregationWindowMinutes = normalizedPreferredAggregationWindowMinutes,
                 PreferredTheme = normalizedPreferredTheme,
-                PreferredLocale = normalizedPreferredLocale
+                PreferredLocale = normalizedPreferredLocale,
+                ComparisonSessionsCount = NormalizeComparisonSessionsCount(request.ComparisonSessionsCount, existingProfile.ComparisonSessionsCount) ?? existingProfile.ComparisonSessionsCount
             },
             cancellationToken);
 
@@ -118,6 +125,12 @@ public class ProfileUseCase : IProfileUseCase
         if (profileAffectingSettingsChanged)
         {
             await _recalculationOrchestrator.EnqueueAsync(ProfileRecalculationTriggers.ProfileUpdated, normalizedThresholds.Version, cancellationToken);
+        }
+
+        var comparisonSessionsCountChanged = existingProfile.ComparisonSessionsCount != profile.ComparisonSessionsCount;
+        if (comparisonSessionsCountChanged)
+        {
+            await _comparisonSnapshotRefreshOrchestrator.EnqueueAsync(ComparisonSnapshotRefreshTriggers.ProfileComparisonCountUpdated, cancellationToken);
         }
 
         var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken: cancellationToken);
@@ -186,6 +199,19 @@ public class ProfileUseCase : IProfileUseCase
 
         return UiLanguages.Supported.FirstOrDefault(locale =>
             string.Equals(locale, requestedLocale.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+
+    public static int? NormalizeComparisonSessionsCount(int? requestedCount, int fallbackCount)
+    {
+        if (!requestedCount.HasValue)
+        {
+            return fallbackCount;
+        }
+
+        return requestedCount.Value is >= 1 and <= 20
+            ? requestedCount.Value
+            : null;
     }
 
     public static int? NormalizePreferredAggregationWindowMinutes(int? requestedWindow, int fallbackWindow)

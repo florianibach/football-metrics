@@ -47,7 +47,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 SessionSummarySnapshotJson TEXT NULL,
                 IdempotencyKey TEXT NULL,
                 SegmentsSnapshotJson TEXT NULL,
-                SegmentChangeHistoryJson TEXT NULL
+                SegmentChangeHistoryJson TEXT NULL,
+                ComparisonContextSnapshotJson TEXT NULL
             );
 
             CREATE INDEX IF NOT EXISTS IX_TcxUploads_UploadedAtUtc ON TcxUploads (UploadedAtUtc DESC);
@@ -61,7 +62,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 PreferredSpeedUnit TEXT NOT NULL DEFAULT 'km/h',
                 PreferredAggregationWindowMinutes INTEGER NOT NULL DEFAULT 5,
                 PreferredTheme TEXT NOT NULL DEFAULT 'dark',
-                PreferredLocale TEXT NULL
+                PreferredLocale TEXT NULL,
+                ComparisonSessionsCount INTEGER NOT NULL DEFAULT 5
             );
 
 
@@ -79,6 +81,20 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
             );
 
             CREATE INDEX IF NOT EXISTS IX_ProfileRecalculationJobs_RequestedAtUtc ON ProfileRecalculationJobs (RequestedAtUtc DESC);
+
+            CREATE TABLE IF NOT EXISTS ComparisonSnapshotRefreshJobs (
+                Id TEXT PRIMARY KEY,
+                Status TEXT NOT NULL,
+                TriggerSource TEXT NOT NULL,
+                RequestedAtUtc TEXT NOT NULL,
+                CompletedAtUtc TEXT NULL,
+                TotalSessions INTEGER NOT NULL DEFAULT 0,
+                UpdatedSessions INTEGER NOT NULL DEFAULT 0,
+                FailedSessions INTEGER NOT NULL DEFAULT 0,
+                ErrorMessage TEXT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS IX_ComparisonSnapshotRefreshJobs_RequestedAtUtc ON ComparisonSnapshotRefreshJobs (RequestedAtUtc DESC);
 
             CREATE TABLE IF NOT EXISTS SchemaVersions (
                 Version INTEGER PRIMARY KEY,
@@ -120,12 +136,14 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "IdempotencyKey", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SegmentsSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SegmentChangeHistoryJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "ComparisonContextSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "MetricThresholdsJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "DefaultSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredAggregationWindowMinutes", "INTEGER NOT NULL DEFAULT 5", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredTheme", "TEXT NOT NULL DEFAULT 'dark'", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredLocale", "TEXT NULL", cancellationToken);
+        await EnsureUserProfileColumnExistsAsync(connection, "ComparisonSessionsCount", "INTEGER NOT NULL DEFAULT 5", cancellationToken);
 
         await ApplyMigrationSlot001Async(connection, cancellationToken);
         await ApplyMigrationSlot002Async(connection, cancellationToken);
@@ -133,6 +151,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await ApplyMigrationSlot004Async(connection, cancellationToken);
         await ApplyMigrationSlot005Async(connection, cancellationToken);
         await ApplyMigrationSlot006Async(connection, cancellationToken);
+        await ApplyMigrationSlot007Async(connection, cancellationToken);
     }
 
 
@@ -205,6 +224,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "IdempotencyKey", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SegmentsSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SegmentChangeHistoryJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "ComparisonContextSnapshotJson", "TEXT NULL", cancellationToken);
 
         var insertCommand = connection.CreateCommand();
         insertCommand.CommandText = @"
@@ -294,11 +314,50 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
 
         await EnsureColumnExistsAsync(connection, "SegmentsSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SegmentChangeHistoryJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "ComparisonContextSnapshotJson", "TEXT NULL", cancellationToken);
 
         var insertCommand = connection.CreateCommand();
         insertCommand.CommandText = @"
             INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
             VALUES (6, 'r1_6_03_session_segments_versioning', $appliedAtUtc);
+        ";
+        insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+
+    private static async Task ApplyMigrationSlot007Async(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var existsCommand = connection.CreateCommand();
+        existsCommand.CommandText = "SELECT COUNT(1) FROM SchemaVersions WHERE Version = 7;";
+        var alreadyApplied = Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+        if (alreadyApplied)
+        {
+            return;
+        }
+
+        var tableCommand = connection.CreateCommand();
+        tableCommand.CommandText = @"
+            CREATE TABLE IF NOT EXISTS ComparisonSnapshotRefreshJobs (
+                Id TEXT PRIMARY KEY,
+                Status TEXT NOT NULL,
+                TriggerSource TEXT NOT NULL,
+                RequestedAtUtc TEXT NOT NULL,
+                CompletedAtUtc TEXT NULL,
+                TotalSessions INTEGER NOT NULL DEFAULT 0,
+                UpdatedSessions INTEGER NOT NULL DEFAULT 0,
+                FailedSessions INTEGER NOT NULL DEFAULT 0,
+                ErrorMessage TEXT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS IX_ComparisonSnapshotRefreshJobs_RequestedAtUtc ON ComparisonSnapshotRefreshJobs (RequestedAtUtc DESC);
+        ";
+        await tableCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = @"
+            INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
+            VALUES (7, 'r1_7_14_comparison_snapshot_refresh_jobs', $appliedAtUtc);
         ";
         insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
         await insertCommand.ExecuteNonQueryAsync(cancellationToken);

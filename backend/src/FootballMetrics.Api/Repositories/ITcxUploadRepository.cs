@@ -13,6 +13,7 @@ public interface ITcxUploadRepository
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> UpdateSessionContextAsync(Guid id, string sessionType, string? matchResult, string? competition, string? opponentName, string? opponentLogoUrl, CancellationToken cancellationToken = default);
     Task<bool> UpdateSegmentsAsync(Guid id, string segmentsSnapshotJson, string segmentChangeHistoryJson, CancellationToken cancellationToken = default);
+    Task<bool> UpdateComparisonContextSnapshotAsync(Guid id, string? comparisonContextSnapshotJson, CancellationToken cancellationToken = default);
     Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default);
     Task<bool> UpdateSelectedSmoothingFilterSourceAsync(Guid id, string selectedSmoothingFilterSource, CancellationToken cancellationToken = default);
     Task<bool> UpdateSelectedSpeedUnitAsync(Guid id, string selectedSpeedUnit, CancellationToken cancellationToken = default);
