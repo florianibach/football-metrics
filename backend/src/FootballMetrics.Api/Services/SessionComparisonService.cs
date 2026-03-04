@@ -16,6 +16,8 @@ public interface ISessionComparisonService
 public class SessionComparisonService : ISessionComparisonService
 {
     private static readonly int[] Windows = [1, 2, 5];
+    private readonly Dictionary<Guid, (string Snapshot, TcxActivitySummary Summary)> _summaryCache = new();
+    private readonly Dictionary<Guid, (string Snapshot, IReadOnlyList<TcxSessionSegment> Segments)> _segmentCache = new();
 
     public SessionComparisonContextDto BuildContext(
         TcxUpload selected,
@@ -24,23 +26,50 @@ public class SessionComparisonService : ISessionComparisonService
         Func<TcxUpload, TcxActivitySummary> summaryResolver,
         Func<TcxUpload, IReadOnlyList<TcxSessionSegment>> segmentResolver)
     {
+
+        TcxActivitySummary CachedSummaryResolver(TcxUpload upload)
+        {
+            var snapshot = upload.SessionSummarySnapshotJson ?? string.Empty;
+            if (_summaryCache.TryGetValue(upload.Id, out var cached) && string.Equals(cached.Snapshot, snapshot, StringComparison.Ordinal))
+            {
+                return cached.Summary;
+            }
+
+            var resolved = summaryResolver(upload);
+            _summaryCache[upload.Id] = (snapshot, resolved);
+            return resolved;
+        }
+
+        IReadOnlyList<TcxSessionSegment> CachedSegmentResolver(TcxUpload upload)
+        {
+            var snapshot = upload.SegmentsSnapshotJson ?? string.Empty;
+            if (_segmentCache.TryGetValue(upload.Id, out var cached) && string.Equals(cached.Snapshot, snapshot, StringComparison.Ordinal))
+            {
+                return cached.Segments;
+            }
+
+            var resolved = segmentResolver(upload);
+            _segmentCache[upload.Id] = (snapshot, resolved);
+            return resolved;
+        }
+
         var normalizedCount = Math.Clamp(comparisonSessionsCount, 1, 20);
         var sessionTypePool = allUploads
             .Where(upload => string.Equals(upload.SessionType, selected.SessionType, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(upload => summaryResolver(upload).ActivityStartTimeUtc ?? upload.UploadedAtUtc)
+            .OrderByDescending(upload => CachedSummaryResolver(upload).ActivityStartTimeUtc ?? upload.UploadedAtUtc)
             .Take(normalizedCount)
             .ToList();
 
         var overview = new Dictionary<string, ComparisonMetricDto>
         {
-            ["distanceMeters"] = BuildMetric(sessionTypePool, u => summaryResolver(u).CoreMetrics.DistanceMeters),
-            ["durationSeconds"] = BuildMetric(sessionTypePool, u => summaryResolver(u).DurationSeconds),
-            ["runningDensityMetersPerMinute"] = BuildMetric(sessionTypePool, u => summaryResolver(u).CoreMetrics.RunningDensityMetersPerMinute),
-            ["maxSpeedMetersPerSecond"] = BuildMetric(sessionTypePool, u => summaryResolver(u).CoreMetrics.MaxSpeedMetersPerSecond),
-            ["highSpeedDistanceMeters"] = BuildMetric(sessionTypePool, u => summaryResolver(u).CoreMetrics.HighSpeedDistanceMeters),
-            ["heartRateAverageBpm"] = BuildMetric(sessionTypePool, u => summaryResolver(u).HeartRateAverageBpm),
-            ["trainingImpulseEdwards"] = BuildMetric(sessionTypePool, u => summaryResolver(u).CoreMetrics.TrainingImpulseEdwards),
-            ["heartRateRecoveryAfter60Seconds"] = BuildMetric(sessionTypePool, u => summaryResolver(u).CoreMetrics.HeartRateRecoveryAfter60Seconds)
+            ["distanceMeters"] = BuildMetric(sessionTypePool, u => CachedSummaryResolver(u).CoreMetrics.DistanceMeters),
+            ["durationSeconds"] = BuildMetric(sessionTypePool, u => CachedSummaryResolver(u).DurationSeconds),
+            ["runningDensityMetersPerMinute"] = BuildMetric(sessionTypePool, u => CachedSummaryResolver(u).CoreMetrics.RunningDensityMetersPerMinute),
+            ["maxSpeedMetersPerSecond"] = BuildMetric(sessionTypePool, u => CachedSummaryResolver(u).CoreMetrics.MaxSpeedMetersPerSecond),
+            ["highSpeedDistanceMeters"] = BuildMetric(sessionTypePool, u => CachedSummaryResolver(u).CoreMetrics.HighSpeedDistanceMeters),
+            ["heartRateAverageBpm"] = BuildMetric(sessionTypePool, u => CachedSummaryResolver(u).HeartRateAverageBpm),
+            ["trainingImpulseEdwards"] = BuildMetric(sessionTypePool, u => CachedSummaryResolver(u).CoreMetrics.TrainingImpulseEdwards),
+            ["heartRateRecoveryAfter60Seconds"] = BuildMetric(sessionTypePool, u => CachedSummaryResolver(u).CoreMetrics.HeartRateRecoveryAfter60Seconds)
         };
 
         var peak = new Dictionary<string, IReadOnlyDictionary<int, ComparisonMetricDto>>
@@ -53,7 +82,7 @@ public class SessionComparisonService : ISessionComparisonService
         };
 
         var segmentEntries = sessionTypePool
-            .SelectMany(upload => segmentResolver(upload)
+            .SelectMany(upload => CachedSegmentResolver(upload)
                 .Select(segment => (upload, segment)))
             .ToList();
 
@@ -82,7 +111,7 @@ public class SessionComparisonService : ISessionComparisonService
             segmentPeakByCategory);
     }
 
-    private static Dictionary<string, ComparisonMetricDto> BuildSegmentOverview(IReadOnlyList<(TcxUpload upload, TcxSessionSegment segment)> entries)
+    private Dictionary<string, ComparisonMetricDto> BuildSegmentOverview(IReadOnlyList<(TcxUpload upload, TcxSessionSegment segment)> entries)
         => new()
         {
             ["distanceMeters"] = BuildMetric(entries, c => ComputeSegmentDistance(c.upload, c.segment)),
@@ -95,7 +124,7 @@ public class SessionComparisonService : ISessionComparisonService
             ["heartRateRecoveryAfter60Seconds"] = new ComparisonMetricDto(null, null, false, "Not available for segments")
         };
 
-    private static Dictionary<string, IReadOnlyDictionary<int, ComparisonMetricDto>> BuildSegmentPeak(IReadOnlyList<(TcxUpload upload, TcxSessionSegment segment)> entries)
+    private Dictionary<string, IReadOnlyDictionary<int, ComparisonMetricDto>> BuildSegmentPeak(IReadOnlyList<(TcxUpload upload, TcxSessionSegment segment)> entries)
         => new()
         {
             ["distance"] = BuildPeakMetrics(entries, c => ComputePeakDistance(c.upload, 0, (c.segment.StartSecond, c.segment.EndSecond))),
@@ -116,13 +145,13 @@ public class SessionComparisonService : ISessionComparisonService
             : new ComparisonMetricDto(values.Average(), values.Max(), true, null);
     }
 
-    private static double? ComputeSegmentDistance(TcxUpload upload, TcxSessionSegment segment)
+    private double? ComputeSegmentDistance(TcxUpload upload, TcxSessionSegment segment)
         => SumDistance(GetSummary(upload), segment.StartSecond, segment.EndSecond, false);
 
-    private static double? ComputeSegmentHighSpeedDistance(TcxUpload upload, TcxSessionSegment segment)
+    private double? ComputeSegmentHighSpeedDistance(TcxUpload upload, TcxSessionSegment segment)
         => SumDistance(GetSummary(upload), segment.StartSecond, segment.EndSecond, true);
 
-    private static double? ComputeSegmentRunningDensity(TcxUpload upload, TcxSessionSegment segment)
+    private double? ComputeSegmentRunningDensity(TcxUpload upload, TcxSessionSegment segment)
     {
         var distance = ComputeSegmentDistance(upload, segment);
         if (!distance.HasValue)
@@ -184,7 +213,7 @@ public class SessionComparisonService : ISessionComparisonService
         return 6371000d * (2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a)));
     }
 
-    private static double? ComputeSegmentMaxSpeed(TcxUpload upload, TcxSessionSegment segment)
+    private double? ComputeSegmentMaxSpeed(TcxUpload upload, TcxSessionSegment segment)
     {
         var summary = GetSummary(upload);
         var points = summary.GpsTrackpoints.Where(p => p.ElapsedSeconds.HasValue).OrderBy(p => p.ElapsedSeconds).ToList();
@@ -212,7 +241,7 @@ public class SessionComparisonService : ISessionComparisonService
         return max > 0 ? max : null;
     }
 
-    private static double? ComputeSegmentHeartRate(TcxUpload upload, TcxSessionSegment segment)
+    private double? ComputeSegmentHeartRate(TcxUpload upload, TcxSessionSegment segment)
     {
         var summary = GetSummary(upload);
         var values = summary.HeartRateSamples
@@ -222,7 +251,7 @@ public class SessionComparisonService : ISessionComparisonService
         return values.Count > 0 ? values.Average() : null;
     }
 
-    private static double? ComputeSegmentTrimp(TcxUpload upload, TcxSessionSegment segment)
+    private double? ComputeSegmentTrimp(TcxUpload upload, TcxSessionSegment segment)
     {
         var avgHr = ComputeSegmentHeartRate(upload, segment);
         if (!avgHr.HasValue)
@@ -235,7 +264,7 @@ public class SessionComparisonService : ISessionComparisonService
         return zoneWeight * minutes;
     }
 
-    private static IReadOnlyDictionary<int, double?> ComputePeakDistance(TcxUpload upload, int mode, (int start, int end)? range)
+    private IReadOnlyDictionary<int, double?> ComputePeakDistance(TcxUpload upload, int mode, (int start, int end)? range)
     {
         var summary = GetSummary(upload);
         var output = new Dictionary<int, double?>();
@@ -250,7 +279,7 @@ public class SessionComparisonService : ISessionComparisonService
         return output;
     }
 
-    private static IReadOnlyDictionary<int, double?> ComputePeakMechanical(TcxUpload upload, (int start, int end)? range)
+    private IReadOnlyDictionary<int, double?> ComputePeakMechanical(TcxUpload upload, (int start, int end)? range)
     {
         var summary = GetSummary(upload);
         var events = summary.Accelerations.Concat(summary.Decelerations).Concat(summary.HighIntensityDirectionChanges).ToList();
@@ -279,7 +308,7 @@ public class SessionComparisonService : ISessionComparisonService
         return output;
     }
 
-    private static IReadOnlyDictionary<int, double?> ComputePeakTrimp(TcxUpload upload, (int start, int end)? range)
+    private IReadOnlyDictionary<int, double?> ComputePeakTrimp(TcxUpload upload, (int start, int end)? range)
     {
         var summary = GetSummary(upload);
         var output = new Dictionary<int, double?>();
@@ -298,7 +327,7 @@ public class SessionComparisonService : ISessionComparisonService
         return output;
     }
 
-    private static IReadOnlyDictionary<int, double?> ComputePeakHeartRate(TcxUpload upload, (int start, int end)? range)
+    private IReadOnlyDictionary<int, double?> ComputePeakHeartRate(TcxUpload upload, (int start, int end)? range)
     {
         var summary = GetSummary(upload);
         var samples = summary.HeartRateSamples.OrderBy(s => s.ElapsedSeconds).ToList();
@@ -337,8 +366,22 @@ public class SessionComparisonService : ISessionComparisonService
         return output;
     }
 
-    private static TcxActivitySummary GetSummary(TcxUpload upload)
-        => string.IsNullOrWhiteSpace(upload.SessionSummarySnapshotJson)
-            ? throw new InvalidOperationException("Session summary snapshot is required for comparison precomputation.")
-            : (System.Text.Json.JsonSerializer.Deserialize<TcxActivitySummary>(upload.SessionSummarySnapshotJson) ?? throw new InvalidOperationException("Invalid session summary snapshot."));
+    private TcxActivitySummary GetSummary(TcxUpload upload)
+    {
+        var snapshot = upload.SessionSummarySnapshotJson;
+        if (string.IsNullOrWhiteSpace(snapshot))
+        {
+            throw new InvalidOperationException("Session summary snapshot is required for comparison precomputation.");
+        }
+
+        if (_summaryCache.TryGetValue(upload.Id, out var cached) && string.Equals(cached.Snapshot, snapshot, StringComparison.Ordinal))
+        {
+            return cached.Summary;
+        }
+
+        var resolved = System.Text.Json.JsonSerializer.Deserialize<TcxActivitySummary>(snapshot)
+            ?? throw new InvalidOperationException("Invalid session summary snapshot.");
+        _summaryCache[upload.Id] = (snapshot, resolved);
+        return resolved;
+    }
 }
