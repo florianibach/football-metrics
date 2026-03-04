@@ -82,6 +82,20 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
 
             CREATE INDEX IF NOT EXISTS IX_ProfileRecalculationJobs_RequestedAtUtc ON ProfileRecalculationJobs (RequestedAtUtc DESC);
 
+            CREATE TABLE IF NOT EXISTS ComparisonSnapshotRefreshJobs (
+                Id TEXT PRIMARY KEY,
+                Status TEXT NOT NULL,
+                TriggerSource TEXT NOT NULL,
+                RequestedAtUtc TEXT NOT NULL,
+                CompletedAtUtc TEXT NULL,
+                TotalSessions INTEGER NOT NULL DEFAULT 0,
+                UpdatedSessions INTEGER NOT NULL DEFAULT 0,
+                FailedSessions INTEGER NOT NULL DEFAULT 0,
+                ErrorMessage TEXT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS IX_ComparisonSnapshotRefreshJobs_RequestedAtUtc ON ComparisonSnapshotRefreshJobs (RequestedAtUtc DESC);
+
             CREATE TABLE IF NOT EXISTS SchemaVersions (
                 Version INTEGER PRIMARY KEY,
                 Description TEXT NOT NULL,
@@ -137,6 +151,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await ApplyMigrationSlot004Async(connection, cancellationToken);
         await ApplyMigrationSlot005Async(connection, cancellationToken);
         await ApplyMigrationSlot006Async(connection, cancellationToken);
+        await ApplyMigrationSlot007Async(connection, cancellationToken);
     }
 
 
@@ -305,6 +320,44 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         insertCommand.CommandText = @"
             INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
             VALUES (6, 'r1_6_03_session_segments_versioning', $appliedAtUtc);
+        ";
+        insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
+        await insertCommand.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+
+    private static async Task ApplyMigrationSlot007Async(SqliteConnection connection, CancellationToken cancellationToken)
+    {
+        var existsCommand = connection.CreateCommand();
+        existsCommand.CommandText = "SELECT COUNT(1) FROM SchemaVersions WHERE Version = 7;";
+        var alreadyApplied = Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+        if (alreadyApplied)
+        {
+            return;
+        }
+
+        var tableCommand = connection.CreateCommand();
+        tableCommand.CommandText = @"
+            CREATE TABLE IF NOT EXISTS ComparisonSnapshotRefreshJobs (
+                Id TEXT PRIMARY KEY,
+                Status TEXT NOT NULL,
+                TriggerSource TEXT NOT NULL,
+                RequestedAtUtc TEXT NOT NULL,
+                CompletedAtUtc TEXT NULL,
+                TotalSessions INTEGER NOT NULL DEFAULT 0,
+                UpdatedSessions INTEGER NOT NULL DEFAULT 0,
+                FailedSessions INTEGER NOT NULL DEFAULT 0,
+                ErrorMessage TEXT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS IX_ComparisonSnapshotRefreshJobs_RequestedAtUtc ON ComparisonSnapshotRefreshJobs (RequestedAtUtc DESC);
+        ";
+        await tableCommand.ExecuteNonQueryAsync(cancellationToken);
+
+        var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = @"
+            INSERT INTO SchemaVersions (Version, Description, AppliedAtUtc)
+            VALUES (7, 'r1_7_14_comparison_snapshot_refresh_jobs', $appliedAtUtc);
         ";
         insertCommand.Parameters.AddWithValue("$appliedAtUtc", DateTime.UtcNow.ToString("O"));
         await insertCommand.ExecuteNonQueryAsync(cancellationToken);
