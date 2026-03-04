@@ -282,24 +282,46 @@ public class SessionComparisonService : ISessionComparisonService
     private IReadOnlyDictionary<int, double?> ComputePeakMechanical(TcxUpload upload, (int start, int end)? range)
     {
         var summary = GetSummary(upload);
-        var events = summary.Accelerations.Concat(summary.Decelerations).Concat(summary.HighIntensityDirectionChanges).ToList();
         var duration = (int)Math.Max(summary.DurationSeconds ?? 0, 1);
+        var rangeStart = Math.Clamp(range?.start ?? 0, 0, duration);
+        var rangeEnd = Math.Clamp(range?.end ?? duration, 0, duration);
         var output = new Dictionary<int, double?>();
+
+        if (rangeEnd < rangeStart)
+        {
+            foreach (var window in Windows)
+            {
+                output[window] = null;
+            }
+
+            return output;
+        }
+
+        var perSecondCounts = new int[duration + 1];
+        foreach (var ev in summary.Accelerations.Concat(summary.Decelerations).Concat(summary.HighIntensityDirectionChanges))
+        {
+            var second = Math.Clamp((int)Math.Round(ev.StartElapsedSeconds), 0, duration);
+            perSecondCounts[second]++;
+        }
+
+        var prefix = new int[duration + 2];
+        for (var second = 0; second <= duration; second++)
+        {
+            prefix[second + 1] = prefix[second] + perSecondCounts[second];
+        }
 
         foreach (var window in Windows)
         {
             var span = window * 60;
             var max = 0;
-            for (var end = 0; end <= duration; end++)
+            for (var end = rangeStart; end <= rangeEnd; end++)
             {
-                if (range.HasValue && (end < range.Value.start || end > range.Value.end))
+                var start = Math.Max(0, end - span);
+                var count = prefix[end + 1] - prefix[start];
+                if (count > max)
                 {
-                    continue;
+                    max = count;
                 }
-
-                var start = end - span;
-                var count = events.Count(e => e.StartElapsedSeconds >= start && e.StartElapsedSeconds <= end);
-                max = Math.Max(max, count);
             }
 
             output[window] = max > 0 ? max : null;
@@ -330,33 +352,53 @@ public class SessionComparisonService : ISessionComparisonService
     private IReadOnlyDictionary<int, double?> ComputePeakHeartRate(TcxUpload upload, (int start, int end)? range)
     {
         var summary = GetSummary(upload);
-        var samples = summary.HeartRateSamples.OrderBy(s => s.ElapsedSeconds).ToList();
         var duration = (int)Math.Max(summary.DurationSeconds ?? 0, 1);
+        var rangeStart = Math.Clamp(range?.start ?? 0, 0, duration);
+        var rangeEnd = Math.Clamp(range?.end ?? duration, 0, duration);
         var output = new Dictionary<int, double?>();
+
+        if (rangeEnd < rangeStart)
+        {
+            foreach (var window in Windows)
+            {
+                output[window] = null;
+            }
+
+            return output;
+        }
+
+        var perSecondSum = new double[duration + 1];
+        var perSecondCount = new int[duration + 1];
+        foreach (var sample in summary.HeartRateSamples)
+        {
+            var second = Math.Clamp((int)Math.Round(sample.ElapsedSeconds), 0, duration);
+            perSecondSum[second] += sample.HeartRateBpm;
+            perSecondCount[second]++;
+        }
+
+        var prefixSum = new double[duration + 2];
+        var prefixCount = new int[duration + 2];
+        for (var second = 0; second <= duration; second++)
+        {
+            prefixSum[second + 1] = prefixSum[second] + perSecondSum[second];
+            prefixCount[second + 1] = prefixCount[second] + perSecondCount[second];
+        }
 
         foreach (var window in Windows)
         {
             var span = window * 60;
             double? best = null;
-            for (var end = 0; end <= duration; end++)
+            for (var end = rangeStart; end <= rangeEnd; end++)
             {
-                if (range.HasValue && (end < range.Value.start || end > range.Value.end))
+                var start = Math.Max(0, end - span);
+                var totalCount = prefixCount[end + 1] - prefixCount[start];
+                if (totalCount == 0)
                 {
                     continue;
                 }
 
-                var start = end - span;
-                var inWindow = samples
-                    .Where(sample => sample.ElapsedSeconds >= start && sample.ElapsedSeconds <= end)
-                    .Select(sample => (double)sample.HeartRateBpm)
-                    .ToList();
-
-                if (inWindow.Count == 0)
-                {
-                    continue;
-                }
-
-                var average = inWindow.Average();
+                var totalSum = prefixSum[end + 1] - prefixSum[start];
+                var average = totalSum / totalCount;
                 best = !best.HasValue || average > best.Value ? average : best;
             }
 
