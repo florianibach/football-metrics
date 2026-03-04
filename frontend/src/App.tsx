@@ -1297,6 +1297,7 @@ export function App() {
   const [profileRecalculationToast, setProfileRecalculationToast] = useState<string | null>(null);
   const [latestComparisonRefreshJob, setLatestComparisonRefreshJob] = useState<ComparisonRefreshJob | null>(null);
   const [comparisonRefreshToast, setComparisonRefreshToast] = useState<string | null>(null);
+  const [comparisonRefreshPending, setComparisonRefreshPending] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>(initialRoute.analysisTab ?? 'overview');
@@ -1856,6 +1857,21 @@ export function App() {
   }
 
 
+  async function onComparisonRefreshTriggered(baseMessage: string) {
+    setComparisonRefreshPending(true);
+    setMessage(`${baseMessage} ${t.comparisonRefreshStarted}`);
+
+    const latest = await loadLatestComparisonRefreshJob();
+    if (latest && latest.status !== 'Running') {
+      const statusText = latest.status === 'Completed'
+        ? t.comparisonRefreshStatusCompleted
+        : t.comparisonRefreshStatusFailed;
+      setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
+      setComparisonRefreshPending(false);
+    }
+  }
+
+
   async function onSaveSegment() {
     if (!selectedSession) {
       return;
@@ -1914,8 +1930,7 @@ export function App() {
     resetSegmentForms();
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
-    await loadLatestComparisonRefreshJob();
-    setMessage(editingSegmentId ? t.segmentUpdateSuccess : t.segmentCreateSuccess);
+    await onComparisonRefreshTriggered(editingSegmentId ? t.segmentUpdateSuccess : t.segmentCreateSuccess);
   }
 
   function onEditSegment(segment: SessionSegment) {
@@ -1952,8 +1967,7 @@ export function App() {
     applyUpdatedSession(payload);
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
-    await loadLatestComparisonRefreshJob();
-    setMessage(t.segmentDeleteSuccess);
+    await onComparisonRefreshTriggered(t.segmentDeleteSuccess);
   }
 
   async function onMergeSegments() {
@@ -1992,8 +2006,7 @@ export function App() {
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setMergeForm({ sourceSegmentId: '', targetSegmentId: '', label: '', notes: '' });
-    await loadLatestComparisonRefreshJob();
-    setMessage(t.segmentMergeSuccess);
+    await onComparisonRefreshTriggered(t.segmentMergeSuccess);
   }
 
 
@@ -2064,8 +2077,7 @@ export function App() {
     applyUpdatedSession(payload);
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
-    await loadLatestComparisonRefreshJob();
-    setMessage(t.segmentSplitSuccess);
+    await onComparisonRefreshTriggered(t.segmentSplitSuccess);
   }
 
   async function onSplitSegment() {
@@ -2111,8 +2123,7 @@ export function App() {
     setSegmentActionError(null);
     setSegmentEditorsOpen({ edit: false, merge: false, split: false });
     setSplitForm({ segmentId: '', splitSecond: '', leftLabel: '', rightLabel: '', notes: '' });
-    await loadLatestComparisonRefreshJob();
-    setMessage(translations[locale].defaultMessage);
+    await onComparisonRefreshTriggered(t.segmentSplitSuccess);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -2322,6 +2333,9 @@ export function App() {
         ? t.comparisonRefreshStatusCompleted
         : t.comparisonRefreshStatusFailed)
     : null;
+  const effectiveComparisonRefreshStatusText = comparisonRefreshPending
+    ? t.comparisonRefreshStatusRunning
+    : comparisonRefreshStatusText;
 
   const distanceSourceText = (source: ActivitySummary['distanceSource']) => {
     switch (source) {
@@ -2388,7 +2402,7 @@ export function App() {
   }, [loadLatestComparisonRefreshJob, selectedSession?.id]);
 
   useEffect(() => {
-    if (!latestComparisonRefreshJob || latestComparisonRefreshJob.status !== 'Running') {
+    if (!comparisonRefreshPending && (!latestComparisonRefreshJob || latestComparisonRefreshJob.status !== 'Running')) {
       return;
     }
 
@@ -2397,14 +2411,20 @@ export function App() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [latestComparisonRefreshJob, loadLatestComparisonRefreshJob]);
+  }, [comparisonRefreshPending, latestComparisonRefreshJob, loadLatestComparisonRefreshJob]);
 
   const previousComparisonRefreshStatusRef = useRef<ComparisonRefreshJob['status'] | null>(null);
   useEffect(() => {
     const previousStatus = previousComparisonRefreshStatusRef.current;
     const currentStatus = latestComparisonRefreshJob?.status ?? null;
 
-    if (previousStatus === 'Running' && currentStatus && currentStatus !== 'Running') {
+    if (comparisonRefreshPending && currentStatus && currentStatus !== 'Running') {
+      const statusText = currentStatus === 'Completed'
+        ? t.comparisonRefreshStatusCompleted
+        : t.comparisonRefreshStatusFailed;
+      setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
+      setComparisonRefreshPending(false);
+    } else if (previousStatus === 'Running' && currentStatus && currentStatus !== 'Running') {
       const statusText = currentStatus === 'Completed'
         ? t.comparisonRefreshStatusCompleted
         : t.comparisonRefreshStatusFailed;
@@ -2412,7 +2432,7 @@ export function App() {
     }
 
     previousComparisonRefreshStatusRef.current = currentStatus;
-  }, [latestComparisonRefreshJob?.status, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
+  }, [comparisonRefreshPending, latestComparisonRefreshJob?.status, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
 
   useEffect(() => {
     if (!comparisonRefreshToast) {
@@ -4316,12 +4336,6 @@ export function App() {
             <button type="button" className="toast-notification__close" aria-label="Dismiss notification" onClick={() => setProfileRecalculationToast(null)}>×</button>
           </div>
         ) : null}
-        {comparisonRefreshToast ? (
-          <div className="toast-notification" role="status" aria-live="polite">
-            <span>{comparisonRefreshToast}</span>
-            <button type="button" className="toast-notification__close" aria-label="Dismiss notification" onClick={() => setComparisonRefreshToast(null)}>×</button>
-          </div>
-        ) : null}
       </section>
       <form onSubmit={handleSubmit} id="upload-flow" className={`upload-form ${activeMainPage === "upload" ? "" : "is-hidden"}`}>
         <label
@@ -4679,11 +4693,12 @@ export function App() {
 
           <div className={`segment-management ${activeSessionSubpage === "segmentEdit" ? "" : "is-hidden"}`} id="session-segment-edit">
             <h3>{t.segmentEditTitle}</h3>
-            {latestComparisonRefreshJob && comparisonRefreshStatusText ? (
+            {(comparisonRefreshPending || (latestComparisonRefreshJob && comparisonRefreshStatusText)) ? (
               <p className="comparison-refresh-status" role="status" aria-live="polite">
-                {t.comparisonRefreshStatusTitle}: {comparisonRefreshStatusText} · {formatLocalDateTime(latestComparisonRefreshJob.requestedAtUtc)} · {latestComparisonRefreshJob.updatedSessions}/{latestComparisonRefreshJob.totalSessions}
-                {latestComparisonRefreshJob.failedSessions > 0 ? ` (${latestComparisonRefreshJob.failedSessions} failed)` : ''}
-                {latestComparisonRefreshJob.errorMessage ? ` - ${latestComparisonRefreshJob.errorMessage}` : ''}
+                {t.comparisonRefreshStatusTitle}: {effectiveComparisonRefreshStatusText}
+                {latestComparisonRefreshJob ? ` · ${formatLocalDateTime(latestComparisonRefreshJob.requestedAtUtc)} · ${latestComparisonRefreshJob.updatedSessions}/${latestComparisonRefreshJob.totalSessions}` : ''}
+                {latestComparisonRefreshJob && latestComparisonRefreshJob.failedSessions > 0 ? ` (${latestComparisonRefreshJob.failedSessions} failed)` : ''}
+                {latestComparisonRefreshJob?.errorMessage ? ` - ${latestComparisonRefreshJob.errorMessage}` : ''}
               </p>
             ) : null}
             <section className="segment-timeline-helper" aria-label={t.segmentTimelineTitle}>
@@ -5489,6 +5504,12 @@ export function App() {
           )}
         </section>
       )}
+      {comparisonRefreshToast ? (
+        <div className="toast-notification" role="status" aria-live="polite">
+          <span>{comparisonRefreshToast}</span>
+          <button type="button" className="toast-notification__close" aria-label="Dismiss notification" onClick={() => setComparisonRefreshToast(null)}>×</button>
+        </div>
+      ) : null}
     </main>
     </div>
   );
