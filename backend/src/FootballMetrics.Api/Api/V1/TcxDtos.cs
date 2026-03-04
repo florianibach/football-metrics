@@ -22,3 +22,14 @@ public record SessionComparisonContextDto(
     IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<int, ComparisonMetricDto>>> SegmentPeakByCategory);
 
 public record ComparisonMetricDto(double? AverageLastN, double? Best, bool IsAvailable, string? AvailabilityReason);
+
+public record ComparisonRefreshJobDto(
+    Guid Id,
+    string Status,
+    string Trigger,
+    DateTime RequestedAtUtc,
+    DateTime? CompletedAtUtc,
+    int TotalSessions,
+    int UpdatedSessions,
+    int FailedSessions,
+    string? ErrorMessage);
