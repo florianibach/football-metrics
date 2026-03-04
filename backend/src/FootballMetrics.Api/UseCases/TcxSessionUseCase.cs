@@ -693,14 +693,27 @@ public class TcxSessionUseCase : ITcxSessionUseCase
     private static string NormalizeSegmentLabel(string value)
         => value.Trim();
 
-    private static readonly HashSet<string> AllowedSegmentCategories = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, string> SegmentCategoryAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        "Other",
-        "Aufwärmen",
-        "Spielform",
-        "Torschuss",
-        "Athletik",
-        "Cooldown"
+        ["Other"] = "Other",
+        ["Aufwärmen"] = "Aufwärmen",
+        ["Warm-up"] = "Aufwärmen",
+        ["Warmup"] = "Aufwärmen",
+        ["Spielform"] = "Spielform",
+        ["Game form"] = "Spielform",
+        ["GameForm"] = "Spielform",
+        ["Torschuss"] = "Torschuss",
+        ["Finishing"] = "Torschuss",
+        ["Athletik"] = "Athletik",
+        ["Athletics"] = "Athletik",
+        ["Cooldown"] = "Cooldown",
+        ["1. Halbzeit"] = "1. Halbzeit",
+        ["First half"] = "1. Halbzeit",
+        ["2. Halbzeit"] = "2. Halbzeit",
+        ["Second half"] = "2. Halbzeit",
+        ["Halbzeit Pause"] = "Halbzeit Pause",
+        ["Half-time break"] = "Halbzeit Pause",
+        ["Halftime break"] = "Halbzeit Pause"
     };
 
     private static string? NormalizeOptionalNotes(string? value)
@@ -714,7 +727,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         }
 
         var normalized = value.Trim();
-        return AllowedSegmentCategories.FirstOrDefault(category => string.Equals(category, normalized, StringComparison.OrdinalIgnoreCase)) ?? "Other";
+        return SegmentCategoryAliases.TryGetValue(normalized, out var canonical) ? canonical : "Other";
     }
 
     private static Guid CreateDefaultSegmentId(Guid uploadId)

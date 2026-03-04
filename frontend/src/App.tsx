@@ -1282,6 +1282,7 @@ export function App() {
   });
   const [profileValidationMessage, setProfileValidationMessage] = useState<string | null>(null);
   const [latestProfileRecalculationJob, setLatestProfileRecalculationJob] = useState<ProfileRecalculationJob | null>(null);
+  const [profileRecalculationToast, setProfileRecalculationToast] = useState<string | null>(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [activeSessionSubpage, setActiveSessionSubpage] = useState<SessionSubpage>(initialRoute.sessionSubpage);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<SessionAnalysisTab>(initialRoute.analysisTab ?? 'overview');
@@ -2307,6 +2308,30 @@ export function App() {
 
     return () => clearInterval(interval);
   }, [apiBaseUrl, latestProfileRecalculationJob]);
+
+  const previousRecalculationStatusRef = useRef<ProfileRecalculationJob['status'] | null>(null);
+  useEffect(() => {
+    const previousStatus = previousRecalculationStatusRef.current;
+    const currentStatus = latestProfileRecalculationJob?.status ?? null;
+
+    if (previousStatus === 'Running' && currentStatus && currentStatus !== 'Running') {
+      const statusText = currentStatus === 'Completed'
+        ? t.profileRecalculationStatusCompleted
+        : t.profileRecalculationStatusFailed;
+      setProfileRecalculationToast(`${t.profileRecalculationStatusTitle}: ${statusText}`);
+    }
+
+    previousRecalculationStatusRef.current = currentStatus;
+  }, [latestProfileRecalculationJob?.status, t.profileRecalculationStatusCompleted, t.profileRecalculationStatusFailed, t.profileRecalculationStatusTitle]);
+
+  useEffect(() => {
+    if (!profileRecalculationToast) {
+      return;
+    }
+
+    const timeout = setTimeout(() => setProfileRecalculationToast(null), 7000);
+    return () => clearTimeout(timeout);
+  }, [profileRecalculationToast]);
 
   const showMissingHeartRateHint = selectedSession ? !hasCompleteHeartRate(selectedSession.summary) : false;
   const showMissingDistanceHint = selectedSession ? selectedSession.summary.distanceMeters === null : false;
@@ -4194,6 +4219,12 @@ export function App() {
             {latestProfileRecalculationJob.failedSessions > 0 ? ` (${latestProfileRecalculationJob.failedSessions} failed)` : ''}
             {latestProfileRecalculationJob.errorMessage ? ` - ${latestProfileRecalculationJob.errorMessage}` : ''}
           </p>
+        ) : null}
+        {profileRecalculationToast ? (
+          <div className="toast-notification" role="status" aria-live="polite">
+            <span>{profileRecalculationToast}</span>
+            <button type="button" className="toast-notification__close" aria-label="Dismiss notification" onClick={() => setProfileRecalculationToast(null)}>×</button>
+          </div>
         ) : null}
       </section>
       <form onSubmit={handleSubmit} id="upload-flow" className={`upload-form ${activeMainPage === "upload" ? "" : "is-hidden"}`}>

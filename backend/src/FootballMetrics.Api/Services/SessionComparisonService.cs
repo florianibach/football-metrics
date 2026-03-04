@@ -54,7 +54,6 @@ public class SessionComparisonService : ISessionComparisonService
 
         var segmentEntries = sessionTypePool
             .SelectMany(upload => segmentResolver(upload)
-                .Where(segment => !string.Equals(segment.Category, "Other", StringComparison.OrdinalIgnoreCase))
                 .Select(segment => (upload, segment)))
             .ToList();
 
