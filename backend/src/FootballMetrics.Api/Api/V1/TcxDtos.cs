@@ -18,9 +18,7 @@ public record SessionComparisonContextDto(
     string SessionType,
     IReadOnlyDictionary<string, ComparisonMetricDto> Overview,
     IReadOnlyDictionary<string, IReadOnlyDictionary<int, ComparisonMetricDto>> Peak,
-    IReadOnlyDictionary<string, ComparisonMetricDto> ActiveSegmentOverview,
-    IReadOnlyDictionary<string, IReadOnlyDictionary<int, ComparisonMetricDto>> ActiveSegmentPeak,
-    string? ActiveSegmentCategory,
-    string? ActiveSegmentAvailabilityReason);
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, ComparisonMetricDto>> SegmentOverviewByCategory,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<int, ComparisonMetricDto>>> SegmentPeakByCategory);
 
 public record ComparisonMetricDto(double? AverageLastN, double? Best, bool IsAvailable, string? AvailabilityReason);

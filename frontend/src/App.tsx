@@ -262,10 +262,8 @@ type SessionComparisonContext = {
   sessionType: SessionType;
   overview: Record<string, ComparisonMetric>;
   peak: Record<string, Record<1 | 2 | 5, ComparisonMetric>>;
-  activeSegmentOverview: Record<string, ComparisonMetric>;
-  activeSegmentPeak: Record<string, Record<1 | 2 | 5, ComparisonMetric>>;
-  activeSegmentCategory: string | null;
-  activeSegmentAvailabilityReason: string | null;
+  segmentOverviewByCategory: Record<string, Record<string, ComparisonMetric>>;
+  segmentPeakByCategory: Record<string, Record<string, Record<1 | 2 | 5, ComparisonMetric>>>;
 };
 
 type UploadRecord = {
@@ -2677,58 +2675,32 @@ export function App() {
     ? sortedHistory.filter((record) => record.sessionContext.sessionType === activeSessionType && record.id !== selectedSession.id)
     : [];
 
-  const fallbackPeakComparison = (metricKey: PeakComparisonMetricKey) => {
-    if (!selectedSession) {
-      return { averageLastFive: null, bestSeason: null };
-    }
-
-    const comparableValues = sortedHistory
-      .filter((record) => record.sessionContext.sessionType === selectedSession.sessionContext.sessionType)
-      .map((record) => peakValuesByRecordId.get(record.id)?.[metricKey] ?? null)
-      .filter((value): value is number => value !== null);
-
-    const lastFive = comparableValues.slice(0, 5);
-    const averageLastFive = lastFive.length > 0
-      ? lastFive.reduce((sum, value) => sum + value, 0) / lastFive.length
-      : null;
-
-    const bestSeason = comparableValues.length > 0
-      ? Math.max(...comparableValues)
-      : null;
-
-    return { averageLastFive, bestSeason };
-  };
-
-  const fallbackOverviewComparisons = {
-    distanceMeters: calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.distanceMeters ?? null),
-    durationSeconds: calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.durationSeconds ?? null),
-    runningDensityMetersPerMinute: calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.runningDensityMetersPerMinute ?? null),
-    maxSpeedMetersPerSecond: calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.maxSpeedMetersPerSecond ?? null),
-    highSpeedDistanceMeters: calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.highSpeedDistanceMeters ?? null),
-    heartRateAverageBpm: calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.heartRateAverageBpm ?? null),
-    trainingImpulseEdwards: calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.trainingImpulseEdwards ?? null),
-    heartRateRecoveryAfter60Seconds: calculateKpiComparison(selectedSession, sortedHistory, (record) => record.summary.coreMetrics.heartRateRecoveryAfter60Seconds ?? null)
-  } as const;
-
   const readComparisonMetric = useCallback((scope: 'overview' | 'peak', metric: string) => {
     const context = selectedSession?.comparisonContext;
     if (!context) {
-      if (scope === 'overview') {
-        return fallbackOverviewComparisons[metric as keyof typeof fallbackOverviewComparisons] ?? { averageLastFive: null, bestSeason: null };
-      }
-      return fallbackPeakComparison(metric as PeakComparisonMetricKey);
+      return { averageLastFive: null, bestSeason: null };
     }
 
     if (scope === 'overview') {
-      const source = isSegmentScopeActive ? context.activeSegmentOverview : context.overview;
-      const item = source?.[metric];
+      if (isSegmentScopeActive && selectedSegment && selectedSegment.category) {
+        const categoryMetrics = context.segmentOverviewByCategory?.[selectedSegment.category];
+        const item = categoryMetrics?.[metric];
+        return { averageLastFive: item?.averageLastN ?? null, bestSeason: item?.best ?? null };
+      }
+
+      const item = context.overview?.[metric];
       return { averageLastFive: item?.averageLastN ?? null, bestSeason: item?.best ?? null };
     }
 
-    const source = isSegmentScopeActive ? context.activeSegmentPeak : context.peak;
-    const item = source?.[metric]?.[peakDemandWindowMinutes];
+    if (isSegmentScopeActive && selectedSegment && selectedSegment.category) {
+      const categoryMetrics = context.segmentPeakByCategory?.[selectedSegment.category];
+      const item = categoryMetrics?.[metric]?.[peakDemandWindowMinutes];
+      return { averageLastFive: item?.averageLastN ?? null, bestSeason: item?.best ?? null };
+    }
+
+    const item = context.peak?.[metric]?.[peakDemandWindowMinutes];
     return { averageLastFive: item?.averageLastN ?? null, bestSeason: item?.best ?? null };
-  }, [fallbackOverviewComparisons, fallbackPeakComparison, isSegmentScopeActive, peakDemandWindowMinutes, selectedSession?.comparisonContext]);
+  }, [isSegmentScopeActive, peakDemandWindowMinutes, selectedSegment, selectedSession?.comparisonContext]);
 
   const distanceComparison = readComparisonMetric('overview', 'distanceMeters');
   const durationComparison = readComparisonMetric('overview', 'durationSeconds');
@@ -2739,21 +2711,11 @@ export function App() {
   const trimpComparison = readComparisonMetric('overview', 'trainingImpulseEdwards');
   const hrRecoveryComparison = readComparisonMetric('overview', 'heartRateRecoveryAfter60Seconds');
 
-  const peakValuesByRecordId = useMemo(() => {
-    const map = new Map<string, PeakMetricValues>();
-    sortedHistory.forEach((record) => {
-      map.set(record.id, toPeakComparisonValues(record, peakDemandWindowMinutes));
-    });
-    return map;
-  }, [peakDemandWindowMinutes, sortedHistory]);
-
-  const calculatePeakComparison = useCallback((metricKey: PeakComparisonMetricKey) => fallbackPeakComparison(metricKey), [fallbackPeakComparison]);
-
-  const distancePeakComparison = useMemo(() => calculatePeakComparison('distance'), [calculatePeakComparison]);
-  const highSpeedDistancePeakComparison = useMemo(() => calculatePeakComparison('highSpeedDistance'), [calculatePeakComparison]);
-  const heartRatePeakComparison = useMemo(() => calculatePeakComparison('heartRateAvg'), [calculatePeakComparison]);
-  const trimpPeakComparison = useMemo(() => calculatePeakComparison('trimp'), [calculatePeakComparison]);
-  const mechanicalPeakComparison = useMemo(() => calculatePeakComparison('mechanicalLoad'), [calculatePeakComparison]);
+  const distancePeakComparison = readComparisonMetric('peak', 'distance');
+  const highSpeedDistancePeakComparison = readComparisonMetric('peak', 'highSpeedDistance');
+  const heartRatePeakComparison = readComparisonMetric('peak', 'heartRateAvg');
+  const trimpPeakComparison = readComparisonMetric('peak', 'trimp');
+  const mechanicalPeakComparison = readComparisonMetric('peak', 'mechanicalLoad');
 
   const compareOpponentSession = compareOpponentSessionId && selectedSession
     ? compareOpponentSessionId === selectedSession.id

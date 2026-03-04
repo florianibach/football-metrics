@@ -1,3 +1,4 @@
+using FootballMetrics.Api.Api.V1;
 using FootballMetrics.Api.Models;
 
 namespace FootballMetrics.Api.UseCases;
@@ -23,4 +24,6 @@ public interface ITcxSessionUseCase
     IReadOnlyList<SessionRecalculationEntry> ResolveRecalculationHistory(TcxUpload upload);
     IReadOnlyList<TcxSessionSegment> ResolveSegments(TcxUpload upload);
     IReadOnlyList<TcxSegmentChangeEntry> ResolveSegmentChangeHistory(TcxUpload upload);
+    SessionComparisonContextDto? ResolveComparisonContext(TcxUpload upload);
+    Task RefreshComparisonSnapshotsAsync(CancellationToken cancellationToken);
 }

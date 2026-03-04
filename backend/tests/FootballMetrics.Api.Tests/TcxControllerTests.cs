@@ -977,8 +977,8 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
     private static TcxController CreateController(ITcxUploadRepository repository)
     {
         var resolver = CreateAdapterResolver();
-        var useCase = new TcxSessionUseCase(repository, resolver, new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), NullLogger<TcxSessionUseCase>.Instance);
-        return new TcxController(useCase, resolver, new StubProfileUseCase(), new SessionComparisonService(), NullLogger<TcxController>.Instance);
+        var useCase = new TcxSessionUseCase(repository, resolver, new InMemoryUserProfileRepository(), new PassThroughMetricThresholdResolver(), new SessionComparisonService(), NullLogger<TcxSessionUseCase>.Instance);
+        return new TcxController(useCase, resolver, NullLogger<TcxController>.Instance);
     }
 
     private static IUploadFormatAdapterResolver CreateAdapterResolver() =>
@@ -1037,6 +1037,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             => Task.FromResult(false);
 
         public Task<bool> UpdateSegmentsAsync(Guid id, string segmentsSnapshotJson, string segmentChangeHistoryJson, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<bool> UpdateComparisonContextSnapshotAsync(Guid id, string? comparisonContextSnapshotJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
         public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
@@ -1125,6 +1128,9 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
             => Task.FromResult(false);
 
         public Task<bool> UpdateSegmentsAsync(Guid id, string segmentsSnapshotJson, string segmentChangeHistoryJson, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<bool> UpdateComparisonContextSnapshotAsync(Guid id, string? comparisonContextSnapshotJson, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
         public Task<bool> UpdateSelectedSmoothingFilterAsync(Guid id, string selectedSmoothingFilter, CancellationToken cancellationToken = default)
@@ -1228,10 +1234,3 @@ internal sealed class PassThroughMetricThresholdResolver : IMetricThresholdResol
 }
 
 
-internal sealed class StubProfileUseCase : IProfileUseCase
-{
-    public Task<UserProfile> GetProfileAsync(CancellationToken cancellationToken) => Task.FromResult(new UserProfile());
-    public Task<ProfileRecalculationJob?> GetLatestRecalculationJobAsync(CancellationToken cancellationToken) => Task.FromResult<ProfileRecalculationJob?>(null);
-    public Task<ProfileRecalculationJob> TriggerFullRecalculationAsync(string trigger, CancellationToken cancellationToken) => throw new NotImplementedException();
-    public Task<UserProfile> UpdateProfileAsync(UpdateUserProfileRequest request, CancellationToken cancellationToken) => throw new NotImplementedException();
-}

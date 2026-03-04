@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Xml.Linq;
+using FootballMetrics.Api.Api.V1;
 using FootballMetrics.Api.Models;
 using FootballMetrics.Api.Repositories;
 using FootballMetrics.Api.Services;
@@ -16,18 +17,21 @@ public class TcxSessionUseCase : ITcxSessionUseCase
     private readonly IUploadFormatAdapterResolver _uploadFormatAdapterResolver;
     private readonly IUserProfileRepository _userProfileRepository;
     private readonly IMetricThresholdResolver _metricThresholdResolver;
+    private readonly ISessionComparisonService _sessionComparisonService;
 
     public TcxSessionUseCase(
         ITcxUploadRepository repository,
         IUploadFormatAdapterResolver uploadFormatAdapterResolver,
         IUserProfileRepository userProfileRepository,
         IMetricThresholdResolver metricThresholdResolver,
+        ISessionComparisonService sessionComparisonService,
         ILogger<TcxSessionUseCase> logger)
     {
         _repository = repository;
         _uploadFormatAdapterResolver = uploadFormatAdapterResolver;
         _userProfileRepository = userProfileRepository;
         _metricThresholdResolver = metricThresholdResolver;
+        _sessionComparisonService = sessionComparisonService;
         _logger = logger;
     }
 
@@ -105,7 +109,9 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         try
         {
             await _repository.AddWithAdaptiveStatsAsync(upload, summarySnapshot.CoreMetrics.MaxSpeedMetersPerSecond, summarySnapshot.HeartRateMaxBpm, DateTime.UtcNow, cancellationToken);
-            return new UploadTcxOutcome(upload, true);
+            await RefreshComparisonSnapshotsAsync(cancellationToken);
+            var refreshed = await _repository.GetByIdAsync(upload.Id, cancellationToken) ?? upload;
+            return new UploadTcxOutcome(refreshed, true);
         }
         catch (Exception ex)
         {
@@ -156,7 +162,8 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             await RefreshAdaptiveStatsAsync(refreshedUpload, cancellationToken);
         }
 
-        return refreshedUpload;
+        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<TcxUpload?> UpdateSessionSmoothingFilterAsync(Guid id, string smoothingFilter, CancellationToken cancellationToken)
@@ -188,6 +195,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
+        await RefreshComparisonSnapshotsAsync(cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
@@ -212,13 +220,20 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
+        await RefreshComparisonSnapshotsAsync(cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
 
     public async Task<bool> DeleteSessionAsync(Guid id, CancellationToken cancellationToken)
     {
-        return await _repository.DeleteAsync(id, cancellationToken);
+        var deleted = await _repository.DeleteAsync(id, cancellationToken);
+        if (deleted)
+        {
+            await RefreshComparisonSnapshotsAsync(cancellationToken);
+        }
+
+        return deleted;
     }
 
     public async Task<TcxUpload?> RecalculateWithCurrentProfileAsync(Guid id, CancellationToken cancellationToken)
@@ -265,7 +280,8 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             await RefreshAdaptiveStatsAsync(refreshedUpload, cancellationToken);
         }
 
-        return refreshedUpload;
+        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<TcxUpload?> AddSegmentAsync(Guid id, string label, int startSecond, int endSecond, string? notes, string? category, CancellationToken cancellationToken)
@@ -291,7 +307,13 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         var nextHistory = AppendSegmentHistory(upload, "Created", notes, segments);
 
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
-        return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
+        if (!updated)
+        {
+            return null;
+        }
+
+        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<TcxUpload?> UpdateSegmentAsync(Guid id, Guid segmentId, string? label, int? startSecond, int? endSecond, string? notes, string? category, CancellationToken cancellationToken)
@@ -321,7 +343,13 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         var nextHistory = AppendSegmentHistory(upload, "Updated", notes, segments);
 
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
-        return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
+        if (!updated)
+        {
+            return null;
+        }
+
+        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<TcxUpload?> DeleteSegmentAsync(Guid id, Guid segmentId, string? notes, CancellationToken cancellationToken)
@@ -341,7 +369,13 @@ public class TcxSessionUseCase : ITcxSessionUseCase
 
         var nextHistory = AppendSegmentHistory(upload, "Deleted", notes, segments);
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
-        return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
+        if (!updated)
+        {
+            return null;
+        }
+
+        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<TcxUpload?> MergeSegmentsAsync(Guid id, Guid sourceSegmentId, Guid targetSegmentId, string? label, string? notes, CancellationToken cancellationToken)
@@ -379,7 +413,13 @@ public class TcxSessionUseCase : ITcxSessionUseCase
 
         var nextHistory = AppendSegmentHistory(upload, "Merged", notes, segments);
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
-        return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
+        if (!updated)
+        {
+            return null;
+        }
+
+        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
     public async Task<TcxUpload?> SplitSegmentAsync(Guid id, Guid segmentId, int splitSecond, string? leftLabel, string? rightLabel, string? notes, CancellationToken cancellationToken)
@@ -408,7 +448,13 @@ public class TcxSessionUseCase : ITcxSessionUseCase
 
         var nextHistory = AppendSegmentHistory(upload, "Split", notes, segments);
         var updated = await _repository.UpdateSegmentsAsync(id, JsonSerializer.Serialize(segments), JsonSerializer.Serialize(nextHistory), cancellationToken);
-        return updated ? await _repository.GetByIdAsync(id, cancellationToken) : null;
+        if (!updated)
+        {
+            return null;
+        }
+
+        await RefreshComparisonSnapshotsAsync(cancellationToken);
+        return await _repository.GetByIdAsync(id, cancellationToken);
     }
 
     public TcxActivitySummary CreateSummaryFromRawContent(byte[] rawFileContent, string selectedSmoothingFilter, string? metricThresholdSnapshotJson)
@@ -569,6 +615,35 @@ public class TcxSessionUseCase : ITcxSessionUseCase
 
         return JsonSerializer.Deserialize<List<TcxSegmentChangeEntry>>(upload.SegmentChangeHistoryJson)
             ?? new List<TcxSegmentChangeEntry>();
+    }
+
+
+    public SessionComparisonContextDto? ResolveComparisonContext(TcxUpload upload)
+    {
+        if (string.IsNullOrWhiteSpace(upload.ComparisonContextSnapshotJson))
+        {
+            return null;
+        }
+
+        return JsonSerializer.Deserialize<SessionComparisonContextDto>(upload.ComparisonContextSnapshotJson);
+    }
+
+    public async Task RefreshComparisonSnapshotsAsync(CancellationToken cancellationToken)
+    {
+        var allUploads = await _repository.ListAsync(cancellationToken);
+        if (allUploads.Count == 0)
+        {
+            return;
+        }
+
+        var profile = await _userProfileRepository.GetAsync(cancellationToken);
+        var count = Math.Clamp(profile.ComparisonSessionsCount, 1, 20);
+
+        foreach (var upload in allUploads)
+        {
+            var context = _sessionComparisonService.BuildContext(upload, allUploads, count, ResolveSummary, ResolveSegments);
+            await _repository.UpdateComparisonContextSnapshotAsync(upload.Id, JsonSerializer.Serialize(context), cancellationToken);
+        }
     }
 
     private async Task RefreshAdaptiveStatsAsync(TcxUpload upload, CancellationToken cancellationToken)

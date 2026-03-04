@@ -16,16 +16,12 @@ public class TcxController : ControllerBase
     private readonly ITcxSessionUseCase _tcxSessionUseCase;
     private readonly IUploadFormatAdapterResolver _uploadFormatAdapterResolver;
     private readonly ILogger<TcxController> _logger;
-    private readonly IProfileUseCase _profileUseCase;
-    private readonly ISessionComparisonService _sessionComparisonService;
 
-    public TcxController(ITcxSessionUseCase tcxSessionUseCase, IUploadFormatAdapterResolver uploadFormatAdapterResolver, IProfileUseCase profileUseCase, ISessionComparisonService sessionComparisonService, ILogger<TcxController> logger)
+    public TcxController(ITcxSessionUseCase tcxSessionUseCase, IUploadFormatAdapterResolver uploadFormatAdapterResolver, ILogger<TcxController> logger)
     {
         _tcxSessionUseCase = tcxSessionUseCase;
         _uploadFormatAdapterResolver = uploadFormatAdapterResolver;
         _logger = logger;
-        _profileUseCase = profileUseCase;
-        _sessionComparisonService = sessionComparisonService;
     }
 
     [HttpPost("upload")]
@@ -61,10 +57,10 @@ public class TcxController : ControllerBase
             var outcome = await _tcxSessionUseCase.UploadTcxAsync(file, idempotencyKey, cancellationToken);
             if (outcome.IsCreated)
             {
-                return CreatedAtAction(nameof(GetUpload), new { id = outcome.Upload.Id }, await ToResponseAsync(outcome.Upload, true, cancellationToken));
+                return CreatedAtAction(nameof(GetUpload), new { id = outcome.Upload.Id }, ToResponse(outcome.Upload, true));
             }
 
-            return Ok(await ToResponseAsync(outcome.Upload, true, cancellationToken));
+            return Ok(ToResponse(outcome.Upload, true));
         }
         catch (InvalidDataException ex)
         {
@@ -85,7 +81,7 @@ public class TcxController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<TcxUploadResponseDto>>> GetUploads(CancellationToken cancellationToken)
     {
         var uploads = await _tcxSessionUseCase.ListAsync(cancellationToken);
-        return Ok(await Task.WhenAll(uploads.Select(async upload => await ToResponseAsync(upload, false, cancellationToken))));
+        return Ok(uploads.Select(upload => ToResponse(upload, false)).ToList());
     }
 
 
@@ -119,7 +115,7 @@ public class TcxController : ControllerBase
                 return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);
             }
 
-            return Ok(await ToResponseAsync(upload, true, cancellationToken));
+            return Ok(ToResponse(upload, true));
         }
         catch (InvalidDataException ex)
         {
@@ -136,7 +132,7 @@ public class TcxController : ControllerBase
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
-        return Ok(await ToResponseAsync(upload, true, cancellationToken));
+        return Ok(ToResponse(upload, true));
     }
 
     [HttpPut("{id:guid}/session-context")]
@@ -167,7 +163,7 @@ public class TcxController : ControllerBase
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
-        return Ok(await ToResponseAsync(upload, true, cancellationToken));
+        return Ok(ToResponse(upload, true));
     }
 
     [HttpPut("{id:guid}/smoothing-filter")]
@@ -184,7 +180,7 @@ public class TcxController : ControllerBase
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
-        return Ok(await ToResponseAsync(upload, true, cancellationToken));
+        return Ok(ToResponse(upload, true));
     }
 
     [HttpPut("{id:guid}/speed-unit")]
@@ -201,7 +197,7 @@ public class TcxController : ControllerBase
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
-        return Ok(await ToResponseAsync(upload, true, cancellationToken));
+        return Ok(ToResponse(upload, true));
     }
 
     [HttpPost("{id:guid}/segments")]
@@ -220,7 +216,7 @@ public class TcxController : ControllerBase
                 return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
             }
 
-            return Ok(await ToResponseAsync(upload, true, cancellationToken));
+            return Ok(ToResponse(upload, true));
         }
         catch (InvalidDataException ex)
         {
@@ -244,7 +240,7 @@ public class TcxController : ControllerBase
                 return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);
             }
 
-            return Ok(await ToResponseAsync(upload, true, cancellationToken));
+            return Ok(ToResponse(upload, true));
         }
         catch (InvalidDataException ex)
         {
@@ -261,7 +257,7 @@ public class TcxController : ControllerBase
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
-        return Ok(await ToResponseAsync(upload, true, cancellationToken));
+        return Ok(ToResponse(upload, true));
     }
 
     [HttpPost("{id:guid}/segments/merge")]
@@ -280,7 +276,7 @@ public class TcxController : ControllerBase
                 return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Segment or session not found", "The requested segment or session does not exist.", ApiErrorCodes.ResourceNotFound);
             }
 
-            return Ok(await ToResponseAsync(upload, true, cancellationToken));
+            return Ok(ToResponse(upload, true));
         }
         catch (InvalidDataException ex)
         {
@@ -297,10 +293,10 @@ public class TcxController : ControllerBase
             return ApiProblemDetailsFactory.Create(this, StatusCodes.Status404NotFound, "Session not found", "The requested session does not exist.", ApiErrorCodes.ResourceNotFound);
         }
 
-        return Ok(await ToResponseAsync(upload, true, cancellationToken));
+        return Ok(ToResponse(upload, true));
     }
 
-    private async Task<TcxUploadResponseDto> ToResponseAsync(TcxUpload upload, bool isDetailed, CancellationToken cancellationToken = default)
+    private TcxUploadResponseDto ToResponse(TcxUpload upload, bool isDetailed)
     {
         var resolvedSummary = _tcxSessionUseCase.ResolveSummary(upload);
         var summary = isDetailed
@@ -313,13 +309,7 @@ public class TcxController : ControllerBase
                 DetectedRuns = Array.Empty<TcxDetectedRun>()
             };
 
-        SessionComparisonContextDto? comparisonContext = null;
-        if (isDetailed)
-        {
-            var all = await _tcxSessionUseCase.ListAsync(cancellationToken);
-            var profile = await _profileUseCase.GetProfileAsync(cancellationToken);
-            comparisonContext = _sessionComparisonService.BuildContext(upload, all, profile.ComparisonSessionsCount, _tcxSessionUseCase.ResolveSummary, _tcxSessionUseCase.ResolveSegments);
-        }
+        var comparisonContext = isDetailed ? _tcxSessionUseCase.ResolveComparisonContext(upload) : null;
 
         return new TcxUploadResponseDto(
             upload.Id,

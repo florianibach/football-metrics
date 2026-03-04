@@ -47,7 +47,8 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
                 SessionSummarySnapshotJson TEXT NULL,
                 IdempotencyKey TEXT NULL,
                 SegmentsSnapshotJson TEXT NULL,
-                SegmentChangeHistoryJson TEXT NULL
+                SegmentChangeHistoryJson TEXT NULL,
+                ComparisonContextSnapshotJson TEXT NULL
             );
 
             CREATE INDEX IF NOT EXISTS IX_TcxUploads_UploadedAtUtc ON TcxUploads (UploadedAtUtc DESC);
@@ -121,6 +122,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "IdempotencyKey", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SegmentsSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SegmentChangeHistoryJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "ComparisonContextSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "MetricThresholdsJson", "TEXT NULL", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "DefaultSmoothingFilter", "TEXT NOT NULL DEFAULT 'AdaptiveMedian'", cancellationToken);
         await EnsureUserProfileColumnExistsAsync(connection, "PreferredSpeedUnit", "TEXT NOT NULL DEFAULT 'km/h'", cancellationToken);
@@ -207,6 +209,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
         await EnsureColumnExistsAsync(connection, "IdempotencyKey", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SegmentsSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SegmentChangeHistoryJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "ComparisonContextSnapshotJson", "TEXT NULL", cancellationToken);
 
         var insertCommand = connection.CreateCommand();
         insertCommand.CommandText = @"
@@ -296,6 +299,7 @@ public sealed class DatabaseInitializer : IDatabaseInitializer
 
         await EnsureColumnExistsAsync(connection, "SegmentsSnapshotJson", "TEXT NULL", cancellationToken);
         await EnsureColumnExistsAsync(connection, "SegmentChangeHistoryJson", "TEXT NULL", cancellationToken);
+        await EnsureColumnExistsAsync(connection, "ComparisonContextSnapshotJson", "TEXT NULL", cancellationToken);
 
         var insertCommand = connection.CreateCommand();
         insertCommand.CommandText = @"

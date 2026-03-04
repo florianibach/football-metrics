@@ -10,22 +10,28 @@ public class ProfileUseCase : IProfileUseCase
     private readonly IMetricThresholdResolver _metricThresholdResolver;
     private readonly IProfileRecalculationOrchestrator _recalculationOrchestrator;
     private readonly IProfileRecalculationJobRepository _recalculationJobRepository;
+    private readonly ITcxSessionUseCase _tcxSessionUseCase;
 
     public ProfileUseCase(
         IUserProfileRepository repository,
         IMetricThresholdResolver metricThresholdResolver,
         IProfileRecalculationOrchestrator recalculationOrchestrator,
-        IProfileRecalculationJobRepository recalculationJobRepository)
+        IProfileRecalculationJobRepository recalculationJobRepository,
+        ITcxSessionUseCase tcxSessionUseCase)
     {
         _repository = repository;
         _metricThresholdResolver = metricThresholdResolver;
         _recalculationOrchestrator = recalculationOrchestrator;
         _recalculationJobRepository = recalculationJobRepository;
+        _tcxSessionUseCase = tcxSessionUseCase;
     }
 
     public async Task<UserProfile> GetProfileAsync(CancellationToken cancellationToken)
     {
         var profile = await _repository.GetAsync(cancellationToken);
+
+
+
         var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken: cancellationToken);
         profile.MetricThresholds = effectiveThresholds;
         return profile;
@@ -119,6 +125,12 @@ public class ProfileUseCase : IProfileUseCase
         if (profileAffectingSettingsChanged)
         {
             await _recalculationOrchestrator.EnqueueAsync(ProfileRecalculationTriggers.ProfileUpdated, normalizedThresholds.Version, cancellationToken);
+        }
+
+        var comparisonSessionsCountChanged = existingProfile.ComparisonSessionsCount != profile.ComparisonSessionsCount;
+        if (comparisonSessionsCountChanged)
+        {
+            await _tcxSessionUseCase.RefreshComparisonSnapshotsAsync(cancellationToken);
         }
 
         var effectiveThresholds = await _metricThresholdResolver.ResolveEffectiveAsync(profile.MetricThresholds, cancellationToken: cancellationToken);
