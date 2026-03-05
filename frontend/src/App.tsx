@@ -217,6 +217,22 @@ type ComparisonRefreshJob = {
   errorMessage: string | null;
 };
 
+const COMPARISON_REFRESH_PENDING_MATCH_TOLERANCE_MS = 15000;
+
+function isComparisonRefreshJobRelevant(job: ComparisonRefreshJob, pendingSinceUtc: string | null): boolean {
+  if (!pendingSinceUtc) {
+    return true;
+  }
+
+  const requestedAtMs = Date.parse(job.requestedAtUtc);
+  const pendingSinceMs = Date.parse(pendingSinceUtc);
+  if (Number.isNaN(requestedAtMs) || Number.isNaN(pendingSinceMs)) {
+    return job.requestedAtUtc >= pendingSinceUtc;
+  }
+
+  return requestedAtMs >= pendingSinceMs - COMPARISON_REFRESH_PENDING_MATCH_TOLERANCE_MS;
+}
+
 type UserProfile = {
   primaryPosition: PlayerPosition;
   secondaryPosition: PlayerPosition | null;
@@ -1877,7 +1893,7 @@ export function App() {
       return;
     }
 
-    if (latest.requestedAtUtc < startedAtUtc) {
+    if (!isComparisonRefreshJobRelevant(latest, startedAtUtc)) {
       return;
     }
 
@@ -2432,7 +2448,7 @@ export function App() {
     const previousStatus = previousComparisonRefreshStatusRef.current;
     const currentStatus = latestComparisonRefreshJob?.status ?? null;
 
-    if (comparisonRefreshPending && currentStatus && currentStatus !== 'Running' && latestComparisonRefreshJob && (!comparisonRefreshPendingSinceUtc || latestComparisonRefreshJob.requestedAtUtc >= comparisonRefreshPendingSinceUtc)) {
+    if (comparisonRefreshPending && currentStatus && currentStatus !== 'Running' && latestComparisonRefreshJob && isComparisonRefreshJobRelevant(latestComparisonRefreshJob, comparisonRefreshPendingSinceUtc)) {
       const statusText = currentStatus === 'Completed'
         ? t.comparisonRefreshStatusCompleted
         : t.comparisonRefreshStatusFailed;
