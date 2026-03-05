@@ -1761,6 +1761,20 @@ export function App() {
     });
   }
 
+  async function onProceedToSessionAnalysisAfterUpload() {
+    setShowUploadQualityStep(false);
+
+    try {
+      if (selectedSession && !selectedSession.isDetailed) {
+        await loadSessionDetailsById(selectedSession.id);
+      }
+
+      await reloadUploadHistory();
+    } catch {
+      // keep navigation responsive even when follow-up refresh calls fail in background
+    }
+  }
+
   function resetSegmentForms() {
     setSegmentForm({ category: 'Other', label: '', startSecond: '0', endSecond: '300', notes: '' });
     setEditingSegmentId(null);
@@ -2301,6 +2315,8 @@ export function App() {
       return;
     }
 
+    const previousComparisonSessionsCount = profileForm.comparisonSessionsCount;
+
     const response = await fetch(`${apiBaseUrl}/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -2330,6 +2346,10 @@ export function App() {
     setLatestProfileRecalculationJob(payload.latestRecalculationJob ?? null);
     persistAppearancePreferences({ preferredTheme: payload.preferredTheme, preferredLocale: (payload.preferredLocale as Locale | null) ?? null });
     setProfileValidationMessage(t.profileSaveSuccess);
+
+    if (payload.comparisonSessionsCount !== previousComparisonSessionsCount) {
+      await onComparisonRefreshTriggered(t.profileSaveSuccess, false);
+    }
   }
 
 
@@ -2466,7 +2486,7 @@ export function App() {
 
     const intervalMs = comparisonRefreshPending || latestComparisonRefreshJob?.status === 'Running'
       ? 2000
-      : 10000;
+      : 30000;
 
     const interval = setInterval(() => {
       void loadLatestComparisonRefreshJob();
@@ -4437,8 +4457,14 @@ export function App() {
           <input className="upload-form__file-input form-control" type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} disabled={isUploading} />
         </label>
         <button type="submit" className="upload-form__submit btn-primary" disabled={!canSubmit}>
-          {t.uploadButton}
+          {isUploading ? t.uploadInProgress : t.uploadButton}
         </button>
+        {isUploading ? (
+          <div className="upload-form__progress" role="status" aria-live="polite">
+            <span className="upload-form__spinner" aria-hidden="true" />
+            <span>{t.uploadInProgressDetail}</span>
+          </div>
+        ) : null}
       </form>
       {!(activeMainPage === 'session' && !validationMessage && message === t.defaultMessage) && <p>{validationMessage ?? message}</p>}
 
@@ -4681,7 +4707,7 @@ export function App() {
               <p>{t.uploadQualityStepIntro}</p>
               {renderQualityDetailsContent()}
               <div className="upload-quality-step__actions">
-                <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
+                <button type="button" className="btn-primary" onClick={() => void onProceedToSessionAnalysisAfterUpload()}>{t.uploadQualityProceedToAnalysis}</button>
                 <button type="button" className="secondary-button" onClick={() => { setShowUploadQualityStep(false); setActiveSessionSubpage('segmentEdit'); }}>{t.segmentEditEntryAfterUpload}</button>
               </div>
             </section>
