@@ -2385,7 +2385,16 @@ export function App() {
           return current;
         }
 
-        return normalizedPayload.find((item) => item.id === current.id) ?? current;
+        const matched = normalizedPayload.find((item) => item.id === current.id);
+        if (!matched) {
+          return current;
+        }
+
+        if (current.isDetailed && !matched.isDetailed) {
+          return current;
+        }
+
+        return matched;
       });
     } catch {
       // best effort refresh after comparison snapshot updates
