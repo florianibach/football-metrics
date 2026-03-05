@@ -1765,7 +1765,7 @@ export function App() {
     setShowUploadQualityStep(false);
 
     try {
-      if (selectedSession && !selectedSession.isDetailed) {
+      if (selectedSession) {
         await loadSessionDetailsById(selectedSession.id);
       }
 
@@ -1890,7 +1890,7 @@ export function App() {
   }
 
 
-  async function onComparisonRefreshTriggered(baseMessage: string, showProgressMessage = true) {
+  async function onComparisonRefreshTriggered(baseMessage: string, showProgressMessage = true, reloadHistoryOnCompletion = true) {
     const startedAtUtc = new Date().toISOString();
     setComparisonRefreshPending(true);
     setComparisonRefreshPendingSinceUtc(startedAtUtc);
@@ -1919,7 +1919,9 @@ export function App() {
     setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
     setComparisonRefreshPending(false);
     setComparisonRefreshPendingSinceUtc(null);
-    await reloadUploadHistory();
+    if (reloadHistoryOnCompletion && !showUploadQualityStep) {
+      await reloadUploadHistory();
+    }
   }
 
 
@@ -2219,7 +2221,7 @@ export function App() {
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setCompareOpponentSessionId(null);
       setSelectedFile(null);
-      await onComparisonRefreshTriggered(uploadSuccessMessage);
+      await onComparisonRefreshTriggered(uploadSuccessMessage, true, false);
     } catch {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
     } finally {
@@ -2507,7 +2509,9 @@ export function App() {
       setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
       setComparisonRefreshPending(false);
       setComparisonRefreshPendingSinceUtc(null);
-      void reloadUploadHistory();
+      if (!showUploadQualityStep) {
+        void reloadUploadHistory();
+      }
     } else if (previousStatus === 'Running' && currentStatus && currentStatus !== 'Running') {
       const statusText = currentStatus === 'Completed'
         ? t.comparisonRefreshStatusCompleted
@@ -2515,11 +2519,13 @@ export function App() {
       setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
       setComparisonRefreshPending(false);
       setComparisonRefreshPendingSinceUtc(null);
-      void reloadUploadHistory();
+      if (!showUploadQualityStep) {
+        void reloadUploadHistory();
+      }
     }
 
     previousComparisonRefreshStatusRef.current = currentStatus;
-  }, [comparisonRefreshPending, comparisonRefreshPendingSinceUtc, latestComparisonRefreshJob, latestComparisonRefreshJob?.status, reloadUploadHistory, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
+  }, [comparisonRefreshPending, comparisonRefreshPendingSinceUtc, showUploadQualityStep, latestComparisonRefreshJob, latestComparisonRefreshJob?.status, reloadUploadHistory, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
 
   useEffect(() => {
     if (!comparisonRefreshToast) {
@@ -4697,11 +4703,7 @@ export function App() {
 
       {selectedSession && (
         <section className={`session-details ${activeMainPage === "session" ? "" : "is-hidden"}`} aria-live="polite" id="session-analysis">
-          {(!selectedSession.isDetailed || isSessionDetailLoading) ? (
-            <div className="analysis-disclosure__content">
-              <p>{t.sessionDetailsLoading}</p>
-            </div>
-          ) : isQualityDetailsPageVisible ? (
+          {isQualityDetailsPageVisible ? (
             <section data-testid="upload-quality-step" className="upload-quality-step">
               <h3>{t.qualityDetailsSidebarTitle}</h3>
               <p>{t.uploadQualityStepIntro}</p>
@@ -4711,6 +4713,10 @@ export function App() {
                 <button type="button" className="secondary-button" onClick={() => { setShowUploadQualityStep(false); setActiveSessionSubpage('segmentEdit'); }}>{t.segmentEditEntryAfterUpload}</button>
               </div>
             </section>
+          ) : (!selectedSession.isDetailed || isSessionDetailLoading) ? (
+            <div className="analysis-disclosure__content">
+              <p>{t.sessionDetailsLoading}</p>
+            </div>
           ) : (
             <>
               <h2>{t.summaryTitle}</h2>
