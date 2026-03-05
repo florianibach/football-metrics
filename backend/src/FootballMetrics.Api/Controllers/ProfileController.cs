@@ -81,7 +81,7 @@ public class ProfileController : ControllerBase
         var normalizedComparisonSessionsCount = ProfileUseCase.NormalizeComparisonSessionsCount(request.ComparisonSessionsCount, existingProfile.ComparisonSessionsCount);
         if (normalizedComparisonSessionsCount is null)
         {
-            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported comparison session count", "ComparisonSessionsCount must be between 1 and 20.", ApiErrorCodes.ValidationError);
+            return ApiProblemDetailsFactory.Create(this, StatusCodes.Status400BadRequest, "Unsupported comparison session count", "ComparisonSessionsCount must be between 3 and 20.", ApiErrorCodes.ValidationError);
         }
 
         submittedThresholds.MaxSpeedMode = ProfileUseCase.NormalizeThresholdMode(submittedThresholds.MaxSpeedMode);

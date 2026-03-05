@@ -1876,12 +1876,14 @@ export function App() {
   }
 
 
-  async function onComparisonRefreshTriggered(baseMessage: string) {
+  async function onComparisonRefreshTriggered(baseMessage: string, showProgressMessage = true) {
     const startedAtUtc = new Date().toISOString();
     setComparisonRefreshPending(true);
     setComparisonRefreshPendingSinceUtc(startedAtUtc);
     setComparisonRefreshPendingDismissed(false);
-    setMessage(`${baseMessage} ${t.comparisonRefreshStarted}`);
+    if (showProgressMessage) {
+      setMessage(`${baseMessage} ${t.comparisonRefreshStarted}`);
+    }
 
     const latest = await loadLatestComparisonRefreshJob();
     if (!latest) {
@@ -1903,6 +1905,7 @@ export function App() {
     setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
     setComparisonRefreshPending(false);
     setComparisonRefreshPendingSinceUtc(null);
+    await reloadUploadHistory();
   }
 
 
@@ -2240,6 +2243,7 @@ export function App() {
     setActiveMainPage('sessions');
     setIsSessionMenuVisible(false);
     setMessage(t.sessionDeleteSuccess);
+    await onComparisonRefreshTriggered(t.sessionDeleteSuccess, false);
   }
 
   async function onThemeSelect(nextTheme: 'light' | 'dark') {
@@ -2292,6 +2296,11 @@ export function App() {
       return;
     }
 
+    if (!Number.isInteger(profileForm.comparisonSessionsCount) || profileForm.comparisonSessionsCount < 3 || profileForm.comparisonSessionsCount > 20) {
+      setProfileValidationMessage(t.profileValidationComparisonSessionsCountRange);
+      return;
+    }
+
     const response = await fetch(`${apiBaseUrl}/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -2338,6 +2347,29 @@ export function App() {
       return null;
     }
   }, [apiBaseUrl]);
+
+  const reloadUploadHistory = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/tcx`);
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as UploadRecord[];
+      const normalizedPayload = payload.map(normalizeUploadRecord);
+      setUploadHistory(normalizedPayload);
+      setSelectedSession((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return normalizedPayload.find((item) => item.id === current.id) ?? current;
+      });
+    } catch {
+      // best effort refresh after comparison snapshot updates
+    }
+  }, [apiBaseUrl]);
+
 
 
   async function onTriggerProfileRecalculation() {
@@ -2455,6 +2487,7 @@ export function App() {
       setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
       setComparisonRefreshPending(false);
       setComparisonRefreshPendingSinceUtc(null);
+      void reloadUploadHistory();
     } else if (previousStatus === 'Running' && currentStatus && currentStatus !== 'Running') {
       const statusText = currentStatus === 'Completed'
         ? t.comparisonRefreshStatusCompleted
@@ -2462,10 +2495,11 @@ export function App() {
       setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
       setComparisonRefreshPending(false);
       setComparisonRefreshPendingSinceUtc(null);
+      void reloadUploadHistory();
     }
 
     previousComparisonRefreshStatusRef.current = currentStatus;
-  }, [comparisonRefreshPending, comparisonRefreshPendingSinceUtc, latestComparisonRefreshJob, latestComparisonRefreshJob?.status, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
+  }, [comparisonRefreshPending, comparisonRefreshPendingSinceUtc, latestComparisonRefreshJob, latestComparisonRefreshJob?.status, reloadUploadHistory, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
 
   useEffect(() => {
     if (!comparisonRefreshToast) {
@@ -4182,6 +4216,21 @@ export function App() {
             <option value={5}>{t.intervalAggregationWindow5}</option>
           </select>
           <p>{t.profilePreferredAggregationWindowHelp}</p>
+
+          <label className="form-label" htmlFor="profile-comparison-sessions-count">{t.profileComparisonSessionsCount}</label>
+          <input className="form-control"
+            id="profile-comparison-sessions-count"
+            type="number"
+            min={3}
+            max={20}
+            step={1}
+            value={profileForm.comparisonSessionsCount}
+            onChange={(event) => {
+              const nextValue = Number(event.target.value);
+              setProfileForm((current) => ({ ...current, comparisonSessionsCount: Number.isFinite(nextValue) ? nextValue : current.comparisonSessionsCount }));
+            }}
+          />
+          <p>{t.profileComparisonSessionsCountHelp}</p>
 
           <details className="analysis-disclosure">
             <summary className="analysis-disclosure__toggle"><span>{t.profileThresholdsTitle}</span></summary>
