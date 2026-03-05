@@ -209,7 +209,7 @@ public class ProfileUseCase : IProfileUseCase
             return fallbackCount;
         }
 
-        return requestedCount.Value is >= 1 and <= 20
+        return requestedCount.Value is >= 3 and <= 20
             ? requestedCount.Value
             : null;
     }

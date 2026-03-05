@@ -653,7 +653,7 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         }
 
         var profile = await _userProfileRepository.GetAsync(cancellationToken);
-        var count = Math.Clamp(profile.ComparisonSessionsCount, 1, 20);
+        var count = Math.Clamp(profile.ComparisonSessionsCount, 3, 20);
 
         foreach (var upload in allUploads)
         {

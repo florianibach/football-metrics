@@ -53,7 +53,7 @@ public class SessionComparisonService : ISessionComparisonService
             return resolved;
         }
 
-        var normalizedCount = Math.Clamp(comparisonSessionsCount, 1, 20);
+        var normalizedCount = Math.Clamp(comparisonSessionsCount, 3, 20);
         var sessionTypePool = allUploads
             .Where(upload => string.Equals(upload.SessionType, selected.SessionType, StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(upload => CachedSummaryResolver(upload).ActivityStartTimeUtc ?? upload.UploadedAtUtc)

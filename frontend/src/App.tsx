@@ -217,6 +217,22 @@ type ComparisonRefreshJob = {
   errorMessage: string | null;
 };
 
+const COMPARISON_REFRESH_PENDING_MATCH_TOLERANCE_MS = 15000;
+
+function isComparisonRefreshJobRelevant(job: ComparisonRefreshJob, pendingSinceUtc: string | null): boolean {
+  if (!pendingSinceUtc) {
+    return true;
+  }
+
+  const requestedAtMs = Date.parse(job.requestedAtUtc);
+  const pendingSinceMs = Date.parse(pendingSinceUtc);
+  if (Number.isNaN(requestedAtMs) || Number.isNaN(pendingSinceMs)) {
+    return job.requestedAtUtc >= pendingSinceUtc;
+  }
+
+  return requestedAtMs >= pendingSinceMs - COMPARISON_REFRESH_PENDING_MATCH_TOLERANCE_MS;
+}
+
 type UserProfile = {
   primaryPosition: PlayerPosition;
   secondaryPosition: PlayerPosition | null;
@@ -1745,6 +1761,20 @@ export function App() {
     });
   }
 
+  async function onProceedToSessionAnalysisAfterUpload() {
+    setShowUploadQualityStep(false);
+
+    try {
+      if (selectedSession) {
+        await loadSessionDetailsById(selectedSession.id);
+      }
+
+      await reloadUploadHistory();
+    } catch {
+      // keep navigation responsive even when follow-up refresh calls fail in background
+    }
+  }
+
   function resetSegmentForms() {
     setSegmentForm({ category: 'Other', label: '', startSecond: '0', endSecond: '300', notes: '' });
     setEditingSegmentId(null);
@@ -1860,12 +1890,14 @@ export function App() {
   }
 
 
-  async function onComparisonRefreshTriggered(baseMessage: string) {
+  async function onComparisonRefreshTriggered(baseMessage: string, showProgressMessage = true, reloadHistoryOnCompletion = true) {
     const startedAtUtc = new Date().toISOString();
     setComparisonRefreshPending(true);
     setComparisonRefreshPendingSinceUtc(startedAtUtc);
     setComparisonRefreshPendingDismissed(false);
-    setMessage(`${baseMessage} ${t.comparisonRefreshStarted}`);
+    if (showProgressMessage) {
+      setMessage(`${baseMessage} ${t.comparisonRefreshStarted}`);
+    }
 
     const latest = await loadLatestComparisonRefreshJob();
     if (!latest) {
@@ -1877,7 +1909,7 @@ export function App() {
       return;
     }
 
-    if (latest.requestedAtUtc < startedAtUtc) {
+    if (!isComparisonRefreshJobRelevant(latest, startedAtUtc)) {
       return;
     }
 
@@ -1887,6 +1919,9 @@ export function App() {
     setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
     setComparisonRefreshPending(false);
     setComparisonRefreshPendingSinceUtc(null);
+    if (reloadHistoryOnCompletion && !showUploadQualityStep) {
+      await reloadUploadHistory();
+    }
   }
 
 
@@ -2186,7 +2221,7 @@ export function App() {
       setUploadHistory((previous) => [payload, ...previous.filter((item) => item.id !== payload.id)]);
       setCompareOpponentSessionId(null);
       setSelectedFile(null);
-      await onComparisonRefreshTriggered(uploadSuccessMessage);
+      await onComparisonRefreshTriggered(uploadSuccessMessage, true, false);
     } catch {
       setMessage(`${t.uploadFailedPrefix} Network error.`);
     } finally {
@@ -2224,6 +2259,7 @@ export function App() {
     setActiveMainPage('sessions');
     setIsSessionMenuVisible(false);
     setMessage(t.sessionDeleteSuccess);
+    await onComparisonRefreshTriggered(t.sessionDeleteSuccess, false);
   }
 
   async function onThemeSelect(nextTheme: 'light' | 'dark') {
@@ -2276,6 +2312,13 @@ export function App() {
       return;
     }
 
+    if (!Number.isInteger(profileForm.comparisonSessionsCount) || profileForm.comparisonSessionsCount < 3 || profileForm.comparisonSessionsCount > 20) {
+      setProfileValidationMessage(t.profileValidationComparisonSessionsCountRange);
+      return;
+    }
+
+    const previousComparisonSessionsCount = profileForm.comparisonSessionsCount;
+
     const response = await fetch(`${apiBaseUrl}/profile`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -2305,6 +2348,10 @@ export function App() {
     setLatestProfileRecalculationJob(payload.latestRecalculationJob ?? null);
     persistAppearancePreferences({ preferredTheme: payload.preferredTheme, preferredLocale: (payload.preferredLocale as Locale | null) ?? null });
     setProfileValidationMessage(t.profileSaveSuccess);
+
+    if (payload.comparisonSessionsCount !== previousComparisonSessionsCount) {
+      await onComparisonRefreshTriggered(t.profileSaveSuccess, false);
+    }
   }
 
 
@@ -2322,6 +2369,38 @@ export function App() {
       return null;
     }
   }, [apiBaseUrl]);
+
+  const reloadUploadHistory = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/tcx`);
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as UploadRecord[];
+      const normalizedPayload = payload.map(normalizeUploadRecord);
+      setUploadHistory(normalizedPayload);
+      setSelectedSession((current) => {
+        if (!current) {
+          return current;
+        }
+
+        const matched = normalizedPayload.find((item) => item.id === current.id);
+        if (!matched) {
+          return current;
+        }
+
+        if (current.isDetailed && !matched.isDetailed) {
+          return current;
+        }
+
+        return matched;
+      });
+    } catch {
+      // best effort refresh after comparison snapshot updates
+    }
+  }, [apiBaseUrl]);
+
 
 
   async function onTriggerProfileRecalculation() {
@@ -2418,7 +2497,7 @@ export function App() {
 
     const intervalMs = comparisonRefreshPending || latestComparisonRefreshJob?.status === 'Running'
       ? 2000
-      : 10000;
+      : 30000;
 
     const interval = setInterval(() => {
       void loadLatestComparisonRefreshJob();
@@ -2432,13 +2511,16 @@ export function App() {
     const previousStatus = previousComparisonRefreshStatusRef.current;
     const currentStatus = latestComparisonRefreshJob?.status ?? null;
 
-    if (comparisonRefreshPending && currentStatus && currentStatus !== 'Running' && latestComparisonRefreshJob && (!comparisonRefreshPendingSinceUtc || latestComparisonRefreshJob.requestedAtUtc >= comparisonRefreshPendingSinceUtc)) {
+    if (comparisonRefreshPending && currentStatus && currentStatus !== 'Running' && latestComparisonRefreshJob && isComparisonRefreshJobRelevant(latestComparisonRefreshJob, comparisonRefreshPendingSinceUtc)) {
       const statusText = currentStatus === 'Completed'
         ? t.comparisonRefreshStatusCompleted
         : t.comparisonRefreshStatusFailed;
       setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
       setComparisonRefreshPending(false);
       setComparisonRefreshPendingSinceUtc(null);
+      if (!showUploadQualityStep) {
+        void reloadUploadHistory();
+      }
     } else if (previousStatus === 'Running' && currentStatus && currentStatus !== 'Running') {
       const statusText = currentStatus === 'Completed'
         ? t.comparisonRefreshStatusCompleted
@@ -2446,10 +2528,13 @@ export function App() {
       setComparisonRefreshToast(`${t.comparisonRefreshStatusTitle}: ${statusText}`);
       setComparisonRefreshPending(false);
       setComparisonRefreshPendingSinceUtc(null);
+      if (!showUploadQualityStep) {
+        void reloadUploadHistory();
+      }
     }
 
     previousComparisonRefreshStatusRef.current = currentStatus;
-  }, [comparisonRefreshPending, comparisonRefreshPendingSinceUtc, latestComparisonRefreshJob, latestComparisonRefreshJob?.status, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
+  }, [comparisonRefreshPending, comparisonRefreshPendingSinceUtc, showUploadQualityStep, latestComparisonRefreshJob, latestComparisonRefreshJob?.status, reloadUploadHistory, t.comparisonRefreshStatusCompleted, t.comparisonRefreshStatusFailed, t.comparisonRefreshStatusTitle]);
 
   useEffect(() => {
     if (!comparisonRefreshToast) {
@@ -4167,6 +4252,21 @@ export function App() {
           </select>
           <p>{t.profilePreferredAggregationWindowHelp}</p>
 
+          <label className="form-label" htmlFor="profile-comparison-sessions-count">{t.profileComparisonSessionsCount}</label>
+          <input className="form-control"
+            id="profile-comparison-sessions-count"
+            type="number"
+            min={3}
+            max={20}
+            step={1}
+            value={profileForm.comparisonSessionsCount}
+            onChange={(event) => {
+              const nextValue = Number(event.target.value);
+              setProfileForm((current) => ({ ...current, comparisonSessionsCount: Number.isFinite(nextValue) ? nextValue : current.comparisonSessionsCount }));
+            }}
+          />
+          <p>{t.profileComparisonSessionsCountHelp}</p>
+
           <details className="analysis-disclosure">
             <summary className="analysis-disclosure__toggle"><span>{t.profileThresholdsTitle}</span></summary>
             <div className="analysis-disclosure__content">
@@ -4372,8 +4472,14 @@ export function App() {
           <input className="upload-form__file-input form-control" type="file" accept=".tcx" onChange={onFileInputChange} aria-label={t.fileInputAriaLabel} disabled={isUploading} />
         </label>
         <button type="submit" className="upload-form__submit btn-primary" disabled={!canSubmit}>
-          {t.uploadButton}
+          {isUploading ? t.uploadInProgress : t.uploadButton}
         </button>
+        {isUploading ? (
+          <div className="upload-form__progress" role="status" aria-live="polite">
+            <span className="upload-form__spinner" aria-hidden="true" />
+            <span>{t.uploadInProgressDetail}</span>
+          </div>
+        ) : null}
       </form>
       {!(activeMainPage === 'session' && !validationMessage && message === t.defaultMessage) && <p>{validationMessage ?? message}</p>}
 
@@ -4606,20 +4712,20 @@ export function App() {
 
       {selectedSession && (
         <section className={`session-details ${activeMainPage === "session" ? "" : "is-hidden"}`} aria-live="polite" id="session-analysis">
-          {(!selectedSession.isDetailed || isSessionDetailLoading) ? (
-            <div className="analysis-disclosure__content">
-              <p>{t.sessionDetailsLoading}</p>
-            </div>
-          ) : isQualityDetailsPageVisible ? (
+          {isQualityDetailsPageVisible ? (
             <section data-testid="upload-quality-step" className="upload-quality-step">
               <h3>{t.qualityDetailsSidebarTitle}</h3>
               <p>{t.uploadQualityStepIntro}</p>
               {renderQualityDetailsContent()}
               <div className="upload-quality-step__actions">
-                <button type="button" className="btn-primary" onClick={() => setShowUploadQualityStep(false)}>{t.uploadQualityProceedToAnalysis}</button>
+                <button type="button" className="btn-primary" onClick={() => void onProceedToSessionAnalysisAfterUpload()}>{t.uploadQualityProceedToAnalysis}</button>
                 <button type="button" className="secondary-button" onClick={() => { setShowUploadQualityStep(false); setActiveSessionSubpage('segmentEdit'); }}>{t.segmentEditEntryAfterUpload}</button>
               </div>
             </section>
+          ) : (!selectedSession.isDetailed || isSessionDetailLoading) ? (
+            <div className="analysis-disclosure__content">
+              <p>{t.sessionDetailsLoading}</p>
+            </div>
           ) : (
             <>
               <h2>{t.summaryTitle}</h2>

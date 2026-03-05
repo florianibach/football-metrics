@@ -1540,6 +1540,34 @@ input[type='checkbox']:checked::before {
   color: #fff !important;
 }
 
+.upload-form__progress {
+  margin-top: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--bs-primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--bs-primary) 10%, var(--surface));
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.upload-form__spinner {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--bs-primary) 30%, transparent);
+  border-top-color: var(--bs-primary);
+  animation: upload-spinner-rotate 0.8s linear infinite;
+}
+
+@keyframes upload-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* ===== Final palette enforcement (single source of truth) ===== */
 :root {
   --brand-primary: #2c8b69;

@@ -155,5 +155,5 @@ public class UserProfileRepository : IUserProfileRepository
             ?? UiThemes.Dark;
     }
     private static int DeserializeComparisonSessionsCount(int? value)
-        => value.HasValue && value.Value >= 1 && value.Value <= 20 ? value.Value : 5;
+        => value.HasValue && value.Value >= 3 && value.Value <= 20 ? value.Value : 5;
 }
