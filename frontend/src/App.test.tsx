@@ -321,8 +321,8 @@ describe('App', () => {
     fireEvent.change(fileInput, { target: { files: [file] } });
 
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
-    await screen.findByTestId('upload-quality-step');
-    fireEvent.click(screen.getByRole('button', { name: 'To session analysis' }));
+    const qualityStep = await screen.findByTestId('upload-quality-step');
+    fireEvent.click(within(qualityStep).getByRole('button', { name: /To session analysis|Zur Session-Analyse/ }));
 
     const aggregationWindowSelectorAfterUpload = await screen.findByLabelText('Aggregation window') as HTMLSelectElement;
     await waitFor(() => expect(aggregationWindowSelectorAfterUpload.value).toBe('5'));
@@ -4307,11 +4307,107 @@ describe('App', () => {
     expect(within(qualityStep).queryByLabelText('Speed unit')).not.toBeInTheDocument();
     expect(screen.queryByText('Session context')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'To session analysis' }));
+    fireEvent.click(screen.getByRole('button', { name: /To session analysis|Zur Session-Analyse/ }));
     await waitFor(() => {
       expect(screen.queryByTestId('upload-quality-step')).not.toBeInTheDocument();
     });
     expect(screen.getAllByText(/Data mode:/).length).toBeGreaterThan(0);
+  });
+
+
+  it('R1_6_UXIA_Increment2_regression_keeps_detailed_comparison_data_after_quality_step_transition', async () => {
+    const comparisonContext = {
+      comparisonSessionsCount: 5,
+      sessionType: 'Training',
+      overview: {
+        distanceMeters: { averageLastN: 6870, best: 8400, isAvailable: true, availabilityReason: null },
+        durationSeconds: { averageLastN: 5669, best: 6435, isAvailable: true, availabilityReason: null },
+        runningDensityMetersPerMinute: { averageLastN: 74.45, best: 84.78, isAvailable: true, availabilityReason: null },
+        maxSpeedMetersPerSecond: { averageLastN: 7.2, best: 8.1, isAvailable: true, availabilityReason: null },
+        highSpeedDistanceMeters: { averageLastN: 116.4, best: 178.5, isAvailable: true, availabilityReason: null },
+        heartRateAverageBpm: { averageLastN: 143, best: 151, isAvailable: true, availabilityReason: null },
+        trainingImpulseEdwards: { averageLastN: 290, best: 355, isAvailable: true, availabilityReason: null },
+        heartRateRecoveryAfter60Seconds: { averageLastN: 27, best: 35, isAvailable: true, availabilityReason: null }
+      },
+      peak: {
+        distance: {},
+        highSpeedDistance: {},
+        mechanicalLoad: {},
+        trimp: {},
+        heartRateAvg: {}
+      },
+      segmentOverviewByCategory: {},
+      segmentPeakByCategory: {}
+    } as const;
+
+    const uploadedShallow = createUploadRecord({
+      id: 'upload-2',
+      fileName: 'increment2-regression.tcx',
+      isDetailed: false,
+      comparisonContext: null
+    });
+
+    const uploadedDetailed = createUploadRecord({
+      id: 'upload-2',
+      fileName: 'increment2-regression.tcx',
+      isDetailed: true,
+      comparisonContext
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+
+      if (url.endsWith('/tcx/upload') && init?.method === 'POST') {
+        return Promise.resolve({ ok: true, json: async () => uploadedShallow } as Response);
+      }
+
+      if (url.endsWith('/tcx/upload-2') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => uploadedDetailed } as Response);
+      }
+
+      if (url.endsWith('/tcx') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => [uploadedShallow] } as Response);
+      }
+
+      if (url.endsWith('/comparison-refresh/latest')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            id: 'job-upload-2',
+            status: 'Completed',
+            trigger: 'UploadCreated',
+            requestedAtUtc: '2026-03-05T10:00:00.000Z',
+            completedAtUtc: '2026-03-05T10:00:01.000Z',
+            totalSessions: 2,
+            updatedSessions: 2,
+            failedSessions: 0,
+            errorMessage: null
+          })
+        } as Response);
+      }
+
+      if (url.endsWith('/profile') && (!init || init.method === undefined)) {
+        return Promise.resolve({ ok: true, json: async () => createProfile() } as Response);
+      }
+
+      return Promise.reject(new Error(`Unexpected fetch call: ${url}`));
+    });
+
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload area' }));
+    fireEvent.change(screen.getByLabelText('Select TCX file'), {
+      target: { files: [new File(['<TrainingCenterDatabase></TrainingCenterDatabase>'], 'increment2-regression.tcx', { type: 'application/xml' })] }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+    const qualityStep = await screen.findByTestId('upload-quality-step');
+    fireEvent.click(within(qualityStep).getAllByRole('button')[0]);
+
+    await screen.findByRole('article', { name: 'Distance' });
+    await waitFor(() => {
+      expect(document.querySelectorAll('.kpi-card__comparison .bi-slash-circle').length).toBeGreaterThan(0);
+    });
   });
 
   it('R1_6_UXIA_Increment2_Story2_2_shows_quality_details_only_on_technical_info_page', async () => {
