@@ -589,6 +589,22 @@ public class TcxMetricsExtractorTests
     }
 
 
+
+
+    [Fact]
+    public void R2_10_Extract_ShouldRepairResidualOutlierSegmentsAfterAdaptiveSmoothing()
+    {
+        var speedsMps = new[] { 6.0, 13.2, 6.0, 3.0, 3.0 };
+        var doc = BuildOneHertzGpsDocumentFromSegmentSpeeds(speedsMps);
+
+        var rawSummary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.Raw, MetricThresholdProfile.CreateDefault());
+        var adaptiveSummary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.AdaptiveMedian, MetricThresholdProfile.CreateDefault());
+
+        rawSummary.CoreMetrics.MaxSpeedMetersPerSecond.Should().BeGreaterThan(12.5d);
+        adaptiveSummary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
+        adaptiveSummary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeLessOrEqualTo(12.5d);
+        adaptiveSummary.Smoothing.CorrectedOutlierCount.Should().BeGreaterThan(0);
+    }
     [Fact]
     public void R1_6_18_Ac01_Ac02_Ac03_Ac04_Ac05_Ac07_Extract_ShouldIgnoreIsolatedHighIntensitySampleForDistanceAndTime()
     {
