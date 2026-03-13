@@ -411,7 +411,70 @@ public static partial class TcxMetricsExtractor
             };
         }
 
+        correctedOutlierCount += RepairResidualOutlierSegments(output, outlierSpeedThresholdMps);
+
         return output;
+    }
+
+    private static int RepairResidualOutlierSegments(List<TrackpointSnapshot> points, double outlierSpeedThresholdMps)
+    {
+        var corrected = 0;
+        var madeChange = true;
+        var iterations = 0;
+
+        while (madeChange && iterations < 3)
+        {
+            madeChange = false;
+            iterations++;
+
+            for (var index = 1; index < points.Count - 1; index++)
+            {
+                var previous = points[index - 1];
+                var current = points[index];
+                var next = points[index + 1];
+
+                if (!HasGps(previous) || !HasGps(current) || !HasGps(next) || !HasTimestamp(previous) || !HasTimestamp(current) || !HasTimestamp(next))
+                {
+                    continue;
+                }
+
+                var elapsedToCurrent = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
+                var elapsedFromCurrent = (next.TimeUtc!.Value - current.TimeUtc!.Value).TotalSeconds;
+                var elapsedTotal = (next.TimeUtc.Value - previous.TimeUtc.Value).TotalSeconds;
+
+                if (elapsedToCurrent <= 0 || elapsedFromCurrent <= 0 || elapsedTotal <= 0 ||
+                    elapsedToCurrent > PauseGapThresholdSeconds || elapsedFromCurrent > PauseGapThresholdSeconds)
+                {
+                    continue;
+                }
+
+                var distanceToCurrent = HaversineMeters((previous.Latitude!.Value, previous.Longitude!.Value), (current.Latitude!.Value, current.Longitude!.Value));
+                var distanceFromCurrent = HaversineMeters((current.Latitude!.Value, current.Longitude!.Value), (next.Latitude!.Value, next.Longitude!.Value));
+
+                var speedToCurrent = distanceToCurrent / elapsedToCurrent;
+                var speedFromCurrent = distanceFromCurrent / elapsedFromCurrent;
+
+                if (speedToCurrent <= outlierSpeedThresholdMps && speedFromCurrent <= outlierSpeedThresholdMps)
+                {
+                    continue;
+                }
+
+                var ratio = Math.Clamp((current.TimeUtc.Value - previous.TimeUtc.Value).TotalSeconds / elapsedTotal, 0d, 1d);
+                var interpolatedLatitude = previous.Latitude.Value + ((next.Latitude.Value - previous.Latitude.Value) * ratio);
+                var interpolatedLongitude = previous.Longitude.Value + ((next.Longitude.Value - previous.Longitude.Value) * ratio);
+
+                points[index] = current with
+                {
+                    Latitude = interpolatedLatitude,
+                    Longitude = interpolatedLongitude
+                };
+
+                corrected++;
+                madeChange = true;
+            }
+        }
+
+        return corrected;
     }
 
     private static IEnumerable<TrackpointSnapshot> CollectWindow(IReadOnlyList<TrackpointSnapshot> points, int centerIndex, int radius)
