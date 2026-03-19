@@ -198,6 +198,12 @@ public class TcxSessionUseCase : ITcxSessionUseCase
             return null;
         }
 
+        var refreshedUpload = await _repository.GetByIdAsync(id, cancellationToken);
+        if (refreshedUpload is not null)
+        {
+            await RefreshAdaptiveStatsAsync(refreshedUpload, cancellationToken);
+        }
+
         await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SessionUpdated, cancellationToken);
         return await _repository.GetByIdAsync(id, cancellationToken);
     }
@@ -221,6 +227,12 @@ public class TcxSessionUseCase : ITcxSessionUseCase
         if (!wasUpdated)
         {
             return null;
+        }
+
+        var refreshedUpload = await _repository.GetByIdAsync(id, cancellationToken);
+        if (refreshedUpload is not null)
+        {
+            await RefreshAdaptiveStatsAsync(refreshedUpload, cancellationToken);
         }
 
         await EnqueueComparisonRefreshAsync(ComparisonSnapshotRefreshTriggers.SessionUpdated, cancellationToken);
