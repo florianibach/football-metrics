@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -871,6 +872,56 @@ public class TcxControllerTests : IClassFixture<WebApplicationFactory<Program>>
         updated.SelectedSpeedUnitSource.Should().Be(TcxSpeedUnitSources.ProfileDefault);
     }
 
+
+
+    [Fact]
+    public async Task R2_10_ManualSmoothingFilterChange_ShouldRefreshAdaptiveStatsFromUpdatedSummary()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"football-metrics-tests-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={databasePath}";
+        var client = CreateClientWithConnectionString(connectionString);
+
+        var profileUpdate = await client.PutAsJsonAsync("/api/v1/profile", new UpdateUserProfileRequest(PlayerPositions.CentralMidfielder, null, null, TcxSmoothingFilters.Raw, null, null));
+        profileUpdate.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using var form = CreateUploadForm(
+            "r2-10-adaptive-refresh.tcx",
+            "<TrainingCenterDatabase><Activities><Activity><Lap><Track>" +
+            "<Trackpoint><Time>2026-03-12T10:00:00Z</Time><Position><LatitudeDegrees>48.79943000</LatitudeDegrees><LongitudeDegrees>8.10400000</LongitudeDegrees></Position></Trackpoint>" +
+            "<Trackpoint><Time>2026-03-12T10:00:01Z</Time><Position><LatitudeDegrees>48.79938167</LatitudeDegrees><LongitudeDegrees>8.10394667</LongitudeDegrees></Position></Trackpoint>" +
+            "<Trackpoint><Time>2026-03-12T10:00:02Z</Time><Position><LatitudeDegrees>48.79938167</LatitudeDegrees><LongitudeDegrees>8.10394667</LongitudeDegrees></Position></Trackpoint>" +
+            "<Trackpoint><Time>2026-03-12T10:00:03Z</Time><Position><LatitudeDegrees>48.79926833</LatitudeDegrees><LongitudeDegrees>8.10382500</LongitudeDegrees></Position></Trackpoint>" +
+            "<Trackpoint><Time>2026-03-12T10:00:04Z</Time><Position><LatitudeDegrees>48.79921833</LatitudeDegrees><LongitudeDegrees>8.10376333</LongitudeDegrees></Position></Trackpoint>" +
+            "</Track></Lap></Activity></Activities></TrainingCenterDatabase>");
+
+        var uploadResponse = await client.PostAsync("/api/v1/tcx/upload", form);
+        uploadResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var created = await uploadResponse.Content.ReadFromJsonAsync<TcxUploadResponseWithSummaryDto>();
+        created.Should().NotBeNull();
+
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+
+        static async Task<double?> ReadAdaptiveMaxSpeedAsync(SqliteConnection db, Guid uploadId)
+        {
+            var command = db.CreateCommand();
+            command.CommandText = "SELECT MaxSpeedMps FROM TcxAdaptiveStats WHERE UploadId = $uploadId";
+            command.Parameters.AddWithValue("$uploadId", uploadId.ToString());
+            var scalar = await command.ExecuteScalarAsync();
+            return scalar is null or DBNull ? null : Convert.ToDouble(scalar, CultureInfo.InvariantCulture);
+        }
+
+        var rawAdaptiveSpeed = await ReadAdaptiveMaxSpeedAsync(connection, created!.Id);
+        rawAdaptiveSpeed.Should().NotBeNull();
+
+        var putResponse = await client.PutAsJsonAsync($"/api/v1/tcx/{created.Id}/smoothing-filter", new { filter = TcxSmoothingFilters.AdaptiveMedian });
+        putResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var adaptiveSpeed = await ReadAdaptiveMaxSpeedAsync(connection, created.Id);
+        adaptiveSpeed.Should().NotBeNull();
+        adaptiveSpeed!.Value.Should().BeLessThan(rawAdaptiveSpeed!.Value);
+    }
 
     [Fact]
     public async Task R1_5_12_Ac03_Ac04_ManualSessionSpeedUnitChange_ShouldMarkManualOverrideAndKeepProfileDefaultIntact()

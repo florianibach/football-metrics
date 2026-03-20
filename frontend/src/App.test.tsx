@@ -1979,6 +1979,9 @@ describe('App', () => {
 
     await waitFor(() => expect(document.querySelectorAll('.kpi-card__comparison .bi-slash-circle').length).toBeGreaterThan(0));
     expect(document.querySelectorAll('.kpi-card__comparison .bi-star-fill').length).toBeGreaterThan(0);
+
+    const speedCard = await screen.findByRole('article', { name: 'Speed Summary' });
+    expect(speedCard.querySelector('.kpi-card__comparison .bi-star-fill')).not.toBeNull();
   });
 
   it('R1_7_03_Ac03_kpi_actions_navigate_to_timeline_and_peak_demand', async () => {

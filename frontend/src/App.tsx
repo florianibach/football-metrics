@@ -5182,6 +5182,7 @@ export function App() {
                         helpText={`${metricHelp.maxSpeed} ${metricHelp.highIntensityTime}`}
                         comparisonAverage={maxSpeedComparison.averageLastFive !== null ? interpolate(t.kpiComparisonLastFive, { value: formatSpeed(maxSpeedComparison.averageLastFive, selectedSession.selectedSpeedUnit, t.notAvailable) }) : null}
                         comparisonDelta={formatSpeedComparisonDelta(displayedCoreMetrics.maxSpeedMetersPerSecond, maxSpeedComparison.averageLastFive, locale, selectedSession.selectedSpeedUnit)}
+                        comparisonBest={maxSpeedComparison.bestSeason !== null ? interpolate(t.kpiComparisonBestSeason, { value: formatSpeed(maxSpeedComparison.bestSeason, selectedSession.selectedSpeedUnit, t.notAvailable) }) : null}
                         trendHint={t.kpiTrendHigherIsBetter}
                         secondaryRows={[
                           `${t.metricHighIntensityRunCount}: ${withMetricStatus(String(detectedRunHierarchySummary?.highIntensityRunCount ?? displayedCoreMetrics.highIntensityRunCount ?? t.notAvailable), 'highIntensityRunCount', displayedCoreMetrics, t)}`,
