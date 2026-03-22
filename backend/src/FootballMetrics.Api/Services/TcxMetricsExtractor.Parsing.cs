@@ -59,18 +59,13 @@ public static partial class TcxMetricsExtractor
         {
             var previous = points[index - 1];
             var current = points[index];
-            if (!previous.TimeUtc.HasValue || !current.TimeUtc.HasValue || !previous.Latitude.HasValue || !previous.Longitude.HasValue || !current.Latitude.HasValue || !current.Longitude.HasValue)
+            if (!TryGetValidMovementSegment(previous, current, out var elapsedSeconds, out var distanceMeters) ||
+                elapsedSeconds > pauseGapThresholdSeconds)
             {
                 continue;
             }
 
-            var elapsedSeconds = (current.TimeUtc.Value - previous.TimeUtc.Value).TotalSeconds;
-            if (elapsedSeconds <= 0 || elapsedSeconds > pauseGapThresholdSeconds)
-            {
-                continue;
-            }
-
-            total += HaversineMeters((previous.Latitude.Value, previous.Longitude.Value), (current.Latitude.Value, current.Longitude.Value));
+            total += distanceMeters;
         }
 
         return total;

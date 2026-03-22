@@ -605,6 +605,20 @@ public class TcxMetricsExtractorTests
         adaptiveSummary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeLessOrEqualTo(12.5d);
         adaptiveSummary.Smoothing.CorrectedOutlierCount.Should().BeGreaterThan(0);
     }
+
+    [Fact]
+    public void R2_11_Extract_ShouldIgnoreLikelyPauseRelocationJumpForMaxSpeed()
+    {
+        var segmentSpeedsMetersPerSecond = new[] { 6.0, 6.0, 16.0 };
+        var segmentDurationsSeconds = new[] { 1.0, 1.0, 31.0 };
+        var doc = BuildGpsDocumentFromSegmentSpeedsAndDurations(segmentSpeedsMetersPerSecond, segmentDurationsSeconds);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.AdaptiveMedian, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
+        summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeApproximately(6.0, 0.5);
+    }
+
     [Fact]
     public void R1_6_18_Ac01_Ac02_Ac03_Ac04_Ac05_Ac07_Extract_ShouldIgnoreIsolatedHighIntensitySampleForDistanceAndTime()
     {
