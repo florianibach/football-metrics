@@ -372,13 +372,17 @@ public static partial class TcxMetricsExtractor
                 continue;
             }
 
+            if (!TryGetValidMovementSegment(previous, current, out var elapsedToCurrent, out var distanceToCurrent)
+                || !TryGetValidMovementSegment(current, next, out _, out _))
+            {
+                continue;
+            }
+
             var incomingBearing = CalculateBearingDegrees(previous, current);
             var outgoingBearing = CalculateBearingDegrees(current, next);
             var turnAngle = CalculateTurnDeltaDegrees(incomingBearing, outgoingBearing);
 
-            var distanceToCurrent = HaversineMeters((previous.Latitude!.Value, previous.Longitude!.Value), (current.Latitude!.Value, current.Longitude!.Value));
-            var elapsedToCurrent = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
-            var speedToCurrent = elapsedToCurrent <= 0 ? 0 : distanceToCurrent / elapsedToCurrent;
+            var speedToCurrent = distanceToCurrent / elapsedToCurrent;
 
             var isSpeedOutlier = speedToCurrent > outlierSpeedThresholdMps;
             var preserveLocalTurn = turnAngle >= 25;
@@ -440,18 +444,18 @@ public static partial class TcxMetricsExtractor
                     continue;
                 }
 
-                var elapsedToCurrent = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
-                var elapsedFromCurrent = (next.TimeUtc!.Value - current.TimeUtc!.Value).TotalSeconds;
-                var elapsedTotal = (next.TimeUtc.Value - previous.TimeUtc.Value).TotalSeconds;
-
-                if (elapsedToCurrent <= 0 || elapsedFromCurrent <= 0 || elapsedTotal <= 0 ||
-                    elapsedToCurrent > PauseGapThresholdSeconds || elapsedFromCurrent > PauseGapThresholdSeconds)
+                if (!TryGetValidMovementSegment(previous, current, out var elapsedToCurrent, out var distanceToCurrent)
+                    || !TryGetValidMovementSegment(current, next, out var elapsedFromCurrent, out var distanceFromCurrent))
                 {
                     continue;
                 }
 
-                var distanceToCurrent = HaversineMeters((previous.Latitude!.Value, previous.Longitude!.Value), (current.Latitude!.Value, current.Longitude!.Value));
-                var distanceFromCurrent = HaversineMeters((current.Latitude!.Value, current.Longitude!.Value), (next.Latitude!.Value, next.Longitude!.Value));
+                var elapsedTotal = (next.TimeUtc.Value - previous.TimeUtc.Value).TotalSeconds;
+
+                if (elapsedTotal <= 0)
+                {
+                    continue;
+                }
 
                 var speedToCurrent = distanceToCurrent / elapsedToCurrent;
                 var speedFromCurrent = distanceFromCurrent / elapsedFromCurrent;
