@@ -635,6 +635,24 @@ public class TcxMetricsExtractorTests
     }
 
     [Fact]
+    public void R2_13_Extract_ShouldIgnoreInitialGpsWarmupSpikeForLongSessions()
+    {
+        var segmentSpeedsMetersPerSecond = new List<double>();
+        var segmentDurationsSeconds = new List<double>();
+
+        segmentSpeedsMetersPerSecond.AddRange(Enumerable.Repeat(8.5, 7));
+        segmentDurationsSeconds.AddRange(Enumerable.Repeat(1.0, 7));
+        segmentSpeedsMetersPerSecond.AddRange(Enumerable.Repeat(3.0, 360));
+        segmentDurationsSeconds.AddRange(Enumerable.Repeat(1.0, 360));
+
+        var doc = BuildGpsDocumentFromSegmentSpeedsAndDurations(segmentSpeedsMetersPerSecond, segmentDurationsSeconds);
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.AdaptiveMedian, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
+        summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeLessThan(6.0);
+    }
+
+    [Fact]
     public void R1_6_18_Ac01_Ac02_Ac03_Ac04_Ac05_Ac07_Extract_ShouldIgnoreIsolatedHighIntensitySampleForDistanceAndTime()
     {
         var speedsMps = new[] { 3.0, 6.0, 3.0, 3.0 };

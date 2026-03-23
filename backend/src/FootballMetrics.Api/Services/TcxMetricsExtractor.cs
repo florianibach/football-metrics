@@ -21,6 +21,8 @@ public static partial class TcxMetricsExtractor
     private const double PauseRelocationDistanceThresholdMeters = 80.0;
     private const double PauseRecoveryGapThresholdSeconds = 90.0;
     private const double PauseRecoveryWindowSeconds = 45.0;
+    private const double InitialGpsStabilizationWindowSeconds = 15.0;
+    private const double InitialGpsStabilizationMinSessionSeconds = 300.0;
 
     public static TcxActivitySummary Extract(XDocument document)
         => Extract(document, TcxSmoothingFilters.AdaptiveMedian, null);
@@ -1100,6 +1102,10 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             .ToList();
 
         var gpsStartTime = gpsPoints.FirstOrDefault()?.TimeUtc;
+        var gpsSessionDurationSeconds = gpsStartTime.HasValue && gpsPoints.Count > 1
+            ? Math.Max(0, (gpsPoints[^1].TimeUtc!.Value - gpsStartTime.Value).TotalSeconds)
+            : 0;
+        var applyInitialGpsStabilization = gpsStartTime.HasValue && gpsSessionDurationSeconds >= InitialGpsStabilizationMinSessionSeconds;
 
         var segments = new List<(bool IsValid, int PointIndex, double StartElapsedSeconds, double EndElapsedSeconds, double Distance, double Speed, double Duration)>();
         DateTime? pauseRecoveryUntilUtc = null;
@@ -1129,6 +1135,12 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             }
 
             if (pauseRecoveryUntilUtc.HasValue && current.TimeUtc.Value <= pauseRecoveryUntilUtc.Value)
+            {
+                continue;
+            }
+
+            if (applyInitialGpsStabilization &&
+                current.TimeUtc.Value <= gpsStartTime.Value.AddSeconds(InitialGpsStabilizationWindowSeconds))
             {
                 continue;
             }
