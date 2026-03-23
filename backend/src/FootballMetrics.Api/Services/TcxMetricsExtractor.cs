@@ -17,6 +17,13 @@ public static partial class TcxMetricsExtractor
     private const double AccelerationThresholdMetersPerSecondSquared = 2.0;
     private const double DecelerationThresholdMetersPerSecondSquared = -2.0;
     private const double PauseGapThresholdSeconds = 300.0;
+    private const double PauseRelocationGapThresholdSeconds = 30.0;
+    private const double PauseRelocationDistanceThresholdMeters = 80.0;
+    private const double PauseRecoveryGapThresholdSeconds = 90.0;
+    private const double PauseRecoveryWindowSeconds = 45.0;
+    private const double InitialGpsStabilizationWindowSeconds = 15.0;
+    private const double InitialGpsStabilizationMinSessionSeconds = 300.0;
+    private const double InitialGpsFixDelayThresholdSeconds = 8.0;
 
     public static TcxActivitySummary Extract(XDocument document)
         => Extract(document, TcxSmoothingFilters.AdaptiveMedian, null);
@@ -99,7 +106,11 @@ public static partial class TcxMetricsExtractor
         var dataAvailability = BuildDataAvailability(rawGpsPoints.Count > 0, heartRates.Count > 0, qualityAssessment.Status, qualityAssessment.GpsAssessment, qualityAssessment.HeartRateAssessment);
         var smoothingTrace = BuildSmoothingTrace(normalizedFilter, trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
         var effectiveThresholds = thresholdProfile ?? MetricThresholdProfile.CreateDefault();
-        var (coreMetrics, detectedRuns, accelerations, decelerations, highIntensityDirectionChanges) = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
+        var (coreMetrics, detectedRuns, accelerations, decelerations, highIntensityDirectionChanges) = BuildFootballCoreMetrics(
+            smoothedTrackpoints,
+            qualityAssessment.Status,
+            finalDistance,
+            effectiveThresholds);
         var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints, effectiveThresholds);
 
 
@@ -370,13 +381,17 @@ public static partial class TcxMetricsExtractor
                 continue;
             }
 
+            if (!TryGetValidMovementSegment(previous, current, out var elapsedToCurrent, out var distanceToCurrent)
+                || !TryGetValidMovementSegment(current, next, out _, out _))
+            {
+                continue;
+            }
+
             var incomingBearing = CalculateBearingDegrees(previous, current);
             var outgoingBearing = CalculateBearingDegrees(current, next);
             var turnAngle = CalculateTurnDeltaDegrees(incomingBearing, outgoingBearing);
 
-            var distanceToCurrent = HaversineMeters((previous.Latitude!.Value, previous.Longitude!.Value), (current.Latitude!.Value, current.Longitude!.Value));
-            var elapsedToCurrent = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
-            var speedToCurrent = elapsedToCurrent <= 0 ? 0 : distanceToCurrent / elapsedToCurrent;
+            var speedToCurrent = distanceToCurrent / elapsedToCurrent;
 
             var isSpeedOutlier = speedToCurrent > outlierSpeedThresholdMps;
             var preserveLocalTurn = turnAngle >= 25;
@@ -438,18 +453,18 @@ public static partial class TcxMetricsExtractor
                     continue;
                 }
 
-                var elapsedToCurrent = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
-                var elapsedFromCurrent = (next.TimeUtc!.Value - current.TimeUtc!.Value).TotalSeconds;
-                var elapsedTotal = (next.TimeUtc.Value - previous.TimeUtc.Value).TotalSeconds;
-
-                if (elapsedToCurrent <= 0 || elapsedFromCurrent <= 0 || elapsedTotal <= 0 ||
-                    elapsedToCurrent > PauseGapThresholdSeconds || elapsedFromCurrent > PauseGapThresholdSeconds)
+                if (!TryGetValidMovementSegment(previous, current, out var elapsedToCurrent, out var distanceToCurrent)
+                    || !TryGetValidMovementSegment(current, next, out var elapsedFromCurrent, out var distanceFromCurrent))
                 {
                     continue;
                 }
 
-                var distanceToCurrent = HaversineMeters((previous.Latitude!.Value, previous.Longitude!.Value), (current.Latitude!.Value, current.Longitude!.Value));
-                var distanceFromCurrent = HaversineMeters((current.Latitude!.Value, current.Longitude!.Value), (next.Latitude!.Value, next.Longitude!.Value));
+                var elapsedTotal = (next.TimeUtc.Value - previous.TimeUtc.Value).TotalSeconds;
+
+                if (elapsedTotal <= 0)
+                {
+                    continue;
+                }
 
                 var speedToCurrent = distanceToCurrent / elapsedToCurrent;
                 var speedFromCurrent = distanceFromCurrent / elapsedFromCurrent;
@@ -737,18 +752,11 @@ public static partial class TcxMetricsExtractor
 
     private static double? CalculateSegmentSpeedMetersPerSecond(TrackpointSnapshot from, TrackpointSnapshot to)
     {
-        if (!from.TimeUtc.HasValue || !to.TimeUtc.HasValue || !HasGps(from) || !HasGps(to))
+        if (!TryGetValidMovementSegment(from, to, out var elapsedSeconds, out var distanceMeters))
         {
             return null;
         }
 
-        var elapsedSeconds = (to.TimeUtc.Value - from.TimeUtc.Value).TotalSeconds;
-        if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds)
-        {
-            return null;
-        }
-
-        var distanceMeters = HaversineMeters((from.Latitude!.Value, from.Longitude!.Value), (to.Latitude!.Value, to.Longitude!.Value));
         return distanceMeters / elapsedSeconds;
     }
 
@@ -790,14 +798,15 @@ public static partial class TcxMetricsExtractor
             .Select(pair =>
             {
                 var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
-                if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds)
-                {
-                    return (double?)null;
-                }
-
                 var distanceMeters = HaversineMeters(
                     (pair.previous.Latitude!.Value, pair.previous.Longitude!.Value),
                     (pair.current.Latitude!.Value, pair.current.Longitude!.Value));
+
+                if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds ||
+                    IsLikelyPauseRelocation(elapsedSeconds, distanceMeters))
+                {
+                    return (double?)null;
+                }
 
                 return distanceMeters / elapsedSeconds;
             })
@@ -1094,33 +1103,69 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             .ToList();
 
         var gpsStartTime = gpsPoints.FirstOrDefault()?.TimeUtc;
+        var sessionStartTime = trackpoints
+            .Where(tp => tp.TimeUtc.HasValue)
+            .OrderBy(tp => tp.TimeUtc)
+            .Select(tp => tp.TimeUtc!.Value)
+            .FirstOrDefault();
+        var gpsSessionDurationSeconds = gpsStartTime.HasValue && gpsPoints.Count > 1
+            ? Math.Max(0, (gpsPoints[^1].TimeUtc!.Value - gpsStartTime.Value).TotalSeconds)
+            : 0;
+        var gpsFixDelaySeconds = gpsStartTime.HasValue && sessionStartTime != default
+            ? Math.Max(0, (gpsStartTime.Value - sessionStartTime).TotalSeconds)
+            : 0;
+        var applyInitialGpsStabilization = gpsStartTime.HasValue && (
+            gpsSessionDurationSeconds >= InitialGpsStabilizationMinSessionSeconds
+            || gpsFixDelaySeconds >= InitialGpsFixDelayThresholdSeconds);
 
-        var segments = gpsPoints
-            .Zip(gpsPoints.Skip(1), (previous, current) => new { previous, current })
-            .Select((pair, index) =>
+        var segments = new List<(bool IsValid, int PointIndex, double StartElapsedSeconds, double EndElapsedSeconds, double Distance, double Speed, double Duration)>();
+        DateTime? pauseRecoveryUntilUtc = null;
+        for (var index = 1; index < gpsPoints.Count; index++)
+        {
+            var previous = gpsPoints[index - 1];
+            var current = gpsPoints[index];
+            var elapsedSeconds = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
+
+            if (!gpsStartTime.HasValue)
             {
-                var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
-                if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds || !gpsStartTime.HasValue)
-                {
-                    return (IsValid: false, PointIndex: index, StartElapsedSeconds: 0.0, EndElapsedSeconds: 0.0, Distance: 0.0, Speed: 0.0, Duration: 0.0);
-                }
+                continue;
+            }
 
-                var distanceMeters = HaversineMeters(
-                    (pair.previous.Latitude!.Value, pair.previous.Longitude!.Value),
-                    (pair.current.Latitude!.Value, pair.current.Longitude!.Value));
-                var speedMps = distanceMeters / elapsedSeconds;
+            if (elapsedSeconds >= PauseRecoveryGapThresholdSeconds)
+            {
+                pauseRecoveryUntilUtc = current.TimeUtc.Value.AddSeconds(PauseRecoveryWindowSeconds);
+            }
 
-                return (
-                    IsValid: true,
-                    PointIndex: index,
-                    StartElapsedSeconds: Math.Max(0, (pair.previous.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
-                    EndElapsedSeconds: Math.Max(0, (pair.current.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
-                    Distance: distanceMeters,
-                    Speed: speedMps,
-                    Duration: elapsedSeconds);
-            })
-            .Where(x => x.IsValid)
-            .ToList();
+            var segmentDistanceMeters = HaversineMeters(
+                (previous.Latitude!.Value, previous.Longitude!.Value),
+                (current.Latitude!.Value, current.Longitude!.Value));
+            if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds ||
+                IsLikelyPauseRelocation(elapsedSeconds, segmentDistanceMeters))
+            {
+                continue;
+            }
+
+            if (pauseRecoveryUntilUtc.HasValue && current.TimeUtc.Value <= pauseRecoveryUntilUtc.Value)
+            {
+                continue;
+            }
+
+            if (applyInitialGpsStabilization &&
+                current.TimeUtc.Value <= gpsStartTime.Value.AddSeconds(InitialGpsStabilizationWindowSeconds))
+            {
+                continue;
+            }
+
+            var speedMps = segmentDistanceMeters / elapsedSeconds;
+            segments.Add((
+                IsValid: true,
+                PointIndex: index - 1,
+                StartElapsedSeconds: Math.Max(0, (previous.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
+                EndElapsedSeconds: Math.Max(0, (current.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
+                Distance: segmentDistanceMeters,
+                Speed: speedMps,
+                Duration: elapsedSeconds));
+        }
 
         var hasGpsMeasurements = gpsPoints.Count > 0;
         var gpsSegmentsAreUsable = segments.Count > 0;
@@ -1790,14 +1835,14 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             var previous = pointsWithGpsAndTime[index - 1];
             var current = pointsWithGpsAndTime[index];
             var elapsedSeconds = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
-            if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds)
-            {
-                continue;
-            }
-
             var distanceMeters = HaversineMeters(
                 (previous.Latitude!.Value, previous.Longitude!.Value),
                 (current.Latitude!.Value, current.Longitude!.Value));
+            if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds ||
+                IsLikelyPauseRelocation(elapsedSeconds, distanceMeters))
+            {
+                continue;
+            }
 
             var speedMetersPerSecond = distanceMeters / elapsedSeconds;
             if (speedMetersPerSecond > outlierSpeedThresholdMps)
@@ -1817,6 +1862,39 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
 
         return (unplausibleJumpCount, clusteredJumpCount);
     }
+
+    private static bool TryGetValidMovementSegment(
+        TrackpointSnapshot from,
+        TrackpointSnapshot to,
+        out double elapsedSeconds,
+        out double distanceMeters)
+    {
+        elapsedSeconds = 0;
+        distanceMeters = 0;
+
+        if (!from.TimeUtc.HasValue || !to.TimeUtc.HasValue || !HasGps(from) || !HasGps(to))
+        {
+            return false;
+        }
+
+        elapsedSeconds = (to.TimeUtc.Value - from.TimeUtc.Value).TotalSeconds;
+        if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds)
+        {
+            return false;
+        }
+
+        distanceMeters = HaversineMeters((from.Latitude!.Value, from.Longitude!.Value), (to.Latitude!.Value, to.Longitude!.Value));
+        if (IsLikelyPauseRelocation(elapsedSeconds, distanceMeters))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsLikelyPauseRelocation(double elapsedSeconds, double distanceMeters)
+        => elapsedSeconds >= PauseRelocationGapThresholdSeconds
+           && distanceMeters >= PauseRelocationDistanceThresholdMeters;
 
 
     private sealed record ChannelQualityAssessment(string Status, IReadOnlyList<string> Reasons);

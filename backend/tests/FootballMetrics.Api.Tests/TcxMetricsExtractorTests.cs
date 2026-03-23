@@ -605,6 +605,66 @@ public class TcxMetricsExtractorTests
         adaptiveSummary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeLessOrEqualTo(12.5d);
         adaptiveSummary.Smoothing.CorrectedOutlierCount.Should().BeGreaterThan(0);
     }
+
+    [Fact]
+    public void R2_11_Extract_ShouldIgnoreLikelyPauseRelocationJumpForMaxSpeed()
+    {
+        var segmentSpeedsMetersPerSecond = new[] { 6.0, 6.0, 16.0 };
+        var segmentDurationsSeconds = new[] { 1.0, 1.0, 31.0 };
+        var doc = BuildGpsDocumentFromSegmentSpeedsAndDurations(segmentSpeedsMetersPerSecond, segmentDurationsSeconds);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.AdaptiveMedian, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
+        summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeApproximately(6.0, 0.5);
+    }
+
+    [Fact]
+    public void R2_12_Extract_ShouldIgnoreGpsRecoverySpikeImmediatelyAfterPause()
+    {
+        var segmentSpeedsMetersPerSecond = new List<double> { 6.0, 6.0, 0.5, 18.0 };
+        var segmentDurationsSeconds = new List<double> { 1.0, 1.0, 120.0, 1.0 };
+        segmentSpeedsMetersPerSecond.AddRange(Enumerable.Repeat(6.0, 60));
+        segmentDurationsSeconds.AddRange(Enumerable.Repeat(1.0, 60));
+        var doc = BuildGpsDocumentFromSegmentSpeedsAndDurations(segmentSpeedsMetersPerSecond, segmentDurationsSeconds);
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.AdaptiveMedian, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
+        summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeApproximately(6.0, 0.6);
+    }
+
+    [Fact]
+    public void R2_13_Extract_ShouldIgnoreInitialGpsWarmupSpikeForLongSessions()
+    {
+        var segmentSpeedsMetersPerSecond = new List<double>();
+        var segmentDurationsSeconds = new List<double>();
+
+        segmentSpeedsMetersPerSecond.AddRange(Enumerable.Repeat(8.5, 7));
+        segmentDurationsSeconds.AddRange(Enumerable.Repeat(1.0, 7));
+        segmentSpeedsMetersPerSecond.AddRange(Enumerable.Repeat(3.0, 360));
+        segmentDurationsSeconds.AddRange(Enumerable.Repeat(1.0, 360));
+
+        var doc = BuildGpsDocumentFromSegmentSpeedsAndDurations(segmentSpeedsMetersPerSecond, segmentDurationsSeconds);
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.AdaptiveMedian, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
+        summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeLessThan(6.0);
+    }
+
+    [Fact]
+    public void R2_14_Extract_ShouldIgnoreInitialGpsWarmupSpikeWhenFixIsDelayed()
+    {
+        var doc = BuildGpsDocumentWithInitialMissingGpsSamples(
+            missingGpsSamples: 12,
+            segmentSpeedsMetersPerSecond: new[] { 8.5, 8.2, 7.8, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 });
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.AdaptiveMedian, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
+        summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeLessThan(6.0);
+    }
+
     [Fact]
     public void R1_6_18_Ac01_Ac02_Ac03_Ac04_Ac05_Ac07_Extract_ShouldIgnoreIsolatedHighIntensitySampleForDistanceAndTime()
     {
@@ -1105,6 +1165,34 @@ public class TcxMetricsExtractorTests
             var duration = segmentDurationsSeconds[index];
             timestamp = timestamp.AddSeconds(duration);
             latitude += (speed * duration) / metersPerDegreeLatitude;
+            xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+        }
+
+        xml += "</Track></Lap></Activity></Activities></TrainingCenterDatabase>";
+        return XDocument.Parse(xml);
+    }
+
+    private static XDocument BuildGpsDocumentWithInitialMissingGpsSamples(int missingGpsSamples, IReadOnlyList<double> segmentSpeedsMetersPerSecond)
+    {
+        const double metersPerDegreeLatitude = 111_320d;
+        var timestamp = DateTime.Parse("2026-02-16T10:00:00Z", null, DateTimeStyles.AdjustToUniversal);
+        var latitude = 50.0d;
+
+        var xml = "<TrainingCenterDatabase><Activities><Activity><Lap><Track>";
+        xml += $"<Trackpoint><Time>{timestamp:O}</Time><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+
+        for (var i = 0; i < missingGpsSamples; i++)
+        {
+            timestamp = timestamp.AddSeconds(1);
+            xml += $"<Trackpoint><Time>{timestamp:O}</Time><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+        }
+
+        xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+
+        foreach (var speed in segmentSpeedsMetersPerSecond)
+        {
+            timestamp = timestamp.AddSeconds(1);
+            latitude += speed / metersPerDegreeLatitude;
             xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
         }
 
