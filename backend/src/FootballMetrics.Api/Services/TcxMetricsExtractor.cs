@@ -19,8 +19,8 @@ public static partial class TcxMetricsExtractor
     private const double PauseGapThresholdSeconds = 300.0;
     private const double PauseRelocationGapThresholdSeconds = 30.0;
     private const double PauseRelocationDistanceThresholdMeters = 80.0;
-    private const double PauseRecoveryGapThresholdSeconds = 20.0;
-    private const double PauseRecoveryWindowSeconds = 15.0;
+    private const double PauseRecoveryGapThresholdSeconds = 90.0;
+    private const double PauseRecoveryWindowSeconds = 45.0;
 
     public static TcxActivitySummary Extract(XDocument document)
         => Extract(document, TcxSmoothingFilters.AdaptiveMedian, null);
@@ -103,7 +103,11 @@ public static partial class TcxMetricsExtractor
         var dataAvailability = BuildDataAvailability(rawGpsPoints.Count > 0, heartRates.Count > 0, qualityAssessment.Status, qualityAssessment.GpsAssessment, qualityAssessment.HeartRateAssessment);
         var smoothingTrace = BuildSmoothingTrace(normalizedFilter, trackpointSnapshots, smoothedTrackpoints, rawDistanceMeters, smoothedDistanceMeters, correctedOutlierCount, outlierSpeedThresholdMps);
         var effectiveThresholds = thresholdProfile ?? MetricThresholdProfile.CreateDefault();
-        var (coreMetrics, detectedRuns, accelerations, decelerations, highIntensityDirectionChanges) = BuildFootballCoreMetrics(smoothedTrackpoints, qualityAssessment.Status, finalDistance, effectiveThresholds);
+        var (coreMetrics, detectedRuns, accelerations, decelerations, highIntensityDirectionChanges) = BuildFootballCoreMetrics(
+            smoothedTrackpoints,
+            qualityAssessment.Status,
+            finalDistance,
+            effectiveThresholds);
         var intervalAggregates = BuildIntervalAggregates(smoothedTrackpoints, effectiveThresholds);
 
 

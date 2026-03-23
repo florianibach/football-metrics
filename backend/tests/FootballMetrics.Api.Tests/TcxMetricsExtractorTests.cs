@@ -622,8 +622,10 @@ public class TcxMetricsExtractorTests
     [Fact]
     public void R2_12_Extract_ShouldIgnoreGpsRecoverySpikeImmediatelyAfterPause()
     {
-        var segmentSpeedsMetersPerSecond = new[] { 6.0, 6.0, 0.5, 18.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0 };
-        var segmentDurationsSeconds = new[] { 1.0, 1.0, 40.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 };
+        var segmentSpeedsMetersPerSecond = new List<double> { 6.0, 6.0, 0.5, 18.0 };
+        var segmentDurationsSeconds = new List<double> { 1.0, 1.0, 120.0, 1.0 };
+        segmentSpeedsMetersPerSecond.AddRange(Enumerable.Repeat(6.0, 60));
+        segmentDurationsSeconds.AddRange(Enumerable.Repeat(1.0, 60));
         var doc = BuildGpsDocumentFromSegmentSpeedsAndDurations(segmentSpeedsMetersPerSecond, segmentDurationsSeconds);
 
         var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.AdaptiveMedian, MetricThresholdProfile.CreateDefault());
