@@ -23,6 +23,7 @@ public static partial class TcxMetricsExtractor
     private const double PauseRecoveryWindowSeconds = 45.0;
     private const double InitialGpsStabilizationWindowSeconds = 15.0;
     private const double InitialGpsStabilizationMinSessionSeconds = 300.0;
+    private const double InitialGpsFixDelayThresholdSeconds = 8.0;
 
     public static TcxActivitySummary Extract(XDocument document)
         => Extract(document, TcxSmoothingFilters.AdaptiveMedian, null);
@@ -1102,10 +1103,20 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
             .ToList();
 
         var gpsStartTime = gpsPoints.FirstOrDefault()?.TimeUtc;
+        var sessionStartTime = trackpoints
+            .Where(tp => tp.TimeUtc.HasValue)
+            .OrderBy(tp => tp.TimeUtc)
+            .Select(tp => tp.TimeUtc!.Value)
+            .FirstOrDefault();
         var gpsSessionDurationSeconds = gpsStartTime.HasValue && gpsPoints.Count > 1
             ? Math.Max(0, (gpsPoints[^1].TimeUtc!.Value - gpsStartTime.Value).TotalSeconds)
             : 0;
-        var applyInitialGpsStabilization = gpsStartTime.HasValue && gpsSessionDurationSeconds >= InitialGpsStabilizationMinSessionSeconds;
+        var gpsFixDelaySeconds = gpsStartTime.HasValue && sessionStartTime != default
+            ? Math.Max(0, (gpsStartTime.Value - sessionStartTime).TotalSeconds)
+            : 0;
+        var applyInitialGpsStabilization = gpsStartTime.HasValue && (
+            gpsSessionDurationSeconds >= InitialGpsStabilizationMinSessionSeconds
+            || gpsFixDelaySeconds >= InitialGpsFixDelayThresholdSeconds);
 
         var segments = new List<(bool IsValid, int PointIndex, double StartElapsedSeconds, double EndElapsedSeconds, double Distance, double Speed, double Duration)>();
         DateTime? pauseRecoveryUntilUtc = null;

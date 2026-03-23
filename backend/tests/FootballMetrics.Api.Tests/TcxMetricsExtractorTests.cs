@@ -653,6 +653,19 @@ public class TcxMetricsExtractorTests
     }
 
     [Fact]
+    public void R2_14_Extract_ShouldIgnoreInitialGpsWarmupSpikeWhenFixIsDelayed()
+    {
+        var doc = BuildGpsDocumentWithInitialMissingGpsSamples(
+            missingGpsSamples: 12,
+            segmentSpeedsMetersPerSecond: new[] { 8.5, 8.2, 7.8, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0 });
+
+        var summary = TcxMetricsExtractor.Extract(doc, TcxSmoothingFilters.AdaptiveMedian, MetricThresholdProfile.CreateDefault());
+
+        summary.CoreMetrics.MaxSpeedMetersPerSecond.Should().NotBeNull();
+        summary.CoreMetrics.MaxSpeedMetersPerSecond!.Value.Should().BeLessThan(6.0);
+    }
+
+    [Fact]
     public void R1_6_18_Ac01_Ac02_Ac03_Ac04_Ac05_Ac07_Extract_ShouldIgnoreIsolatedHighIntensitySampleForDistanceAndTime()
     {
         var speedsMps = new[] { 3.0, 6.0, 3.0, 3.0 };
@@ -1152,6 +1165,34 @@ public class TcxMetricsExtractorTests
             var duration = segmentDurationsSeconds[index];
             timestamp = timestamp.AddSeconds(duration);
             latitude += (speed * duration) / metersPerDegreeLatitude;
+            xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+        }
+
+        xml += "</Track></Lap></Activity></Activities></TrainingCenterDatabase>";
+        return XDocument.Parse(xml);
+    }
+
+    private static XDocument BuildGpsDocumentWithInitialMissingGpsSamples(int missingGpsSamples, IReadOnlyList<double> segmentSpeedsMetersPerSecond)
+    {
+        const double metersPerDegreeLatitude = 111_320d;
+        var timestamp = DateTime.Parse("2026-02-16T10:00:00Z", null, DateTimeStyles.AdjustToUniversal);
+        var latitude = 50.0d;
+
+        var xml = "<TrainingCenterDatabase><Activities><Activity><Lap><Track>";
+        xml += $"<Trackpoint><Time>{timestamp:O}</Time><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+
+        for (var i = 0; i < missingGpsSamples; i++)
+        {
+            timestamp = timestamp.AddSeconds(1);
+            xml += $"<Trackpoint><Time>{timestamp:O}</Time><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+        }
+
+        xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
+
+        foreach (var speed in segmentSpeedsMetersPerSecond)
+        {
+            timestamp = timestamp.AddSeconds(1);
+            latitude += speed / metersPerDegreeLatitude;
             xml += $"<Trackpoint><Time>{timestamp:O}</Time><Position><LatitudeDegrees>{latitude.ToString(CultureInfo.InvariantCulture)}</LatitudeDegrees><LongitudeDegrees>7.0</LongitudeDegrees></Position><HeartRateBpm><Value>130</Value></HeartRateBpm></Trackpoint>";
         }
 
