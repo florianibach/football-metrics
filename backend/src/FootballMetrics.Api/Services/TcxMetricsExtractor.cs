@@ -19,6 +19,8 @@ public static partial class TcxMetricsExtractor
     private const double PauseGapThresholdSeconds = 300.0;
     private const double PauseRelocationGapThresholdSeconds = 30.0;
     private const double PauseRelocationDistanceThresholdMeters = 80.0;
+    private const double PauseRecoveryGapThresholdSeconds = 20.0;
+    private const double PauseRecoveryWindowSeconds = 15.0;
 
     public static TcxActivitySummary Extract(XDocument document)
         => Extract(document, TcxSmoothingFilters.AdaptiveMedian, null);
@@ -1095,38 +1097,48 @@ private static (TcxFootballCoreMetrics CoreMetrics, IReadOnlyList<TcxDetectedRun
 
         var gpsStartTime = gpsPoints.FirstOrDefault()?.TimeUtc;
 
-        var segments = gpsPoints
-            .Zip(gpsPoints.Skip(1), (previous, current) => new { previous, current })
-            .Select((pair, index) =>
+        var segments = new List<(bool IsValid, int PointIndex, double StartElapsedSeconds, double EndElapsedSeconds, double Distance, double Speed, double Duration)>();
+        DateTime? pauseRecoveryUntilUtc = null;
+        for (var index = 1; index < gpsPoints.Count; index++)
+        {
+            var previous = gpsPoints[index - 1];
+            var current = gpsPoints[index];
+            var elapsedSeconds = (current.TimeUtc!.Value - previous.TimeUtc!.Value).TotalSeconds;
+
+            if (!gpsStartTime.HasValue)
             {
-                var elapsedSeconds = (pair.current.TimeUtc!.Value - pair.previous.TimeUtc!.Value).TotalSeconds;
-                if (!gpsStartTime.HasValue)
-                {
-                    return (IsValid: false, PointIndex: index, StartElapsedSeconds: 0.0, EndElapsedSeconds: 0.0, Distance: 0.0, Speed: 0.0, Duration: 0.0);
-                }
+                continue;
+            }
 
-                var distanceMeters = HaversineMeters(
-                    (pair.previous.Latitude!.Value, pair.previous.Longitude!.Value),
-                    (pair.current.Latitude!.Value, pair.current.Longitude!.Value));
-                if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds ||
-                    IsLikelyPauseRelocation(elapsedSeconds, distanceMeters))
-                {
-                    return (IsValid: false, PointIndex: index, StartElapsedSeconds: 0.0, EndElapsedSeconds: 0.0, Distance: 0.0, Speed: 0.0, Duration: 0.0);
-                }
+            if (elapsedSeconds >= PauseRecoveryGapThresholdSeconds)
+            {
+                pauseRecoveryUntilUtc = current.TimeUtc.Value.AddSeconds(PauseRecoveryWindowSeconds);
+            }
 
-                var speedMps = distanceMeters / elapsedSeconds;
+            var segmentDistanceMeters = HaversineMeters(
+                (previous.Latitude!.Value, previous.Longitude!.Value),
+                (current.Latitude!.Value, current.Longitude!.Value));
+            if (elapsedSeconds <= 0 || elapsedSeconds > PauseGapThresholdSeconds ||
+                IsLikelyPauseRelocation(elapsedSeconds, segmentDistanceMeters))
+            {
+                continue;
+            }
 
-                return (
-                    IsValid: true,
-                    PointIndex: index,
-                    StartElapsedSeconds: Math.Max(0, (pair.previous.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
-                    EndElapsedSeconds: Math.Max(0, (pair.current.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
-                    Distance: distanceMeters,
-                    Speed: speedMps,
-                    Duration: elapsedSeconds);
-            })
-            .Where(x => x.IsValid)
-            .ToList();
+            if (pauseRecoveryUntilUtc.HasValue && current.TimeUtc.Value <= pauseRecoveryUntilUtc.Value)
+            {
+                continue;
+            }
+
+            var speedMps = segmentDistanceMeters / elapsedSeconds;
+            segments.Add((
+                IsValid: true,
+                PointIndex: index - 1,
+                StartElapsedSeconds: Math.Max(0, (previous.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
+                EndElapsedSeconds: Math.Max(0, (current.TimeUtc.Value - gpsStartTime.Value).TotalSeconds),
+                Distance: segmentDistanceMeters,
+                Speed: speedMps,
+                Duration: elapsedSeconds));
+        }
 
         var hasGpsMeasurements = gpsPoints.Count > 0;
         var gpsSegmentsAreUsable = segments.Count > 0;
