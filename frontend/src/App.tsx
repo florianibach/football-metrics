@@ -6327,6 +6327,10 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     const columns = Math.ceil(width / cellSize);
     const rows = Math.ceil(height / cellSize);
     const influenceRadius = points.length > 2800 ? 3 : points.length > 1400 ? 4 : 5;
+    const minThreshold = 0.015;
+    const saturationPercentile = 0.97;
+    const minimumSaturationShareOfMax = 0.35;
+    const contrastGamma = 0.82;
     const kernel: number[] = [];
 
     for (let dy = -influenceRadius; dy <= influenceRadius; dy += 1) {
@@ -6375,12 +6379,11 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     // Normalize against a high percentile instead of the absolute max.
     // This avoids one stationary hotspot dominating the entire map.
     nonZeroDensity.sort((a, b) => a - b);
-    const saturationIndex = Math.floor(nonZeroDensity.length * 0.97);
+    const saturationIndex = Math.floor(nonZeroDensity.length * saturationPercentile);
     const saturationDensity = nonZeroDensity[Math.min(nonZeroDensity.length - 1, saturationIndex)] ?? maxDensity;
-    const normalizationBase = Math.max(saturationDensity, maxDensity * 0.35);
+    const normalizationBase = Math.max(saturationDensity, maxDensity * minimumSaturationShareOfMax);
 
     const cells: Array<{ x: number; y: number; value: number }> = [];
-    const minThreshold = 0.015;
 
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
@@ -6389,7 +6392,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
           continue;
         }
 
-        const contrastAdjustedValue = Math.pow(normalizedValue, 0.82);
+        const contrastAdjustedValue = Math.pow(normalizedValue, contrastGamma);
         cells.push({ x: column * cellSize, y: row * cellSize, value: contrastAdjustedValue });
       }
     }
