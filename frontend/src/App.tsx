@@ -6323,10 +6323,10 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
   const [viewMode, setViewMode] = useState<'heatmap' | 'points'>('heatmap');
 
   const densityCells = useMemo(() => {
-    const cellSize = 8;
+    const cellSize = 6;
     const columns = Math.ceil(width / cellSize);
     const rows = Math.ceil(height / cellSize);
-    const influenceRadius = points.length > 2800 ? 4 : points.length > 1400 ? 5 : 6;
+    const influenceRadius = points.length > 2800 ? 3 : points.length > 1400 ? 4 : 5;
     const kernel: number[] = [];
 
     for (let dy = -influenceRadius; dy <= influenceRadius; dy += 1) {
@@ -6358,9 +6358,13 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     }
 
     let maxDensity = 0;
+    const nonZeroDensity: number[] = [];
     for (const value of density) {
       if (value > maxDensity) {
         maxDensity = value;
+      }
+      if (value > 0) {
+        nonZeroDensity.push(value);
       }
     }
 
@@ -6368,17 +6372,25 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       return [] as Array<{ x: number; y: number; value: number }>;
     }
 
+    // Normalize against a high percentile instead of the absolute max.
+    // This avoids one stationary hotspot dominating the entire map.
+    nonZeroDensity.sort((a, b) => a - b);
+    const saturationIndex = Math.floor(nonZeroDensity.length * 0.97);
+    const saturationDensity = nonZeroDensity[Math.min(nonZeroDensity.length - 1, saturationIndex)] ?? maxDensity;
+    const normalizationBase = Math.max(saturationDensity, maxDensity * 0.35);
+
     const cells: Array<{ x: number; y: number; value: number }> = [];
-    const minThreshold = 0.025;
+    const minThreshold = 0.015;
 
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
-        const normalizedValue = density[(row * columns) + column] / maxDensity;
+        const normalizedValue = Math.min(1, density[(row * columns) + column] / normalizationBase);
         if (normalizedValue < minThreshold) {
           continue;
         }
 
-        cells.push({ x: column * cellSize, y: row * cellSize, value: normalizedValue });
+        const contrastAdjustedValue = Math.pow(normalizedValue, 0.82);
+        cells.push({ x: column * cellSize, y: row * cellSize, value: contrastAdjustedValue });
       }
     }
 
@@ -6387,12 +6399,11 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
 
   const colorForDensity = useCallback((value: number) => {
     const clamped = Math.max(0, Math.min(1, value));
-    if (clamped < 0.16) return `rgba(12, 101, 255, ${0.26 + (clamped * 1.65)})`;
-    if (clamped < 0.34) return `rgba(0, 195, 255, ${0.34 + ((clamped - 0.16) * 2.05)})`;
-    if (clamped < 0.52) return `rgba(20, 237, 124, ${0.5 + ((clamped - 0.34) * 1.72)})`;
-    if (clamped < 0.7) return `rgba(235, 237, 24, ${0.62 + ((clamped - 0.52) * 1.95)})`;
-    if (clamped < 0.86) return `rgba(255, 137, 19, ${0.74 + ((clamped - 0.7) * 1.58)})`;
-    return `rgba(224, 36, 25, ${0.95 + ((clamped - 0.86) * 0.45)})`;
+    if (clamped < 0.18) return `rgba(26, 216, 158, ${0.22 + (clamped * 1.4)})`;
+    if (clamped < 0.4) return `rgba(37, 230, 172, ${0.4 + ((clamped - 0.18) * 1.25)})`;
+    if (clamped < 0.62) return `rgba(255, 211, 76, ${0.58 + ((clamped - 0.4) * 1.15)})`;
+    if (clamped < 0.82) return `rgba(255, 152, 62, ${0.7 + ((clamped - 0.62) * 1.2)})`;
+    return `rgba(243, 83, 66, ${0.84 + ((clamped - 0.82) * 0.75)})`;
   }, []);
 
   const shouldRenderPointMarkers = points.length <= 2500;
