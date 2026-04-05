@@ -5783,6 +5783,7 @@ function findNearestPointIndexBySecond(points: Array<GpsTrackpoint & { elapsedSe
 type HeatmapLayerProps = {
   width: number;
   height: number;
+  cellSize: number;
   densityCells: Array<{ x: number; y: number; value: number }>;
   screenPoints: Array<{ x: number; y: number }>;
   shouldRenderPointMarkers: boolean;
@@ -6284,20 +6285,23 @@ function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples,
   );
 }
 
-const HeatmapLayer = memo(function HeatmapLayer({ width, height, densityCells, screenPoints, shouldRenderPointMarkers, viewMode, colorForDensity }: HeatmapLayerProps) {
+const HeatmapLayer = memo(function HeatmapLayer({ width, height, cellSize, densityCells, screenPoints, shouldRenderPointMarkers, viewMode, colorForDensity }: HeatmapLayerProps) {
   return (
     <>
-      {viewMode === 'heatmap' ? densityCells.map((cell) => (
-        <rect
-          key={`${cell.x}-${cell.y}`}
-          x={cell.x}
-          y={cell.y}
-          width="8"
-          height="8"
-          fill={colorForDensity(cell.value)}
-          className="gps-heatmap__cell"
-        />
-      )) : (
+      {viewMode === 'heatmap' ? (
+        <g className="gps-heatmap__layer">
+          {densityCells.map((cell) => (
+            <circle
+              key={`${cell.x}-${cell.y}`}
+              cx={cell.x + (cellSize / 2)}
+              cy={cell.y + (cellSize / 2)}
+              r={cellSize * 0.72}
+              fill={colorForDensity(cell.value)}
+              className="gps-heatmap__cell"
+            />
+          ))}
+        </g>
+      ) : (
         <>
           <polyline
             points={screenPoints.map((point) => `${point.x},${point.y}`).join(' ')}
@@ -6321,9 +6325,10 @@ const HeatmapLayer = memo(function HeatmapLayer({ width, height, densityCells, s
 function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, viewHeatmapLabel, viewPointsLabel, sessionId }: GpsPointHeatmapProps) {
   const { width, height, screenPoints, satelliteImageUrl } = useMapProjection(points, minLatitude, maxLatitude, minLongitude, maxLongitude);
   const [viewMode, setViewMode] = useState<'heatmap' | 'points'>('heatmap');
+  const heatmapCellSize = 6;
 
   const densityCells = useMemo(() => {
-    const cellSize = 6;
+    const cellSize = heatmapCellSize;
     const columns = Math.ceil(width / cellSize);
     const rows = Math.ceil(height / cellSize);
     const influenceRadius = points.length > 2800 ? 3 : points.length > 1400 ? 4 : 5;
@@ -6398,7 +6403,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     }
 
     return cells;
-  }, [height, points.length, screenPoints, width]);
+  }, [heatmapCellSize, height, points.length, screenPoints, width]);
 
   const colorForDensity = useCallback((value: number) => {
     const clamped = Math.max(0, Math.min(1, value));
@@ -6424,7 +6429,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       <InteractiveMap zoomInLabel={zoomInLabel} zoomOutLabel={zoomOutLabel} zoomResetLabel={zoomResetLabel} sessionId={sessionId} ariaLabel="GPS point heatmap">
         {() => (
           <MapSurface width={width} height={height} satelliteImageUrl={satelliteImageUrl}>
-            <HeatmapLayer width={width} height={height} densityCells={densityCells} screenPoints={screenPoints} shouldRenderPointMarkers={shouldRenderPointMarkers} viewMode={viewMode} colorForDensity={colorForDensity} />
+            <HeatmapLayer width={width} height={height} cellSize={heatmapCellSize} densityCells={densityCells} screenPoints={screenPoints} shouldRenderPointMarkers={shouldRenderPointMarkers} viewMode={viewMode} colorForDensity={colorForDensity} />
           </MapSurface>
         )}
       </InteractiveMap>

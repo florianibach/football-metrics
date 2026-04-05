@@ -654,8 +654,12 @@ button:disabled {
 
 .gps-heatmap__cell {
   shape-rendering: geometricPrecision;
-  filter: blur(2.6px);
-  mix-blend-mode: normal;
+  filter: blur(1.4px);
+  mix-blend-mode: screen;
+}
+
+.gps-heatmap__layer {
+  isolation: isolate;
 }
 
 .gps-heatmap__point-marker {
