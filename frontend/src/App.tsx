@@ -5783,6 +5783,7 @@ function findNearestPointIndexBySecond(points: Array<GpsTrackpoint & { elapsedSe
 type HeatmapLayerProps = {
   width: number;
   height: number;
+  cellSize: number;
   densityCells: Array<{ x: number; y: number; value: number }>;
   screenPoints: Array<{ x: number; y: number }>;
   shouldRenderPointMarkers: boolean;
@@ -6284,20 +6285,23 @@ function SegmentationAssistant({ points, bounds, cursorSecond, heartRateSamples,
   );
 }
 
-const HeatmapLayer = memo(function HeatmapLayer({ width, height, densityCells, screenPoints, shouldRenderPointMarkers, viewMode, colorForDensity }: HeatmapLayerProps) {
+const HeatmapLayer = memo(function HeatmapLayer({ width, height, cellSize, densityCells, screenPoints, shouldRenderPointMarkers, viewMode, colorForDensity }: HeatmapLayerProps) {
   return (
     <>
-      {viewMode === 'heatmap' ? densityCells.map((cell) => (
-        <rect
-          key={`${cell.x}-${cell.y}`}
-          x={cell.x}
-          y={cell.y}
-          width="8"
-          height="8"
-          fill={colorForDensity(cell.value)}
-          className="gps-heatmap__cell"
-        />
-      )) : (
+      {viewMode === 'heatmap' ? (
+        <g className="gps-heatmap__layer">
+          {densityCells.map((cell) => (
+            <circle
+              key={`${cell.x}-${cell.y}`}
+              cx={cell.x + (cellSize / 2)}
+              cy={cell.y + (cellSize / 2)}
+              r={cellSize * 0.58}
+              fill={colorForDensity(cell.value)}
+              className="gps-heatmap__cell"
+            />
+          ))}
+        </g>
+      ) : (
         <>
           <polyline
             points={screenPoints.map((point) => `${point.x},${point.y}`).join(' ')}
@@ -6321,12 +6325,19 @@ const HeatmapLayer = memo(function HeatmapLayer({ width, height, densityCells, s
 function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLongitude, zoomInLabel, zoomOutLabel, zoomResetLabel, viewHeatmapLabel, viewPointsLabel, sessionId }: GpsPointHeatmapProps) {
   const { width, height, screenPoints, satelliteImageUrl } = useMapProjection(points, minLatitude, maxLatitude, minLongitude, maxLongitude);
   const [viewMode, setViewMode] = useState<'heatmap' | 'points'>('heatmap');
+  const heatmapCellSize = 6;
 
   const densityCells = useMemo(() => {
-    const cellSize = 8;
+    const cellSize = heatmapCellSize;
     const columns = Math.ceil(width / cellSize);
     const rows = Math.ceil(height / cellSize);
-    const influenceRadius = points.length > 2800 ? 4 : points.length > 1400 ? 5 : 6;
+    const influenceRadius = points.length > 2800 ? 3 : points.length > 1400 ? 4 : 5;
+    const minThreshold = 0.015;
+    const saturationPercentile = 0.97;
+    const minimumSaturationShareOfMax = 0.35;
+    const contrastGamma = 0.9;
+    const percentileBlend = 0.68;
+    const histogramBins = 64;
     const kernel: number[] = [];
 
     for (let dy = -influenceRadius; dy <= influenceRadius; dy += 1) {
@@ -6358,9 +6369,13 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     }
 
     let maxDensity = 0;
+    const nonZeroDensity: number[] = [];
     for (const value of density) {
       if (value > maxDensity) {
         maxDensity = value;
+      }
+      if (value > 0) {
+        nonZeroDensity.push(value);
       }
     }
 
@@ -6368,31 +6383,62 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       return [] as Array<{ x: number; y: number; value: number }>;
     }
 
-    const cells: Array<{ x: number; y: number; value: number }> = [];
-    const minThreshold = 0.025;
+    // Normalize against a high percentile instead of the absolute max.
+    // This avoids one stationary hotspot dominating the entire map.
+    nonZeroDensity.sort((a, b) => a - b);
+    const saturationIndex = Math.floor(nonZeroDensity.length * saturationPercentile);
+    const saturationDensity = nonZeroDensity[Math.min(nonZeroDensity.length - 1, saturationIndex)] ?? maxDensity;
+    const normalizationBase = Math.max(saturationDensity, maxDensity * minimumSaturationShareOfMax);
+
+    const rawCells: Array<{ x: number; y: number; value: number }> = [];
 
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
-        const normalizedValue = density[(row * columns) + column] / maxDensity;
+        const normalizedValue = Math.min(1, density[(row * columns) + column] / normalizationBase);
         if (normalizedValue < minThreshold) {
           continue;
         }
-
-        cells.push({ x: column * cellSize, y: row * cellSize, value: normalizedValue });
+        rawCells.push({ x: column * cellSize, y: row * cellSize, value: normalizedValue });
       }
     }
 
+    if (rawCells.length === 0) {
+      return [] as Array<{ x: number; y: number; value: number }>;
+    }
+
+    // Local concentration visibility:
+    // blend absolute density with percentile rank so isolated runs still show gradients.
+    const histogram = new Uint32Array(histogramBins);
+    for (const cell of rawCells) {
+      const bin = Math.min(histogramBins - 1, Math.floor(cell.value * (histogramBins - 1)));
+      histogram[bin] += 1;
+    }
+
+    const cumulative = new Uint32Array(histogramBins);
+    let runningCount = 0;
+    for (let index = 0; index < histogramBins; index += 1) {
+      runningCount += histogram[index];
+      cumulative[index] = runningCount;
+    }
+
+    const cells = rawCells.map((cell) => {
+      const bin = Math.min(histogramBins - 1, Math.floor(cell.value * (histogramBins - 1)));
+      const percentile = cumulative[bin] / rawCells.length;
+      const blendedValue = ((1 - percentileBlend) * cell.value) + (percentileBlend * percentile);
+      const contrastAdjustedValue = Math.pow(blendedValue, contrastGamma);
+      return { x: cell.x, y: cell.y, value: contrastAdjustedValue };
+    });
+
     return cells;
-  }, [height, points.length, screenPoints, width]);
+  }, [heatmapCellSize, height, points.length, screenPoints, width]);
 
   const colorForDensity = useCallback((value: number) => {
     const clamped = Math.max(0, Math.min(1, value));
-    if (clamped < 0.16) return `rgba(12, 101, 255, ${0.26 + (clamped * 1.65)})`;
-    if (clamped < 0.34) return `rgba(0, 195, 255, ${0.34 + ((clamped - 0.16) * 2.05)})`;
-    if (clamped < 0.52) return `rgba(20, 237, 124, ${0.5 + ((clamped - 0.34) * 1.72)})`;
-    if (clamped < 0.7) return `rgba(235, 237, 24, ${0.62 + ((clamped - 0.52) * 1.95)})`;
-    if (clamped < 0.86) return `rgba(255, 137, 19, ${0.74 + ((clamped - 0.7) * 1.58)})`;
-    return `rgba(224, 36, 25, ${0.95 + ((clamped - 0.86) * 0.45)})`;
+    if (clamped < 0.18) return `rgba(26, 216, 158, ${0.22 + (clamped * 1.4)})`;
+    if (clamped < 0.4) return `rgba(37, 230, 172, ${0.4 + ((clamped - 0.18) * 1.25)})`;
+    if (clamped < 0.62) return `rgba(255, 211, 76, ${0.58 + ((clamped - 0.4) * 1.15)})`;
+    if (clamped < 0.82) return `rgba(255, 152, 62, ${0.7 + ((clamped - 0.62) * 1.2)})`;
+    return `rgba(243, 83, 66, ${0.84 + ((clamped - 0.82) * 0.75)})`;
   }, []);
 
   const shouldRenderPointMarkers = points.length <= 2500;
@@ -6410,7 +6456,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
       <InteractiveMap zoomInLabel={zoomInLabel} zoomOutLabel={zoomOutLabel} zoomResetLabel={zoomResetLabel} sessionId={sessionId} ariaLabel="GPS point heatmap">
         {() => (
           <MapSurface width={width} height={height} satelliteImageUrl={satelliteImageUrl}>
-            <HeatmapLayer width={width} height={height} densityCells={densityCells} screenPoints={screenPoints} shouldRenderPointMarkers={shouldRenderPointMarkers} viewMode={viewMode} colorForDensity={colorForDensity} />
+            <HeatmapLayer width={width} height={height} cellSize={heatmapCellSize} densityCells={densityCells} screenPoints={screenPoints} shouldRenderPointMarkers={shouldRenderPointMarkers} viewMode={viewMode} colorForDensity={colorForDensity} />
           </MapSurface>
         )}
       </InteractiveMap>
