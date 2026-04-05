@@ -654,7 +654,7 @@ button:disabled {
 
 .gps-heatmap__cell {
   shape-rendering: geometricPrecision;
-  filter: blur(1.4px);
+  filter: blur(1px);
   mix-blend-mode: screen;
 }
 

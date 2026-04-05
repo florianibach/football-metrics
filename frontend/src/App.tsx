@@ -6295,7 +6295,7 @@ const HeatmapLayer = memo(function HeatmapLayer({ width, height, cellSize, densi
               key={`${cell.x}-${cell.y}`}
               cx={cell.x + (cellSize / 2)}
               cy={cell.y + (cellSize / 2)}
-              r={cellSize * 0.72}
+              r={cellSize * 0.58}
               fill={colorForDensity(cell.value)}
               className="gps-heatmap__cell"
             />
@@ -6335,7 +6335,9 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     const minThreshold = 0.015;
     const saturationPercentile = 0.97;
     const minimumSaturationShareOfMax = 0.35;
-    const contrastGamma = 0.82;
+    const contrastGamma = 0.9;
+    const percentileBlend = 0.68;
+    const histogramBins = 64;
     const kernel: number[] = [];
 
     for (let dy = -influenceRadius; dy <= influenceRadius; dy += 1) {
@@ -6388,7 +6390,7 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
     const saturationDensity = nonZeroDensity[Math.min(nonZeroDensity.length - 1, saturationIndex)] ?? maxDensity;
     const normalizationBase = Math.max(saturationDensity, maxDensity * minimumSaturationShareOfMax);
 
-    const cells: Array<{ x: number; y: number; value: number }> = [];
+    const rawCells: Array<{ x: number; y: number; value: number }> = [];
 
     for (let row = 0; row < rows; row += 1) {
       for (let column = 0; column < columns; column += 1) {
@@ -6396,11 +6398,36 @@ function GpsPointHeatmap({ points, minLatitude, maxLatitude, minLongitude, maxLo
         if (normalizedValue < minThreshold) {
           continue;
         }
-
-        const contrastAdjustedValue = Math.pow(normalizedValue, contrastGamma);
-        cells.push({ x: column * cellSize, y: row * cellSize, value: contrastAdjustedValue });
+        rawCells.push({ x: column * cellSize, y: row * cellSize, value: normalizedValue });
       }
     }
+
+    if (rawCells.length === 0) {
+      return [] as Array<{ x: number; y: number; value: number }>;
+    }
+
+    // Local concentration visibility:
+    // blend absolute density with percentile rank so isolated runs still show gradients.
+    const histogram = new Uint32Array(histogramBins);
+    for (const cell of rawCells) {
+      const bin = Math.min(histogramBins - 1, Math.floor(cell.value * (histogramBins - 1)));
+      histogram[bin] += 1;
+    }
+
+    const cumulative = new Uint32Array(histogramBins);
+    let runningCount = 0;
+    for (let index = 0; index < histogramBins; index += 1) {
+      runningCount += histogram[index];
+      cumulative[index] = runningCount;
+    }
+
+    const cells = rawCells.map((cell) => {
+      const bin = Math.min(histogramBins - 1, Math.floor(cell.value * (histogramBins - 1)));
+      const percentile = cumulative[bin] / rawCells.length;
+      const blendedValue = ((1 - percentileBlend) * cell.value) + (percentileBlend * percentile);
+      const contrastAdjustedValue = Math.pow(blendedValue, contrastGamma);
+      return { x: cell.x, y: cell.y, value: contrastAdjustedValue };
+    });
 
     return cells;
   }, [heatmapCellSize, height, points.length, screenPoints, width]);
